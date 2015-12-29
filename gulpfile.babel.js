@@ -38,9 +38,11 @@ import pkg from './package.json';
 const $ = gulpLoadPlugins();
 const reload = browserSync.reload;
 
+var app = '/haukeschultz';
+
 // Lint JavaScript
 gulp.task('lint', () =>
-  gulp.src('app/haukeschultz/scripts/**/*.js')
+  gulp.src('app' + app + '/scripts/**/*.js')
     .pipe($.eslint())
     .pipe($.eslint.format())
     .pipe($.if(!browserSync.active, $.eslint.failOnError()))
@@ -48,24 +50,24 @@ gulp.task('lint', () =>
 
 // Optimize images
 gulp.task('images', () =>
-  gulp.src('app/haukeschultz/images/**/*')
+  gulp.src('app' + app + '/images/**/*')
     .pipe($.cache($.imagemin({
       progressive: true,
       interlaced: true
     })))
-    .pipe(gulp.dest('dist/haukeschultz/images'))
+    .pipe(gulp.dest('dist' + app + '/images'))
     .pipe($.size({title: 'images'}))
 );
 
 // Copy all files at the root level (app)
 gulp.task('copy', () =>
   gulp.src([
-    'app/haukeschultz/*',
-    '!app/haukeschultz/*.html',
+    'app' + app + '/*',
+    '!app' + app + '/*.html',
     'node_modules/apache-server-configs/dist/.htaccess'
   ], {
     dot: true
-  }).pipe(gulp.dest('dist/haukeschultz'))
+  }).pipe(gulp.dest('dist' + app))
     .pipe($.size({title: 'copy'}))
 );
 
@@ -85,8 +87,8 @@ gulp.task('styles', () => {
 
   // For best performance, don't add Sass partials to `gulp.src`
   return gulp.src([
-    'app/haukeschultz/styles/**/*.scss',
-    'app/haukeschultz/styles/**/*.css'
+    'app' + app + '/styles/**/*.scss',
+    'app' + app + '/styles/**/*.css'
   ])
     .pipe($.newer('.tmp/haukeschultz/styles'))
     .pipe($.sourcemaps.init())
@@ -94,12 +96,12 @@ gulp.task('styles', () => {
       precision: 10
     }).on('error', $.sass.logError))
     .pipe($.autoprefixer(AUTOPREFIXER_BROWSERS))
-    .pipe(gulp.dest('.tmp/haukeschultz/styles'))
+    .pipe(gulp.dest('.tmp' + app + '/styles'))
     // Concatenate and minify styles
     .pipe($.if('*.css', $.minifyCss()))
     .pipe($.size({title: 'styles'}))
     .pipe($.sourcemaps.write('./'))
-    .pipe(gulp.dest('dist/haukeschultz/styles'));
+    .pipe(gulp.dest('dist' + app + '/styles'));
 });
 
 // Concatenate and minify JavaScript. Optionally transpiles ES2015 code to ES5.
@@ -110,30 +112,30 @@ gulp.task('scripts', () =>
       // Note: Since we are not using useref in the scripts build pipeline,
       //       you need to explicitly list your scripts here in the right order
       //       to be correctly concatenated
-      './app/haukeschultz/scripts/main.js'
+      './app' + app + '/scripts/main.js'
       // Other scripts
     ])
-      .pipe($.newer('.tmp/haukeschultz/scripts'))
+      .pipe($.newer('.tmp' + app + '/scripts'))
       .pipe($.sourcemaps.init())
       .pipe($.babel())
       .pipe($.sourcemaps.write())
-      .pipe(gulp.dest('.tmp/haukeschultz/scripts'))
-      .pipe($.concat('main.min.js'))
+      .pipe(gulp.dest('.tmp' + app + '/scripts'))
+      .pipe($.concat('main.min.j' + app + 's'))
       .pipe($.uglify({preserveComments: 'some'}))
       // Output files
       .pipe($.size({title: 'scripts'}))
       .pipe($.sourcemaps.write('.'))
-      .pipe(gulp.dest('dist/haukeschultz/scripts'))
+      .pipe(gulp.dest('dist' + app + '/scripts'))
 );
 
 // Scan your HTML for assets & optimize them
 gulp.task('html', () => {
-  return gulp.src('app/haukeschultz/**/*.html')
+  return gulp.src('app' + app + '/**/*.html')
     .pipe($.useref({searchPath: '{.tmp,app}'}))
     // Remove any unused CSS
     .pipe($.if('*.css', $.uncss({
       html: [
-        'app/haukeschultz/index.html'
+        'app' + app + '/index.html'
       ],
       // CSS Selectors for UnCSS to ignore
       ignore: []
@@ -147,7 +149,7 @@ gulp.task('html', () => {
     .pipe($.if('*.html', $.minifyHtml()))
     // Output files
     .pipe($.if('*.html', $.size({title: 'html', showFiles: true})))
-    .pipe(gulp.dest('dist/haukeschultz'));
+    .pipe(gulp.dest('dist' + app));
 });
 
 // Clean output directory
@@ -165,14 +167,14 @@ gulp.task('serve', ['scripts', 'styles'], () => {
     // Note: this uses an unsigned certificate which on first access
     //       will present a certificate warning in the browser.
     // https: true,
-    server: ['.tmp', 'app'],
+    server: ['.tmp' + app, 'app' + app],
     port: 3000
   });
 
-  gulp.watch(['app/**/*.html'], reload);
-  gulp.watch(['app/styles/**/*.{scss,css}'], ['styles', reload]);
-  gulp.watch(['app/scripts/**/*.js'], ['lint', 'scripts']);
-  gulp.watch(['app/images/**/*'], reload);
+  gulp.watch(['app' + app + '/**/*.html'], reload);
+  gulp.watch(['app' + app + '/styles/**/*.{scss,css}'], ['styles', reload]);
+  gulp.watch(['app' + app + '/scripts/**/*.js'], ['lint', 'scripts']);
+  gulp.watch(['app' + app + '/images/**/*'], reload);
 });
 
 // Build and serve the output from the dist build
@@ -199,6 +201,17 @@ gulp.task('default', ['clean'], cb =>
     cb
   )
 );
+
+
+gulp.task('haukeschultz', ['default'], () => {
+});
+
+gulp.task('godsofhate', ['set-godsofhate', 'default'], () => {
+});
+
+gulp.task('set-godsofhate', () => {
+  app = '/godsofhate';
+});
 
 // Run PageSpeed Insights
 gulp.task('pagespeed', cb =>
