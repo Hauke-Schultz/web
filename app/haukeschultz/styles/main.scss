@@ -1,0 +1,49 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+*, *:before, *:after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  min-height: 100%;
+  background: #222;
+  color: #eee;
+  font-family: arial,sans-serif;
+  font-size: 12px;
+  padding: 5%;
+}
+
+p, span, a {
+  color: #eee;
+  font-family: arial,sans-serif;
+  font-size: 12px;
+}
+
+h1 {
+  text-shadow:
+          1px 1px 0 #f39,
+          1px 0 0 #3f9,
+          0 1px 0 #3f9,
+          1px -1px 0 #3f9,
+          -1px 1px 0 #3f9,
+          -1px -1px 0 #3f9,
+          -1px 0 0 #3f9,
+          0 -1px 0 #3f9,
+          0 15px 15px rgba(0, 0, 0, 0.8);
+  font: 5em/1em arial,sans-serif;
+  color: #777;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translateX(-50%) translateY(-50%);
+}
