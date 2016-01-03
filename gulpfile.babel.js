@@ -202,15 +202,28 @@ gulp.task('default', ['clean'], cb =>
   )
 );
 
+gulp.task('default:styles', ['clean'], cb =>
+  runSequence(
+    'styles',
+    ['html', 'images', 'copy'],
+    cb
+  )
+);
+
 
 gulp.task('haukeschultz', ['default'], () => {
 });
 
 gulp.task('godsofhate', ['set-godsofhate', 'default'], () => {
 });
-
 gulp.task('set-godsofhate', () => {
   app = '/godsofhate';
+});
+
+gulp.task('alpha', ['set-alpha', 'default:styles'], () => {
+});
+gulp.task('set-alpha', () => {
+  app = '/alpha';
 });
 
 // Run PageSpeed Insights
