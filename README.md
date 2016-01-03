@@ -6,9 +6,10 @@ Playground
 
 #alpha
 
+Simple mobile first grid system.
+
 - normalize.css
-- aplha.scss
-  - simple mobile first grid system
+- alpha.scss
 
 #haukeschultz
 
