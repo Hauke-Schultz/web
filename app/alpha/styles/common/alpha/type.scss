@@ -1,0 +1,56 @@
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-family-serif;
+  font-weight: $font-weight-bold;
+  line-height: $font-line-height;
+  color: $color-black;
+}
+
+h1 {
+  font-size: 2.5em;
+  text-transform: uppercase;
+}
+
+h2 {
+  font-size: 2.2em;
+}
+
+h3 {
+  font-size: 1.8em;
+}
+
+h4, h5, h6 {
+  font-size: 1.2em;
+}
+
+
+p {
+  margin: 0;
+}
+
+small {
+  font-size: 75%;
+}
+
+strong {
+  font-weight: 700;
+}
+
+// Alignment
+.text-left           { text-align: left; }
+.text-right          { text-align: right; }
+.text-center         { text-align: center; }
+.text-justify        { text-align: justify; }
+.text-nowrap         { white-space: nowrap; }
+.text-underline      { text-decoration: underline; }
+.line-through        { text-decoration: line-through; }
+
+// Transformation
+.text-lowercase      { text-transform: lowercase; }
+.text-uppercase      { text-transform: uppercase; }
+.text-capitalize     { text-transform: capitalize; }
+
+.float-left          { float: left; }
+.float-right         { float: right; }
+.position-relative   { position: relative; }
+.overflow-hidden     { overflow: hidden; }
