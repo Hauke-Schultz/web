@@ -1,16 +1,14 @@
 
-.color-success {
-  color: $brand-success;
-}
+.text-white { color: $color-white; }
+.text-black { color: $color-black; }
+.text-success { color: $color-success; }
+.text-info { color: $color-info; }
+.text-warning { color: $color-warning; }
+.text-error { color: $color-error; }
 
-.color-info {
-  color: $brand-info;
-}
-
-.color-warning {
-  color: $brand-warning;
-}
-
-.color-danger {
-  color: $brand-danger;
-}
+.bg-white { background-color: $color-white; }
+.bg-black { background-color: $color-black; }
+.bg-success { background-color: $color-success; }
+.bg-info { background-color: $color-info; }
+.bg-warning { background-color: $color-warning; }
+.bg-error { background-color: $color-error; }

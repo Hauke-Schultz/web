@@ -1,45 +1,49 @@
 
-h1, h2, h3, h4, h5, h6 {
+.h1, .h2, .h3, .h4, .h5, .h6 {
   font-family: $font-family-serif;
   font-weight: $font-weight-bold;
   line-height: $font-line-height;
   color: $color-black;
 }
 
-h1 {
+.h1 {
   font-size: 2.5em;
   text-transform: uppercase;
 }
 
-h2 {
+.h2 {
   font-size: 2.2em;
 }
 
-h3 {
+.h3 {
   font-size: 1.8em;
 }
 
-h4, h5, h6 {
+.h4, .h5, .h6 {
   font-size: 1.2em;
 }
 
-
-p {
+.p {
   margin: 0;
 }
 
-small {
+.small {
   font-size: 75%;
 }
 
-strong {
+.strong {
   font-weight: 700;
+}
+
+.ul {
+
 }
 
 // Alignment
 .text-left           { text-align: left; }
 .text-right          { text-align: right; }
 .text-center         { text-align: center; }
+.text-middle         { vertical-align: middle; }
 .text-justify        { text-align: justify; }
 .text-nowrap         { white-space: nowrap; }
 .text-underline      { text-decoration: underline; }
@@ -50,7 +54,26 @@ strong {
 .text-uppercase      { text-transform: uppercase; }
 .text-capitalize     { text-transform: capitalize; }
 
+.no-wrap             { white-space: nowrap; }
+
 .float-left          { float: left; }
 .float-right         { float: right; }
 .position-relative   { position: relative; }
 .overflow-hidden     { overflow: hidden; }
+
+.width-100           { width: 100%; }
+.width-50            { width: 50%; }
+
+.margin-small             { margin: $margin-small; }
+.margin-medium            { margin: $margin-medium; }
+.margin-small-left-right  { margin: 0 $margin-small; }
+.margin-medium-left-right { margin: 0 $margin-medium; }
+.margin-small-top-bottom  { margin: $margin-small 0; }
+.margin-medium-top-bottom { margin: $margin-medium 0; }
+
+.padding-small             { padding: $padding-small; }
+.padding-medium            { padding: $padding-medium; }
+.padding-small-left-right  { padding: 0 $padding-small; }
+.padding-medium-left-right { padding: 0 $padding-medium; }
+.padding-small-top-bottom  { padding: $padding-small 0; }
+.padding-medium-top-bottom { padding: $padding-medium 0; }

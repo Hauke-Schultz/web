@@ -1,0 +1,33 @@
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+main,
+menu,
+nav,
+section,
+summary,
+h1, h2, h3, h4, h5, h6,
+p,
+ul,
+ol,
+li,
+a,
+span,
+img,
+strong,
+small,
+table,
+tr,
+td {
+  display: block;
+  padding: 0;
+  margin: 0;
+  font-size: $font-size-normal;
+  line-height: $font-line-height;
+  vertical-align: top;
+  text-align: left;
+}
