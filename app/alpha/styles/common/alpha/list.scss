@@ -1,0 +1,8 @@
+.ul {
+  margin: $margin-small 0;
+  list-style: inside disc;
+}
+.li {
+  display: list-item;
+  padding: 0 0 0 $padding-medium;
+}

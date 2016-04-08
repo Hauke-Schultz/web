@@ -1,0 +1,18 @@
+.table {
+  display: table;
+
+  &.padding {
+    .td {
+      padding: $padding-small;
+    }
+  }
+
+}
+
+.tr {
+  display: table-row;
+}
+
+.td {
+  display: table-cell;
+}

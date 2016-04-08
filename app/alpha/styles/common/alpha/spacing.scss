@@ -1,0 +1,17 @@
+
+.width-100           { width: 100%; }
+.width-50            { width: 50%; }
+
+.margin-small             { margin: $margin-small; }
+.margin-medium            { margin: $margin-medium; }
+.margin-small-left-right  { margin: 0 $margin-small; }
+.margin-medium-left-right { margin: 0 $margin-medium; }
+.margin-small-top-bottom  { margin: $margin-small 0; }
+.margin-medium-top-bottom { margin: $margin-medium 0; }
+
+.padding-small             { padding: $padding-small; }
+.padding-medium            { padding: $padding-medium; }
+.padding-small-left-right  { padding: 0 $padding-small; }
+.padding-medium-left-right { padding: 0 $padding-medium; }
+.padding-small-top-bottom  { padding: $padding-small 0; }
+.padding-medium-top-bottom { padding: $padding-medium 0; }
