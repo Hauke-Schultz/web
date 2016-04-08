@@ -1,0 +1,22 @@
+.form {
+  width: 100%;
+}
+
+.label {
+  display: inline-block;
+  float: left;
+  padding: 0 $padding-small $padding-small 0;
+}
+
+.button,
+.input,
+.optgroup,
+.select,
+.textarea {
+  border: 1px solid $color-black;
+  padding: $padding-small;
+}
+
+.button {
+  background-color: $color-info;
+}

@@ -22,7 +22,15 @@ strong,
 small,
 table,
 tr,
-td {
+td,
+label,
+button,
+input,
+optgroup,
+select,
+textarea {
+  background: transparent none repeat scroll 0 0;
+  border: 0 none;
   color: $color-black;
   display: inline-block;
   padding: 0;
