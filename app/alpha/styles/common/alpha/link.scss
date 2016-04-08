@@ -1,3 +1,9 @@
-
-a {
+.a {
+  color: $color-black;
+  display: inline-block;
+  text-decoration-style: dotted;
+  &:hover, &:focus, &:active {
+    color: $color-black;
+    text-decoration-style: solid;
+  }
 }

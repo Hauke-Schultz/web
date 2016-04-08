@@ -1,0 +1,23 @@
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: $font-family-serif;
+  font-weight: $font-weight-bold;
+  line-height: $font-line-height;
+  color: $color-black;
+}
+
+.h1 {
+  font-size: $font-size-headline;
+  text-transform: uppercase;
+}
+
+.h2 {
+  font-size: ($font-size-headline * 0.85);
+}
+
+.h3 {
+  font-size: ($font-size-headline * 0.7);
+}
+
+.h4, .h5, .h6 {
+  font-size: ($font-size-headline * 0.5);
+}

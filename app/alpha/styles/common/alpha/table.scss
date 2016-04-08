@@ -1,11 +1,5 @@
 .table {
   display: table;
-  .tr {
-    display: table-row;
-  }
-  .td {
-    display: table-cell;
-  }
 
   &.padding {
     .td {
@@ -13,4 +7,12 @@
     }
   }
 
+}
+
+.tr {
+  display: table-row;
+}
+
+.td {
+  display: table-cell;
 }

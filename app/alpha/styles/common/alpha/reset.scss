@@ -23,10 +23,11 @@ small,
 table,
 tr,
 td {
-  display: block;
+  color: $color-black;
+  display: inline-block;
   padding: 0;
   margin: 0;
-  font-size: $font-size-normal;
+  font-size: $font-size-text;
   line-height: $font-line-height;
   vertical-align: top;
   text-align: left;
