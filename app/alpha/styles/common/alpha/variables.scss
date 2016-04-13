@@ -12,10 +12,10 @@ $font-line-height:        1.3;
 
 $margin-small:            5px;
 $margin-medium:           10px;
-$margin-big:              20px;
+$margin-large:            20px;
 $padding-small:           5px;
 $padding-medium:          10px;
-$padding-big:             20px;
+$padding-large:           20px;
 
 // Color
 $color-white:             #ffffff !default;
@@ -25,3 +25,10 @@ $color-success:           #55cc55 !default;
 $color-info:              #55ccdd !default;
 $color-warning:           #ffcc44 !default;
 $color-error:             #ff5533 !default;
+
+
+$screen-mobile-landscape:       480px !default;
+$screen-tablet-portrait:        768px !default;
+$screen-tablet-landscape:       992px !default;
+$screen-desktop:                1200px !default;
+$screen-tv:                     1920px !default;
