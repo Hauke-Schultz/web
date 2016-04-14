@@ -29,6 +29,7 @@
 
 .width-10  { width: 10%; }
 .width-20  { width: 20%; }
+.width-25  { width: 25%; }
 .width-30  { width: 30%; }
 .width-33  { width: 33.3333%; }
 .width-40  { width: 40%; }
@@ -36,12 +37,14 @@
 .width-60  { width: 60%; }
 .width-66  { width: 66.6666%; }
 .width-70  { width: 70%; }
+.width-75  { width: 75%; }
 .width-80  { width: 80%; }
 .width-90  { width: 90%; }
 .width-100 { width: 100%; }
 
 .mobile-landscape-10  { @media (min-width: $screen-mobile-landscape) { width: 10%; } }
 .mobile-landscape-20  { @media (min-width: $screen-mobile-landscape) { width: 20%; } }
+.mobile-landscape-25  { @media (min-width: $screen-mobile-landscape) { width: 25%; } }
 .mobile-landscape-30  { @media (min-width: $screen-mobile-landscape) { width: 30%; } }
 .mobile-landscape-33  { @media (min-width: $screen-mobile-landscape) { width: 33.3333%; } }
 .mobile-landscape-40  { @media (min-width: $screen-mobile-landscape) { width: 40%; } }
@@ -49,12 +52,14 @@
 .mobile-landscape-60  { @media (min-width: $screen-mobile-landscape) { width: 60%; } }
 .mobile-landscape-66  { @media (min-width: $screen-mobile-landscape) { width: 66%; } }
 .mobile-landscape-70  { @media (min-width: $screen-mobile-landscape) { width: 70%; } }
+.mobile-landscape-75  { @media (min-width: $screen-mobile-landscape) { width: 75%; } }
 .mobile-landscape-80  { @media (min-width: $screen-mobile-landscape) { width: 80%; } }
 .mobile-landscape-90  { @media (min-width: $screen-mobile-landscape) { width: 90%; } }
 .mobile-landscape-100 { @media (min-width: $screen-mobile-landscape) { width: 100%; } }
 
 .tablet-portrait-10  { @media (min-width: $screen-tablet-portrait) { width: 10%; } }
 .tablet-portrait-20  { @media (min-width: $screen-tablet-portrait) { width: 20%; } }
+.tablet-portrait-25  { @media (min-width: $screen-tablet-portrait) { width: 25%; } }
 .tablet-portrait-30  { @media (min-width: $screen-tablet-portrait) { width: 30%; } }
 .tablet-portrait-33  { @media (min-width: $screen-tablet-portrait) { width: 33.3333%; } }
 .tablet-portrait-40  { @media (min-width: $screen-tablet-portrait) { width: 40%; } }
@@ -62,12 +67,14 @@
 .tablet-portrait-60  { @media (min-width: $screen-tablet-portrait) { width: 60%; } }
 .tablet-portrait-66  { @media (min-width: $screen-tablet-portrait) { width: 66%; } }
 .tablet-portrait-70  { @media (min-width: $screen-tablet-portrait) { width: 70%; } }
+.tablet-portrait-75  { @media (min-width: $screen-tablet-portrait) { width: 75%; } }
 .tablet-portrait-80  { @media (min-width: $screen-tablet-portrait) { width: 80%; } }
 .tablet-portrait-90  { @media (min-width: $screen-tablet-portrait) { width: 90%; } }
 .tablet-portrait-100 { @media (min-width: $screen-tablet-portrait) { width: 100%; } }
 
 .tablet-landscape-10  { @media (min-width: $screen-tablet-landscape) { width: 10%; } }
 .tablet-landscape-20  { @media (min-width: $screen-tablet-landscape) { width: 20%; } }
+.tablet-landscape-25  { @media (min-width: $screen-tablet-landscape) { width: 25%; } }
 .tablet-landscape-30  { @media (min-width: $screen-tablet-landscape) { width: 30%; } }
 .tablet-landscape-33  { @media (min-width: $screen-tablet-landscape) { width: 33.3333%; } }
 .tablet-landscape-40  { @media (min-width: $screen-tablet-landscape) { width: 40%; } }
@@ -75,12 +82,14 @@
 .tablet-landscape-60  { @media (min-width: $screen-tablet-landscape) { width: 60%; } }
 .tablet-landscape-66  { @media (min-width: $screen-tablet-landscape) { width: 66%; } }
 .tablet-landscape-70  { @media (min-width: $screen-tablet-landscape) { width: 70%; } }
+.tablet-landscape-75  { @media (min-width: $screen-tablet-landscape) { width: 75%; } }
 .tablet-landscape-80  { @media (min-width: $screen-tablet-landscape) { width: 80%; } }
 .tablet-landscape-90  { @media (min-width: $screen-tablet-landscape) { width: 90%; } }
 .tablet-landscape-100 { @media (min-width: $screen-tablet-landscape) { width: 100%; } }
 
 .desktop-10  { @media (min-width: $screen-desktop) { width: 10%; } }
 .desktop-20  { @media (min-width: $screen-desktop) { width: 20%; } }
+.desktop-25  { @media (min-width: $screen-desktop) { width: 25%; } }
 .desktop-30  { @media (min-width: $screen-desktop) { width: 30%; } }
 .desktop-33  { @media (min-width: $screen-desktop) { width: 33.3333%; } }
 .desktop-40  { @media (min-width: $screen-desktop) { width: 40%; } }
@@ -88,12 +97,14 @@
 .desktop-60  { @media (min-width: $screen-desktop) { width: 60%; } }
 .desktop-66  { @media (min-width: $screen-desktop) { width: 66%; } }
 .desktop-70  { @media (min-width: $screen-desktop) { width: 70%; } }
+.desktop-75  { @media (min-width: $screen-desktop) { width: 75%; } }
 .desktop-80  { @media (min-width: $screen-desktop) { width: 80%; } }
 .desktop-90  { @media (min-width: $screen-desktop) { width: 90%; } }
 .desktop-100 { @media (min-width: $screen-desktop) { width: 100%; } }
 
 .tv-10  { @media (min-width: $screen-tv) { width: 10%; } }
 .tv-20  { @media (min-width: $screen-tv) { width: 20%; } }
+.tv-25  { @media (min-width: $screen-tv) { width: 25%; } }
 .tv-30  { @media (min-width: $screen-tv) { width: 30%; } }
 .tv-33  { @media (min-width: $screen-tv) { width: 33.3333%; } }
 .tv-40  { @media (min-width: $screen-tv) { width: 40%; } }
@@ -101,6 +112,7 @@
 .tv-60  { @media (min-width: $screen-tv) { width: 60%; } }
 .tv-66  { @media (min-width: $screen-tv) { width: 66%; } }
 .tv-70  { @media (min-width: $screen-tv) { width: 70%; } }
+.tv-75  { @media (min-width: $screen-tv) { width: 75%; } }
 .tv-80  { @media (min-width: $screen-tv) { width: 80%; } }
 .tv-90  { @media (min-width: $screen-tv) { width: 90%; } }
 .tv-100 { @media (min-width: $screen-tv) { width: 100%; } }

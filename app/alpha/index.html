@@ -100,9 +100,10 @@
                     <span class="bg-success">bg-success</span> adipiscing elit. Aenean commodo <span class="bg-info">bg-info</span> ligula eget dolor.</p>
                 <p class="p">Aenean <span class="text-info">text-info</span> massa. Cum sociis natoque
                     <span class="bg-warning text-error"> bg-warning text-error </span> penatibus <span class="text-warning">text-warning</span>
-                    et magnis dis <span class="text-error">text-error</span> parturient montes, nascetur ridiculus mus.
-                    Donec quam felis, ultricies nec, <span class="bg-error padding-small-left-right">bg-error padding-small-left-right</span>
+                    et magnis dis <span class="text-error ">text-error</span> parturient montes, nascetur ridiculus mus.
+                    Donec quam felis, ultricies nec, <span class="bg-error padding-small-left-right border-radius-small">bg-error padding-small-left-right border-radius-small</span>
                     pellentesque eu, pretium quis, sem.</p>
+                <p class="p text-middle"><span class="span bg-success text-white border-radius-100 padding-medium">42</span> <span class="span bg-info border-radius-50 border-black padding-medium">1234</span> <span class="span bg-warning border-radius-medium padding-medium">Warning message</span></p>
             </td>
         </tr>
         <tr class="tr">
@@ -125,7 +126,7 @@
                 <div class="row">
                     <div class="col width-40 tablet-portrait-20 bg-info">
                         <strong>width-40 tablet-portrait-20</strong><br>
-                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
+                        Lorem ipsum dolor sit amet.
                     </div>
                     <div class="col width-60 tablet-portrait-30 bg-success">
                         <strong>width-60 tablet-portrait-30</strong><br>
@@ -133,8 +134,12 @@
                         Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
                     </div>
                     <div class="col width-100 tablet-portrait-50 bg-warning">
-                        <strong>width-100 tablet-portrait-50</strong><br>
-                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+                        <p class="p padding-large">
+                            <strong>width-100 tablet-portrait-50 padding-large</strong><br>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+                        </p>
                     </div>
                 </div>
             </td>
@@ -148,13 +153,22 @@
                         Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
                     </div>
                     <div class="col width-60 tablet-portrait-30 bg-success">
-                        <strong>width-60 tablet-portrait-30</strong><br>
-                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
-                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
+                        <strong>width-60 tablet-portrait-30 text-justify</strong><br>
+                        <p class="p text-justify">
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor ligula eget dolor.
+                            Lorem ipsum dolor sit amet ipsum dolor sit amet, con con sit amet, con con con consectetuer adi
+                            piscing elit elit.
+                        </p>
+                        <p class="p text-justify">
+                            Foo Faa Dödädü, Aenean commodo ligula eget dolor.
+                            Aenean commodo ligula eget dolor. Aenean commodo ligula eget dolor.
+                        </p>
                     </div>
                     <div class="col width-100 tablet-portrait-50 bg-warning">
-                        <strong>width-100 tablet-portrait-50</strong><br>
-                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+                        <p class="p">
+                            <strong>width-100 tablet-portrait-50</strong><br>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+                        </p>
                     </div>
                 </div>
             </td>
@@ -162,16 +176,25 @@
         <tr class="tr">
             <td class="td text-middle">grid nested</td>
             <td class="td">
-                <div class="row gutter-medium row-middle row-padding-medium" style="background-color: #ddd">
+                <div class="row gutter-large row-middle padding-medium bg-gray-light">
                     <div class="col width-40 tablet-portrait-20">
                         <div class="col width-100 bg-info">
-                            foo
+                            <strong>width-40 tablet-portrait-20</strong><br>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
                         </div>
                     </div>
                     <div class="col width-60 tablet-portrait-30">
                         <div class="col width-100 bg-success">
-                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
-                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
+                            <strong>width-60 tablet-portrait-30 text-justify</strong><br>
+                            <p class="p text-justify">
+                                Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor ligula eget dolor.
+                                Lorem ipsum dolor sit amet ipsum dolor sit amet, con con sit amet, con con con consectetuer adi
+                                piscing elit elit.
+                            </p>
+                            <p class="p text-justify">
+                                Foo Faa Dödädü, Aenean commodo ligula eget dolor.
+                                Aenean commodo ligula eget dolor. Aenean commodo ligula eget dolor.
+                            </p>
                         </div>
                     </div>
                     <div class="col width-100 tablet-portrait-50">
@@ -179,9 +202,39 @@
                             Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
                         </div>
                         <div class="col width-50 bg-error">
-                            <div class="row gutter-medium">
-                                <div class="col width-100">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.</div>
+                            <div class="row">
+                                <div class="col width-100">
+                                    Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
+                                    Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
+                                </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr class="tr">
+            <td class="td text-middle">ratio</td>
+            <td class="td">
+                <div class="row gutter-medium row-padding-medium">
+                    <div class="col width-100 tablet-portrait-25">
+                        <div class="ratio-1x1 bg-info text-center">
+                            ratio-1x1
+                        </div>
+                    </div>
+                    <div class="col width-100 tablet-portrait-25">
+                        <div class="ratio-2x1 bg-info text-center">
+                            ratio-2x1
+                        </div>
+                    </div>
+                    <div class="col width-100 tablet-portrait-25">
+                        <div class="ratio-4x3 bg-info text-center">
+                            ratio-4x3
+                        </div>
+                    </div>
+                    <div class="col width-100 tablet-portrait-25">
+                        <div class="ratio-16x9 bg-info text-center">
+                            ratio-16x9
                         </div>
                     </div>
                 </div>

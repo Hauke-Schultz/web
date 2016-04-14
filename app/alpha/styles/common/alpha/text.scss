@@ -30,3 +30,8 @@
 .float-right         { float: right; }
 .position-relative   { position: relative; }
 .overflow-hidden     { overflow: hidden; }
+
+.border-radius-small { border-radius: $padding-small; }
+.border-radius-medium { border-radius: $padding-medium; }
+.border-radius-100 { border-radius: 100%; }
+.border-radius-50 { border-radius: 50%; }

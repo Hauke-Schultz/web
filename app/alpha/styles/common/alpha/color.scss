@@ -1,6 +1,9 @@
 
 .text-white { color: $color-white; }
 .text-black { color: $color-black; }
+.text-gray-light { color: $color-gray-light; }
+.text-gray { color: $color-gray; }
+.text-gray-dark { color: $color-gray-dark; }
 .text-success { color: $color-success; }
 .text-info { color: $color-info; }
 .text-warning { color: $color-warning; }
@@ -8,7 +11,20 @@
 
 .bg-white { background-color: $color-white; }
 .bg-black { background-color: $color-black; }
+.bg-gray-light { background-color: $color-gray-light; }
+.bg-gray { background-color: $color-gray; }
+.bg-gray-dark { background-color: $color-gray-dark; }
 .bg-success { background-color: $color-success; }
 .bg-info { background-color: $color-info; }
 .bg-warning { background-color: $color-warning; }
 .bg-error { background-color: $color-error; }
+
+.border-white { border: 1px solid $color-white; }
+.border-black { border: 1px solid $color-black; }
+.border-gray-light { border: 1px solid $color-gray-light; }
+.border-gray { border: 1px solid $color-gray; }
+.border-gray-dark { border: 1px solid $color-gray-dark; }
+.border-success { border: 1px solid $color-success; }
+.border-info { border: 1px solid $color-info; }
+.border-warning { border: 1px solid $color-warning; }
+.border-error { border: 1px solid $color-error; }
