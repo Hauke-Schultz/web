@@ -1,3 +1,6 @@
+.div {
+  display: block;
+}
 .span,
 .p {
   display: inline-block;
@@ -30,6 +33,7 @@
 .float-right         { float: right; }
 .position-relative   { position: relative; }
 .overflow-hidden     { overflow: hidden; }
+.vertical-middle     { position: absolute; top: 50%; transform: translateY(-50%); }
 
 .border-radius-small { border-radius: $padding-small; }
 .border-radius-medium { border-radius: $padding-medium; }
