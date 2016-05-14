@@ -111,6 +111,7 @@ gulp.task('scripts', () =>
       // Note: Since we are not using useref in the scripts build pipeline,
       //       you need to explicitly list your scripts here in the right order
       //       to be correctly concatenated
+      './app' + app + '/scripts/jquery.js',
       './app' + app + '/scripts/main.js'
       // Other scripts
     ])
@@ -119,7 +120,7 @@ gulp.task('scripts', () =>
       .pipe($.babel())
       .pipe($.sourcemaps.write())
       .pipe(gulp.dest('.tmp' + app + '/scripts'))
-      .pipe($.concat('main.min.j' + app + 's'))
+      .pipe($.concat('main.min.js'))
       .pipe($.uglify({preserveComments: 'some'}))
       // Output files
       .pipe($.size({title: 'scripts'}))
@@ -204,7 +205,7 @@ gulp.task('default', ['clean'], cb =>
 gulp.task('default:styles', ['clean'], cb =>
   runSequence(
     'styles',
-    ['html', 'images', 'copy'],
+    ['html', 'scripts', 'images', 'copy'],
     cb
   )
 );
@@ -223,6 +224,12 @@ gulp.task('alpha', ['set-alpha', 'default:styles'], () => {
 });
 gulp.task('set-alpha', () => {
   app = '/alpha';
+});
+
+gulp.task('game', ['set-game', 'default:styles'], () => {
+});
+gulp.task('set-game', () => {
+  app = '/game';
 });
 
 // Run PageSpeed Insights
