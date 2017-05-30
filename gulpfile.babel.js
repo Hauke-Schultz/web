@@ -225,6 +225,12 @@ gulp.task('set-alpha', () => {
   app = '/alpha';
 });
 
+gulp.task('schnub-design', ['set-schnub-design', 'default:styles'], () => {
+});
+gulp.task('set-schnub-design', () => {
+  app = '/schnub-design';
+});
+
 // Run PageSpeed Insights
 gulp.task('pagespeed', cb =>
   // Update the below URL to the public URL of your site
