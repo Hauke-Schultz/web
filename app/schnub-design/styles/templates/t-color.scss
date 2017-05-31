@@ -1,0 +1,14 @@
+.t-color {
+  &--black {
+    color: $color-black;
+  }
+  &--white {
+    color: $color-white;
+  }
+  &--light-blue {
+    color: $color-light-blue;
+  }
+  &--light-green {
+    color: $color-light-green;
+  }
+}

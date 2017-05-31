@@ -1,0 +1,68 @@
+// Typography
+
+$font-family-sans-serif: "Helvetica Neue", Helvetica, Arial, sans-serif !default;
+$font-family-serif: "Times New Roman", Times, serif !default;
+$font-family-monospace: Menlo, Monaco, Consolas, "Courier New", monospace !default;
+
+$font-size-text: 14px !default;
+$font-size-headline: 30px !default;
+$font-weight-bold: 700 !default;
+$font-weight-normal: 200 !default;
+$font-line-height: 1.5;
+
+// Color
+
+$color-success: #55cc55 !default;
+$color-info: #55ccdd !default;
+$color-warning: #ffcc44 !default;
+$color-error: #ff5533 !default;
+
+$color-white: #ffffff !default;
+$color-black: #000000 !default;
+
+$color-red: rgba(224, 64, 64, 1);
+$color-cyan: rgba(96, 255, 255, 1);
+$color-magenta: rgba(224, 96, 224, 1);
+$color-green: rgba(64, 224, 64, 1);
+$color-blue: rgba(64, 64, 224, 1);
+$color-yellow: rgba(255, 255, 64, 1);
+$color-orange: rgba(224, 160, 64, 1);
+$color-brown: rgba(156, 116, 72, 1);
+$color-pink: rgba(255, 160, 160, 1);
+$color-dark-grey: rgba(84, 84, 84, 1);
+$color-grey: rgba(136, 136, 136, 1);
+$color-light-green: rgba(160, 255, 160, 1);
+$color-light-blue: rgba(160, 160, 255, 1);
+$color-light-grey: rgba(192, 192, 192, 1);
+
+// Spacing
+
+$margin-small: 5px;
+$margin-medium: 20px;
+$margin-large: 40px;
+$padding-small: $margin-small;
+$padding-medium: $margin-medium;
+$padding-large: $margin-large;
+
+// Grid
+
+$screen-mobile-landscape: 480px !default;
+$screen-tablet-portrait: 768px !default;
+$screen-tablet-landscape: 992px !default;
+$screen-desktop: 1200px !default;
+$screen-desktop-xl: 1600px !default;
+$screen-tv: 1920px !default;
+
+$screen-mobile-height-max: 400px !default;
+$screen-mobile-landscape-max: ($screen-tablet-portrait - 1) !default;
+$screen-tablet-portrait-max: ($screen-tablet-landscape - 1) !default;
+$screen-tablet-landscape-max: ($screen-desktop - 1) !default;
+
+$grid-columns: 12 !default;
+$grid-gutter-min-height: 50px !default;
+$grid-gutter-width: 10px !default;
+$grid-width-mobile: 20px !default;
+$grid-gutter-width-mobile: 10px !default;
+$grid-gutter-width-desktop: 10px !default;
+$grid-row-margin-mobile: -10px !default;
+$grid-row-margin-desktop: -10px !default;
