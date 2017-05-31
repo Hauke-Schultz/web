@@ -1,4 +1,10 @@
 .t-color {
+  &--success {
+    color: $color-success;
+  }
+  &--error {
+    color: $color-error;
+  }
   &--black {
     color: $color-black;
   }

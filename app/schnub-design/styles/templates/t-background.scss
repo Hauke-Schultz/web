@@ -1,4 +1,7 @@
 .t-background {
+  &--success {
+    background-color: lighten($color-success, 30%);
+  }
   &--black {
     background-color: $color-black;
   }
