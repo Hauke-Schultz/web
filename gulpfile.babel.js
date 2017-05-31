@@ -227,6 +227,8 @@ gulp.task('set-alpha', () => {
 
 gulp.task('schnub-design', ['set-schnub-design', 'default:styles'], () => {
 });
+gulp.task('schnub-design:serve', ['set-schnub-design', 'serve'], () => {
+});
 gulp.task('set-schnub-design', () => {
   app = '/schnub-design';
 });

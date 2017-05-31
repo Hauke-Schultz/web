@@ -1,4 +1,3 @@
-
 // Typography
 
 $font-family-sans-serif: "Helvetica Neue", Helvetica, Arial, sans-serif !default;
@@ -10,7 +9,6 @@ $font-size-headline: 30px !default;
 $font-weight-bold: 700 !default;
 $font-weight-normal: 200 !default;
 $font-line-height: 1.5;
-
 
 // Color
 
@@ -37,7 +35,6 @@ $color-light-green: rgba(160, 255, 160, 1);
 $color-light-blue: rgba(160, 160, 255, 1);
 $color-light-grey: rgba(192, 192, 192, 1);
 
-
 // Spacing
 
 $margin-small: 5px;
@@ -47,20 +44,25 @@ $padding-small: $margin-small;
 $padding-medium: $margin-medium;
 $padding-large: $margin-large;
 
-
 // Grid
 
-$screen-mobile-landscape:       480px !default;
-$screen-tablet-portrait:        768px !default;
-$screen-tablet-landscape:       992px !default;
-$screen-desktop:                1200px !default;
-$screen-desktop-xl:             1600px !default;
-$screen-tv:                     1920px !default;
+$screen-mobile-landscape: 480px !default;
+$screen-tablet-portrait: 768px !default;
+$screen-tablet-landscape: 992px !default;
+$screen-desktop: 1200px !default;
+$screen-desktop-xl: 1600px !default;
+$screen-tv: 1920px !default;
 
-$screen-mobile-height-max:      400px !default;
-$screen-mobile-landscape-max:   ($screen-tablet-portrait - 1) !default;
-$screen-tablet-portrait-max:    ($screen-tablet-landscape - 1) !default;
-$screen-tablet-landscape-max:   ($screen-desktop - 1) !default;
+$screen-mobile-height-max: 400px !default;
+$screen-mobile-landscape-max: ($screen-tablet-portrait - 1) !default;
+$screen-tablet-portrait-max: ($screen-tablet-landscape - 1) !default;
+$screen-tablet-landscape-max: ($screen-desktop - 1) !default;
 
-$grid-columns:                  12 !default;
-$grid-gutter-width:             40px !default;
+$grid-columns: 12 !default;
+$grid-gutter-min-height: 50px !default;
+$grid-gutter-width: 10px !default;
+$grid-width-mobile: 20px !default;
+$grid-gutter-width-mobile: 10px !default;
+$grid-gutter-width-desktop: 10px !default;
+$grid-row-margin-mobile: -10px !default;
+$grid-row-margin-desktop: -10px !default;

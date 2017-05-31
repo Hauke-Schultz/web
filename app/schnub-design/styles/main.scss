@@ -1,9 +1,11 @@
 @import "common/variables";
 @import "common/normalize";
 @import "common/reset";
-@import "common/profound-grid";
 @import "common/flat";
+@import "common/grid-system";
 
 @import "templates/t-grid";
 @import "templates/t-row";
 @import "templates/t-col";
+@import "templates/t-color";
+@import "templates/t-background";
