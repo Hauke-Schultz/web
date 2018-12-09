@@ -13,10 +13,13 @@ html {
 }
 
 body {
-  min-height: 100%;
-  background: #222;
+  min-height: 100%;	
+  background: #444;
+  background: 
+    linear-gradient( -20deg, #603, #063 );
+  background-blend-mode: multiply;
   color: #eee;
-  font-family: arial,sans-serif;
+  font-family: arial;
   font-size: 12px;
   padding: 5%;
 }
@@ -28,22 +31,186 @@ p, span, a {
 }
 
 h1 {
-  text-shadow:
-          1px 1px 0 #f39,
-          1px 0 0 #3f9,
-          0 1px 0 #3f9,
-          1px -1px 0 #3f9,
-          -1px 1px 0 #3f9,
-          -1px -1px 0 #3f9,
-          -1px 0 0 #3f9,
-          0 -1px 0 #3f9,
-          0 15px 15px rgba(0, 0, 0, 0.8);
-  font: 5em/1em arial,sans-serif;
+  text-shadow: 
+    1px 1px 0 #f39, 
+    1px 0 0 #3f9, 
+    0 1px 0 #3f9,
+    1px -1px 0 #3f9, 
+    -1px 1px 0 #3f9, 
+    -1px -1px 0 #3f9, 
+    -1px 0 0 #3f9, 
+    0 -1px 0 #3f9, 
+    0 35px 15px rgba(0, 0, 0, 0.8);
+  font: 3em/1em Arial;
   color: #777;
   position: absolute;
   top: 50%;
   left: 50%;
   text-align: center;
   text-transform: uppercase;
-  transform: translateX(-50%) translateY(-50%);
+  transform: translateX(-50%) translateY(-50%) rotate3d(1, 1, 1, 0deg);
+  animation-name: shadow;
+  animation-duration: 20s;
+  animation-iteration-count: 1;
+  perspective: 600px;
+  white-space: nowrap;
+  
+  @media (min-width: 500px) {
+    font: 5em/1em Arial;
+  }
+  
+  &::before {
+    content: "HAUKE SCHULTZ";
+    position: absolute;
+    opacity: 0;
+    overflow: hidden;
+    text-shadow: none;
+    margin: 0;
+    left: 0;
+    width: 100%;
+    height: 30px;
+    overflow: hidden;
+    text-align: center;
+    animation-name: foo1;
+    animation-duration: 8000ms;
+    animation-iteration-count: infinite;
+    transform: translateX(0) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  
+  &::after {
+    content: "HAUKE SCHULTZ";
+    position: absolute;
+    opacity: 0;
+    overflow: hidden;
+    text-shadow: none;
+    margin: 0;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 30px; 
+    line-height: 0;
+    overflow: hidden;
+    text-align: center;
+    animation-name: foo2;
+    animation-duration: 8030ms;
+    animation-iteration-count: infinite;
+    ttransform: translateX(0) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+}
+
+@keyframes foo1 {
+  0% {
+    opacity: 1;
+    color: #777;
+    transform: translateX(0%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  1% { 
+    color: #3f9;
+    transform: translateX(-1%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  2% {
+    color: #f39;
+    transform: translateX(1%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  } 
+  3% {
+    opacity: 0;
+    color: #777;
+    transform: translateX(0) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  10% {
+    opacity: 1;
+    color: #777;
+    transform: translateX(0%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  11% { 
+    color: #3f9;
+    transform: translateX(-1%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  12% {
+    transform: translateX(1%) translateY(0%) rotate3d(1, 1, 1, 0deg);
+  } 
+  13% {
+    opacity: 0;
+    color: #777;
+    transform: translateX(0) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  23.9% { opacity: 0; }
+  24% { opacity: 1; color: #f39; }
+  25% { opacity: 0; color: #000; }
+  33.9% { opacity: 0; }
+  34% { opacity: 1; color: #3f9; }
+  35% { opacity: 0; color: #000; }
+}
+
+@keyframes foo2 {
+  0% {
+    opacity: 1;
+    color: #777;
+    transform: translateX(0%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  1% {
+    color: #3f9;
+    transform: translateX(3%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  2% {
+    transform: translateX(-1%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  3% {
+    opacity: 0; 
+    color: #777;
+    transform: translateX(0) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  10% {
+    opacity: 1;
+    color: #777;
+    transform: translateX(0%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  11% {
+    color: #f39;
+    transform: translateX(1%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  12% {
+    transform: translateX(-3%) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  13% {
+    opacity: 0; 
+    color: #777;
+    transform: translateX(0) translateY(0) rotate3d(1, 1, 1, 0deg);
+  }
+  26.9% { opacity: 0; }
+  27% { opacity: 1; color: #3f9; }
+  28% { opacity: 0; color: #000; }
+  32.9% { opacity: 0; }
+  33% { opacity: 1; color: #f39; }
+  34% { opacity: 0; color: #000; }
+}
+
+@keyframes shadow {
+  0% {
+    text-shadow: 
+    1px 1px 0 #f39, 
+    1px 0 0 #3f9, 
+    0 1px 0 #3f9,
+    1px -1px 0 #3f9, 
+    -1px 1px 0 #3f9, 
+    -1px -1px 0 #3f9, 
+    -1px 0 0 #3f9, 
+    0 -1px 0 #3f9, 
+    0 -35px 15px rgba(0, 0, 0, 0.8);
+    transform: translateX(-50%) translateY(50%) rotate3d(1, 1, 1, 5deg); 
+  }
+  
+  100% {
+    text-shadow: 
+    1px 1px 0 #f39, 
+    1px 0 0 #3f9, 
+    0 1px 0 #3f9,
+    1px -1px 0 #3f9, 
+    -1px 1px 0 #3f9, 
+    -1px -1px 0 #3f9, 
+    -1px 0 0 #3f9, 
+    0 -1px 0 #3f9, 
+    0 35px 15px rgba(0, 0, 0, 0.8);
+    transform: translateX(-50%) translateY(-50%) rotate3d(1, 1, 1, 0deg);
+  }
 }
