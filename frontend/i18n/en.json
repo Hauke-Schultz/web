@@ -1,0 +1,15 @@
+{
+  "nav": {
+    "main": "Main navigation",
+    "home": "Home"
+  },
+  "home": {
+    "title": "Home — MyProject",
+    "description": "Welcome to my website.",
+    "headline": "Welcome",
+    "lead": "A modern web project built with Nuxt 3, Kirby CMS, and multilingual support.",
+    "cta": "Learn more",
+    "intro_title": "About this project",
+    "intro_text": "This website is delivered via Nuxt 3 with server-side rendering. Content is managed through Kirby CMS and is available in both German and English."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "nav": {
+    "main": "Hauptnavigation",
+    "home": "Startseite"
+  },
+  "home": {
+    "title": "Startseite — MyProject",
+    "description": "Willkommen auf meiner Website.",
+    "headline": "Willkommen",
+    "lead": "Ein modernes Web-Projekt mit Nuxt 3, Kirby CMS und mehrsprachiger Unterstützung.",
+    "cta": "Mehr erfahren",
+    "intro_title": "Über dieses Projekt",
+    "intro_text": "Diese Website wird mit Nuxt 3 und serverseitigem Rendering ausgeliefert. Inhalte werden über Kirby CMS gepflegt und stehen auf Deutsch und Englisch zur Verfügung."
+  }
+}
