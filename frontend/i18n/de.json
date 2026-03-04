@@ -1,7 +1,8 @@
 {
   "nav": {
     "main": "Hauptnavigation",
-    "home": "Startseite"
+    "home": "Startseite",
+    "party": "Party"
   },
   "home": {
     "title": "Startseite — MyProject",
@@ -11,5 +12,11 @@
     "cta": "Mehr erfahren",
     "intro_title": "Über dieses Projekt",
     "intro_text": "Diese Website wird mit Nuxt 3 und serverseitigem Rendering ausgeliefert. Inhalte werden über Kirby CMS gepflegt und stehen auf Deutsch und Englisch zur Verfügung."
+  },
+  "party": {
+    "title": "Party — MyProject",
+    "description": "Alle Infos zur Party.",
+    "headline": "Party",
+    "lead": "Hier findest du alle Informationen rund um die Party."
   }
 }

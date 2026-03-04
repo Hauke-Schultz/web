@@ -12,6 +12,7 @@ const localePath = useLocalePath()
 
       <nav class="site-header__nav" :aria-label="t('nav.main')">
         <NuxtLink :to="localePath('/')">{{ t('nav.home') }}</NuxtLink>
+        <NuxtLink :to="localePath('/party')">{{ t('nav.party') }}</NuxtLink>
       </nav>
 
       <div class="site-header__actions">

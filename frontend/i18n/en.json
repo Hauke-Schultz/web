@@ -1,7 +1,8 @@
 {
   "nav": {
     "main": "Main navigation",
-    "home": "Home"
+    "home": "Home",
+    "party": "Party"
   },
   "home": {
     "title": "Home — MyProject",
@@ -11,5 +12,11 @@
     "cta": "Learn more",
     "intro_title": "About this project",
     "intro_text": "This website is delivered via Nuxt 3 with server-side rendering. Content is managed through Kirby CMS and is available in both German and English."
+  },
+  "party": {
+    "title": "Party — MyProject",
+    "description": "All information about the party.",
+    "headline": "Party",
+    "lead": "Here you will find all information about the party."
   }
 }

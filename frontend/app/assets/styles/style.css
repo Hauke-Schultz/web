@@ -12,6 +12,8 @@
   --color-text-muted:   #6b7280;
   --color-primary:      #2563eb;
   --color-primary-hover:#1d4ed8;
+  --color-accent:       #7c3aed;
+  --color-success:      #10b981;
   --color-border:       #e5e7eb;
   --color-focus-ring:   #2563eb;
 
@@ -46,6 +48,8 @@
     --color-text-muted:   #94a3b8;
     --color-primary:      #60a5fa;
     --color-primary-hover:#93c5fd;
+    --color-accent:       #a78bfa;
+    --color-success:      #34d399;
     --color-border:       #334155;
     --color-focus-ring:   #60a5fa;
 
