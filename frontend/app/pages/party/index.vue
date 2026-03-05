@@ -94,10 +94,10 @@ useHead({ title: () => t('party.event.title') })
       <!-- Datum & Countdown -->
       <section class="card card--highlight">
         <div class="cal-visual">
-          <div class="cal-month">{{ calendarMonth(event.date) }}</div>
-          <div class="cal-day">{{ calendarDay(event.date) }}</div>
-          <div class="cal-weekday">{{ calendarWeekday(event.date) }}</div>
-          <div class="cal-time">{{ event.startTime }} – {{ event.endTime }} {{ t('party.countdown.timeUnit') }}</div>
+          <div class="cal-visual__month">{{ calendarMonth(event.date) }}</div>
+          <div class="cal-visual__day">{{ calendarDay(event.date) }}</div>
+          <div class="cal-visual__weekday">{{ calendarWeekday(event.date) }}</div>
+          <div class="cal-visual__time">{{ event.startTime }} – {{ event.endTime }} {{ t('party.countdown.timeUnit') }}</div>
           <div class="countdown">
             <div class="countdown__item">
               <span class="countdown__val">{{ countdown.days }}</span>
@@ -123,10 +123,10 @@ useHead({ title: () => t('party.event.title') })
         <a :href="event.hotelWebsite" target="_blank" rel="noopener" class="card__link">
           {{ event.hotelWebsite }}
         </a>
-        <div class="maps-wrap">
+        <div class="maps">
           <iframe
             :src="mapsEmbed(event.address)"
-            class="maps-iframe"
+            class="maps__iframe"
             allowfullscreen
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
@@ -193,10 +193,10 @@ useHead({ title: () => t('party.event.title') })
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.save.title') }}</h2>
         <p class="card__text">{{ t('party.cards.save.lead') }}</p>
-        <div class="cal-buttons">
-          <button class="cal-btn cal-btn--google" @click="addGoogle">{{ t('party.cards.save.google') }}</button>
-          <button class="cal-btn cal-btn--outlook" @click="addOutlook">{{ t('party.cards.save.outlook') }}</button>
-          <button class="cal-btn cal-btn--apple" @click="downloadIcs">{{ t('party.cards.save.apple') }}</button>
+        <div class="cal-actions">
+          <button class="cal-actions__btn cal-actions__btn--google" @click="addGoogle">{{ t('party.cards.save.google') }}</button>
+          <button class="cal-actions__btn cal-actions__btn--outlook" @click="addOutlook">{{ t('party.cards.save.outlook') }}</button>
+          <button class="cal-actions__btn cal-actions__btn--apple" @click="downloadIcs">{{ t('party.cards.save.apple') }}</button>
         </div>
       </section>
 
@@ -218,32 +218,30 @@ useHead({ title: () => t('party.event.title') })
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .party-page {
   min-height: 100dvh;
   position: relative;
 }
 
-/* Hero */
 .party-hero {
   background: linear-gradient(135deg, var(--color-primary), var(--color-success));
   padding: var(--space-2xl) var(--space-lg);
   text-align: center;
   color: var(--color-white);
+
+  &__title {
+    font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
+    color: var(--color-white);
+    margin-bottom: var(--space-3);
+  }
+
+  &__date {
+    font-size: var(--font-size-lg);
+    opacity: 0.9;
+  }
 }
 
-.party-hero__title {
-  font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
-  color: var(--color-white);
-  margin-bottom: var(--space-3);
-}
-
-.party-hero__date {
-  font-size: var(--font-size-lg);
-  opacity: 0.9;
-}
-
-/* Grid */
 .party-grid {
   display: flex;
   flex-wrap: wrap;
@@ -251,99 +249,44 @@ useHead({ title: () => t('party.event.title') })
   padding-block: 32px;
 }
 
-/* Cards */
-.card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  width: 100%;
-  transition: box-shadow var(--transition-fast), translate var(--transition-fast);
-}
-
-.card:hover {
-  box-shadow: var(--shadow-md);
-  translate: 0 -2px;
-}
-
-.card--flush,
-.card--game    { padding: 0; }
-.card--highlight {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-success));
-  border: none;
-  color: var(--color-white);
-}
-
-@media (min-width: 640px) {
-  .card       { width: calc(50% - 8px); }
-  .card--wide { width: 100%; }
-}
-
-@media (min-width: 1024px) {
-  .card       { width: calc(33.333% - 11px); }
-  .card--wide { width: calc(50% - 8px); }
-}
-
-/* Card content */
-.card__title {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-bold);
-  margin-bottom: var(--space-3);
-}
-
-.card--highlight .card__title { color: var(--color-white); }
-
-.card__subtitle {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  margin-bottom: var(--space-xs);
-}
-
-.card__text {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-sm);
-}
-
-.card__text--pre { white-space: pre-line; }
-
-.card__link {
-  font-size: var(--font-size-sm);
-  word-break: break-all;
-}
-
-/* Calendar visual */
 .cal-visual {
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   color: var(--color-white);
+
+  &__month {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: rgba(255 255 255 / 0.15);
+    border-radius: var(--radius-sm);
+    padding: 6px;
+  }
+
+  &__day {
+    font-size: 5rem;
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+  }
+
+  &__weekday {
+    font-size: var(--font-size-lg);
+    opacity: 0.9;
+  }
+
+  &__time {
+    font-size: var(--font-size-sm);
+    background: rgba(255 255 255 / 0.15);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    display: inline-block;
+    margin: 0 auto;
+  }
 }
 
-.cal-month {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  background: rgba(255 255 255 / 0.15);
-  border-radius: var(--radius-sm);
-  padding: 6px;
-}
-
-.cal-day     { font-size: 5rem; font-weight: var(--font-weight-bold); line-height: 1; }
-.cal-weekday { font-size: var(--font-size-lg); opacity: 0.9; }
-
-.cal-time {
-  font-size: var(--font-size-sm);
-  background: rgba(255 255 255 / 0.15);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  display: inline-block;
-  margin: 0 auto;
-}
-
-/* Countdown */
 .countdown {
   display: flex;
   justify-content: center;
@@ -351,65 +294,92 @@ useHead({ title: () => t('party.event.title') })
   margin-top: var(--space-md);
   padding-top: var(--space-md);
   border-top: 1px solid rgba(255 255 255 / 0.2);
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  &__val {
+    font-size: 1.75rem;
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+  }
+
+  &__label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.85;
+  }
 }
 
-.countdown__item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
-.countdown__val   { font-size: 1.75rem; font-weight: var(--font-weight-bold); line-height: 1; }
-.countdown__label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; }
-
-/* Maps */
-.maps-wrap {
+.maps {
   position: relative;
   margin-top: var(--space-md);
   padding-bottom: 56.25%;
   border-radius: var(--radius-md);
   overflow: hidden;
+
+  &__iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
 }
 
-.maps-iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-/* Program */
-.program { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
-
-.program__item {
+.program {
+  list-style: none;
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  align-items: flex-start;
-  border-left: 3px solid var(--color-accent);
-  padding-left: var(--space-3);
-  font-size: var(--font-size-sm);
+
+  &__item {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+    border-left: 3px solid var(--color-accent);
+    padding-left: var(--space-3);
+    font-size: var(--font-size-sm);
+  }
+
+  &__time {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-accent);
+    min-width: 40px;
+    flex-shrink: 0;
+  }
+
+  &__icon { flex-shrink: 0; }
 }
 
-.program__time  { font-weight: var(--font-weight-bold); color: var(--color-accent); min-width: 40px; flex-shrink: 0; }
-.program__icon  { flex-shrink: 0; }
+.cal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-3);
 
-/* Calendar buttons */
-.cal-buttons { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-3); }
+  &__btn {
+    padding: var(--space-sm) var(--space-5);
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    color: var(--color-white);
+    transition: filter var(--transition-fast), translate var(--transition-fast);
 
-.cal-btn {
-  padding: var(--space-sm) var(--space-5);
-  border: none;
-  border-radius: var(--radius-md);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  color: var(--color-white);
-  transition: filter var(--transition-fast), translate var(--transition-fast);
+    &:hover {
+      filter: brightness(1.1);
+      translate: 0 -1px;
+    }
+
+    &--google  { background: #4285f4; }
+    &--outlook { background: #0078d4; }
+    &--apple   { background: #555; }
+  }
 }
-
-.cal-btn:hover    { filter: brightness(1.1); translate: 0 -1px; }
-.cal-btn--google  { background: #4285f4; }
-.cal-btn--outlook { background: #0078d4; }
-.cal-btn--apple   { background: #555; }
 </style>
