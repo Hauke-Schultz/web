@@ -222,19 +222,19 @@ useHead({ title: () => t('party.event.title') })
 /* Hero */
 .party-hero {
   background: linear-gradient(135deg, var(--color-primary), var(--color-success));
-  padding: 64px 24px;
+  padding: var(--space-2xl) var(--space-lg);
   text-align: center;
   color: #fff;
 }
 
 .party-hero__title {
-  font-size: clamp(1.75rem, 4vw, 3rem);
+  font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
   color: #fff;
   margin-bottom: 12px;
 }
 
 .party-hero__date {
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   opacity: 0.9;
 }
 
@@ -242,7 +242,7 @@ useHead({ title: () => t('party.event.title') })
 .party-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--space-md);
   padding-block: 32px;
 }
 
@@ -251,7 +251,7 @@ useHead({ title: () => t('party.event.title') })
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: var(--space-lg);
   width: 100%;
   transition: box-shadow var(--transition-fast), translate var(--transition-fast);
 }
@@ -261,7 +261,7 @@ useHead({ title: () => t('party.event.title') })
   translate: 0 -2px;
 }
 
-.card--flush   { padding: 0; }
+.card--flush,
 .card--game    { padding: 0; }
 .card--highlight {
   background: linear-gradient(135deg, var(--color-primary), var(--color-success));
@@ -281,29 +281,29 @@ useHead({ title: () => t('party.event.title') })
 
 /* Card content */
 .card__title {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
   margin-bottom: 12px;
 }
 
 .card--highlight .card__title { color: #fff; }
 
 .card__subtitle {
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin-bottom: 4px;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-xs);
 }
 
 .card__text {
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 .card__text--pre { white-space: pre-line; }
 
 .card__link {
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   word-break: break-all;
 }
 
@@ -312,13 +312,13 @@ useHead({ title: () => t('party.event.title') })
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-sm);
   color: #fff;
 }
 
 .cal-month {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 1px;
   background: rgba(255 255 255 / 0.15);
@@ -326,11 +326,11 @@ useHead({ title: () => t('party.event.title') })
   padding: 6px;
 }
 
-.cal-day     { font-size: 5rem; font-weight: 700; line-height: 1; }
-.cal-weekday { font-size: 1.1rem; opacity: 0.9; }
+.cal-day     { font-size: 5rem; font-weight: var(--font-weight-bold); line-height: 1; }
+.cal-weekday { font-size: var(--font-size-lg); opacity: 0.9; }
 
 .cal-time {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   background: rgba(255 255 255 / 0.15);
   border-radius: var(--radius-sm);
   padding: 6px 12px;
@@ -342,9 +342,9 @@ useHead({ title: () => t('party.event.title') })
 .countdown {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  margin-top: 16px;
-  padding-top: 16px;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
   border-top: 1px solid rgba(255 255 255 / 0.2);
 }
 
@@ -352,16 +352,16 @@ useHead({ title: () => t('party.event.title') })
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-xs);
 }
 
-.countdown__val   { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+.countdown__val   { font-size: 1.75rem; font-weight: var(--font-weight-bold); line-height: 1; }
 .countdown__label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; }
 
 /* Maps */
 .maps-wrap {
   position: relative;
-  margin-top: 16px;
+  margin-top: var(--space-md);
   padding-bottom: 56.25%;
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -384,10 +384,10 @@ useHead({ title: () => t('party.event.title') })
   align-items: flex-start;
   border-left: 3px solid var(--color-accent);
   padding-left: 12px;
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
 }
 
-.program__time  { font-weight: 700; color: var(--color-accent); min-width: 40px; flex-shrink: 0; }
+.program__time  { font-weight: var(--font-weight-bold); color: var(--color-accent); min-width: 40px; flex-shrink: 0; }
 .program__icon  { flex-shrink: 0; }
 
 /* Calendar buttons */
@@ -397,7 +397,7 @@ useHead({ title: () => t('party.event.title') })
   padding: 10px 20px;
   border: none;
   border-radius: var(--radius-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   color: #fff;
   transition: filter var(--transition-fast), translate var(--transition-fast);

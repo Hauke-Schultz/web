@@ -328,18 +328,18 @@ const saveNameOnBlur = () => {
 </template>
 
 <style scoped>
-/* ---- Card container (Flip-Mechanismus) ---- */
+/* ---- Card container ---- */
 .level-up-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: var(--radius-lg);
   position: relative;
-	height: 100%;
+  height: 100%;
   min-height: 360px;
   display: flex;
   flex-direction: column;
 }
 
-/* Flip-Vorderseite */
+/* ---- Flip-Seiten ---- */
 .flip-front,
 .flip-back {
   display: flex;
@@ -363,15 +363,15 @@ const saveNameOnBlur = () => {
 .level-display { text-align: center; }
 
 .level-number {
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  font-weight: 700;
+  font-size: clamp(var(--font-size-3xl), 6vw, 4rem);
+  font-weight: var(--font-weight-bold);
   line-height: 1;
   text-shadow: 0 2px 8px rgba(0 0 0 / 0.4);
 }
 
 .level-title {
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   opacity: 0.9;
   min-height: 1.5em;
   margin-top: 6px;
@@ -382,8 +382,8 @@ const saveNameOnBlur = () => {
 .level-up-btn {
   width: 100%;
   padding: 20px;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 2px;
   text-transform: uppercase;
   color: #fff;
@@ -393,7 +393,7 @@ const saveNameOnBlur = () => {
   cursor: pointer;
   user-select: none;
   box-shadow: 0 4px 16px rgba(0 0 0 / 0.25);
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .level-up-btn:hover {
@@ -417,13 +417,13 @@ const saveNameOnBlur = () => {
 
 .flip-btn {
   padding: 6px 12px;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   background: rgba(255 255 255 / 0.2);
   color: #fff;
   border: 1.5px solid rgba(255 255 255 / 0.35);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease;
+  transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
 .flip-btn:hover {
@@ -436,10 +436,10 @@ const saveNameOnBlur = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 10px;
+  padding: var(--space-xs) 10px;
   border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
   background: linear-gradient(135deg, #f093fb, #f5576c);
   border: 2px solid rgba(255 255 255 / 0.8);
@@ -456,7 +456,7 @@ const saveNameOnBlur = () => {
   50%       { box-shadow: 0 0 20px rgba(240 147 251 / 0.9); }
 }
 
-/* ---- Highscore Back ---- */
+/* ---- Highscore Rückseite ---- */
 .hs-header {
   display: flex;
   align-items: center;
@@ -465,18 +465,18 @@ const saveNameOnBlur = () => {
 }
 
 .hs-title {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
 }
 
 .hs-congrats {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   margin: 0;
   line-height: 1.3;
 }
 
 .hs-info {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   margin: 0;
   text-align: center;
   width: 100%;
@@ -490,8 +490,8 @@ const saveNameOnBlur = () => {
 }
 
 .hs-level {
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   white-space: nowrap;
 }
 
@@ -504,7 +504,8 @@ const saveNameOnBlur = () => {
   border: 1.5px solid rgba(255 255 255 / 0.3);
   border-radius: var(--radius-md);
   color: #fff;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
 }
 
 .name-input::placeholder { color: rgba(255 255 255 / 0.55); }
@@ -513,8 +514,8 @@ const saveNameOnBlur = () => {
 /* ---- Submit Button ---- */
 .submit-btn {
   padding: 6px 14px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #fff;
@@ -522,7 +523,7 @@ const saveNameOnBlur = () => {
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -533,14 +534,14 @@ const saveNameOnBlur = () => {
 
 .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ---- Highscore List ---- */
+/* ---- Highscore Liste ---- */
 .hs-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-xs);
 }
 
 .hs-entry {
@@ -550,8 +551,8 @@ const saveNameOnBlur = () => {
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   background: rgba(255 255 255 / 0.1);
-  font-size: 0.9rem;
-  transition: background 150ms ease;
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
 }
 
 .hs-entry:hover { background: rgba(255 255 255 / 0.16); }
@@ -577,17 +578,17 @@ const saveNameOnBlur = () => {
 .hs-entry.top-3 { background: linear-gradient(135deg, rgba(205 127 50 / 0.5), rgba(184 115 51 / 0.5)); border: 1.5px solid rgba(205 127 50 / 0.7); }
 .hs-entry.is-me { outline: 1.5px solid rgba(255 255 255 / 0.5); }
 
-.hs-rank { font-weight: 700; min-width: 24px; }
-.hs-name { flex: 1; font-weight: 500; }
-.hs-lvl  { font-weight: 700; }
+.hs-rank { font-weight: var(--font-weight-bold); min-width: 24px; }
+.hs-name { flex: 1; font-weight: var(--font-weight-medium); }
+.hs-lvl  { font-weight: var(--font-weight-bold); }
 
 /* ---- Show All Button ---- */
 .show-all-btn {
   margin-top: var(--space-sm);
   width: 100%;
-  padding: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  padding: var(--space-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: #fff;
@@ -595,7 +596,7 @@ const saveNameOnBlur = () => {
   border: 1.5px solid rgba(255 255 255 / 0.25);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: background var(--transition-fast);
 }
 
 .show-all-btn:hover { background: rgba(255 255 255 / 0.22); }
@@ -603,7 +604,7 @@ const saveNameOnBlur = () => {
 /* ---- Floating Combo Number (DOM-injiziert) ---- */
 :global(.floating-number) {
   position: absolute;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   pointer-events: none;
   user-select: none;
   z-index: 10;
@@ -612,11 +613,11 @@ const saveNameOnBlur = () => {
   animation: floatUp 1s ease-out forwards;
 }
 
-:global(.floating-number.size-normal) { font-size: 1.2rem; }
-:global(.floating-number.size-small)  { font-size: 1.5rem; }
-:global(.floating-number.size-medium) { font-size: 1.8rem; }
-:global(.floating-number.size-large)  { font-size: 2.2rem; }
-:global(.floating-number.size-huge)   { font-size: 2.7rem; }
+:global(.floating-number.size-normal) { font-size: var(--font-size-xl); }
+:global(.floating-number.size-small)  { font-size: var(--font-size-2xl); }
+:global(.floating-number.size-medium) { font-size: var(--font-size-3xl); }
+:global(.floating-number.size-large)  { font-size: var(--font-size-4xl); }
+:global(.floating-number.size-huge)   { font-size: clamp(var(--font-size-4xl), 5vw, 3rem); }
 
 @keyframes floatUp {
   0%   { opacity: 1; transform: translate(-50%,   0) scale(0.8); }

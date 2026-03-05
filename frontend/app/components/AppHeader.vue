@@ -37,12 +37,12 @@ const localePath = useLocalePath()
   display: flex;
   align-items: center;
   gap: var(--space-lg);
-  height: 60px;
+  height: var(--header-height);
 }
 
 .site-header__logo {
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
   text-decoration: none;
   color: var(--color-text);
   margin-right: auto;
@@ -56,7 +56,7 @@ const localePath = useLocalePath()
 .site-header__nav a {
   text-decoration: none;
   color: var(--color-text-muted);
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
   transition: color var(--transition-fast);
 }
 
