@@ -1,29 +1,32 @@
 <script setup>
-// Party data — later sourced from Kirby CMS
-const party = {
-  title: 'Toni & Hauke Ehe-Challenge Party',
-  date: '2026-07-25',
-  startTime: '16:00',
-  endTime: '03:00',
-  hotelName: 'Hotel Hafen Hamburg',
-  hotelWebsite: 'https://www.hotel-hafen-hamburg.de/',
-  address: 'Seewartenstraße 9, 20459 Hamburg',
-  description: 'Wir haben nicht nur 15 Jahre Ehe-Challenge gemeistert, sondern feiern auch einen weiteren Meilenstein!\n\nToni wurde 50, oder wie sie es ausdrückt: Sie steigt im Wert.\n\nJetzt kommt das Bonuslevel:\nParty! 🥳\n\nKommt und feiert mit uns, wenn wir zusammen weiterleveln – mit Musik, Spaß und ganz viel Konfetti! 🎊',
-  dresscode: 'Nach Belieben – Hauptsache ihr fühlt euch wohl!',
-  program: [
-    { time: '16:00', icon: '🍾', activity: 'Welcome-Drink & Anstoßen' },
-    { time: '17:00', icon: '🍽️', activity: 'Feines Dinner mit guter Gesellschaft' },
-    { time: '19:00', icon: '🎶', activity: "Let's dance! Die Party startet" },
-    { time: '03:00', icon: '😎', activity: 'Last Call – wer bis hier bleibt, ist Legende' },
-  ],
-}
+const { t, tm, rt } = useI18n()
+
+// Event-Daten aus den Übersetzungen
+const event = computed(() => ({
+  title:        t('party.event.title'),
+  date:         t('party.event.date'),
+  startTime:    t('party.event.startTime'),
+  endTime:      t('party.event.endTime'),
+  hotelName:    t('party.event.hotelName'),
+  hotelWebsite: t('party.event.hotelWebsite'),
+  address:      t('party.event.address'),
+  description:  t('party.event.description'),
+  dresscode:    t('party.event.dresscode'),
+}))
+
+const program = computed(() => {
+  const items = tm('party.event.program')
+  return Array.isArray(items)
+    ? items.map(item => ({ time: rt(item.time), icon: rt(item.icon), activity: rt(item.activity) }))
+    : []
+})
 
 // Countdown
 const countdown = ref({ days: 0, hours: 0, minutes: 0 })
 let countdownInterval = null
 
 const updateCountdown = () => {
-  const diff = new Date(`${party.date}T${party.startTime}:00`) - new Date()
+  const diff = new Date(`${event.value.date}T${event.value.startTime}:00`) - new Date()
   if (diff <= 0) { clearInterval(countdownInterval); return }
   countdown.value = {
     days:    Math.floor(diff / 86400000),
@@ -48,22 +51,23 @@ const addGoogle = () => window.open(GOOGLE_CAL_LINK, '_blank')
 
 const addOutlook = () => {
   const u = new URL('https://outlook.live.com/calendar/0/deeplink/compose')
-  u.searchParams.append('subject', party.title)
-  u.searchParams.append('startdt', `${party.date}T${party.startTime}:00`)
-  u.searchParams.append('enddt', `${party.date}T${party.endTime}:00`)
-  u.searchParams.append('location', `${party.hotelName}, ${party.address}`)
+  u.searchParams.append('subject', event.value.title)
+  u.searchParams.append('startdt', `${event.value.date}T${event.value.startTime}:00`)
+  u.searchParams.append('enddt', `${event.value.date}T${event.value.endTime}:00`)
+  u.searchParams.append('location', `${event.value.hotelName}, ${event.value.address}`)
   u.searchParams.append('path', '/calendar/action/compose')
   u.searchParams.append('rru', 'addevent')
   window.open(u.toString(), '_blank')
 }
 
 const downloadIcs = () => {
+  const e = event.value
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT',
-    `DTSTART:${party.date.replace(/-/g,'')}T${party.startTime.replace(':','')}00`,
-    `DTEND:${party.date.replace(/-/g,'')}T${party.endTime.replace(':','')}00`,
-    `SUMMARY:${party.title}`,
-    `LOCATION:${party.hotelName}\\, ${party.address}`,
+    `DTSTART:${e.date.replace(/-/g,'')}T${e.startTime.replace(':','')}00`,
+    `DTEND:${e.date.replace(/-/g,'')}T${e.endTime.replace(':','')}00`,
+    `SUMMARY:${e.title}`,
+    `LOCATION:${e.hotelName}\\, ${e.address}`,
     'END:VEVENT', 'END:VCALENDAR',
   ].join('\n')
   const a = document.createElement('a')
@@ -72,7 +76,7 @@ const downloadIcs = () => {
   a.click()
 }
 
-useHead({ title: party.title })
+useHead({ title: () => t('party.event.title') })
 </script>
 
 <template>
@@ -80,8 +84,8 @@ useHead({ title: party.title })
 
     <!-- Hero -->
     <section class="party-hero">
-      <h1 class="party-hero__title">{{ party.title }}</h1>
-      <p class="party-hero__date">{{ formatDate(party.date) }}</p>
+      <h1 class="party-hero__title">{{ event.title }}</h1>
+      <p class="party-hero__date">{{ formatDate(event.date) }}</p>
     </section>
 
     <!-- Cards Grid -->
@@ -90,22 +94,22 @@ useHead({ title: party.title })
       <!-- Datum & Countdown -->
       <section class="card card--highlight">
         <div class="cal-visual">
-          <div class="cal-month">{{ calendarMonth(party.date) }}</div>
-          <div class="cal-day">{{ calendarDay(party.date) }}</div>
-          <div class="cal-weekday">{{ calendarWeekday(party.date) }}</div>
-          <div class="cal-time">{{ party.startTime }} – {{ party.endTime }} Uhr</div>
+          <div class="cal-month">{{ calendarMonth(event.date) }}</div>
+          <div class="cal-day">{{ calendarDay(event.date) }}</div>
+          <div class="cal-weekday">{{ calendarWeekday(event.date) }}</div>
+          <div class="cal-time">{{ event.startTime }} – {{ event.endTime }} {{ t('party.countdown.timeUnit') }}</div>
           <div class="countdown">
             <div class="countdown__item">
               <span class="countdown__val">{{ countdown.days }}</span>
-              <span class="countdown__label">Tage</span>
+              <span class="countdown__label">{{ t('party.countdown.days') }}</span>
             </div>
             <div class="countdown__item">
               <span class="countdown__val">{{ String(countdown.hours).padStart(2,'0') }}</span>
-              <span class="countdown__label">Stunden</span>
+              <span class="countdown__label">{{ t('party.countdown.hours') }}</span>
             </div>
             <div class="countdown__item">
               <span class="countdown__val">{{ String(countdown.minutes).padStart(2,'0') }}</span>
-              <span class="countdown__label">Minuten</span>
+              <span class="countdown__label">{{ t('party.countdown.minutes') }}</span>
             </div>
           </div>
         </div>
@@ -113,15 +117,15 @@ useHead({ title: party.title })
 
       <!-- Ort -->
       <section class="card">
-        <h2 class="card__title">📍 Ort</h2>
-        <h3 class="card__subtitle">{{ party.hotelName }}</h3>
-        <p class="card__text">{{ party.address }}</p>
-        <a :href="party.hotelWebsite" target="_blank" rel="noopener" class="card__link">
-          {{ party.hotelWebsite }}
+        <h2 class="card__title">{{ t('party.cards.location.title') }}</h2>
+        <h3 class="card__subtitle">{{ event.hotelName }}</h3>
+        <p class="card__text">{{ event.address }}</p>
+        <a :href="event.hotelWebsite" target="_blank" rel="noopener" class="card__link">
+          {{ event.hotelWebsite }}
         </a>
         <div class="maps-wrap">
           <iframe
-            :src="mapsEmbed(party.address)"
+            :src="mapsEmbed(event.address)"
             class="maps-iframe"
             allowfullscreen
             loading="lazy"
@@ -137,15 +141,15 @@ useHead({ title: party.title })
 
       <!-- Intro -->
       <section class="card">
-        <h2 class="card__title">🎉 Intro</h2>
-        <p class="card__text card__text--pre">{{ party.description }}</p>
+        <h2 class="card__title">{{ t('party.cards.intro.title') }}</h2>
+        <p class="card__text card__text--pre">{{ event.description }}</p>
       </section>
 
       <!-- Programm -->
       <section class="card">
-        <h2 class="card__title">📋 Programm</h2>
+        <h2 class="card__title">{{ t('party.cards.program.title') }}</h2>
         <ul class="program">
-          <li v-for="item in party.program" :key="item.time" class="program__item">
+          <li v-for="item in program" :key="item.time" class="program__item">
             <span class="program__time">{{ item.time }}</span>
             <span class="program__icon">{{ item.icon }}</span>
             <span>{{ item.activity }}</span>
@@ -155,39 +159,39 @@ useHead({ title: party.title })
 
       <!-- Dresscode -->
       <section class="card">
-        <h2 class="card__title">👔 Dresscode</h2>
-        <p class="card__text">{{ party.dresscode }}</p>
+        <h2 class="card__title">{{ t('party.cards.dresscode.title') }}</h2>
+        <p class="card__text">{{ event.dresscode }}</p>
       </section>
 
       <!-- Hotel -->
       <section class="card">
-        <h2 class="card__title">🏨 Hotel</h2>
-        <p class="card__text">Ihr möchtet vor Ort übernachten? Das Hotel Hafen Hamburg bietet Zimmer direkt am Veranstaltungsort.</p>
-        <p class="card__text">Aktuelle Preise findet ihr auf der Hotel-Website.</p>
+        <h2 class="card__title">{{ t('party.cards.hotel.title') }}</h2>
+        <p class="card__text">{{ t('party.cards.hotel.text1') }}</p>
+        <p class="card__text">{{ t('party.cards.hotel.text2') }}</p>
       </section>
 
       <!-- Anreise -->
       <section class="card">
-        <h2 class="card__title">🚗 Anreise</h2>
-        <p class="card__text">Das Hotel verfügt über Parkplätze (ca. 25 € / Tag).</p>
-        <p class="card__text">Empfohlen: Anreise mit S-Bahn — Haltestelle Landungsbrücken, 5 Minuten Fußweg.</p>
+        <h2 class="card__title">{{ t('party.cards.travel.title') }}</h2>
+        <p class="card__text">{{ t('party.cards.travel.parking') }}</p>
+        <p class="card__text">{{ t('party.cards.travel.public') }}</p>
       </section>
 
       <!-- Geschenke -->
       <section class="card">
-        <h2 class="card__title">🎁 Geschenke</h2>
-        <p class="card__text">Das größte Geschenk ist eure Anwesenheit!</p>
-        <p class="card__text">Wer trotzdem etwas mitbringen möchte: ein Umschlag freut uns sehr. 🫶</p>
+        <h2 class="card__title">{{ t('party.cards.gifts.title') }}</h2>
+        <p class="card__text">{{ t('party.cards.gifts.text1') }}</p>
+        <p class="card__text">{{ t('party.cards.gifts.text2') }}</p>
       </section>
 
       <!-- Kalender -->
       <section class="card">
-        <h2 class="card__title">📅 Termin speichern</h2>
-        <p class="card__text">Damit du den Tag nicht vergisst:</p>
+        <h2 class="card__title">{{ t('party.cards.save.title') }}</h2>
+        <p class="card__text">{{ t('party.cards.save.lead') }}</p>
         <div class="cal-buttons">
-          <button class="cal-btn cal-btn--google" @click="addGoogle">Google</button>
-          <button class="cal-btn cal-btn--outlook" @click="addOutlook">Outlook</button>
-          <button class="cal-btn cal-btn--apple" @click="downloadIcs">Apple</button>
+          <button class="cal-btn cal-btn--google" @click="addGoogle">{{ t('party.cards.save.google') }}</button>
+          <button class="cal-btn cal-btn--outlook" @click="addOutlook">{{ t('party.cards.save.outlook') }}</button>
+          <button class="cal-btn cal-btn--apple" @click="downloadIcs">{{ t('party.cards.save.apple') }}</button>
         </div>
       </section>
 
