@@ -346,7 +346,7 @@ const saveNameOnBlur = () => {
   flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-lg);
-  color: #fff;
+  color: var(--color-white);
   width: 100%;
   height: 100%;
 }
@@ -381,12 +381,12 @@ const saveNameOnBlur = () => {
 /* ---- Level-Up Button ---- */
 .level-up-btn {
   width: 100%;
-  padding: 20px;
+  padding: var(--space-5);
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--color-white);
   background: linear-gradient(135deg, #f093fb, #f5576c);
   border: none;
   border-radius: var(--radius-md);
@@ -416,10 +416,10 @@ const saveNameOnBlur = () => {
 }
 
 .flip-btn {
-  padding: 6px 12px;
+  padding: var(--space-xs) var(--space-3);
   font-size: var(--font-size-sm);
   background: rgba(255 255 255 / 0.2);
-  color: #fff;
+  color: var(--color-white);
   border: 1.5px solid rgba(255 255 255 / 0.35);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -503,7 +503,7 @@ const saveNameOnBlur = () => {
   background: rgba(255 255 255 / 0.15);
   border: 1.5px solid rgba(255 255 255 / 0.3);
   border-radius: var(--radius-md);
-  color: #fff;
+  color: var(--color-white);
   font-size: var(--font-size-sm);
   font-family: var(--font-sans);
 }
@@ -518,7 +518,7 @@ const saveNameOnBlur = () => {
   font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #fff;
+  color: var(--color-white);
   background: linear-gradient(135deg, #f093fb, #f5576c);
   border: none;
   border-radius: var(--radius-md);
@@ -591,7 +591,7 @@ const saveNameOnBlur = () => {
   font-weight: var(--font-weight-semibold);
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--color-white);
   background: rgba(255 255 255 / 0.12);
   border: 1.5px solid rgba(255 255 255 / 0.25);
   border-radius: var(--radius-md);

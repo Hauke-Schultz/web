@@ -77,10 +77,10 @@ const next = () => go(currentIndex.value + 1)
   top: 50%;
   translate: 0 -50%;
   background: rgba(0 0 0 / 0.35);
-  color: #fff;
+  color: var(--color-white);
   border: none;
-  padding: 12px 16px;
-  font-size: 1.25rem;
+  padding: var(--space-3) var(--space-md);
+  font-size: var(--font-size-xl);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: background var(--transition-fast);
@@ -93,8 +93,8 @@ const next = () => go(currentIndex.value + 1)
 .slider__dots {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-sm);
+  margin-top: var(--space-3);
 }
 
 .slider__dot {

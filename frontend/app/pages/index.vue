@@ -57,18 +57,18 @@ useHead({
   display: inline-block;
   padding: var(--space-sm) var(--space-lg);
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-white);
   text-decoration: none;
   border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: 1rem;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
   width: fit-content;
   transition: background var(--transition-fast);
 }
 
 .btn:hover {
   background: var(--color-primary-hover);
-  color: #fff;
+  color: var(--color-white);
 }
 
 /* --- Intro ------------------------------------------------- */

@@ -224,13 +224,13 @@ useHead({ title: () => t('party.event.title') })
   background: linear-gradient(135deg, var(--color-primary), var(--color-success));
   padding: var(--space-2xl) var(--space-lg);
   text-align: center;
-  color: #fff;
+  color: var(--color-white);
 }
 
 .party-hero__title {
   font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
-  color: #fff;
-  margin-bottom: 12px;
+  color: var(--color-white);
+  margin-bottom: var(--space-3);
 }
 
 .party-hero__date {
@@ -266,7 +266,7 @@ useHead({ title: () => t('party.event.title') })
 .card--highlight {
   background: linear-gradient(135deg, var(--color-primary), var(--color-success));
   border: none;
-  color: #fff;
+  color: var(--color-white);
 }
 
 @media (min-width: 640px) {
@@ -283,10 +283,10 @@ useHead({ title: () => t('party.event.title') })
 .card__title {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
-.card--highlight .card__title { color: #fff; }
+.card--highlight .card__title { color: var(--color-white); }
 
 .card__subtitle {
   font-size: var(--font-size-lg);
@@ -313,7 +313,7 @@ useHead({ title: () => t('party.event.title') })
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .cal-month {
@@ -376,14 +376,14 @@ useHead({ title: () => t('party.event.title') })
 }
 
 /* Program */
-.program { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.program { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
 
 .program__item {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: flex-start;
   border-left: 3px solid var(--color-accent);
-  padding-left: 12px;
+  padding-left: var(--space-3);
   font-size: var(--font-size-sm);
 }
 
@@ -391,15 +391,15 @@ useHead({ title: () => t('party.event.title') })
 .program__icon  { flex-shrink: 0; }
 
 /* Calendar buttons */
-.cal-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.cal-buttons { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-3); }
 
 .cal-btn {
-  padding: 10px 20px;
+  padding: var(--space-sm) var(--space-5);
   border: none;
   border-radius: var(--radius-md);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  color: #fff;
+  color: var(--color-white);
   transition: filter var(--transition-fast), translate var(--transition-fast);
 }
 

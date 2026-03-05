@@ -17,6 +17,8 @@
   --color-success:      #10b981;
   --color-border:       #e5e7eb;
   --color-focus-ring:   #2563eb;
+  --color-white:        #ffffff;
+  --color-black:        #000000;
 
   /* Fonts */
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -47,7 +49,9 @@
   /* Spacing */
   --space-xs:  4px;
   --space-sm:  8px;
+  --space-3:   12px;
   --space-md:  16px;
+  --space-5:   20px;
   --space-lg:  24px;
   --space-xl:  40px;
   --space-2xl: 64px;
