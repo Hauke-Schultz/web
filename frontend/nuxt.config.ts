@@ -7,6 +7,17 @@ export default defineNuxtConfig({
 
   css: ['~/assets/styles/style.css'],
 
+  app: {
+    head: {
+      script: [
+        {
+          innerHTML: `(function(){try{var t=localStorage.getItem('theme')||((window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+          tagPosition: 'head',
+        },
+      ],
+    },
+  },
+
   modules: ['@nuxtjs/i18n'],
 
   i18n: {

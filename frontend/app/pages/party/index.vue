@@ -200,6 +200,11 @@ useHead({ title: () => t('party.event.title') })
         </div>
       </section>
 
+      <!-- RSVP -->
+      <section class="card card--wide card--flush">
+        <PartyRsvp />
+      </section>
+
       <!-- Bilder Slider -->
       <section class="card card--wide card--flush">
         <PartySlider />
@@ -276,7 +281,7 @@ useHead({ title: () => t('party.event.title') })
 
 @media (min-width: 1024px) {
   .card       { width: calc(33.333% - 11px); }
-  .card--wide { width: calc(66.666% - 5px); }
+  .card--wide { width: calc(50% - 8px); }
 }
 
 /* Card content */
