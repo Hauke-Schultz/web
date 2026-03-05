@@ -145,6 +145,11 @@ useHead({ title: () => t('party.event.title') })
         <p class="card__text card__text--pre">{{ event.description }}</p>
       </section>
 
+	    <!-- Level-Up Klickspiel -->
+	    <section class="card card--flush card--game">
+		    <PartyLevelUp />
+	    </section>
+
       <!-- Programm -->
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.program.title') }}</h2>
@@ -256,7 +261,8 @@ useHead({ title: () => t('party.event.title') })
   translate: 0 -2px;
 }
 
-.card--flush   { padding: 0; overflow: hidden; }
+.card--flush   { padding: 0; }
+.card--game    { padding: 0; }
 .card--highlight {
   background: linear-gradient(135deg, var(--color-primary), var(--color-success));
   border: none;
