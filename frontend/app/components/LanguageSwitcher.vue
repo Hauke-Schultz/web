@@ -4,14 +4,15 @@ const switchLocalePath = useSwitchLocalePath()
 </script>
 
 <template>
-  <nav class="lang-switcher" aria-label="Language">
-    <ul role="list">
+  <nav aria-label="Language">
+    <ul role="list" class="flex gap-1 list-none m-0 p-0">
       <li v-for="loc in locales" :key="loc.code">
         <NuxtLink
           :to="switchLocalePath(loc.code)"
           :hreflang="loc.language"
           :aria-current="locale === loc.code ? 'true' : undefined"
           :class="{ active: locale === loc.code }"
+          class="inline-block px-2 py-1 border border-border rounded text-[0.8rem] font-semibold tracking-[0.05em] no-underline text-muted transition-colors hover:text-primary hover:border-primary [&.active]:text-primary [&.active]:border-primary"
         >
           {{ loc.code.toUpperCase() }}
         </NuxtLink>
@@ -19,31 +20,3 @@ const switchLocalePath = useSwitchLocalePath()
     </ul>
   </nav>
 </template>
-
-<style scoped>
-.lang-switcher ul {
-  display: flex;
-  gap: var(--space-xs);
-  list-style: none;
-}
-
-.lang-switcher a {
-  display: inline-block;
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-decoration: none;
-  color: var(--color-text-muted);
-  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
-}
-
-.lang-switcher a:hover,
-.lang-switcher a.active {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  background: transparent;
-}
-</style>

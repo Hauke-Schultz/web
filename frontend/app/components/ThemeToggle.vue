@@ -8,7 +8,7 @@ const label = computed(() =>
 
 <template>
   <button
-    class="theme-toggle"
+    class="inline-flex items-center justify-center w-10 h-10 border border-border rounded-lg bg-surface cursor-pointer text-[1.1rem] transition-colors hover:bg-surface-alt"
     :aria-label="label"
     :title="label"
     @click="toggle"
@@ -17,23 +17,3 @@ const label = computed(() =>
     <span v-else aria-hidden="true">🌙</span>
   </button>
 </template>
-
-<style scoped>
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  cursor: pointer;
-  font-size: 1.1rem;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
-}
-
-.theme-toggle:hover {
-  background: var(--color-surface-alt);
-}
-</style>

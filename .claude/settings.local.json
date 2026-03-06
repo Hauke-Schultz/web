@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cd:*)",
       "Bash(true:*)",
-      "Bash(cd /c/Users/hauke/WebstormProjects/web && npx nuxi@latest init frontend --template minimal --no-install 2>&1)"
+      "Bash(cd /c/Users/hauke/WebstormProjects/web && npx nuxi@latest init frontend --template minimal --no-install 2>&1)",
+      "Bash(npm run:*)"
     ]
   }
 }

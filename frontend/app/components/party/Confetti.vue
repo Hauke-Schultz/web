@@ -27,7 +27,7 @@ const createConfetti = () => {
     el.style.setProperty('--x', (Math.random() * 20 - 10) + 'px')
     el.style.setProperty('--y', y + 'px')
     el.style.setProperty('--r', (Math.random() * 720) + 'deg')
-    el.style.animation = `confettiFall ${dur}s ease-in forwards`
+    el.style.animation = `confetti-fall ${dur}s ease-in forwards`
     container.appendChild(el)
     setTimeout(() => el.remove(), dur * 1000)
   }
@@ -35,54 +35,9 @@ const createConfetti = () => {
 </script>
 
 <template>
-  <button class="confetti-btn" aria-label="Konfetti!" @click="createConfetti">🎉</button>
+  <button
+    class="fixed bottom-[30px] right-[30px] z-[999] w-16 h-16 text-[2rem] border-[3px] border-white/80 rounded-full bg-gradient-to-br from-primary to-success cursor-pointer flex items-center justify-center shadow-md animate-pulse-btn transition-transform hover:scale-[1.15] hover:[animation:none]"
+    aria-label="Konfetti!"
+    @click="createConfetti"
+  >🎉</button>
 </template>
-
-<style>
-@keyframes confettiFall {
-  from { opacity: 1; transform: translate(0, 0) rotate(0deg); }
-  to   { opacity: 1; transform: translate(var(--x), var(--y)) rotate(var(--r)); }
-}
-
-.confetti-piece {
-  position: absolute;
-  pointer-events: none;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
-}
-</style>
-
-<style scoped>
-.confetti-btn {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  z-index: 999;
-  width: 64px;
-  height: 64px;
-  font-size: 2rem;
-  border: 3px solid rgba(255 255 255 / 0.8);
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-success));
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: pulse 2s ease-in-out infinite;
-  transition: transform var(--transition-fast);
-}
-
-.confetti-btn:hover {
-  animation: none;
-  transform: scale(1.15);
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.08); }
-}
-</style>

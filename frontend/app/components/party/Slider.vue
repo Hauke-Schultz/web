@@ -25,91 +25,34 @@ const next = () => go(currentIndex.value + 1)
 </script>
 
 <template>
-  <div class="slider">
-    <div class="slider__track">
+  <div>
+    <div class="relative h-[480px] rounded-xl overflow-hidden bg-surface-alt flex items-center justify-center">
       <img
         :src="images[currentIndex]"
-        :class="{ 'slider__img--fade': fading }"
-        class="slider__img"
+        :class="{ 'opacity-0': fading }"
+        class="w-auto h-full max-w-full object-contain transition-opacity duration-300 cursor-zoom-in"
         alt="Party Foto"
       />
-      <button class="slider__btn slider__btn--prev" aria-label="Zurück" @click="prev">❮</button>
-      <button class="slider__btn slider__btn--next" aria-label="Weiter" @click="next">❯</button>
+      <button
+        class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/35 text-white border-0 py-3 px-4 text-xl rounded-lg cursor-pointer transition-colors hover:bg-black/55"
+        aria-label="Zurück"
+        @click="prev"
+      >❮</button>
+      <button
+        class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/35 text-white border-0 py-3 px-4 text-xl rounded-lg cursor-pointer transition-colors hover:bg-black/55"
+        aria-label="Weiter"
+        @click="next"
+      >❯</button>
     </div>
-    <div class="slider__dots">
+    <div class="flex justify-center gap-2 mt-3">
       <button
         v-for="(_, i) in images"
         :key="i"
-        class="slider__dot"
-        :class="{ 'slider__dot--active': i === currentIndex }"
+        class="h-3 rounded-full border-0 bg-border cursor-pointer transition-all"
+        :class="i === currentIndex ? 'w-8 rounded-[6px] bg-primary' : 'w-3'"
         :aria-label="`Bild ${i + 1}`"
         @click="go(i)"
       />
     </div>
   </div>
 </template>
-
-<style scoped>
-.slider__track {
-  position: relative;
-  height: 480px;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--color-surface-alt);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.slider__img {
-  width: auto;
-  height: 100%;
-  max-width: 100%;
-  object-fit: contain;
-  transition: opacity 0.3s ease;
-  cursor: zoom-in;
-}
-
-.slider__img--fade { opacity: 0; }
-
-.slider__btn {
-  position: absolute;
-  top: 50%;
-  translate: 0 -50%;
-  background: rgba(0 0 0 / 0.35);
-  color: var(--color-white);
-  border: none;
-  padding: var(--space-3) var(--space-md);
-  font-size: var(--font-size-xl);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.slider__btn:hover { background: rgba(0 0 0 / 0.55); }
-.slider__btn--prev { left: 8px; }
-.slider__btn--next { right: 8px; }
-
-.slider__dots {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-3);
-}
-
-.slider__dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: none;
-  background: var(--color-border);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.slider__dot--active {
-  width: 32px;
-  border-radius: 6px;
-  background: var(--color-primary);
-}
-</style>

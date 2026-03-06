@@ -1,0 +1,230 @@
+@import "tailwindcss";
+
+/* Dark mode via data-theme attribute on <html> */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ── Runtime theme variables ────────────────────────────── */
+:root {
+  --c-bg:          #faf8ff;
+  --c-surface:     #f3f0ff;
+  --c-surface-alt: #ebe5ff;
+  --c-fg:          #1a0a2e;
+  --c-muted:       #7a6890;
+  --c-primary:     #7733ee;
+  --c-primary-h:   #5a1fd1;
+  --c-accent:      #ff66cc;
+  --c-success:     #00b894;
+  --c-border:      #ddd6f5;
+  --c-shadow:      rgba(119 51 238 / 0.13);
+}
+
+[data-theme="dark"] {
+  --c-bg:          #0d0818;
+  --c-surface:     #1a1030;
+  --c-surface-alt: #251840;
+  --c-fg:          #f0eaff;
+  --c-muted:       #a898cc;
+  --c-primary:     #aa77ff;
+  --c-primary-h:   #c299ff;
+  --c-accent:      #ff88dd;
+  --c-success:     #00d4a0;
+  --c-border:      #3d2a6e;
+  --c-shadow:      rgba(0 0 0 / 0.5);
+}
+
+
+/* ── Tailwind theme mapping ──────────────────────────────── */
+@theme inline {
+  --color-bg:          var(--c-bg);
+  --color-surface:     var(--c-surface);
+  --color-surface-alt: var(--c-surface-alt);
+  --color-fg:          var(--c-fg);
+  --color-muted:       var(--c-muted);
+  --color-primary:     var(--c-primary);
+  --color-primary-h:   var(--c-primary-h);
+  --color-accent:      var(--c-accent);
+  --color-success:     var(--c-success);
+  --color-border:      var(--c-border);
+  --color-white:       #ffffff;
+
+  --font-family-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+
+  /* Custom animations used by party components */
+  --animate-pulse-badge:  pulse-badge  2s ease-in-out infinite;
+  --animate-pulse-player: pulse-player 2s ease-in-out infinite;
+  --animate-pulse-btn:    pulse-btn    2s ease-in-out infinite;
+}
+
+/* ── Keyframes ───────────────────────────────────────────── */
+@keyframes pulse-badge {
+  0%, 100% { box-shadow: 0 0 10px rgba(240 147 251 / 0.5); }
+  50%       { box-shadow: 0 0 20px rgba(240 147 251 / 0.9); }
+}
+
+@keyframes pulse-player {
+  0%, 100% { box-shadow: 0 0 8px rgba(0 200 150 / 0.4); }
+  50%       { box-shadow: 0 0 18px rgba(0 200 150 / 0.75); }
+}
+
+@keyframes pulse-btn {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.08); }
+}
+
+@keyframes confetti-fall {
+  from { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+  to   { opacity: 1; transform: translate(var(--x), var(--y)) rotate(var(--r)); }
+}
+
+@keyframes float-up {
+  0%   { opacity: 1; transform: translate(-50%,   0px) scale(0.8); }
+  50%  { opacity: 1; transform: translate(-50%, -30px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -80px) scale(1); }
+}
+
+/* ── Global classes for DOM-injected party elements ──────── */
+.confetti-piece {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.floating-number {
+  position: absolute;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  animation: float-up 1s ease-out forwards;
+}
+
+.floating-number.size-normal { font-size: 1.25rem; }
+.floating-number.size-small  { font-size: 1.5rem; }
+.floating-number.size-medium { font-size: 1.875rem; }
+.floating-number.size-large  { font-size: 2.25rem; }
+.floating-number.size-huge   { font-size: clamp(2.25rem, 5vw, 3rem); }
+
+/* ── Base styles ─────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans bg-bg text-fg;
+    line-height: 1.6;
+    min-height: 100dvh;
+    transition: background-color 250ms ease, color 250ms ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.25;
+    font-weight: 700;
+    color: var(--c-fg);
+  }
+
+  h1 { font-size: clamp(1.5rem, 5vw, 2.25rem); }
+  h2 { font-size: clamp(1.25rem, 3.5vw, 1.875rem); }
+  h3 { font-size: clamp(1.125rem, 2.5vw, 1.5rem); }
+
+  p { max-width: 70ch; }
+
+  a {
+    color: var(--c-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 150ms ease;
+    &:hover { color: var(--c-primary-h); }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ── Shared component classes ────────────────────────────── */
+@layer components {
+  .container {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+
+  .card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    width: 100%;
+    transition: box-shadow 150ms ease, translate 150ms ease;
+
+    &:hover {
+      box-shadow: 0 4px 12px var(--c-shadow);
+      translate: 0 -2px;
+    }
+
+    &.card--flush,
+    &.card--game { padding: 0; }
+
+    &.card--highlight {
+      background: linear-gradient(135deg, var(--c-primary), var(--c-success));
+      border: none;
+      color: #fff;
+    }
+
+    @media (min-width: 640px) {
+      width: calc(50% - 8px);
+      &.card--wide { width: 100%; }
+    }
+
+    @media (min-width: 1024px) {
+      width: calc(33.333% - 11px);
+      &.card--wide { width: calc(50% - 8px); }
+    }
+  }
+
+  .card__title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+  }
+
+  .card__subtitle {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .card__text {
+    font-size: 0.875rem;
+    color: var(--c-muted);
+    margin-bottom: 0.5rem;
+
+    &.card__text--pre { white-space: pre-line; }
+  }
+
+  .card__link {
+    font-size: 0.875rem;
+    word-break: break-all;
+  }
+}

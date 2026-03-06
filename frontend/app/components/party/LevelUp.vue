@@ -98,11 +98,19 @@ const myRank = computed(() => {
   return pos === -1 ? null : pos + 1
 })
 
-const rankClass = (rank) => {
-  if (rank === 1) return 'rank--gold'
-  if (rank === 2) return 'rank--silver'
-  if (rank === 3) return 'rank--bronze'
-  return ''
+// --- Inline style helpers (dynamic gradients can't use Tailwind classes) ---
+const rankBadgeStyle = (rank) => {
+  if (rank === 1) return { background: 'linear-gradient(135deg, #ffd700, #ffb900)', borderColor: '#ffd700' }
+  if (rank === 2) return { background: 'linear-gradient(135deg, #c0c0c0, #a9a9a9)', borderColor: '#c0c0c0' }
+  if (rank === 3) return { background: 'linear-gradient(135deg, #cd7f32, #b8733b)', borderColor: '#cd7f32' }
+  return {}
+}
+
+const entryStyle = (i) => {
+  if (i === 0) return { background: 'linear-gradient(135deg, rgba(255,215,0,0.6), rgba(255,185,0,0.6))',   border: '1.5px solid rgba(255,215,0,0.8)' }
+  if (i === 1) return { background: 'linear-gradient(135deg, rgba(192,192,192,0.5), rgba(169,169,169,0.5))', border: '1.5px solid rgba(192,192,192,0.7)' }
+  if (i === 2) return { background: 'linear-gradient(135deg, rgba(205,127,50,0.5), rgba(184,115,51,0.5))',  border: '1.5px solid rgba(205,127,50,0.7)' }
+  return {}
 }
 
 // --- Click Game ---
@@ -220,63 +228,80 @@ const saveNameOnBlur = () => {
 </script>
 
 <template>
-  <div class="level-up-card" :class="{ 'is-flipped': isFlipped }">
+  <div
+    class="level-up-card bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-xl relative h-full min-h-[360px] flex flex-col"
+  >
 
     <!-- Vorderseite: Spiel -->
-    <div class="flip-front">
-      <div class="level-display">
-        <div class="level-number">Level {{ currentLevel }}</div>
-        <div class="level-title">{{ getLevelTitle(currentLevel) }}</div>
+    <div v-show="!isFlipped" class="flex flex-col gap-4 p-6 text-white w-full h-full">
+      <div class="text-center">
+        <div class="text-[clamp(1.875rem,6vw,4rem)] font-bold leading-none [text-shadow:0_2px_8px_rgba(0,0,0,0.4)]">
+          Level {{ currentLevel }}
+        </div>
+        <div class="text-base font-medium opacity-90 min-h-[1.5em] mt-[6px] [text-shadow:0_1px_4px_rgba(0,0,0,0.3)]">
+          {{ getLevelTitle(currentLevel) }}
+        </div>
       </div>
 
       <button
-        class="level-up-btn"
-        :class="{ 'level-up-btn--pop': clickAnimation }"
+        class="level-up-btn w-full py-5 text-2xl font-bold uppercase tracking-[2px] text-white bg-gradient-to-br from-[#f093fb] to-[#f5576c] border-0 rounded-lg cursor-pointer select-none shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-transform hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.96]"
+        :style="clickAnimation ? { transform: 'scale(0.96)' } : {}"
         @click="levelUp"
       >
         LEVEL UP!
       </button>
 
-      <div class="flip-footer">
+      <div class="flex items-center justify-end gap-2 mt-auto">
         <div
           v-if="myRank && isImprovement && currentLevel > 0"
-          class="rank-badge"
-          :class="rankClass(myRank)"
+          class="inline-flex items-center justify-center px-[10px] py-1 rounded-lg text-sm font-bold cursor-pointer border-2 border-white/80 shadow-[0_0_14px_rgba(240,147,251,0.6)] animate-pulse-badge bg-gradient-to-br from-[#f093fb] to-[#f5576c]"
+          :style="rankBadgeStyle(myRank)"
           @click="isFlipped = true"
         >
           #{{ myRank }}
         </div>
-        <button class="flip-btn" @click="isFlipped = true">
+        <button
+          class="px-3 py-1 text-sm bg-white/20 text-white border-[1.5px] border-white/35 rounded-lg cursor-pointer transition-all hover:bg-white/30 hover:-translate-y-px"
+          @click="isFlipped = true"
+        >
           🏆 Highscore
         </button>
       </div>
     </div>
 
     <!-- Rückseite: Highscore -->
-    <div class="flip-back">
-      <div class="hs-header">
-        <span class="hs-title">🏆 Highscore</span>
-        <button class="flip-btn" @click="isFlipped = false">🎮 Zurück</button>
+    <div v-show="isFlipped" class="flex flex-col gap-4 p-6 text-white w-full h-full overflow-y-auto">
+      <div class="flex items-center justify-between shrink-0">
+        <span class="text-lg font-bold">🏆 Highscore</span>
+        <button
+          class="px-3 py-1 text-sm bg-white/20 text-white border-[1.5px] border-white/35 rounded-lg cursor-pointer transition-all hover:bg-white/30 hover:-translate-y-px"
+          @click="isFlipped = false"
+        >🎮 Zurück</button>
       </div>
 
       <!-- Aktueller Spieler -->
-      <div v-if="currentLevel > 0" class="hs-entry current-player">
-        <!-- Neuer / besserer Score -->
+      <div
+        v-if="currentLevel > 0"
+        class="flex items-center gap-2 px-4 py-2 rounded bg-gradient-to-br from-[rgba(0,200,150,0.55)] to-[rgba(0,150,255,0.55)] border-[1.5px] border-[rgba(0,200,150,0.7)] flex-wrap text-sm animate-pulse-player"
+      >
         <template v-if="isImprovement">
-          <p class="hs-congrats">Neuer Highscore! Trag deinen Namen ein:</p>
-          <div class="hs-submit-row">
-            <span class="rank-badge" :class="rankClass(myRank)">#{{ myRank }}</span>
+          <p class="text-sm m-0 leading-[1.3] w-full">Neuer Highscore! Trag deinen Namen ein:</p>
+          <div class="flex items-center gap-2 flex-wrap w-full">
+            <span
+              class="inline-flex items-center justify-center px-[10px] py-1 rounded-lg text-sm font-bold border-2 border-white/80 shadow-[0_0_14px_rgba(240,147,251,0.6)] animate-pulse-badge bg-gradient-to-br from-[#f093fb] to-[#f5576c]"
+              :style="rankBadgeStyle(myRank)"
+            >#{{ myRank }}</span>
             <input
               v-model="playerName"
               type="text"
               placeholder="Dein Name..."
-              class="name-input"
+              class="flex-1 min-w-[100px] py-[6px] px-[10px] bg-white/15 border-[1.5px] border-white/30 rounded-lg text-white text-sm placeholder:text-white/55 focus:outline-none focus:border-white/75 font-sans"
               maxlength="20"
               @blur="saveNameOnBlur"
             />
-            <span class="hs-level">Lvl {{ currentLevel }}</span>
+            <span class="text-sm font-bold whitespace-nowrap">Lvl {{ currentLevel }}</span>
             <button
-              class="submit-btn"
+              class="py-[6px] px-[14px] text-sm font-bold uppercase tracking-[1px] text-white bg-gradient-to-br from-[#f093fb] to-[#f5576c] border-0 rounded-lg cursor-pointer whitespace-nowrap transition-all hover:-translate-y-px hover:shadow-[0_3px_10px_rgba(0,0,0,0.25)] disabled:opacity-45 disabled:cursor-not-allowed"
               :disabled="!playerName.trim()"
               @click="submitScore"
             >
@@ -284,9 +309,8 @@ const saveNameOnBlur = () => {
             </button>
           </div>
         </template>
-        <!-- Gleichbleibend / schlechter -->
         <template v-else>
-          <p class="hs-info">
+          <p class="text-sm m-0 text-center w-full">
             Platz <strong>#{{ myRank }}</strong> · Level <strong>{{ myEntry?.level }}</strong>
             — Weiter klicken!
           </p>
@@ -294,30 +318,28 @@ const saveNameOnBlur = () => {
       </div>
 
       <!-- Noch kein Score -->
-      <div v-else class="hs-entry hs-empty">
-        <p class="hs-info">Klicke auf "LEVEL UP!" um zu starten!</p>
+      <div v-else class="flex items-center justify-center gap-2 px-[10px] py-[6px] rounded bg-white/10 text-sm">
+        <p class="text-sm m-0 text-center w-full">Klicke auf "LEVEL UP!" um zu starten!</p>
       </div>
 
       <!-- Top-Liste -->
-      <ul class="hs-list">
+      <ul class="list-none m-0 p-0 flex flex-col gap-1">
         <li
           v-for="(entry, i) in visibleScores"
           :key="entry.id"
-          class="hs-entry"
-          :class="[
-            i === 0 ? 'top-1' : i === 1 ? 'top-2' : i === 2 ? 'top-3' : '',
-            entry.id === playerId ? 'is-me' : ''
-          ]"
+          class="flex items-center gap-2 px-[10px] py-[6px] rounded text-sm transition-colors hover:bg-white/16"
+          :class="entry.id === playerId ? 'outline outline-[1.5px] outline-white/50' : (i > 2 ? 'bg-white/10' : '')"
+          :style="entryStyle(i)"
         >
-          <span class="hs-rank">{{ i + 1 }}.</span>
-          <span class="hs-name">{{ entry.name }}</span>
-          <span class="hs-lvl">{{ entry.level }}</span>
+          <span class="font-bold min-w-[24px]">{{ i + 1 }}.</span>
+          <span class="flex-1 font-medium">{{ entry.name }}</span>
+          <span class="font-bold">{{ entry.level }}</span>
         </li>
       </ul>
 
       <button
         v-if="localHighscores.length > 10"
-        class="show-all-btn"
+        class="mt-2 w-full py-2 text-sm font-semibold uppercase tracking-[1px] text-white bg-white/12 border-[1.5px] border-white/25 rounded-lg cursor-pointer transition-colors hover:bg-white/22"
         @click="showAll = !showAll"
       >
         {{ showAll ? 'Nur Top 10' : 'Alle anzeigen' }}
@@ -326,302 +348,3 @@ const saveNameOnBlur = () => {
 
   </div>
 </template>
-
-<style scoped>
-/* ---- Card container ---- */
-.level-up-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: var(--radius-lg);
-  position: relative;
-  height: 100%;
-  min-height: 360px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ---- Flip-Seiten ---- */
-.flip-front,
-.flip-back {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  color: var(--color-white);
-  width: 100%;
-  height: 100%;
-}
-
-.flip-back {
-  display: none;
-  overflow-y: auto;
-}
-
-.level-up-card.is-flipped .flip-front { display: none; }
-.level-up-card.is-flipped .flip-back  { display: flex; }
-
-/* ---- Level Display ---- */
-.level-display { text-align: center; }
-
-.level-number {
-  font-size: clamp(var(--font-size-3xl), 6vw, 4rem);
-  font-weight: var(--font-weight-bold);
-  line-height: 1;
-  text-shadow: 0 2px 8px rgba(0 0 0 / 0.4);
-}
-
-.level-title {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  opacity: 0.9;
-  min-height: 1.5em;
-  margin-top: 6px;
-  text-shadow: 0 1px 4px rgba(0 0 0 / 0.3);
-}
-
-/* ---- Level-Up Button ---- */
-.level-up-btn {
-  width: 100%;
-  padding: var(--space-5);
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--color-white);
-  background: linear-gradient(135deg, #f093fb, #f5576c);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  user-select: none;
-  box-shadow: 0 4px 16px rgba(0 0 0 / 0.25);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.level-up-btn:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 6px 20px rgba(0 0 0 / 0.35);
-}
-
-.level-up-btn:active,
-.level-up-btn--pop {
-  transform: scale(0.96);
-}
-
-/* ---- Footer (Highscore-Toggle) ---- */
-.flip-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-sm);
-  margin-top: auto;
-}
-
-.flip-btn {
-  padding: var(--space-xs) var(--space-3);
-  font-size: var(--font-size-sm);
-  background: rgba(255 255 255 / 0.2);
-  color: var(--color-white);
-  border: 1.5px solid rgba(255 255 255 / 0.35);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
-}
-
-.flip-btn:hover {
-  background: rgba(255 255 255 / 0.3);
-  transform: translateY(-1px);
-}
-
-/* ---- Rank Badge ---- */
-.rank-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-xs) 10px;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-  background: linear-gradient(135deg, #f093fb, #f5576c);
-  border: 2px solid rgba(255 255 255 / 0.8);
-  box-shadow: 0 0 14px rgba(240 147 251 / 0.6);
-  animation: pulse-badge 2s ease-in-out infinite;
-}
-
-.rank-badge.rank--gold   { background: linear-gradient(135deg, #ffd700, #ffb900); border-color: #ffd700; }
-.rank-badge.rank--silver { background: linear-gradient(135deg, #c0c0c0, #a9a9a9); border-color: #c0c0c0; }
-.rank-badge.rank--bronze { background: linear-gradient(135deg, #cd7f32, #b8733b); border-color: #cd7f32; }
-
-@keyframes pulse-badge {
-  0%, 100% { box-shadow: 0 0 10px rgba(240 147 251 / 0.5); }
-  50%       { box-shadow: 0 0 20px rgba(240 147 251 / 0.9); }
-}
-
-/* ---- Highscore Rückseite ---- */
-.hs-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-
-.hs-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-}
-
-.hs-congrats {
-  font-size: var(--font-size-sm);
-  margin: 0;
-  line-height: 1.3;
-}
-
-.hs-info {
-  font-size: var(--font-size-sm);
-  margin: 0;
-  text-align: center;
-  width: 100%;
-}
-
-.hs-submit-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-}
-
-.hs-level {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  white-space: nowrap;
-}
-
-/* ---- Name Input ---- */
-.name-input {
-  flex: 1;
-  min-width: 100px;
-  padding: 6px 10px;
-  background: rgba(255 255 255 / 0.15);
-  border: 1.5px solid rgba(255 255 255 / 0.3);
-  border-radius: var(--radius-md);
-  color: var(--color-white);
-  font-size: var(--font-size-sm);
-  font-family: var(--font-sans);
-}
-
-.name-input::placeholder { color: rgba(255 255 255 / 0.55); }
-.name-input:focus { outline: none; border-color: rgba(255 255 255 / 0.75); }
-
-/* ---- Submit Button ---- */
-.submit-btn {
-  padding: 6px 14px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--color-white);
-  background: linear-gradient(135deg, #f093fb, #f5576c);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  white-space: nowrap;
-}
-
-.submit-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0 0 0 / 0.25);
-}
-
-.submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-/* ---- Highscore Liste ---- */
-.hs-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.hs-entry {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  background: rgba(255 255 255 / 0.1);
-  font-size: var(--font-size-sm);
-  transition: background var(--transition-fast);
-}
-
-.hs-entry:hover { background: rgba(255 255 255 / 0.16); }
-
-.hs-entry.current-player {
-  background: linear-gradient(135deg, rgba(0 200 150 / 0.55), rgba(0 150 255 / 0.55));
-  border: 1.5px solid rgba(0 200 150 / 0.7);
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  animation: pulse-player 2s ease-in-out infinite;
-}
-
-.hs-empty { justify-content: center; }
-
-@keyframes pulse-player {
-  0%, 100% { box-shadow: 0 0 8px rgba(0 200 150 / 0.4); }
-  50%       { box-shadow: 0 0 18px rgba(0 200 150 / 0.75); }
-}
-
-.hs-entry.top-1 { background: linear-gradient(135deg, rgba(255 215 0 / 0.6), rgba(255 185 0 / 0.6)); border: 1.5px solid rgba(255 215 0 / 0.8); }
-.hs-entry.top-2 { background: linear-gradient(135deg, rgba(192 192 192 / 0.5), rgba(169 169 169 / 0.5)); border: 1.5px solid rgba(192 192 192 / 0.7); }
-.hs-entry.top-3 { background: linear-gradient(135deg, rgba(205 127 50 / 0.5), rgba(184 115 51 / 0.5)); border: 1.5px solid rgba(205 127 50 / 0.7); }
-.hs-entry.is-me { outline: 1.5px solid rgba(255 255 255 / 0.5); }
-
-.hs-rank { font-weight: var(--font-weight-bold); min-width: 24px; }
-.hs-name { flex: 1; font-weight: var(--font-weight-medium); }
-.hs-lvl  { font-weight: var(--font-weight-bold); }
-
-/* ---- Show All Button ---- */
-.show-all-btn {
-  margin-top: var(--space-sm);
-  width: 100%;
-  padding: var(--space-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--color-white);
-  background: rgba(255 255 255 / 0.12);
-  border: 1.5px solid rgba(255 255 255 / 0.25);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.show-all-btn:hover { background: rgba(255 255 255 / 0.22); }
-
-/* ---- Floating Combo Number (DOM-injiziert) ---- */
-:global(.floating-number) {
-  position: absolute;
-  font-weight: var(--font-weight-bold);
-  pointer-events: none;
-  user-select: none;
-  z-index: 10;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  animation: floatUp 1s ease-out forwards;
-}
-
-:global(.floating-number.size-normal) { font-size: var(--font-size-xl); }
-:global(.floating-number.size-small)  { font-size: var(--font-size-2xl); }
-:global(.floating-number.size-medium) { font-size: var(--font-size-3xl); }
-:global(.floating-number.size-large)  { font-size: var(--font-size-4xl); }
-:global(.floating-number.size-huge)   { font-size: clamp(var(--font-size-4xl), 5vw, 3rem); }
-
-@keyframes floatUp {
-  0%   { opacity: 1; transform: translate(-50%,   0) scale(0.8); }
-  50%  { opacity: 1; transform: translate(-50%, -30px) scale(1.1); }
-  100% { opacity: 0; transform: translate(-50%, -80px) scale(1); }
-}
-</style>

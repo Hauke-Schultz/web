@@ -80,36 +80,40 @@ useHead({ title: () => t('party.event.title') })
 </script>
 
 <template>
-  <div class="party-page">
+  <div class="party-page relative min-h-dvh">
 
     <!-- Hero -->
-    <section class="party-hero">
-      <h1 class="party-hero__title">{{ event.title }}</h1>
-      <p class="party-hero__date">{{ formatDate(event.date) }}</p>
+    <section class="py-16 px-6 text-center text-white bg-gradient-to-br from-primary to-success">
+      <h1 class="text-[clamp(1.5rem,4vw,2.25rem)] text-white mb-3">{{ event.title }}</h1>
+      <p class="text-lg opacity-90">{{ formatDate(event.date) }}</p>
     </section>
 
     <!-- Cards Grid -->
-    <main class="party-grid container">
+    <main class="container flex flex-wrap gap-4 py-8">
 
       <!-- Datum & Countdown -->
       <section class="card card--highlight">
-        <div class="cal-visual">
-          <div class="cal-visual__month">{{ calendarMonth(event.date) }}</div>
-          <div class="cal-visual__day">{{ calendarDay(event.date) }}</div>
-          <div class="cal-visual__weekday">{{ calendarWeekday(event.date) }}</div>
-          <div class="cal-visual__time">{{ event.startTime }} – {{ event.endTime }} {{ t('party.countdown.timeUnit') }}</div>
-          <div class="countdown">
-            <div class="countdown__item">
-              <span class="countdown__val">{{ countdown.days }}</span>
-              <span class="countdown__label">{{ t('party.countdown.days') }}</span>
+        <div class="text-center flex flex-col gap-2 text-white">
+          <div class="text-xs font-bold uppercase tracking-[1px] bg-white/15 rounded px-2 py-[6px]">
+            {{ calendarMonth(event.date) }}
+          </div>
+          <div class="text-[5rem] font-bold leading-none">{{ calendarDay(event.date) }}</div>
+          <div class="text-lg opacity-90">{{ calendarWeekday(event.date) }}</div>
+          <div class="text-sm bg-white/15 rounded py-[6px] px-3 inline-block mx-auto">
+            {{ event.startTime }} – {{ event.endTime }} {{ t('party.countdown.timeUnit') }}
+          </div>
+          <div class="flex justify-center gap-4 mt-4 pt-4 border-t border-white/20">
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-[1.75rem] font-bold leading-none">{{ countdown.days }}</span>
+              <span class="text-[0.65rem] uppercase tracking-[1px] opacity-85">{{ t('party.countdown.days') }}</span>
             </div>
-            <div class="countdown__item">
-              <span class="countdown__val">{{ String(countdown.hours).padStart(2,'0') }}</span>
-              <span class="countdown__label">{{ t('party.countdown.hours') }}</span>
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-[1.75rem] font-bold leading-none">{{ String(countdown.hours).padStart(2,'0') }}</span>
+              <span class="text-[0.65rem] uppercase tracking-[1px] opacity-85">{{ t('party.countdown.hours') }}</span>
             </div>
-            <div class="countdown__item">
-              <span class="countdown__val">{{ String(countdown.minutes).padStart(2,'0') }}</span>
-              <span class="countdown__label">{{ t('party.countdown.minutes') }}</span>
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-[1.75rem] font-bold leading-none">{{ String(countdown.minutes).padStart(2,'0') }}</span>
+              <span class="text-[0.65rem] uppercase tracking-[1px] opacity-85">{{ t('party.countdown.minutes') }}</span>
             </div>
           </div>
         </div>
@@ -123,10 +127,10 @@ useHead({ title: () => t('party.event.title') })
         <a :href="event.hotelWebsite" target="_blank" rel="noopener" class="card__link">
           {{ event.hotelWebsite }}
         </a>
-        <div class="maps">
+        <div class="relative mt-4 pb-[56.25%] rounded-lg overflow-hidden">
           <iframe
             :src="mapsEmbed(event.address)"
-            class="maps__iframe"
+            class="absolute inset-0 w-full h-full border-0"
             allowfullscreen
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
@@ -145,18 +149,22 @@ useHead({ title: () => t('party.event.title') })
         <p class="card__text card__text--pre">{{ event.description }}</p>
       </section>
 
-	    <!-- Level-Up Klickspiel -->
-	    <section class="card card--flush card--game">
-		    <PartyLevelUp />
-	    </section>
+      <!-- Level-Up Klickspiel -->
+      <section class="card card--flush card--game">
+        <PartyLevelUp />
+      </section>
 
       <!-- Programm -->
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.program.title') }}</h2>
-        <ul class="program">
-          <li v-for="item in program" :key="item.time" class="program__item">
-            <span class="program__time">{{ item.time }}</span>
-            <span class="program__icon">{{ item.icon }}</span>
+        <ul class="list-none flex flex-col gap-3 p-0 m-0">
+          <li
+            v-for="item in program"
+            :key="item.time"
+            class="flex gap-3 items-start border-l-[3px] border-accent pl-3 text-sm"
+          >
+            <span class="font-bold text-accent min-w-[40px] shrink-0">{{ item.time }}</span>
+            <span class="shrink-0">{{ item.icon }}</span>
             <span>{{ item.activity }}</span>
           </li>
         </ul>
@@ -193,10 +201,19 @@ useHead({ title: () => t('party.event.title') })
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.save.title') }}</h2>
         <p class="card__text">{{ t('party.cards.save.lead') }}</p>
-        <div class="cal-actions">
-          <button class="cal-actions__btn cal-actions__btn--google" @click="addGoogle">{{ t('party.cards.save.google') }}</button>
-          <button class="cal-actions__btn cal-actions__btn--outlook" @click="addOutlook">{{ t('party.cards.save.outlook') }}</button>
-          <button class="cal-actions__btn cal-actions__btn--apple" @click="downloadIcs">{{ t('party.cards.save.apple') }}</button>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button
+            class="px-5 py-2 border-0 rounded-lg font-semibold cursor-pointer text-white transition-all hover:brightness-110 hover:-translate-y-px bg-[#4285f4]"
+            @click="addGoogle"
+          >{{ t('party.cards.save.google') }}</button>
+          <button
+            class="px-5 py-2 border-0 rounded-lg font-semibold cursor-pointer text-white transition-all hover:brightness-110 hover:-translate-y-px bg-[#0078d4]"
+            @click="addOutlook"
+          >{{ t('party.cards.save.outlook') }}</button>
+          <button
+            class="px-5 py-2 border-0 rounded-lg font-semibold cursor-pointer text-white transition-all hover:brightness-110 hover:-translate-y-px bg-[#555]"
+            @click="downloadIcs"
+          >{{ t('party.cards.save.apple') }}</button>
         </div>
       </section>
 
@@ -217,169 +234,3 @@ useHead({ title: () => t('party.event.title') })
 
   </div>
 </template>
-
-<style scoped lang="scss">
-.party-page {
-  min-height: 100dvh;
-  position: relative;
-}
-
-.party-hero {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-success));
-  padding: var(--space-2xl) var(--space-lg);
-  text-align: center;
-  color: var(--color-white);
-
-  &__title {
-    font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
-    color: var(--color-white);
-    margin-bottom: var(--space-3);
-  }
-
-  &__date {
-    font-size: var(--font-size-lg);
-    opacity: 0.9;
-  }
-}
-
-.party-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-md);
-  padding-block: 32px;
-}
-
-.cal-visual {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  color: var(--color-white);
-
-  &__month {
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-bold);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    background: rgba(255 255 255 / 0.15);
-    border-radius: var(--radius-sm);
-    padding: 6px;
-  }
-
-  &__day {
-    font-size: 5rem;
-    font-weight: var(--font-weight-bold);
-    line-height: 1;
-  }
-
-  &__weekday {
-    font-size: var(--font-size-lg);
-    opacity: 0.9;
-  }
-
-  &__time {
-    font-size: var(--font-size-sm);
-    background: rgba(255 255 255 / 0.15);
-    border-radius: var(--radius-sm);
-    padding: 6px 12px;
-    display: inline-block;
-    margin: 0 auto;
-  }
-}
-
-.countdown {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-md);
-  margin-top: var(--space-md);
-  padding-top: var(--space-md);
-  border-top: 1px solid rgba(255 255 255 / 0.2);
-
-  &__item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-
-  &__val {
-    font-size: 1.75rem;
-    font-weight: var(--font-weight-bold);
-    line-height: 1;
-  }
-
-  &__label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: 0.85;
-  }
-}
-
-.maps {
-  position: relative;
-  margin-top: var(--space-md);
-  padding-bottom: 56.25%;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-
-  &__iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-  }
-}
-
-.program {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-
-  &__item {
-    display: flex;
-    gap: var(--space-3);
-    align-items: flex-start;
-    border-left: 3px solid var(--color-accent);
-    padding-left: var(--space-3);
-    font-size: var(--font-size-sm);
-  }
-
-  &__time {
-    font-weight: var(--font-weight-bold);
-    color: var(--color-accent);
-    min-width: 40px;
-    flex-shrink: 0;
-  }
-
-  &__icon { flex-shrink: 0; }
-}
-
-.cal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-top: var(--space-3);
-
-  &__btn {
-    padding: var(--space-sm) var(--space-5);
-    border: none;
-    border-radius: var(--radius-md);
-    font-weight: var(--font-weight-semibold);
-    cursor: pointer;
-    color: var(--color-white);
-    transition: filter var(--transition-fast), translate var(--transition-fast);
-
-    &:hover {
-      filter: brightness(1.1);
-      translate: 0 -1px;
-    }
-
-    &--google  { background: #4285f4; }
-    &--outlook { background: #0078d4; }
-    &--apple   { background: #555; }
-  }
-}
-</style>

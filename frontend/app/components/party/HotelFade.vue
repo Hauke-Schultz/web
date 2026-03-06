@@ -23,35 +23,11 @@ onUnmounted(() => { if (intervalId) clearInterval(intervalId) })
 </script>
 
 <template>
-  <div class="hotel-fade">
+  <div class="relative w-full min-h-[360px] rounded-xl overflow-hidden bg-surface-alt">
     <div
-      class="hotel-fade__image"
-      :class="{ 'hotel-fade__image--out': isTransitioning }"
+      class="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+      :class="{ 'opacity-0': isTransitioning }"
       :style="{ backgroundImage: `url(${images[currentImageIndex]})` }"
     />
   </div>
 </template>
-
-<style scoped>
-.hotel-fade {
-  position: relative;
-  width: 100%;
-  min-height: 360px;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--color-surface-alt);
-}
-
-.hotel-fade__image {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  opacity: 1;
-  transition: opacity 1s ease-in-out;
-}
-
-.hotel-fade__image--out {
-  opacity: 0;
-}
-</style>
