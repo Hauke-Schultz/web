@@ -1,17 +1,28 @@
 {
   "nav": {
-    "main": "Hauptnavigation",
+    "main": "Hauptmenu",
     "home": "Startseite",
     "party": "Party"
   },
   "home": {
-    "title": "Startseite — MyProject",
-    "description": "Willkommen auf meiner Website.",
-    "headline": "Willkommen",
-    "lead": "Ein modernes Web-Projekt mit Nuxt 3, Kirby CMS und mehrsprachiger Unterstützung.",
+    "title": "Hauke Schultz",
+    "description": "Meine persönliche Entwickler-Spielwiese – Projekte, Experimente und Ideen.",
+    "headline": "Willkommen 👋",
+    "lead": "Diese Website ist meine persönliche Entwickler-Spielwiese. Hier probiere ich neue Ideen aus, entwickle kleine Projekte und experimentiere mit verschiedenen Technologien.",
     "cta": "Mehr erfahren",
-    "intro_title": "Über dieses Projekt",
-    "intro_text": "Diese Website wird mit Nuxt 3 und serverseitigem Rendering ausgeliefert. Inhalte werden über Kirby CMS gepflegt und stehen auf Deutsch und Englisch zur Verfügung."
+    "intro_text": "Ein Teil der Inhalte sind Prototypen, Spiele, Tools oder Experimente, die ich im Laufe meiner Arbeit oder in meiner Freizeit erstelle. Manche Projekte sind vollständig, andere eher Konzepte oder Tests – genau das macht diese Seite zu einem Ort für Kreativität und Lernen.",
+    "features_title": "Was du hier finden kannst",
+    "features": [
+      { "icon": "🎮", "text": "Kleine Spiele und Spiel-Prototypen" },
+      { "icon": "🧪", "text": "Experimente mit neuen Technologien" },
+      { "icon": "🛠️", "text": "Tools und kleine Helfer-Projekte" },
+      { "icon": "💡", "text": "Ideen und Konzepte in Entwicklung" }
+    ],
+    "why_title": "Warum diese Seite existiert",
+    "why_text1": "Als Entwickler ist es wichtig, Dinge einfach auszuprobieren. Diese Seite gibt mir den Raum, Ideen schnell umzusetzen, neue Technologien zu testen und daraus zu lernen.",
+    "why_text2": "Gleichzeitig teile ich meine Projekte gerne mit Freunden und Interessierten, die einen Blick auf meine Experimente werfen möchten.",
+    "note_title": "Hinweis",
+    "note_text": "Viele Projekte auf dieser Seite befinden sich in aktiver Entwicklung oder sind bewusste Prototypen. Fehler und unfertige Bereiche gehören dazu – genau das ist der Sinn des Ganzen."
   },
   "party": {
     "title": "Party — MyProject",

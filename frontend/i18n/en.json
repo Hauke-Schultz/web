@@ -5,13 +5,24 @@
     "party": "Party"
   },
   "home": {
-    "title": "Home — MyProject",
-    "description": "Welcome to my website.",
-    "headline": "Welcome",
-    "lead": "A modern web project built with Nuxt 3, Kirby CMS, and multilingual support.",
+    "title": "Hauke Schultz",
+    "description": "My personal developer playground – projects, experiments and ideas.",
+    "headline": "Welcome 👋",
+    "lead": "This website is my personal developer playground. Here I try out new ideas, build small projects and experiment with different technologies.",
     "cta": "Learn more",
-    "intro_title": "About this project",
-    "intro_text": "This website is delivered via Nuxt 3 with server-side rendering. Content is managed through Kirby CMS and is available in both German and English."
+    "intro_text": "Some of the content is made up of prototypes, games, tools or experiments I create during my work or in my spare time. Some projects are complete, others are more like concepts or tests – and that's exactly what makes this site a place for creativity and learning.",
+    "features_title": "What you can find here",
+    "features": [
+      { "icon": "🎮", "text": "Small games and game prototypes" },
+      { "icon": "🧪", "text": "Experiments with new technologies" },
+      { "icon": "🛠️", "text": "Tools and small helper projects" },
+      { "icon": "💡", "text": "Ideas and concepts in development" }
+    ],
+    "why_title": "Why this site exists",
+    "why_text1": "As a developer it's important to just try things out. This site gives me the space to quickly put ideas into practice, test new technologies and learn from them.",
+    "why_text2": "At the same time I enjoy sharing my projects with friends and anyone curious enough to take a look at my experiments.",
+    "note_title": "Note",
+    "note_text": "Many projects on this site are actively being developed or are intentional prototypes. Bugs and unfinished areas are part of the deal – that's kind of the point."
   },
   "party": {
     "title": "Party — MyProject",
