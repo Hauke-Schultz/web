@@ -1059,7 +1059,7 @@ export const RAINBOW_FRUIT_CONFIG = {
 }
 
 export const BOMB_FRUIT_CONFIG = {
-  spawnChance: 0.05, // 5% chance per fruit drop in endless mode
+  spawnChance: 0.1, // 5% chance per fruit drop in endless mode
   minSpawnDelay: 45000, // Minimum 45 seconds between spawns
   maxSpawnDelay: 180000, // Maximum 3 minutes between spawns
   fuseTime: 10000, // 10 seconds until explosion

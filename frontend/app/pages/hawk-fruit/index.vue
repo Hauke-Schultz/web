@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
-import { FRUIT_TYPES, PHYSICS_CONFIG } from './hawkFruitConfig.js'
+import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG } from './hawkFruitConfig.js'
+const { locale } = useI18n()
 
 definePageMeta({ hideHeader: true })
 
@@ -14,9 +15,62 @@ const DROP_Y   = 28   // y where fruit spawns
 // ── Fruit helpers ─────────────────────────────────────────
 const FRUIT_LIST    = Object.values(FRUIT_TYPES).sort((a, b) => a.index - b.index)
 const DROPPABLE     = FRUIT_LIST.filter(f => f.index <= 5)
-const randomDrop    = () => DROPPABLE[Math.floor(Math.random() * DROPPABLE.length)]
 const toDataUrl     = (svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`
 const clamp         = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
+
+// ── Bomb fruit definition ─────────────────────────────────
+const BOMB = {
+  type:   'BOMB',
+  radius: 26,
+  isBomb: true,
+  color:  '#1a1a1a',
+  sparkleColor: '#FF4444',
+  svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="bGrad" cx="0.35" cy="0.3">
+      <stop offset="0%" style="stop-color:#666"/>
+      <stop offset="100%" style="stop-color:#111"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="37" r="23" fill="url(#bGrad)" stroke="#000" stroke-width="1.5"/>
+  <ellipse cx="26" cy="30" rx="6" ry="3.5" fill="white" opacity="0.12" transform="rotate(-30 26 30)"/>
+  <path d="M32,14 Q36,9 40,6 Q44,3 42,8 Q40,10 38,10" stroke="#8B6000" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="42" cy="7" r="3.5" fill="#FF6B00">
+    <animate attributeName="r" values="3;4.5;2.5;4;3" dur="0.35s" repeatCount="indefinite"/>
+    <animate attributeName="fill" values="#FF6B00;#FFD700;#FF2200;#FFD700;#FF6B00" dur="0.35s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;0.8;1;0.9;1" dur="0.35s" repeatCount="indefinite"/>
+  </circle>
+  <ellipse cx="24" cy="37" rx="3.5" ry="3.5" fill="white"/>
+  <ellipse cx="40" cy="37" rx="3.5" ry="3.5" fill="white"/>
+  <circle cx="24" cy="37" r="2" fill="#111"/>
+  <circle cx="40" cy="37" r="2" fill="#111"/>
+  <circle cx="25" cy="36" r="0.8" fill="white"/>
+  <circle cx="41" cy="36" r="0.8" fill="white"/>
+  <path d="M23,47 Q32,53 41,47" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <line x1="27" y1="47" x2="27" y2="51" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="32" y1="47" x2="32" y2="52" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="37" y1="47" x2="37" y2="51" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`,
+}
+
+let lastBombTime = -Infinity
+
+// ── Bomb state (declared before randomDrop so it can reference bombActive) ──
+const bombActive      = ref(false)
+const bombId          = ref(null)
+const bombFuseEnd     = ref(0)
+const bombFuseLeft    = ref(0)   // seconds remaining, for display
+const screenShaking   = ref(false)
+
+const randomDrop = () => {
+  const now = Date.now()
+  if (
+    !bombActive.value &&
+    now - lastBombTime > BOMB_FRUIT_CONFIG.minSpawnDelay &&
+    Math.random() < BOMB_FRUIT_CONFIG.spawnChance
+  ) return BOMB
+  return DROPPABLE[Math.floor(Math.random() * DROPPABLE.length)]
+}
 
 // ── Game state ────────────────────────────────────────────
 const fruits          = shallowRef([])
@@ -29,6 +83,8 @@ const dropX           = ref(BOARD_W / 2)
 const canDrop         = ref(true)
 const isHovering      = ref(false)
 const particles       = ref([])
+const comboCount      = ref(0)
+const comboFlashes    = ref([])
 
 // ── Matter.js refs ────────────────────────────────────────
 let M           = null
@@ -36,8 +92,72 @@ let engine      = null
 let runner      = null
 let fruitCtr    = 0
 let particleCtr = 0
+let comboCtr    = 0
+let comboTimer  = null
 const bodyMap   = new Map()  // Matter body.id → our fruit.id
 const merging   = new Set()  // fruit ids pending merge
+
+// ── Combo system ──────────────────────────────────────────
+const COMBO_COLORS = ['#feca57', '#ff9f43', '#ff6b6b', '#ff9ff3', '#48dbfb', '#1dd1a1', '#f093fb', '#a29bfe']
+
+const COMBO_TEXTS = {
+  de: {
+    1:  ['Lecker! 🍓', 'Frisch! 🍋', 'Saftig! 🍊', 'Süß! 🍇', 'Knackig! 🍎', 'Yummy! 🫐', 'Frucht! 🍑', 'Reif! 🍌'],
+    3:  ['Combo! 🎯', 'Doppelt hält! ✌️', 'Mehr davon! 🔥', 'Weiter so! 💪', 'Heiß! 🌶️', 'Treffer! 💥'],
+    5:  ['5x Combo! 🔥', 'On Fire! 🌶️', 'Saftig heiß! 🍓🔥', 'Wahnsinn! ⚡', 'Fruchtig! 🍊💥', 'Bombe! 💣'],
+    8:  ['8x COMBO! 🚀', 'Mega Ernte! 🌽', 'Frucht-Gott! 🍉', 'Unaufhaltsam! ⚡', 'Fantastisch! 🌟', 'Stark! 💪'],
+    12: ['12x MEGA! 🎆', 'Obstsalat! 🥗', 'Frucht-Titan! 🏆', 'EPISCH! 💥', 'Frucht-Legende! 🌟', 'BOOM! 💥'],
+    15: ['15x ULTRA! 🌈', 'Frucht-König! 👑', 'Obst-Wahnsinn! 🦁', 'INSANE! 🎊', 'Unglaublich! 🌠', 'Krass! 🤯'],
+    20: ['20x GIGANTISCH! 🦖', 'FRUCHT-GOTT! 🌋', 'EPISCH! ⚔️', 'Obstwunder! 🌟', 'VERRÜCKT! 🤯', 'Titanisch! 🗿'],
+    30: ['30x GÖTTLICH! 🌌', 'UNFASSBAR! 🐉', 'Frucht-Meister! 🦄', 'LEGENDÄR! 👼', 'KOSMISCH! 🌠', 'DER BESTE! 👑'],
+  },
+  en: {
+    1:  ['Tasty! 🍓', 'Fresh! 🍋', 'Juicy! 🍊', 'Sweet! 🍇', 'Crispy! 🍎', 'Yummy! 🫐', 'Fruity! 🍑', 'Ripe! 🍌'],
+    3:  ['Combo! 🎯', 'Double up! ✌️', 'More! 🔥', 'Keep going! 💪', 'Hot! 🌶️', 'Hit! 💥'],
+    5:  ['5x Combo! 🔥', 'On Fire! 🌶️', 'Juicy hot! 🍓🔥', 'Insane! ⚡', 'Fruity! 🍊💥', 'Bomb! 💣'],
+    8:  ['8x COMBO! 🚀', 'Mega Harvest! 🌽', 'Fruit God! 🍉', 'Unstoppable! ⚡', 'Fantastic! 🌟', 'Strong! 💪'],
+    12: ['12x MEGA! 🎆', 'Fruit Salad! 🥗', 'Fruit Titan! 🏆', 'EPIC! 💥', 'Fruit Legend! 🌟', 'BOOM! 💥'],
+    15: ['15x ULTRA! 🌈', 'Fruit King! 👑', 'Fruit Madness! 🦁', 'INSANE! 🎊', 'Unbelievable! 🌠', 'Crazy! 🤯'],
+    20: ['20x GIGANTIC! 🦖', 'FRUIT GOD! 🌋', 'EPIC! ⚔️', 'Fruit Wonder! 🌟', 'CRAZY! 🤯', 'Titanic! 🗿'],
+    30: ['30x DIVINE! 🌌', 'UNREAL! 🐉', 'Fruit Master! 🦄', 'LEGENDARY! 👼', 'COSMIC! 🌠', 'THE BEST! 👑'],
+  },
+}
+
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
+
+const getComboTier = (c) => {
+  if (c >= 30) return { key: 30, size: 'huge' }
+  if (c >= 20) return { key: 20, size: 'huge' }
+  if (c >= 15) return { key: 15, size: 'large' }
+  if (c >= 12) return { key: 12, size: 'large' }
+  if (c >=  8) return { key: 8,  size: 'medium' }
+  if (c >=  5) return { key: 5,  size: 'medium' }
+  if (c >=  3) return { key: 3,  size: 'small' }
+  return           { key: 1,  size: 'normal' }
+}
+
+const triggerCombo = () => {
+  comboCount.value++
+  if (comboTimer) clearTimeout(comboTimer)
+  comboTimer = setTimeout(() => { comboCount.value = 0 }, 2500)
+
+  const { key, size } = getComboTier(comboCount.value)
+  const lang  = locale.value === 'de' ? 'de' : 'en'
+  const text  = pick(COMBO_TEXTS[lang][key])
+  const color = pick(COMBO_COLORS)
+  const id    = comboCtr++
+
+  // Always center horizontally, float up from middle of board
+  comboFlashes.value = [...comboFlashes.value, {
+    id,
+    x: BOARD_W / 2,
+    y: BOARD_H * 0.45,
+    text, color, size,
+  }]
+  setTimeout(() => {
+    comboFlashes.value = comboFlashes.value.filter(f => f.id !== id)
+  }, 1000)
+}
 
 // ── DOM ───────────────────────────────────────────────────
 const boardEl = ref(null)
@@ -63,8 +183,8 @@ const buildWalls = () => {
 
 // ── Spawn fruit ───────────────────────────────────────────
 const spawnFruit = (typeName, x, y) => {
-  const cfg  = FRUIT_TYPES[typeName]
-  if (!cfg) return
+  const cfg  = typeName === 'BOMB' ? BOMB : FRUIT_TYPES[typeName]
+  if (!cfg) return null
   const id   = fruitCtr++
   const body = M.Bodies.circle(x, y, cfg.radius, {
     restitution:    PHYSICS_CONFIG.fruit.restitution,
@@ -83,7 +203,9 @@ const spawnFruit = (typeName, x, y) => {
     y: body.position.y,
     radius: cfg.radius,
     angle: 0,
+    isBomb: !!cfg.isBomb,
   }]
+  return id
 }
 
 // ── Remove fruit ──────────────────────────────────────────
@@ -101,7 +223,15 @@ const drop = () => {
   canDrop.value = false
   const cfg = nextFruitType.value
   const x   = clamp(dropX.value, cfg.radius + WALL_T, BOARD_W - cfg.radius - WALL_T)
-  spawnFruit(cfg.type, x, DROP_Y)
+  const id  = spawnFruit(cfg.isBomb ? 'BOMB' : cfg.type, x, DROP_Y)
+
+  if (cfg.isBomb) {
+    bombId.value      = id
+    bombActive.value  = true
+    bombFuseEnd.value = Date.now() + BOMB_FRUIT_CONFIG.fuseTime
+    lastBombTime      = Date.now()
+  }
+
   nextFruitType.value = nextNextFruit.value
   nextNextFruit.value = randomDrop()
   setTimeout(() => { canDrop.value = true }, PHYSICS_CONFIG.dropCooldown)
@@ -133,6 +263,39 @@ const spawnMergeEffect = (x, y, color, radius) => {
   particles.value = [...particles.value, ...newBatch]
 }
 
+// ── Bomb explosion ────────────────────────────────────────
+const triggerScreenShake = () => {
+  screenShaking.value = true
+  setTimeout(() => { screenShaking.value = false }, BOMB_FRUIT_CONFIG.screenShakeDuration)
+}
+
+const explodeBomb = () => {
+  const bomb = fruits.value.find(f => f.id === bombId.value)
+  bombActive.value = false
+  bombId.value     = null
+
+  const bx = bomb ? bomb.x : BOARD_W / 2
+  const by = bomb ? bomb.y : BOARD_H / 2
+  const r  = BOMB_FRUIT_CONFIG.explosionRadius
+
+  // Explosion particles (bigger burst)
+  spawnMergeEffect(bx, by, '#FF4444', r * 0.8)
+  spawnMergeEffect(bx, by, '#FFD700', r * 0.5)
+
+  if (bomb) removeFruit(bomb.id)
+
+  // Destroy all fruits in radius
+  const victims = fruits.value.filter(f => {
+    if (merging.has(f.id)) return false
+    const dx = f.x - bx, dy = f.y - by
+    return dx * dx + dy * dy <= r * r
+  })
+  for (const f of victims) removeFruit(f.id)
+  score.value += victims.length * BOMB_FRUIT_CONFIG.bonusPerFruit
+
+  triggerScreenShake()
+}
+
 // ── Merge ─────────────────────────────────────────────────
 const onCollision = (event) => {
   for (const pair of event.pairs) {
@@ -145,6 +308,7 @@ const onCollision = (event) => {
     const fA = fruits.value.find(f => f.id === idA)
     const fB = fruits.value.find(f => f.id === idB)
     if (!fA || !fB || fA.type !== fB.type) continue
+    if (fA.isBomb || fB.isBomb) continue  // bombs don't merge
 
     const cfg = FRUIT_TYPES[fA.type]
     if (!cfg?.nextType || !FRUIT_TYPES[cfg.nextType]) continue
@@ -155,8 +319,9 @@ const onCollision = (event) => {
     const mx = (bodyA.position.x + bodyB.position.x) / 2
     const my = (bodyA.position.y + bodyB.position.y) / 2
 
-    // Spawn particles immediately at merge point
+    // Particles + combo at merge point
     spawnMergeEffect(mx, my, cfg.sparkleColor, cfg.radius)
+    triggerCombo()
 
     setTimeout(() => {
       removeFruit(idA)
@@ -211,6 +376,13 @@ const gameLoop = () => {
     }
   }
 
+  // Bomb fuse countdown
+  if (bombActive.value && bombId.value !== null) {
+    const remaining = bombFuseEnd.value - Date.now()
+    bombFuseLeft.value = Math.max(0, Math.ceil(remaining / 1000))
+    if (remaining <= 0) explodeBomb()
+  }
+
   animFrame = requestAnimationFrame(gameLoop)
 }
 
@@ -226,9 +398,16 @@ const restart = () => {
   M.Composite.clear(engine.world)
   bodyMap.clear()
   merging.clear()
-  fruits.value    = []
-  particles.value = []
-  score.value     = 0
+  fruits.value       = []
+  particles.value    = []
+  comboFlashes.value = []
+  comboCount.value   = 0
+  if (comboTimer) { clearTimeout(comboTimer); comboTimer = null }
+  bombActive.value   = false
+  bombId.value       = null
+  bombFuseLeft.value = 0
+  lastBombTime       = -Infinity
+  score.value        = 0
   if (gameOverTimer) { clearTimeout(gameOverTimer); gameOverTimer = null }
   buildWalls()
   nextFruitType.value = randomDrop()
@@ -301,6 +480,18 @@ onUnmounted(() => {
         <div class="text-[10px] uppercase tracking-widest opacity-60">Best</div>
         <div class="text-2xl font-bold tabular-nums">{{ Math.max(score, highScore).toLocaleString() }}</div>
       </div>
+      <!-- Combo badge (only when active) -->
+      <Transition name="combo-pop">
+        <div
+          v-if="comboCount >= 2"
+          class="bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-white text-center min-w-[60px]"
+        >
+          <div class="text-[10px] uppercase tracking-widest opacity-60 mb-0.5">Combo</div>
+          <div class="text-2xl font-bold tabular-nums" style="color: #feca57; text-shadow: 0 0 12px #feca5780;">
+            {{ comboCount }}x
+          </div>
+        </div>
+      </Transition>
       <!-- Next -->
       <div class="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-white text-center">
         <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Next</div>
@@ -315,7 +506,10 @@ onUnmounted(() => {
     <div
       ref="boardEl"
       class="relative bg-[#0d0d1a] border-2 border-white/10 rounded-2xl overflow-hidden touch-none"
-      :class="gameState === 'playing' ? 'cursor-crosshair' : 'cursor-default'"
+      :class="[
+        gameState === 'playing' ? 'cursor-crosshair' : 'cursor-default',
+        screenShaking ? 'screen-shake' : '',
+      ]"
       style="width: 320px; height: 480px;"
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
@@ -351,6 +545,55 @@ onUnmounted(() => {
         />
       </template>
 
+      <!-- Bomb: explosion radius preview + fuse countdown -->
+      <template v-if="bombActive && bombId !== null">
+        <template v-for="f in fruits" :key="`bomb-overlay-${f.id}`">
+          <template v-if="f.isBomb">
+            <!-- Explosion radius ring -->
+            <div
+              class="absolute rounded-full pointer-events-none border-2 border-dashed border-red-400/40"
+              :class="bombFuseLeft <= 3 ? 'border-red-400/70' : 'border-orange-400/40'"
+              :style="{
+                left:   `${f.x}px`,
+                top:    `${f.y}px`,
+                width:  `${BOMB_FRUIT_CONFIG.explosionRadius * 2}px`,
+                height: `${BOMB_FRUIT_CONFIG.explosionRadius * 2}px`,
+                transform: 'translate(-50%, -50%)',
+              }"
+            />
+            <!-- Fuse countdown above bomb -->
+            <div
+              class="absolute pointer-events-none font-black text-white text-center leading-none"
+              :class="bombFuseLeft <= 3 ? 'text-red-400' : 'text-orange-300'"
+              :style="{
+                left:      `${f.x}px`,
+                top:       `${f.y - f.radius - 18}px`,
+                transform: 'translateX(-50%)',
+                fontSize:  '18px',
+                textShadow: bombFuseLeft <= 3 ? '0 0 12px #ff444488' : '0 0 8px #ff990088',
+                zIndex: 12,
+              }"
+            >{{ bombFuseLeft }}</div>
+          </template>
+        </template>
+      </template>
+
+      <!-- Combo floating texts -->
+      <div
+        v-for="f in comboFlashes"
+        :key="f.id"
+        class="floating-number"
+        :class="`size-${f.size}`"
+        :style="{
+          left:       `${f.x}px`,
+          top:        `${f.y}px`,
+          color:      f.color,
+          textShadow: `0 0 18px ${f.color}99`,
+          zIndex:     15,
+          pointerEvents: 'none',
+        }"
+      >{{ f.text }}</div>
+
       <!-- Merge particles -->
       <div
         v-for="p in particles"
@@ -383,7 +626,7 @@ onUnmounted(() => {
       <img
         v-for="fruit in fruits"
         :key="fruit.id"
-        :src="toDataUrl(FRUIT_TYPES[fruit.type].svg)"
+        :src="toDataUrl(fruit.isBomb ? BOMB.svg : FRUIT_TYPES[fruit.type].svg)"
         class="absolute pointer-events-none"
         :style="{
           left:      `${fruit.x}px`,
@@ -440,6 +683,12 @@ onUnmounted(() => {
 .fade-enter-from,
 .fade-leave-to     { opacity: 0; }
 
+/* Combo badge pop-in */
+.combo-pop-enter-active { transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.combo-pop-leave-active { transition: all 0.2s ease-in; }
+.combo-pop-enter-from,
+.combo-pop-leave-to     { opacity: 0; transform: scale(0.6); }
+
 /* Merge burst: particle flies outward and shrinks */
 @keyframes merge-burst {
   0%   { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
@@ -451,5 +700,21 @@ onUnmounted(() => {
   0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
   60%  { opacity: 0.6; }
   100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+}
+
+/* Screen shake */
+@keyframes screen-shake {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  15%  { transform: translate(-5px, -4px) rotate(-1deg); }
+  30%  { transform: translate(5px, 3px) rotate(1deg); }
+  45%  { transform: translate(-4px, 5px) rotate(-0.5deg); }
+  60%  { transform: translate(4px, -3px) rotate(0.5deg); }
+  75%  { transform: translate(-3px, 2px) rotate(-0.3deg); }
+  90%  { transform: translate(2px, -2px) rotate(0.2deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.screen-shake {
+  animation: screen-shake 0.45s ease-out;
 }
 </style>
