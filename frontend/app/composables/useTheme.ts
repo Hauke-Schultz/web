@@ -3,7 +3,7 @@ type Theme = 'light' | 'dark'
 const STORAGE_KEY = 'theme'
 
 export function useTheme() {
-  const theme = useState<Theme>('theme', () => 'light')
+  const theme = useState<Theme>('theme', () => 'dark')
 
   function applyTheme(value: Theme) {
     theme.value = value
@@ -21,7 +21,9 @@ export function useTheme() {
     if (!import.meta.client) return
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    applyTheme(stored ?? (prefersDark ? 'dark' : 'light'))
+    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches
+    const systemTheme: Theme = prefersDark ? 'dark' : prefersLight ? 'light' : 'dark'
+    applyTheme(stored ?? systemTheme)
   }
 
   return { theme, toggle, init }

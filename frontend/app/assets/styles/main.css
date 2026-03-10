@@ -4,7 +4,22 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ── Runtime theme variables ────────────────────────────── */
+/* Default: dark */
 :root {
+  --c-bg:          #0d0818;
+  --c-surface:     #1a1030;
+  --c-surface-alt: #251840;
+  --c-fg:          #f0eaff;
+  --c-muted:       #a898cc;
+  --c-primary:     #aa77ff;
+  --c-primary-h:   #c299ff;
+  --c-accent:      #ff88dd;
+  --c-success:     #00d4a0;
+  --c-border:      #3d2a6e;
+  --c-shadow:      rgba(0 0 0 / 0.5);
+}
+
+[data-theme="light"] {
   --c-bg:          #faf8ff;
   --c-surface:     #f3f0ff;
   --c-surface-alt: #ebe5ff;
@@ -161,15 +176,16 @@
   }
 }
 
+/* ── Custom utilities (overrides Tailwind built-ins) ─────── */
+@utility container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
 /* ── Shared component classes ────────────────────────────── */
 @layer components {
-  .container {
-    width: 100%;
-    max-width: 1200px;
-    margin-inline: auto;
-    padding-inline: 1.5rem;
-  }
-
   .card {
     background: var(--c-surface);
     border: 1px solid var(--c-border);
@@ -217,7 +233,6 @@
 
   .card__text {
     font-size: 0.875rem;
-    color: var(--c-muted);
     margin-bottom: 0.5rem;
 
     &.card__text--pre { white-space: pre-line; }

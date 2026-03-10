@@ -44,7 +44,7 @@ const next = () => go(currentIndex.value + 1)
         @click="next"
       >❯</button>
     </div>
-    <div class="flex justify-center gap-2 mt-3">
+    <div class="flex justify-center gap-2 mt-3 mb-3">
       <button
         v-for="(_, i) in images"
         :key="i"

@@ -1,4 +1,6 @@
 <script setup>
+definePageMeta({ hideNav: true })
+
 const { t, tm, rt } = useI18n()
 
 // Event-Daten aus den Übersetzungen
@@ -85,7 +87,6 @@ useHead({ title: () => t('party.event.title') })
     <!-- Hero -->
     <section class="py-16 px-6 text-center text-white bg-gradient-to-br from-primary to-success">
       <h1 class="text-[clamp(1.5rem,4vw,2.25rem)] text-white mb-3">{{ event.title }}</h1>
-      <p class="text-lg opacity-90">{{ formatDate(event.date) }}</p>
     </section>
 
     <!-- Cards Grid -->
@@ -234,3 +235,9 @@ useHead({ title: () => t('party.event.title') })
 
   </div>
 </template>
+
+<style lang="scss" scoped>
+	.container {
+		max-width: 1200px;
+	}
+</style>
