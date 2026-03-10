@@ -4,7 +4,8 @@
       "Bash(cd:*)",
       "Bash(true:*)",
       "Bash(cd /c/Users/hauke/WebstormProjects/web && npx nuxi@latest init frontend --template minimal --no-install 2>&1)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(cd \"C:/Users/hauke/WebstormProjects/web/frontend\" && npm install matter-js 2>&1 | tail -5)"
     ]
   }
 }
