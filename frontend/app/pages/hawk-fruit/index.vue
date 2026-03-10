@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
 import { FRUIT_TYPES, PHYSICS_CONFIG } from './hawkFruitConfig.js'
 
-definePageMeta({ hideNav: false })
+definePageMeta({ hideHeader: true })
 
 // ── Board constants ───────────────────────────────────────
 const BOARD_W  = 320
@@ -28,12 +28,14 @@ const gameState       = ref('playing')   // 'playing' | 'gameover'
 const dropX           = ref(BOARD_W / 2)
 const canDrop         = ref(true)
 const isHovering      = ref(false)
+const particles       = ref([])
 
 // ── Matter.js refs ────────────────────────────────────────
 let M           = null
 let engine      = null
 let runner      = null
 let fruitCtr    = 0
+let particleCtr = 0
 const bodyMap   = new Map()  // Matter body.id → our fruit.id
 const merging   = new Set()  // fruit ids pending merge
 
@@ -105,6 +107,32 @@ const drop = () => {
   setTimeout(() => { canDrop.value = true }, PHYSICS_CONFIG.dropCooldown)
 }
 
+// ── Merge particles ───────────────────────────────────────
+const spawnMergeEffect = (x, y, color, radius) => {
+  const COUNT    = 12
+  const newBatch = []
+
+  // Burst particles
+  for (let i = 0; i < COUNT; i++) {
+    const angle    = (Math.PI * 2 * i) / COUNT + (Math.random() - 0.5) * 0.4
+    const dist     = radius * 1.0 + Math.random() * radius * 1.2
+    const size     = 4 + Math.random() * 5
+    const duration = 380 + Math.random() * 220
+    const id       = particleCtr++
+
+    newBatch.push({ id, x, y, tx: Math.cos(angle) * dist, ty: Math.sin(angle) * dist, color, size, duration, isRing: false })
+    setTimeout(() => { particles.value = particles.value.filter(p => p.id !== id) }, duration)
+  }
+
+  // Expanding ring
+  const ringId       = particleCtr++
+  const ringDuration = 420
+  newBatch.push({ id: ringId, x, y, tx: 0, ty: 0, color, size: radius * 2, duration: ringDuration, isRing: true })
+  setTimeout(() => { particles.value = particles.value.filter(p => p.id !== ringId) }, ringDuration)
+
+  particles.value = [...particles.value, ...newBatch]
+}
+
 // ── Merge ─────────────────────────────────────────────────
 const onCollision = (event) => {
   for (const pair of event.pairs) {
@@ -127,6 +155,9 @@ const onCollision = (event) => {
     const mx = (bodyA.position.x + bodyB.position.x) / 2
     const my = (bodyA.position.y + bodyB.position.y) / 2
 
+    // Spawn particles immediately at merge point
+    spawnMergeEffect(mx, my, cfg.sparkleColor, cfg.radius)
+
     setTimeout(() => {
       removeFruit(idA)
       removeFruit(idB)
@@ -135,6 +166,19 @@ const onCollision = (event) => {
       const nextR = FRUIT_TYPES[cfg.nextType].radius
       spawnFruit(cfg.nextType, mx, clamp(my, nextR, BOARD_H - nextR))
       score.value += cfg.scoreValue
+
+      // Wake up all sleeping fruits near the merge point so they
+      // fall/roll into the gap left by the removed bodies
+      const wakeR = cfg.radius * 6
+      const wakeR2 = wakeR * wakeR
+      for (const f of fruits.value) {
+        if (merging.has(f.id)) continue
+        const dx = f.body.position.x - mx
+        const dy = f.body.position.y - my
+        if (dx * dx + dy * dy < wakeR2) {
+          M.Sleeping.set(f.body, false)
+        }
+      }
     }, PHYSICS_CONFIG.popEffect.delay)
   }
 }
@@ -182,8 +226,9 @@ const restart = () => {
   M.Composite.clear(engine.world)
   bodyMap.clear()
   merging.clear()
-  fruits.value = []
-  score.value  = 0
+  fruits.value    = []
+  particles.value = []
+  score.value     = 0
   if (gameOverTimer) { clearTimeout(gameOverTimer); gameOverTimer = null }
   buildWalls()
   nextFruitType.value = randomDrop()
@@ -242,7 +287,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center min-h-[calc(100dvh-60px)] bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-6 px-4 select-none">
+  <div class="flex flex-col items-center min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-6 px-4 select-none">
 
     <!-- HUD: score + next fruits -->
     <div class="flex items-stretch gap-3 mb-4 w-full max-w-[320px]">
@@ -306,6 +351,34 @@ onUnmounted(() => {
         />
       </template>
 
+      <!-- Merge particles -->
+      <div
+        v-for="p in particles"
+        :key="p.id"
+        class="absolute pointer-events-none rounded-full"
+        :style="p.isRing ? {
+          left:      `${p.x}px`,
+          top:       `${p.y}px`,
+          width:     `${p.size}px`,
+          height:    `${p.size}px`,
+          border:    `2px solid ${p.color}`,
+          boxShadow: `0 0 6px ${p.color}`,
+          transform: 'translate(-50%, -50%)',
+          animation: `merge-ring ${p.duration}ms ease-out forwards`,
+        } : {
+          left:      `${p.x}px`,
+          top:       `${p.y}px`,
+          width:     `${p.size}px`,
+          height:    `${p.size}px`,
+          background: p.color,
+          boxShadow: `0 0 4px ${p.color}`,
+          transform: 'translate(-50%, -50%)',
+          '--tx':    `${p.tx}px`,
+          '--ty':    `${p.ty}px`,
+          animation: `merge-burst ${p.duration}ms ease-out forwards`,
+        }"
+      />
+
       <!-- Fruits -->
       <img
         v-for="fruit in fruits"
@@ -360,9 +433,23 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style>
+/* Game over overlay transition (must be global for <Transition>) */
 .fade-enter-active,
 .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from,
 .fade-leave-to     { opacity: 0; }
+
+/* Merge burst: particle flies outward and shrinks */
+@keyframes merge-burst {
+  0%   { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0); opacity: 0; }
+}
+
+/* Merge ring: expands and fades */
+@keyframes merge-ring {
+  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+  60%  { opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+}
 </style>
