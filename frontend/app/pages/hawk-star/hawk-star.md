@@ -1,163 +1,90 @@
 # Hawk-Star
 
-Ein browserbasiertes Multiplayer-Online-Strategiespiel im Weltraum.
-
-## Spielkonzept
-
-Jeder Spieler startet auf einem eigenen Planeten und muss von Grund auf eine Zivilisation aufbauen. Ziel ist es, durch Ressourcenmanagement, Forschung und Expansion eine mächtige Raumzivilisation zu werden.
+A browser-based multiplayer online strategy game set in space.
+Each player starts on their own planet, builds a civilization from scratch, expands through the galaxy, and eventually competes or cooperates with other players.
 
 ---
 
-## Phasen des Spiels
+## Roadmap
 
-### Phase 1 – Aufbau der Heimatbasis
+### ✅ Step 1 – Planet Base (Frontend Prototype)
 
-#### Ressourcenleiste (oben)
-Immer sichtbar: **Population | Metall | Kristall | Energie**
+**Goal:** Playable single-player prototype — build and manage your home planet.
 
-#### Planetenraster (3×3)
-Der Planet wird als 3×3-Kachel-Raster dargestellt. Jede Kachel steht für einen Bereich des Planeten.
+- [x] `hawkStarConfig.js` — all static game data separated from component logic
+  - `RESOURCES`, `TILE_TYPES`, `PLANET_GRID`, `BUILDINGS` with full level definitions
+  - DB-ready structure (maps 1:1 to future tables)
+- [x] Resource bar — Population, Metal, Crystal, Energy always visible
+- [x] 3×3 planet grid — slot 5 (center) starts unlocked, others locked
+- [x] Tile selection — click unlocked tile to open its building panel
+- [x] Building system — Build button with timer, progress bar, countdown
+- [x] Upgrade system — all buildings have up to 3 levels, button switches Build → Upgrade
+- [x] Level badge on built buildings, MAX indicator at max level
+- [x] Config-driven unlock system — completing a building level unlocks new tiles
+- [x] Production tick — built buildings produce resources every second
+- [x] Upgrade keeps current production — upgrading doesn't pause output
+- [x] Energy as utility, not stockpile
+  - Power buildings produce energy/s
+  - All other buildings have `energyDrain` (ongoing consumption)
+  - Net energy shown as `⬆ output / ⬇ drain` with +/- flow rate
+  - Energy deficit highlighted in red
+  - Cannot build/upgrade drain buildings when energy would go negative
+  - Power plants always buildable regardless of current energy balance
 
-```
-[ 1 ][ 2 ][ 3 ]
-[ 4 ][ B ][ 6 ]   ← B = Basis (Kachel 5, Mittelpunkt)
-[ 7 ][ 8 ][ 9 ]
-```
+**Open / Next session:**
 
-- **Kachel 5 (Basis)** ist von Beginn an aktiv – hier startet der Spieler
-- Alle anderen Kacheln sind zunächst **gesperrt** und werden durch Fortschritt in der Basis freigeschaltet
-- Kacheln haben je einen eigenen Typ (Bergbau, Energie, Forschung, etc.)
-
-#### Kachel 5 – Basis
-Die Basiskachel zeigt eine Liste von bebaubaren Gebäuden:
-- Klick auf "Bauen" startet einen **Timer** (Bauzeit je nach Gebäude)
-- Während des Baus ist das Gebäude als "im Bau" markiert
-- Nach Ablauf ist das Gebäude aktiv und schaltet ggf. neue Kacheln oder Optionen frei
-
-**Startgebäude der Basis:**
-
-| Gebäude          | Effekt                          | Schaltet frei      |
-| ---------------- | ------------------------------- | ------------------ |
-| Kommandozentrale | Kern der Basis, Pflicht zuerst  | Kachel 2 (Bergbau) |
-| Quartiere        | Erhöht max. Population          | –                  |
-| Energiegenerator | Grundenergieversorgung          | –                  |
-
-#### Kachel 2 – Bergbau
-Zweite Kachel, wird nach Errichtung der Kommandozentrale freigeschaltet:
-- **Metallmine**: produziert Metall über Zeit
-- **Kristallbohrer**: produziert Kristall über Zeit
-- Jedes Gebäude hat eine Bauzeit und danach eine Produktionsrate pro Tick
-
-### Phase 2 – Forschung & Entwicklung
-- Technologiebaum erforschen
-- Kategorien: Bergbau, Energie, Raumfahrt, Waffen, Schilde, Biologie, KI
-- Forschung schaltet neue Gebäude, Schiffe und Fähigkeiten frei
-
-### Phase 3 – Raumfahrt & Expansion
-- Raumschiffe bauen (Erkundungsschiffe, Frachter, Kampfschiffe)
-- Benachbarte Planeten und Monde erkunden
-- Neue Planeten besiedeln und ausbauen
-- Ressourcen zwischen Planeten transportieren
-
-### Phase 4 – Interaktion & Konflikte
-- Andere Spieler entdecken und kontaktieren
-- Handelsrouten aufbauen (Ressourcentausch, Verträge)
-- Allianzen bilden
-- Kämpfe um Planeten und Ressourcen führen
-- NPC-Gegner und feindliche Fraktionen (z.B. Piraten, Aliens)
+- [ ] Population as a workforce resource
+  - Each building requires a `staffDrain` (workers assigned while active)
+  - Cannot build/upgrade if not enough free population
+  - "Need staff" indicator on button, similar to energy check
+  - Quarters increase max population → more workers available
+- [ ] Balance pass — build times, costs and production values need tuning
+- [ ] Visual feedback when a building goes offline (energy deficit in future)
+- [ ] Tile lock visuals — show what's needed to unlock a locked tile (tooltip or label)
 
 ---
 
-## Kernmechaniken
+### 🔲 Step 2 – Backend & Persistence
 
-### Ressourcen
-| Ressource     | Gewonnen durch           | Verwendung                        |
-|---------------|--------------------------|-----------------------------------|
-| Metall        | Minen                    | Gebäude, Schiffe                  |
-| Kristall      | Kristallabbau            | Elektronik, Forschung, Schilde    |
-| Energie       | Kraftwerke, Solar, Fusion| Alles                             |
-| Nahrung       | Hydroponik-Anlagen       | Bevölkerung                       |
-| Seltene Erden | Spezial-Minen            | Hochwertige Technologie, Waffen   |
-| Credits       | Handel, Steuern          | Handel mit anderen Spielern       |
+**Goal:** Save player state to a database so progress persists across sessions.
 
-### Gebäude (Auswahl)
-- Metallmine / Kristallmine / Energieanlage
-- Forschungslabor
-- Raumhafen
-- Fabrik (Schiffe, Module)
-- Kommandozentrale (Upgrades, Überblick)
-- Verteidigungsgeschütz, Raketenbatterie, Schildgenerator
-- Handelsposten
-
-### Raumschiffe (Auswahl)
-- Erkundungsschiff (schnell, unbewaffnet, Sensor-Boost)
-- Frachter (großes Laderaum, langsam)
-- Korvette (leicht bewaffnet, agil)
-- Kreuzer (mittlere Bewaffnung + Schilde)
-- Schlachtschiff (stark bewaffnet, langsam)
-- Kolonieschiff (besiedelt neue Planeten)
-- Trägerschiff (transportiert kleinere Schiffe)
-
-### Forschungsbaum (Kategorien)
-- **Bergbau**: Effizienz, neue Ressourcentypen
-- **Energie**: bessere Kraftwerke, Fusionsreaktoren
-- **Raumfahrt**: Reichweite, Geschwindigkeit, Sprungantrieb
-- **Waffen**: Laser, Raketen, Partikelbeschleuniger
-- **Schilde & Panzerung**: Schilde, Resistenzen
-- **Biologie**: Bevölkerungswachstum, Terraforming
-- **Diplomatie**: Handelsboni, bessere Vertragsoptionen
-- **KI & Automation**: automatische Ressourcenverwaltung
+- [ ] Backend setup (Node.js + Express or Fastify)
+- [ ] Database schema (PostgreSQL)
+  - `players` — auth, profile
+  - `player_resources` — current amounts per player
+  - `player_planet_slots` — unlocked state per slot
+  - `player_buildings` — `{ playerId, buildingId, level, buildEndsAt }`
+- [ ] REST API endpoints
+  - `GET /planet` — load full player state
+  - `POST /build` — queue a build / upgrade
+- [ ] Server-side tick system — resource production calculated server-side on save/load
+- [ ] Auth — login, session, player identity
+- [ ] Frontend connects to API instead of local `ref` state
 
 ---
 
-## Multiplayer-System
-
-- Persistente Spielwelt (Galaxie mit vielen Systemen)
-- Echtzeit oder tick-basiert (z.B. alle 15 Minuten ein "Tick")
-- Spieler können offline Angriffe planen, aber auch angegriffen werden
-- Schutz für neue Spieler (Anfängerschutz für z.B. 72 Stunden)
-- Chat, Diplomatiemenü, Allianzverwaltung
-
----
-
-## Technologie-Stack (geplant)
+## Tech Stack
 
 ### Frontend
-- Vue 3 + Nuxt (bestehende Struktur)
-- Canvas / WebGL für Galaxie-/Planetenansicht
-- Socket.io oder WebSockets für Echtzeit-Updates
+- Vue 3 + Nuxt (existing structure)
+- Scoped CSS for game UI (no Tailwind dependency for game layout)
+- WebSockets for real-time updates (later steps)
 
 ### Backend
-- Node.js / Express oder Fastify
-- WebSockets (Socket.io) für Live-Kommunikation
-- Tick-System (Cron-Jobs für Ressourcenproduktion, Angriffe, etc.)
-- REST API für Spielzustand, Aktionen
+- Node.js + Express or Fastify
+- REST API for game actions
+- Tick system (server-side, cron or event-driven)
+- WebSockets (Socket.io) for live sync (later steps)
 
-### Datenbank
-- PostgreSQL (Spielerdaten, Planeten, Schiffe, Forschung)
-- Redis (Sessions, schnelle Cache-Daten, Tick-Queue)
-
----
-
-## Offene Fragen / To-Do
-
-- [ ] Galaxie-Generator: prozedural oder fixed map?
-- [ ] Kampfsystem: Echtzeit oder rundenbasiert / automatisch?
-- [ ] Wirtschaftsbalancing
-- [ ] Wie viele Spieler pro Galaxie?
-- [ ] Saisonales Spielsystem (Reset nach X Wochen)?
-- [ ] Mobile-Unterstützung?
-- [ ] Name der Fraktionen / Alien-Rassen
-- [ ] Lore / Story-Elemente?
+### Database
+- PostgreSQL — player data, buildings, planets, research
+- Redis — sessions, cache, tick queue (later steps)
 
 ---
 
-## Nächste Schritte (klein beginnen)
+## Vision (future steps)
 
-1. Vue-Seite `hawk-star/index.vue` anlegen
-2. Ressourcenleiste oben (Population, Metall, Kristall, Energie)
-3. 3×3 Planetenraster rendern – Kachel 5 aktiv, Rest gesperrt
-4. Basiskachel: Gebäude-Liste mit Bau-Button + Timer-Logik
-5. Kommandozentrale fertig → Kachel 2 freischalten
-6. Kachel 2: Bergbau-Gebäude mit Produktions-Tick
-7. Danach: Backend / Persistenz anbinden
+- **Step 3** — Research tree (Laboratory tile)
+- **Step 4** — Spaceships & galaxy map
+- **Step 5** — Multiplayer: trading, diplomacy
+- **Step 6** — Combat: PvP and NPC enemies (pirates, alien factions)
