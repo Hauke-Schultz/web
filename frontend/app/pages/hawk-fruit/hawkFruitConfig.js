@@ -1098,6 +1098,9 @@ export const MOLD_FRUIT_CONFIG = {
   scoreEffect: -1000, // Negative points when touched/removed
   maxConcurrent: 1, // Only one mold fruit at a time
   minSize: 50,
+  minRadius: 10,      // Fruit disappears below this radius
+  shrinkOnHit: 0.4,     // px removed per collision
+  hitCooldown: 300,   // ms between shrink-on-hit events per fruit
 
   // Visual effects
   spawnEffect: {

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
-import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG } from './hawkFruitConfig.js'
+import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG } from './hawkFruitConfig.js'
 const { locale } = useI18n()
 
 definePageMeta({ hideHeader: true })
@@ -18,40 +18,15 @@ const DROPPABLE     = FRUIT_LIST.filter(f => f.index <= 5)
 const toDataUrl     = (svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`
 const clamp         = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
-// ── Bomb fruit definition ─────────────────────────────────
-const BOMB = {
-  type:   'BOMB',
-  radius: 26,
-  isBomb: true,
-  color:  '#1a1a1a',
-  sparkleColor: '#FF4444',
-  svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <radialGradient id="bGrad" cx="0.35" cy="0.3">
-      <stop offset="0%" style="stop-color:#666"/>
-      <stop offset="100%" style="stop-color:#111"/>
-    </radialGradient>
-  </defs>
-  <circle cx="32" cy="37" r="23" fill="url(#bGrad)" stroke="#000" stroke-width="1.5"/>
-  <ellipse cx="26" cy="30" rx="6" ry="3.5" fill="white" opacity="0.12" transform="rotate(-30 26 30)"/>
-  <path d="M32,14 Q36,9 40,6 Q44,3 42,8 Q40,10 38,10" stroke="#8B6000" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <circle cx="42" cy="7" r="3.5" fill="#FF6B00">
-    <animate attributeName="r" values="3;4.5;2.5;4;3" dur="0.35s" repeatCount="indefinite"/>
-    <animate attributeName="fill" values="#FF6B00;#FFD700;#FF2200;#FFD700;#FF6B00" dur="0.35s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="1;0.8;1;0.9;1" dur="0.35s" repeatCount="indefinite"/>
-  </circle>
-  <ellipse cx="24" cy="37" rx="3.5" ry="3.5" fill="white"/>
-  <ellipse cx="40" cy="37" rx="3.5" ry="3.5" fill="white"/>
-  <circle cx="24" cy="37" r="2" fill="#111"/>
-  <circle cx="40" cy="37" r="2" fill="#111"/>
-  <circle cx="25" cy="36" r="0.8" fill="white"/>
-  <circle cx="41" cy="36" r="0.8" fill="white"/>
-  <path d="M23,47 Q32,53 41,47" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <line x1="27" y1="47" x2="27" y2="51" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="32" y1="47" x2="32" y2="52" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="37" y1="47" x2="37" y2="51" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-</svg>`,
-}
+// ── Special fruit shorthands (from config) ────────────────
+const BOMB = FRUIT_TYPES.BOMB_FRUIT
+const MOLD = FRUIT_TYPES.MOLD_FRUIT
+
+// Shrink rate derived from lifespan: fruit goes from full radius to minRadius over lifespan ms
+const MOLD_SHRINK_PER_FRAME =
+  (MOLD.radius - MOLD_FRUIT_CONFIG.minRadius) / (MOLD_FRUIT_CONFIG.lifespan / 1000 * 60)
+
+const moldHitCooldown = new Map() // fruitId → timestamp, throttles shrink-on-hit
 
 let lastBombTime = -Infinity
 
@@ -69,6 +44,7 @@ const randomDrop = () => {
     now - lastBombTime > BOMB_FRUIT_CONFIG.minSpawnDelay &&
     Math.random() < BOMB_FRUIT_CONFIG.spawnChance
   ) return BOMB
+  if (Math.random() < MOLD_FRUIT_CONFIG.spawnChance) return MOLD
   return DROPPABLE[Math.floor(Math.random() * DROPPABLE.length)]
 }
 
@@ -183,7 +159,7 @@ const buildWalls = () => {
 
 // ── Spawn fruit ───────────────────────────────────────────
 const spawnFruit = (typeName, x, y) => {
-  const cfg  = typeName === 'BOMB' ? BOMB : FRUIT_TYPES[typeName]
+  const cfg  = FRUIT_TYPES[typeName] ?? null
   if (!cfg) return null
   const id   = fruitCtr++
   const body = M.Bodies.circle(x, y, cfg.radius, {
@@ -204,6 +180,8 @@ const spawnFruit = (typeName, x, y) => {
     radius: cfg.radius,
     angle: 0,
     isBomb: !!cfg.isBomb,
+    isMold: !!cfg.isMold,
+    moldRadius: cfg.isMold ? cfg.radius : undefined,
   }]
   return id
 }
@@ -223,7 +201,8 @@ const drop = () => {
   canDrop.value = false
   const cfg = nextFruitType.value
   const x   = clamp(dropX.value, cfg.radius + WALL_T, BOARD_W - cfg.radius - WALL_T)
-  const id  = spawnFruit(cfg.isBomb ? 'BOMB' : cfg.type, x, DROP_Y)
+  const typeName = cfg.type
+  const id  = spawnFruit(typeName, x, DROP_Y)
 
   if (cfg.isBomb) {
     bombId.value      = id
@@ -296,6 +275,25 @@ const explodeBomb = () => {
   triggerScreenShake()
 }
 
+// ── Mold shrink ───────────────────────────────────────────
+const shrinkMold = (id, amount) => {
+  const idx = fruits.value.findIndex(f => f.id === id)
+  if (idx === -1) return
+  const f    = fruits.value[idx]
+  const newR = f.moldRadius - amount
+  if (newR <= MOLD_FRUIT_CONFIG.minRadius) {
+    spawnMergeEffect(f.x, f.y, MOLD.sparkleColor, f.moldRadius)
+    removeFruit(id)
+    moldHitCooldown.delete(id)
+    return
+  }
+  const scale = newR / f.moldRadius
+  M.Body.scale(f.body, scale, scale)
+  const updated = [...fruits.value]
+  updated[idx] = { ...f, moldRadius: newR, radius: newR }
+  fruits.value = updated
+}
+
 // ── Merge ─────────────────────────────────────────────────
 const onCollision = (event) => {
   for (const pair of event.pairs) {
@@ -307,8 +305,22 @@ const onCollision = (event) => {
 
     const fA = fruits.value.find(f => f.id === idA)
     const fB = fruits.value.find(f => f.id === idB)
-    if (!fA || !fB || fA.type !== fB.type) continue
+    if (!fA || !fB) continue
     if (fA.isBomb || fB.isBomb) continue  // bombs don't merge
+
+    // Mold shrinks on hit, never merges
+    if (fA.isMold || fB.isMold) {
+      const now = Date.now()
+      for (const mf of [fA, fB]) {
+        if (!mf.isMold) continue
+        if (moldHitCooldown.has(mf.id) && now - moldHitCooldown.get(mf.id) < MOLD_FRUIT_CONFIG.hitCooldown) continue
+        moldHitCooldown.set(mf.id, now)
+        shrinkMold(mf.id, MOLD_FRUIT_CONFIG.shrinkOnHit)
+      }
+      continue
+    }
+
+    if (fA.type !== fB.type) continue
 
     const cfg = FRUIT_TYPES[fA.type]
     if (!cfg?.nextType || !FRUIT_TYPES[cfg.nextType]) continue
@@ -353,13 +365,22 @@ let animFrame    = null
 let gameOverTimer = null
 
 const gameLoop = () => {
-  // Sync positions
-  fruits.value = fruits.value.map(f => ({
-    ...f,
-    x:     f.body.position.x,
-    y:     f.body.position.y,
-    angle: f.body.angle,
-  }))
+  // Sync positions + shrink molt fruits
+  const moldExpired = []
+  fruits.value = fruits.value.map(f => {
+    const base = { ...f, x: f.body.position.x, y: f.body.position.y, angle: f.body.angle }
+    if (!f.isMold) return base
+    const newR = f.moldRadius - MOLD_SHRINK_PER_FRAME
+    if (newR <= MOLD_FRUIT_CONFIG.minRadius) { moldExpired.push(f); return base }
+    const scale = newR / f.moldRadius
+    M.Body.scale(f.body, scale, scale)
+    return { ...base, moldRadius: newR, radius: newR }
+  })
+  for (const f of moldExpired) {
+    spawnMergeEffect(f.x, f.y, MOLD.sparkleColor, f.radius)
+    removeFruit(f.id)
+    moldHitCooldown.delete(f.id)
+  }
 
   // Game-over check: fruits settled above danger line
   if (gameState.value === 'playing') {
@@ -407,6 +428,7 @@ const restart = () => {
   bombId.value       = null
   bombFuseLeft.value = 0
   lastBombTime       = -Infinity
+  moldHitCooldown.clear()
   score.value        = 0
   if (gameOverTimer) { clearTimeout(gameOverTimer); gameOverTimer = null }
   buildWalls()
@@ -626,7 +648,7 @@ onUnmounted(() => {
       <img
         v-for="fruit in fruits"
         :key="fruit.id"
-        :src="toDataUrl(fruit.isBomb ? BOMB.svg : FRUIT_TYPES[fruit.type].svg)"
+        :src="toDataUrl(FRUIT_TYPES[fruit.type]?.svg ?? '')"
         class="absolute pointer-events-none"
         :style="{
           left:      `${fruit.x}px`,
