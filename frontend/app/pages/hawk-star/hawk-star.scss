@@ -1,0 +1,58 @@
+// hawk-star.scss
+// CSS custom properties for the Hawk-Star game UI.
+// Defined on .hs-page so they cascade to all child components.
+
+.hs-page {
+  // ── Accent / brand ───────────────────────────────────────
+  --hs-accent:        #6366f1;
+  --hs-accent-hover:  #818cf8;
+  --hs-accent-badge:  #a78bfa;
+  --hs-active-bg:     rgba(99, 102, 241, 0.35);
+  --hs-active-border: rgba(129, 140, 248, 0.6);
+  --hs-active-glow:   rgba(99, 102, 241, 0.2);
+
+  // ── State: ok / success ──────────────────────────────────
+  --hs-ok:           #4ade80;
+  --hs-ok-muted:     #86efac;
+  --hs-ok-bg:        rgba(74, 222, 128, 0.15);
+  --hs-ok-bg-dim:    rgba(74, 222, 128, 0.08);
+  --hs-ok-border:    rgba(74, 222, 128, 0.3);
+
+  // ── State: warning ───────────────────────────────────────
+  --hs-warn:         #facc15;
+  --hs-warn-text:    #fde047;
+
+  // ── State: danger / offline ──────────────────────────────
+  --hs-danger:             #f87171;
+  --hs-danger-muted:       #fca5a5;
+  --hs-danger-bg:          rgba(248, 113, 113, 0.06);
+  --hs-danger-bg-cost:     rgba(248, 113, 113, 0.15);
+  --hs-danger-bg-card:     rgba(248, 113, 113, 0.08);
+  --hs-danger-border:      rgba(248, 113, 113, 0.3);
+  --hs-danger-border-card: rgba(248, 113, 113, 0.5);
+
+  // ── State: staff ─────────────────────────────────────────
+  --hs-staff: #fb923c;
+
+  // ── Glass surfaces (white alpha layers) ──────────────────
+  --hs-glass-xs:  rgba(255, 255, 255, 0.03);
+  --hs-glass-sm:  rgba(255, 255, 255, 0.04);
+  --hs-glass-md:  rgba(255, 255, 255, 0.05);
+  --hs-glass-lg:  rgba(255, 255, 255, 0.06);
+  --hs-glass-xl:  rgba(255, 255, 255, 0.07);
+  --hs-glass-2xl: rgba(255, 255, 255, 0.09);
+  --hs-glass-3xl: rgba(255, 255, 255, 0.10);
+  --hs-glass-4xl: rgba(255, 255, 255, 0.12);
+
+  // ── Hairline borders (white alpha) ───────────────────────
+  --hs-line-xs:  rgba(255, 255, 255, 0.05);
+  --hs-line-sm:  rgba(255, 255, 255, 0.07);
+  --hs-line-md:  rgba(255, 255, 255, 0.09);
+  --hs-line-lg:  rgba(255, 255, 255, 0.10);
+  --hs-line-xl:  rgba(255, 255, 255, 0.12);
+
+  // ── Border radius ────────────────────────────────────────
+  --hs-r-sm: 0.5rem;
+  --hs-r-md: 0.75rem;
+  --hs-r-lg: 1rem;
+}

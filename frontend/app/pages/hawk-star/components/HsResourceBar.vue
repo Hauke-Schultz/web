@@ -56,7 +56,7 @@ const {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .hs-resources {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -65,22 +65,40 @@ const {
   max-width: 28rem;
   margin-bottom: 1.5rem;
 }
+
 .hs-res-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 0.75rem;
+  background: var(--hs-glass-md);
+  border: 1px solid var(--hs-line-lg);
+  border-radius: var(--hs-r-md);
   padding: 0.5rem 0.25rem;
+
+  &--deficit {
+    border-color: var(--hs-danger-border-card);
+    background: var(--hs-danger-bg-card);
+  }
 }
+
 .hs-res-icon  { font-size: 1.25rem; line-height: 1; }
 .hs-res-label { font-size: 0.6rem; text-transform: capitalize; opacity: 0.5; }
-.hs-res-value { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.hs-res-value--deficit { color: #f87171; }
-.hs-res-prod          { font-size: 0.6rem; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.35); }
-.hs-res-prod--pos     { color: #4ade80; }
-.hs-res-prod--neg     { color: #f87171; }
-.hs-res-card--deficit { border-color: rgba(248,113,113,0.5); background: rgba(248,113,113,0.08); }
+
+.hs-res-value {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+
+  &--deficit { color: var(--hs-danger); }
+}
+
+.hs-res-prod {
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.35);
+
+  &--pos { color: var(--hs-ok); }
+  &--neg { color: var(--hs-danger); }
+}
 </style>

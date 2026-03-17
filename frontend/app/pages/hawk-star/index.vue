@@ -21,7 +21,11 @@ onUnmounted(stopTick)
   </div>
 </template>
 
-<style scoped>
+<style lang="scss">
+@use './hawk-star' as *;
+</style>
+
+<style lang="scss" scoped>
 .hs-page {
   min-height: 100dvh;
   background: linear-gradient(to bottom, #0a0a1a, #0d1a2e);
@@ -32,6 +36,7 @@ onUnmounted(stopTick)
   color: #fff;
   user-select: none;
 }
+
 .hs-main {
   display: flex;
   gap: 1rem;
