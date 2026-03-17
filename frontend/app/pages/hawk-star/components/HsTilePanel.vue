@@ -17,8 +17,10 @@ const {
   staffDelta,
   isOffline,
   freeWorkers,
+  currentLevelDef,
   remainingSec,
   formatTime,
+  buildProgressStyle,
 } = useHawkStar()
 </script>
 
@@ -46,6 +48,11 @@ const {
         <!-- Info block -->
         <div class="hs-building-info">
           <div class="hs-building-name">{{ bDef.name }}</div>
+          <div v-if="currentLevelDef(bDef.id)" class="hs-building-stats">
+            <span v-for="(amt, resId) in currentLevelDef(bDef.id).production" :key="resId">{{ RESOURCES[resId]?.icon }} +{{ amt }}/s</span>
+            <span v-if="currentLevelDef(bDef.id).energyDrain">⚡ -{{ currentLevelDef(bDef.id).energyDrain }}</span>
+            <span v-if="currentLevelDef(bDef.id).staffDrain">👥 {{ currentLevelDef(bDef.id).staffDrain }}</span>
+          </div>
           <div class="hs-building-effect">
             <template v-if="nextLevelDef(bDef.id)">
               {{ getLevel(bDef.id) === 0 ? '' : '→ ' }}{{ nextLevelDef(bDef.id).effect }}
@@ -76,10 +83,9 @@ const {
             <div class="hs-progress-row">
               <div class="hs-progress-track">
                 <div
+                  :key="playerBuildings[bDef.id].buildEndsAt"
                   class="hs-progress-fill"
-                  :style="{
-                    width: `${100 - (remainingSec(playerBuildings[bDef.id].buildEndsAt) / BUILDINGS[bDef.id].levels[getLevel(bDef.id)].buildTime) * 100}%`
-                  }"
+                  :style="buildProgressStyle(bDef.id)"
                 />
               </div>
               <span class="hs-progress-time">{{ formatTime(remainingSec(playerBuildings[bDef.id].buildEndsAt)) }}</span>
@@ -197,6 +203,20 @@ const {
 
 .hs-building-info   { flex: 1; min-width: 0; }
 .hs-building-name   { font-size: 0.825rem; font-weight: 600; }
+.hs-building-stats  {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+
+  span {
+    font-size: 0.6rem;
+    color: var(--hs-ok);
+    background: var(--hs-ok-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+}
 .hs-building-effect { font-size: 0.68rem; opacity: 0.5; margin-top: 2px; }
 
 .hs-cost-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
@@ -217,7 +237,12 @@ const {
   height: 100%;
   background: var(--hs-warn);
   border-radius: 9999px;
-  transition: width 1s linear;
+  animation: hs-build-fill linear forwards;
+}
+
+@keyframes hs-build-fill {
+  from { width: 0 }
+  to   { width: 100% }
 }
 
 .hs-progress-time {

@@ -159,6 +159,12 @@ const startBuild = (id) => {
   playerBuildings.value[id].buildEndsAt = Date.now() + next.buildTime * 1000
 }
 
+// Current built level definition (null if not yet built)
+const currentLevelDef = (id) => {
+  const lvl = getLevel(id)
+  return lvl > 0 ? (BUILDINGS[id]?.levels[lvl - 1] ?? null) : null
+}
+
 // ── Offline status ─────────────────────────────────────────
 const isOffline = (id) => {
   if (!energyDeficit.value) return false
@@ -200,6 +206,63 @@ const remainingSec = (buildEndsAt) =>
 const formatTime = (sec) =>
   sec >= 60 ? `${Math.floor(sec / 60)}m ${sec % 60}s` : `${sec}s`
 
+// Returns CSS animation style for the progress fill.
+// Uses Date.now() (non-reactive) so the style is only re-evaluated when
+// buildEndsAt changes (new build), not every tick — the CSS animation
+// then plays forward naturally without flashing or disappearing early.
+const buildProgressStyle = (id) => {
+  const state = playerBuildings.value[id]
+  if (!state?.buildEndsAt) return {}
+  const buildTime = BUILDINGS[id]?.levels[getLevel(id)]?.buildTime ?? 1
+  const elapsed = Math.max(0, (Date.now() - (state.buildEndsAt - buildTime * 1000)) / 1000)
+  return {
+    animationDuration: `${buildTime}s`,
+    animationDelay: `-${elapsed}s`,
+  }
+}
+
+// ── LocalStorage persistence ───────────────────────────────
+const SAVE_KEY = 'hawk-star-save'
+
+const saveGame = () => {
+  localStorage.setItem(SAVE_KEY, JSON.stringify({
+    planetName:      planetName.value,
+    playerResources: playerResources.value,
+    playerSlots:     playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
+    playerBuildings: playerBuildings.value,
+  }))
+}
+
+const loadGame = () => {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    if (!raw) return
+    const data = JSON.parse(raw)
+    if (data.planetName)      planetName.value = data.planetName
+    if (data.playerResources) playerResources.value = data.playerResources
+    if (data.playerSlots) {
+      playerSlots.value = playerSlots.value.map(s => {
+        const saved = data.playerSlots.find(ps => ps.slot === s.slot)
+        return saved ? { ...s, unlocked: saved.unlocked } : s
+      })
+    }
+    if (data.playerBuildings) {
+      for (const [id, state] of Object.entries(data.playerBuildings)) {
+        if (playerBuildings.value[id]) playerBuildings.value[id] = state
+      }
+    }
+  } catch (e) {
+    console.warn('[hawk-star] Failed to load save:', e)
+  }
+}
+
+export const resetGame = () => {
+  localStorage.removeItem(SAVE_KEY)
+  location.reload()
+}
+
+loadGame()
+
 // ── Tick ───────────────────────────────────────────────────
 const tick = () => {
   now.value = Date.now()
@@ -225,6 +288,8 @@ const tick = () => {
     const cap = maxStorage.value[res]
     playerResources.value[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
   }
+
+  saveGame()
 }
 
 export const startTick = () => {
@@ -270,11 +335,14 @@ export function useHawkStar() {
     freeWorkers,
     // storage
     maxStorage,
+    // current level stats
+    currentLevelDef,
     // grid
     unlockRequirement,
     slotsOnSlot,
     // time
     remainingSec,
     formatTime,
+    buildProgressStyle,
   }
 }
