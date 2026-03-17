@@ -106,6 +106,7 @@ const {
                 :disabled="!canBuild(bDef.id)"
                 @click.stop="startBuild(bDef.id)"
               >{{ getLevel(bDef.id) === 0 ? 'Build' : 'Upgrade' }}</button>
+              <span class="hs-build-time">⏱ {{ formatTime(nextLevelDef(bDef.id).buildTime) }}</span>
               <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">⚡ Need power</span>
               <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">👥 Need staff</span>
             </div>
@@ -148,12 +149,17 @@ const {
 .hs-building-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-line-sm);
   border-radius: var(--hs-r-md);
-  padding: 0.75rem;
+  padding: 0.6rem;
   transition: background 0.3s, border-color 0.3s, opacity 0.3s;
+
+  @media (min-width: 640px) {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
 
   &--offline {
     background: var(--hs-danger-bg);
@@ -226,8 +232,9 @@ const {
 .hs-building-action { flex-shrink: 0; }
 
 .hs-btn-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.hs-no-power { font-size: 0.6rem; color: var(--hs-danger); white-space: nowrap; }
-.hs-no-staff { font-size: 0.6rem; color: var(--hs-staff);  white-space: nowrap; }
+.hs-build-time { font-size: 0.6rem; color: rgba(255,255,255,0.4); white-space: nowrap; }
+.hs-no-power   { font-size: 0.6rem; color: var(--hs-danger); white-space: nowrap; }
+.hs-no-staff   { font-size: 0.6rem; color: var(--hs-staff);  white-space: nowrap; }
 
 .hs-btn-build {
   padding: 0.375rem 0.75rem;

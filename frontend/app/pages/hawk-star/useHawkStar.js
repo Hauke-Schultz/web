@@ -2,6 +2,8 @@ import { ref, computed } from 'vue'
 import { TILE_TYPES, PLANET_GRID, BUILDINGS } from './hawkStarConfig.js'
 
 // ── Singleton state ────────────────────────────────────────
+const planetName = ref('Kepler Prime')
+
 const playerResources = ref({
   population: 15,
   metal:      200,
@@ -238,6 +240,7 @@ export const stopTick = () => {
 export function useHawkStar() {
   return {
     // state
+    planetName,
     playerResources,
     playerSlots,
     playerBuildings,

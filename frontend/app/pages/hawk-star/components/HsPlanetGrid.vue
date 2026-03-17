@@ -3,6 +3,7 @@ import { TILE_TYPES } from '../hawkStarConfig.js'
 import { useHawkStar } from '../useHawkStar.js'
 
 const {
+  planetName,
   playerSlots,
   activeSlot,
   selectSlot,
@@ -13,7 +14,9 @@ const {
 </script>
 
 <template>
-  <div class="hs-grid">
+  <div class="hs-planet-wrap">
+    <div class="hs-planet-name">🪐 {{ planetName }}</div>
+    <div class="hs-grid">
     <div
       v-for="slot in playerSlots"
       :key="slot.slot"
@@ -48,14 +51,38 @@ const {
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <style lang="scss" scoped>
+.hs-planet-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  @media (min-width: 640px) {
+    flex-shrink: 0;
+  }
+}
+
+.hs-planet-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  text-align: center;
+}
+
 .hs-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
-  flex-shrink: 0;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: 320px;
+  }
 }
 
 .hs-tile {

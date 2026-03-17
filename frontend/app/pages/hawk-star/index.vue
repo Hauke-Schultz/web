@@ -32,16 +32,25 @@ onUnmounted(stopTick)
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem 1rem;
+  padding: 1rem 0.75rem;
   color: #fff;
   user-select: none;
+
+  @media (min-width: 640px) {
+    padding: 1.5rem 1rem;
+  }
 }
 
 .hs-main {
   display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: flex-start;
   width: 100%;
   max-width: 52rem;
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: flex-start;
+  }
 }
 </style>

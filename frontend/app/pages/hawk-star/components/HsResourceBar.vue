@@ -60,10 +60,15 @@ const {
 .hs-resources {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
+  gap: 0.375rem;
   width: 100%;
   max-width: 28rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+
+  @media (min-width: 640px) {
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
 }
 
 .hs-res-card {
@@ -74,7 +79,11 @@ const {
   background: var(--hs-glass-md);
   border: 1px solid var(--hs-line-lg);
   border-radius: var(--hs-r-md);
-  padding: 0.5rem 0.25rem;
+  padding: 0.375rem 0.15rem;
+
+  @media (min-width: 640px) {
+    padding: 0.5rem 0.25rem;
+  }
 
   &--deficit {
     border-color: var(--hs-danger-border-card);
@@ -82,21 +91,25 @@ const {
   }
 }
 
-.hs-res-icon  { font-size: 1.25rem; line-height: 1; }
-.hs-res-label { font-size: 0.6rem; text-transform: capitalize; opacity: 0.5; }
+.hs-res-icon  { font-size: 1.1rem; line-height: 1; @media (min-width: 640px) { font-size: 1.25rem; } }
+.hs-res-label { font-size: 0.55rem; text-transform: capitalize; opacity: 0.5; @media (min-width: 640px) { font-size: 0.6rem; } }
 
 .hs-res-value {
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+
+  @media (min-width: 640px) { font-size: 1rem; }
 
   &--deficit { color: var(--hs-danger); }
 }
 
 .hs-res-prod {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.35);
+
+  @media (min-width: 640px) { font-size: 0.6rem; }
 
   &--pos { color: var(--hs-ok); }
   &--neg { color: var(--hs-danger); }
