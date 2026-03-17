@@ -143,6 +143,8 @@ const staffDelta = (id) => {
 }
 
 const commandCenterBuilt = computed(() => playerBuildings.value['command_center']?.level >= 1)
+const starMapLevel      = computed(() => playerBuildings.value['star_map']?.level ?? 0)
+const reconDroneLevel   = computed(() => playerBuildings.value['recon_drones']?.level ?? 0)
 
 const canBuild = (id) =>
   (id === 'command_center' || commandCenterBuilt.value) &&
@@ -337,6 +339,9 @@ export function useHawkStar() {
     maxStorage,
     // current level stats
     currentLevelDef,
+    // communication
+    starMapLevel,
+    reconDroneLevel,
     // grid
     unlockRequirement,
     slotsOnSlot,

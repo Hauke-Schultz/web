@@ -1,22 +1,41 @@
 <script setup>
+import { ref, watchEffect } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
-import { startTick, stopTick } from './useHawkStar.js'
+import { startTick, stopTick, useHawkStar } from './useHawkStar.js'
 import HsResourceBar from './components/HsResourceBar.vue'
 import HsPlanetGrid from './components/HsPlanetGrid.vue'
 import HsTilePanel from './components/HsTilePanel.vue'
+import HsNavBar from './components/HsNavBar.vue'
+import HsGalaxyMap from './components/HsGalaxyMap.vue'
 
 definePageMeta({ hideHeader: true })
 
 onMounted(startTick)
 onUnmounted(stopTick)
+
+const { starMapLevel } = useHawkStar()
+
+const currentView = ref('planet')
+
+// Fall back to planet view if star map is removed (e.g. game reset)
+watchEffect(() => {
+  if (currentView.value === 'galaxy' && starMapLevel.value === 0) {
+    currentView.value = 'planet'
+  }
+})
 </script>
 
 <template>
   <div class="hs-page">
     <HsResourceBar />
+    <HsNavBar v-model:currentView="currentView" />
+
     <div class="hs-main">
-      <HsPlanetGrid />
-      <HsTilePanel />
+      <template v-if="currentView === 'planet'">
+        <HsPlanetGrid />
+        <HsTilePanel />
+      </template>
+      <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
     </div>
   </div>
 </template>

@@ -29,7 +29,8 @@ export const TILE_TYPES = {
   base:     { id: 'base',     name: 'Base',     icon: '🏛️', description: 'Colony command center' },
   mining:   { id: 'mining',   name: 'Mining',   icon: '⛏️', description: 'Raw resource extraction' },
   energy:   { id: 'energy',   name: 'Energy',   icon: '🔋', description: 'Power generation' },
-  research: { id: 'research', name: 'Research', icon: '🔬', description: 'Technology development' },
+  research:      { id: 'research',      name: 'Research',      icon: '🔬', description: 'Technology development' },
+  communication: { id: 'communication', name: 'Communication', icon: '📡', description: 'Intel, navigation & interplanetary trade' },
 }
 
 // ── Planet grid (3×3, slot 5 = center = base) ────────────────────────────────
@@ -41,7 +42,7 @@ export const PLANET_GRID = [
   { slot: 3, tileType: null,       startsUnlocked: false },
   { slot: 4, tileType: 'energy',   startsUnlocked: false },
   { slot: 5, tileType: 'base',     startsUnlocked: true  },
-  { slot: 6, tileType: null,       startsUnlocked: false },
+  { slot: 6, tileType: 'communication', startsUnlocked: false },
   { slot: 7, tileType: null,       startsUnlocked: false },
   { slot: 8, tileType: 'research', startsUnlocked: false },
   { slot: 9, tileType: null,       startsUnlocked: false },
@@ -149,11 +150,11 @@ export const BUILDINGS = {
     ],
   },
 
-  // Power Plant — produces energy, no drain. Base tile power source.
+  // Power Plant — produces energy, no drain. Moved to energy tile.
   power_plant: {
     id:          'power_plant',
     name:        'Power Plant',
-    tileType:    'base',
+    tileType:    'energy',
     icon:        '⚡',
     description: 'Powers the colony. Build and upgrade to support more buildings.',
     levels: [
@@ -336,6 +337,121 @@ export const BUILDINGS = {
     ],
   },
 
+  // ── Communication tile ─────────────────────────────────────────────────────
+  // Unlocked by Laboratory Lv1. Houses intel, navigation and trade buildings.
+  // All three are stub definitions — full mechanics arrive in Step 3+.
+
+  recon_drones: {
+    id:          'recon_drones',
+    name:        'Recon Drones',
+    tileType:    'communication',
+    icon:        '🛸',
+    description: 'Automated scout drones that survey nearby space for enemy activity.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 120, crystal: 60 },
+        buildTime:   240,
+        effect:      'Reveals nearby planets · uses 4 energy · 2 workers',
+        production:  {},
+        energyDrain: 4,
+        staffDrain:  2,
+      },
+      {
+        level:       2,
+        cost:        { metal: 300, crystal: 150 },
+        buildTime:   600,
+        effect:      'Reveals enemy fleet movements · uses 7 energy · 3 workers',
+        production:  {},
+        energyDrain: 7,
+        staffDrain:  3,
+      },
+      {
+        level:       3,
+        cost:        { metal: 700, crystal: 350 },
+        buildTime:   1200,
+        effect:      'Real-time enemy tracking across the galaxy · uses 12 energy · 5 workers',
+        production:  {},
+        energyDrain: 12,
+        staffDrain:  5,
+      },
+    ],
+  },
+
+  star_map: {
+    id:          'star_map',
+    name:        'Star Map',
+    tileType:    'communication',
+    icon:        '🗺️',
+    description: 'Charts the known galaxy. Required for interplanetary navigation.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 80, crystal: 100 },
+        buildTime:   300,
+        effect:      'Unlocks galaxy overview — known star systems visible · uses 3 energy · 2 workers',
+        production:  {},
+        energyDrain: 3,
+        staffDrain:  2,
+      },
+      {
+        level:       2,
+        cost:        { metal: 200, crystal: 250 },
+        buildTime:   720,
+        effect:      'Reveals trade routes & uncharted systems · uses 5 energy · 3 workers',
+        production:  {},
+        energyDrain: 5,
+        staffDrain:  3,
+      },
+      {
+        level:       3,
+        cost:        { metal: 500, crystal: 600 },
+        buildTime:   1440,
+        effect:      'Full galaxy scan — all planets & owner flags visible · uses 9 energy · 5 workers',
+        production:  {},
+        energyDrain: 9,
+        staffDrain:  5,
+      },
+    ],
+  },
+
+  trade_harbor: {
+    id:          'trade_harbor',
+    name:        'Trade Harbor',
+    tileType:    'communication',
+    icon:        '🚀',
+    description: 'Interplanetary docking hub for trade ships and resource exchange.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 200, crystal: 100 },
+        buildTime:   480,
+        effect:      'Enables resource trading with other players · uses 5 energy · 3 workers',
+        production:  {},
+        energyDrain: 5,
+        staffDrain:  3,
+      },
+      {
+        level:       2,
+        cost:        { metal: 500, crystal: 250 },
+        buildTime:   900,
+        effect:      'Access to galactic market pricing · uses 8 energy · 5 workers',
+        production:  {},
+        energyDrain: 8,
+        staffDrain:  5,
+      },
+      {
+        level:       3,
+        cost:        { metal: 1200, crystal: 600 },
+        buildTime:   1800,
+        effect:      'Passive income from established trade routes · uses 14 energy · 8 workers',
+        production:  {},
+        energyDrain: 14,
+        staffDrain:  8,
+      },
+    ],
+  },
+
   // ── Research tile ──────────────────────────────────────────────────────────
 
   laboratory: {
@@ -349,10 +465,11 @@ export const BUILDINGS = {
         level:       1,
         cost:        { metal: 130, crystal: 80 },
         buildTime:   180,
-        effect:      'Enables technology research · uses 5 energy · 3 workers',
+        effect:      'Enables technology research · Unlocks Communication tile · uses 5 energy · 3 workers',
         production:  {},
         energyDrain: 5,
         staffDrain:  3,
+        unlocks:     [{ slot: 6 }],
       },
       {
         level:       2,

@@ -30,12 +30,47 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 - [x] Tile lock visuals — show what's needed to unlock a locked tile
 - [x] LocalStorage save/load — persist progress across page refreshes
 - [x] Current stats on built buildings — show active production/drain instead of only next-level effect
+- [x] Power Plant moved to Energy tile (Base: Command Center + Quarters · Energy: Power Plant + Solar Array + Fusion Reactor)
+- [x] Communication tile — slot 6, unlocked by Laboratory Lv1
+  - [x] `recon_drones` — scout drones, 3 levels (intel gating for galaxy screen)
+  - [x] `star_map` — galaxy navigation hub, 3 levels (prerequisite for Step 2 galaxy screen)
+  - [x] `trade_harbor` — interplanetary docking, 3 levels (prerequisite for Step 3 trading)
 
 ---
 
-### 🔲 Step 2 – Backend & Persistence
+### 🔲 Step 2 – Galaxy & Planet Network (Frontend)
 
-**Goal:** Save player state to a database so progress persists across sessions.
+**Goal:** Give the player a sense of place in the galaxy — what they own, what's contested, where enemies are. Gated behind Communication tile buildings.
+
+#### 2a — Planet & System Data (frontend mock)
+- [ ] Static mock galaxy config — ~20 star systems, each with 1–3 planets, x/y coords
+- [ ] Planet states: `own` · `uncolonized` · `enemy` · `ally` · `unknown`
+- [ ] Visibility rules: home planet always visible; others revealed by Recon Drone & Star Map level
+
+#### 2b — Galaxy Map Screen
+- [ ] Galaxy map accessible via "Galaxy" button in HUD — shown once Star Map Lv1 is built
+- [ ] 2D grid/scatter view — each node = one star system
+- [ ] Color-coded by ownership: own = blue · enemy = red · uncolonized = grey · fog of war = dark
+- [ ] Hover/click on a system → system card (planet list, owner, fleet presence if known)
+- [ ] Star Map Lv1 → known systems visible · Lv2 → trade routes · Lv3 → full galaxy, fog of war lifted
+- [ ] Recon Drones Lv1 → reveals nearest 3 systems · Lv2 → enemy movement hints · Lv3 → real-time flags
+- [ ] Player's home system always visible regardless of map level
+
+#### 2c — Planet Detail
+- [ ] Click a known planet → planet card: owner name, tile count, defense level, last-seen time
+- [ ] Own planet links back to the base-building view
+
+#### 2d — Future DB schema (planned for Step 4)
+- `galaxy_systems` — id, name, x, y, star_class
+- `planets` — id, system_id, name, slot_count, owner_id (nullable), conquered_at
+- `planet_visibility` — player_id, planet_id, last_seen_at, visibility_level (0–3)
+- `fleets` — id, owner_id, location_planet_id, destination_planet_id, arrives_at, ship_count
+
+---
+
+### 🔲 Step 3 – Backend & Persistence
+
+**Goal:** Move state to the server so progress survives sessions and multiple players can coexist.
 
 - [ ] Backend setup (Node.js + Express or Fastify)
 - [ ] Database schema (PostgreSQL)
@@ -43,9 +78,11 @@ Each player starts on their own planet, builds a civilization from scratch, expa
   - `player_resources` — current amounts per player
   - `player_planet_slots` — unlocked state per slot
   - `player_buildings` — `{ playerId, buildingId, level, buildEndsAt }`
+  - Galaxy tables from Step 2d
 - [ ] REST API endpoints
   - `GET /planet` — load full player state
   - `POST /build` — queue a build / upgrade
+  - `GET /galaxy` — visible systems for the requesting player
 - [ ] Server-side tick system — resource production calculated server-side on save/load
 - [ ] Auth — login, session, player identity
 - [ ] Frontend connects to API instead of local `ref` state
@@ -73,7 +110,7 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 
 ## Vision (future steps)
 
-- **Step 3** — Research tree (Laboratory tile)
-- **Step 4** — Spaceships & galaxy map
-- **Step 5** — Multiplayer: trading, diplomacy
-- **Step 6** — Combat: PvP and NPC enemies (pirates, alien factions)
+- **Step 4** — Research tree (Laboratory tile — tech unlocks, research queue)
+- **Step 5** — Spaceships & fleet movement (launch fleets, intercept, colonize)
+- **Step 6** — Multiplayer: live trading via Trade Harbor, diplomacy, alliances
+- **Step 7** — Combat: PvP and NPC enemies (pirates, alien factions, siege mechanics)
