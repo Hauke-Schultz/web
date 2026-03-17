@@ -33,7 +33,7 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 
 **Open / Next session:**
 
-- [ ] Population as a workforce resource
+- [x] Population as a workforce resource
   - Each building requires a `staffDrain` (workers assigned while active)
   - Cannot build/upgrade if not enough free population
   - "Need staff" indicator on button, similar to energy check

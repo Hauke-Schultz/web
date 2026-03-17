@@ -7,10 +7,10 @@ definePageMeta({ hideHeader: true })
 // ── Player state (maps directly to DB tables) ──────────────
 // player_resources: { resourceId → amount }
 const playerResources = ref({
-  population: 5,
-  metal:      50,
-  crystal:    20,
-  energy:     30,
+  population: 15,
+  metal:      200,
+  crystal:    80,
+  energy:     0,
 })
 
 // player_planet_slots: { slot → unlocked }
@@ -84,7 +84,52 @@ const hasEnoughPower = (id) => {
   return production.value.energy - deltaDrain >= 0
 }
 
-const canBuild = (id) => canAfford(nextLevelDef(id)?.cost ?? {}) && hasEnoughPower(id)
+// Effective level for drain calculation:
+// a building currently being constructed/upgraded already reserves its next level's drain.
+const effectiveLevel = (state) => state.buildEndsAt ? state.level + 1 : state.level
+
+// Total workers assigned (includes buildings currently being built/upgraded)
+const totalStaffDrain = computed(() => {
+  let drain = 0
+  for (const [id, state] of Object.entries(playerBuildings.value)) {
+    const lvl = effectiveLevel(state)
+    if (lvl === 0) continue
+    drain += BUILDINGS[id]?.levels[lvl - 1]?.staffDrain ?? 0
+  }
+  return drain
+})
+
+// Free workers = max population (playerResources.population) minus currently assigned
+const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
+
+// Check if assigning delta staff for next level would stay >= 0.
+// Upgrades only check the delta (new staffDrain - current staffDrain).
+const hasEnoughStaff = (id) => {
+  const next = nextLevelDef(id)
+  if (!next?.staffDrain) return true
+  const currentDrain = getLevel(id) > 0
+    ? (BUILDINGS[id]?.levels[getLevel(id) - 1]?.staffDrain ?? 0)
+    : 0
+  const deltaDrain = next.staffDrain - currentDrain
+  return freeWorkers.value - deltaDrain >= 0
+}
+
+// All buildings except command_center require it to be built first
+const commandCenterBuilt = computed(() => playerBuildings.value['command_center']?.level >= 1)
+
+// Additional workers needed for the next level (delta, not total)
+const staffDelta = (id) => {
+  const next = nextLevelDef(id)
+  if (!next?.staffDrain) return 0
+  const current = getLevel(id) > 0 ? (BUILDINGS[id]?.levels[getLevel(id) - 1]?.staffDrain ?? 0) : 0
+  return next.staffDrain - current
+}
+
+const canBuild = (id) =>
+  (id === 'command_center' || commandCenterBuilt.value) &&
+  canAfford(nextLevelDef(id)?.cost ?? {}) &&
+  hasEnoughPower(id) &&
+  hasEnoughStaff(id)
 
 const startBuild = (id) => {
   const next = nextLevelDef(id)
@@ -112,12 +157,13 @@ const grossProduction = computed(() => {
   return prod
 })
 
-// Total energy drained by all active (built) buildings
+// Total energy drained (includes buildings currently being built/upgraded)
 const totalEnergyDrain = computed(() => {
   let drain = 0
   for (const [id, state] of Object.entries(playerBuildings.value)) {
-    if (state.level === 0) continue
-    drain += BUILDINGS[id]?.levels[state.level - 1]?.energyDrain ?? 0
+    const lvl = effectiveLevel(state)
+    if (lvl === 0) continue
+    drain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
   }
   return drain
 })
@@ -130,6 +176,22 @@ const production = computed(() => ({
 
 // True if colony is in energy deficit
 const energyDeficit = computed(() => production.value.energy < 0)
+
+// ── Storage caps ───────────────────────────────────────────
+// Base storage when no mine/drill is built yet
+const BASE_STORAGE = { metal: 100, crystal: 50 }
+
+const maxStorage = computed(() => {
+  const caps = { ...BASE_STORAGE }
+  for (const [id, state] of Object.entries(playerBuildings.value)) {
+    if (state.level === 0) continue
+    const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
+    for (const [res, cap] of Object.entries(storage)) {
+      caps[res] = (caps[res] ?? 0) + cap
+    }
+  }
+  return caps
+})
 
 // ── Slot dot indicators (built / in-progress) ─────────────
 const slotsOnSlot = (slot) => {
@@ -183,7 +245,9 @@ const tick = () => {
 
   // Production tick — net values (energy already has drain subtracted)
   for (const [res, amt] of Object.entries(production.value)) {
-    playerResources.value[res] = Math.max(0, (playerResources.value[res] ?? 0) + amt)
+    const newVal = Math.max(0, (playerResources.value[res] ?? 0) + amt)
+    const cap = maxStorage.value[res]
+    playerResources.value[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
   }
 }
 
@@ -200,21 +264,42 @@ onUnmounted(() => { clearInterval(tickInterval) })
         v-for="res in RESOURCES"
         :key="res.id"
         class="hs-res-card"
-        :class="{ 'hs-res-card--deficit': res.id === 'energy' && energyDeficit }"
+        :class="{
+          'hs-res-card--deficit': (res.id === 'energy' && energyDeficit) || (res.id === 'population' && freeWorkers < 0)
+        }"
       >
         <span class="hs-res-icon">{{ res.icon }}</span>
         <span class="hs-res-label">{{ res.name }}</span>
-        <span class="hs-res-value">{{ res.id === 'energy' ? `${grossProduction.energy ?? 0}⬆ ${totalEnergyDrain}⬇` : Math.floor(playerResources[res.id]) }}</span>
+        <!-- big value: free/net for energy+pop, current amount for metal+crystal -->
         <span
-          v-if="res.id !== 'energy'"
+          class="hs-res-value"
+          :class="{
+            'hs-res-value--deficit': (res.id === 'energy' && energyDeficit) || (res.id === 'population' && freeWorkers < 0)
+          }"
+        >
+          <template v-if="res.id === 'energy'">{{ production.energy > 0 ? `+${production.energy}` : production.energy }}</template>
+          <template v-else-if="res.id === 'population'">{{ freeWorkers > 0 ? `+${freeWorkers}` : freeWorkers }}</template>
+          <template v-else>{{ Math.floor(playerResources[res.id]) }}</template>
+        </span>
+        <!-- small line: max/total context -->
+        <span
+          v-if="res.id === 'energy'"
           class="hs-res-prod"
-          :class="production[res.id] > 0 ? 'hs-res-prod--pos' : ''"
-        >{{ production[res.id] ? `+${production[res.id]}/s` : '' }}</span>
+          :class="energyDeficit ? 'hs-res-prod--neg' : 'hs-res-prod--pos'"
+        >{{ production.energy }}/{{ grossProduction.energy ?? 0 }}</span>
+        <span
+          v-else-if="res.id === 'population'"
+          class="hs-res-prod"
+          :class="freeWorkers < 0 ? 'hs-res-prod--neg' : ''"
+        >{{ freeWorkers }}/{{ playerResources[res.id] }}</span>
         <span
           v-else
           class="hs-res-prod"
-          :class="energyDeficit ? 'hs-res-prod--neg' : 'hs-res-prod--pos'"
-        >{{ production.energy > 0 ? `+${production.energy}/s` : `${production.energy}/s` }}</span>
+          :class="production[res.id] > 0 ? 'hs-res-prod--pos' : ''"
+        >
+          {{ production[res.id] ? `+${production[res.id]}/s` : '' }}
+          <template v-if="maxStorage[res.id]"> · /{{ maxStorage[res.id] }}</template>
+        </span>
       </div>
     </div>
 
@@ -290,9 +375,14 @@ onUnmounted(() => { clearInterval(tickInterval) })
 
             <!-- Cost row -->
             <div
-              v-if="nextLevelDef(bDef.id) && !isBuildingInProgress(bDef.id) && Object.keys(nextLevelDef(bDef.id).cost).length"
+              v-if="nextLevelDef(bDef.id) && !isBuildingInProgress(bDef.id) && (Object.keys(nextLevelDef(bDef.id).cost).length || staffDelta(bDef.id) > 0)"
               class="hs-cost-row"
             >
+              <span
+		              v-if="staffDelta(bDef.id) > 0"
+		              class="hs-cost-tag"
+		              :class="freeWorkers >= staffDelta(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >👥 {{ staffDelta(bDef.id) }}</span>
               <span
                 v-for="(amt, resId) in nextLevelDef(bDef.id).cost"
                 :key="resId"
@@ -334,6 +424,7 @@ onUnmounted(() => { clearInterval(tickInterval) })
                   @click.stop="startBuild(bDef.id)"
                 >{{ getLevel(bDef.id) === 0 ? 'Build' : 'Upgrade' }}</button>
                 <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">⚡ Need power</span>
+                <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">👥 Need staff</span>
               </div>
             </template>
           </div>
@@ -385,6 +476,7 @@ onUnmounted(() => { clearInterval(tickInterval) })
 .hs-res-icon  { font-size: 1.25rem; line-height: 1; }
 .hs-res-label { font-size: 0.6rem; text-transform: capitalize; opacity: 0.5; }
 .hs-res-value { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hs-res-value--deficit { color: #f87171; }
 .hs-res-prod          { font-size: 0.6rem; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.35); }
 .hs-res-prod--pos     { color: #4ade80; }
 .hs-res-prod--neg     { color: #f87171; }
@@ -507,6 +599,7 @@ onUnmounted(() => { clearInterval(tickInterval) })
 .hs-building-action { flex-shrink: 0; }
 .hs-btn-wrap   { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .hs-no-power   { font-size: 0.6rem; color: #f87171; white-space: nowrap; }
+.hs-no-staff   { font-size: 0.6rem; color: #fb923c; white-space: nowrap; }
 .hs-btn-build {
   padding: 0.375rem 0.75rem;
   border-radius: 0.5rem;
