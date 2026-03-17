@@ -36,15 +36,15 @@ export const TILE_TYPES = {
 // slot:     1–9 (reading order, 5 = center)
 // tileType: null = unknown/locked, string = tile type id
 export const PLANET_GRID = [
-  { slot: 1, tileType: null,     startsUnlocked: false },
-  { slot: 2, tileType: 'mining', startsUnlocked: false },
-  { slot: 3, tileType: null,     startsUnlocked: false },
-  { slot: 4, tileType: 'energy', startsUnlocked: false },
-  { slot: 5, tileType: 'base',   startsUnlocked: true  },
-  { slot: 6, tileType: null,     startsUnlocked: false },
-  { slot: 7, tileType: null,     startsUnlocked: false },
+  { slot: 1, tileType: null,       startsUnlocked: false },
+  { slot: 2, tileType: 'mining',   startsUnlocked: false },
+  { slot: 3, tileType: null,       startsUnlocked: false },
+  { slot: 4, tileType: 'energy',   startsUnlocked: false },
+  { slot: 5, tileType: 'base',     startsUnlocked: true  },
+  { slot: 6, tileType: null,       startsUnlocked: false },
+  { slot: 7, tileType: null,       startsUnlocked: false },
   { slot: 8, tileType: 'research', startsUnlocked: false },
-  { slot: 9, tileType: null,     startsUnlocked: false },
+  { slot: 9, tileType: null,       startsUnlocked: false },
 ]
 
 // ── Buildings ─────────────────────────────────────────────────────────────────
@@ -52,40 +52,42 @@ export const PLANET_GRID = [
 // Level index 0 = initial build (level 1), index 1 = first upgrade (level 2), etc.
 //
 // Each level entry:
-//   cost         – { resourceId: amount } — one-time cost when queuing the build
-//   buildTime    – seconds until complete
-//   effect       – human-readable description (i18n key later)
-//   production   – { resourceId: amountPerTick } — resources added each tick (metal, crystal, energy)
-//   energyDrain  – energy consumed per tick while this building is active
-//                  Energy producers have no drain; all other buildings do.
-//   staffDrain   – workers permanently assigned to this building while it is active
-//                  Upgrades increase the drain by the delta (new - current level).
-//   unlocks      – [{ slot }] — planet slots unlocked on completion
-//   popBonus     – flat max-population increase on completion (frees up new worker slots)
+//   cost            – { resourceId: amount } — one-time cost when queuing the build
+//   buildTime       – seconds until complete
+//   effect          – human-readable description (i18n key later)
+//   production      – { resourceId: amountPerTick } — resources added each tick
+//   energyDrain     – energy consumed per tick while this building is active
+//                     Energy producers have no drain; all other buildings do.
+//   staffDrain      – workers permanently assigned to this building while active
+//                     Upgrades increase the drain by the delta (new - current level).
+//   storageCapacity – { resourceId: amount } — adds to max storage for that resource
+//   unlocks         – [{ slot }] — planet slots unlocked on completion
+//   popBonus        – flat max-population increase on completion
 
 export const BUILDINGS = {
 
   // ── Base tile ──────────────────────────────────────────────────────────────
+
   command_center: {
     id:          'command_center',
     name:        'Command Center',
     tileType:    'base',
     icon:        '🏛️',
-    description: 'The heart of your colony. Must be built first.',
+    description: 'The heart of your colony. Must be built before anything else.',
     levels: [
       {
-        level:       1,
-        cost:        {},
-        buildTime:   10,
-        effect:      'Unlocks the Mining tile · 1 worker',
-        production:  {},
-        staffDrain:  1,
-        unlocks:     [{ slot: 2 }],
+        level:      1,
+        cost:       {},
+        buildTime:  5,
+        effect:     'Unlocks the Mining tile · 1 worker',
+        production: {},
+        staffDrain: 1,
+        unlocks:    [{ slot: 2 }],
       },
       {
         level:       2,
-        cost:        { metal: 120, crystal: 40 },
-        buildTime:   90,
+        cost:        { metal: 80, crystal: 30 },
+        buildTime:   120,
         effect:      'Unlocks the Energy tile · +5 pop · uses 2 energy · 2 workers',
         production:  {},
         energyDrain: 2,
@@ -95,8 +97,8 @@ export const BUILDINGS = {
       },
       {
         level:       3,
-        cost:        { metal: 350, crystal: 120 },
-        buildTime:   300,
+        cost:        { metal: 300, crystal: 100 },
+        buildTime:   360,
         effect:      'Unlocks the Research tile · +10 pop · uses 3 energy · 3 workers',
         production:  {},
         energyDrain: 3,
@@ -112,42 +114,42 @@ export const BUILDINGS = {
     name:        'Quarters',
     tileType:    'base',
     icon:        '🏠',
-    description: 'Housing blocks for your growing population.',
+    description: 'Housing for your growing workforce.',
     levels: [
       {
         level:       1,
-        cost:        { metal: 30 },
-        buildTime:   30,
-        effect:      '+3 max pop · uses 1 energy · 1 worker',
+        cost:        { metal: 40 },
+        buildTime:   25,
+        effect:      '+4 max pop · uses 1 energy · 1 worker',
         production:  {},
         energyDrain: 1,
         staffDrain:  1,
-        popBonus:    3,
+        popBonus:    4,
       },
       {
         level:       2,
-        cost:        { metal: 80, crystal: 20 },
-        buildTime:   90,
-        effect:      '+5 max pop · uses 2 energy · 1 worker',
+        cost:        { metal: 100, crystal: 30 },
+        buildTime:   150,
+        effect:      '+6 max pop · uses 2 energy · 1 worker',
         production:  {},
         energyDrain: 2,
         staffDrain:  1,
-        popBonus:    5,
+        popBonus:    6,
       },
       {
         level:       3,
-        cost:        { metal: 200, crystal: 60 },
-        buildTime:   240,
-        effect:      '+10 max pop · uses 3 energy · 2 workers',
+        cost:        { metal: 260, crystal: 80 },
+        buildTime:   360,
+        effect:      '+12 max pop · uses 3 energy · 2 workers',
         production:  {},
         energyDrain: 3,
         staffDrain:  2,
-        popBonus:    10,
+        popBonus:    12,
       },
     ],
   },
 
-  // Power Plant: produces energy, no drain. Needs to cover all other buildings.
+  // Power Plant — produces energy, no drain. Base tile power source.
   power_plant: {
     id:          'power_plant',
     name:        'Power Plant',
@@ -157,65 +159,66 @@ export const BUILDINGS = {
     levels: [
       {
         level:      1,
-        cost:       { crystal: 15 },
+        cost:       { crystal: 25 },
         buildTime:  20,
-        effect:     'Provides +6 energy/s · 1 worker',
-        production: { energy: 6 },
+        effect:     '+5 energy/s · 1 worker',
+        production: { energy: 5 },
         staffDrain: 1,
       },
       {
         level:      2,
-        cost:       { metal: 80, crystal: 40 },
-        buildTime:  90,
-        effect:     'Provides +14 energy/s · 2 workers',
-        production: { energy: 14 },
+        cost:       { metal: 70, crystal: 35 },
+        buildTime:  150,
+        effect:     '+12 energy/s · 2 workers',
+        production: { energy: 12 },
         staffDrain: 2,
       },
       {
         level:      3,
-        cost:       { metal: 200, crystal: 100 },
-        buildTime:  240,
-        effect:     'Provides +28 energy/s · 3 workers',
-        production: { energy: 28 },
+        cost:       { metal: 180, crystal: 90 },
+        buildTime:  360,
+        effect:     '+25 energy/s · 3 workers',
+        production: { energy: 25 },
         staffDrain: 3,
       },
     ],
   },
 
   // ── Mining tile ────────────────────────────────────────────────────────────
+
   metal_mine: {
     id:          'metal_mine',
     name:        'Metal Mine',
     tileType:    'mining',
     icon:        '⛏️',
-    description: 'Extracts metal ore from the surface. Consumes energy to operate.',
+    description: 'Extracts metal ore from the surface.',
     levels: [
       {
         level:           1,
-        cost:            { metal: 10 },
-        buildTime:       15,
-        effect:          '+3 metal/s · 300 storage · uses 3 energy · 2 workers',
-        production:      { metal: 3 },
+        cost:            { metal: 30 },
+        buildTime:       25,
+        effect:          '+2 metal/s · 300 storage · uses 3 energy · 2 workers',
+        production:      { metal: 2 },
         energyDrain:     3,
         staffDrain:      2,
         storageCapacity: { metal: 300 },
       },
       {
         level:           2,
-        cost:            { metal: 50, crystal: 10 },
-        buildTime:       60,
-        effect:          '+7 metal/s · 700 storage · uses 5 energy · 4 workers',
-        production:      { metal: 7 },
+        cost:            { metal: 80, crystal: 20 },
+        buildTime:       150,
+        effect:          '+5 metal/s · 700 storage · uses 5 energy · 4 workers',
+        production:      { metal: 5 },
         energyDrain:     5,
         staffDrain:      4,
         storageCapacity: { metal: 700 },
       },
       {
         level:           3,
-        cost:            { metal: 130, crystal: 30 },
-        buildTime:       180,
-        effect:          '+15 metal/s · 1500 storage · uses 9 energy · 6 workers',
-        production:      { metal: 15 },
+        cost:            { metal: 220, crystal: 60 },
+        buildTime:       420,
+        effect:          '+12 metal/s · 1500 storage · uses 9 energy · 6 workers',
+        production:      { metal: 12 },
         energyDrain:     9,
         staffDrain:      6,
         storageCapacity: { metal: 1500 },
@@ -228,34 +231,34 @@ export const BUILDINGS = {
     name:        'Crystal Drill',
     tileType:    'mining',
     icon:        '💎',
-    description: 'Bores deep into crystal veins. Consumes energy to operate.',
+    description: 'Bores deep into crystal veins.',
     levels: [
       {
         level:           1,
-        cost:            { metal: 20 },
-        buildTime:       25,
-        effect:          '+2 crystal/s · 200 storage · uses 2 energy · 2 workers',
-        production:      { crystal: 2 },
+        cost:            { metal: 50 },
+        buildTime:       35,
+        effect:          '+1 crystal/s · 200 storage · uses 2 energy · 2 workers',
+        production:      { crystal: 1 },
         energyDrain:     2,
         staffDrain:      2,
         storageCapacity: { crystal: 200 },
       },
       {
         level:           2,
-        cost:            { metal: 80 },
-        buildTime:       90,
-        effect:          '+5 crystal/s · 500 storage · uses 4 energy · 3 workers',
-        production:      { crystal: 5 },
+        cost:            { metal: 110, crystal: 30 },
+        buildTime:       180,
+        effect:          '+3 crystal/s · 500 storage · uses 4 energy · 3 workers',
+        production:      { crystal: 3 },
         energyDrain:     4,
         staffDrain:      3,
         storageCapacity: { crystal: 500 },
       },
       {
         level:           3,
-        cost:            { metal: 200, crystal: 20 },
-        buildTime:       240,
-        effect:          '+10 crystal/s · 1000 storage · uses 7 energy · 5 workers',
-        production:      { crystal: 10 },
+        cost:            { metal: 280, crystal: 80 },
+        buildTime:       480,
+        effect:          '+7 crystal/s · 1000 storage · uses 7 energy · 5 workers',
+        production:      { crystal: 7 },
         energyDrain:     7,
         staffDrain:      5,
         storageCapacity: { crystal: 1000 },
@@ -264,6 +267,7 @@ export const BUILDINGS = {
   },
 
   // ── Energy tile ────────────────────────────────────────────────────────────
+
   solar_array: {
     id:          'solar_array',
     name:        'Solar Array',
@@ -273,26 +277,26 @@ export const BUILDINGS = {
     levels: [
       {
         level:      1,
-        cost:       { metal: 40, crystal: 20 },
-        buildTime:  40,
-        effect:     'Provides +10 energy/s · 1 worker',
-        production: { energy: 10 },
+        cost:       { metal: 50, crystal: 30 },
+        buildTime:  60,
+        effect:     '+8 energy/s · 1 worker',
+        production: { energy: 8 },
         staffDrain: 1,
       },
       {
         level:      2,
-        cost:       { metal: 100, crystal: 50 },
-        buildTime:  120,
-        effect:     'Provides +22 energy/s · 2 workers',
-        production: { energy: 22 },
+        cost:       { metal: 130, crystal: 65 },
+        buildTime:  210,
+        effect:     '+18 energy/s · 2 workers',
+        production: { energy: 18 },
         staffDrain: 2,
       },
       {
         level:      3,
-        cost:       { metal: 250, crystal: 120 },
-        buildTime:  300,
-        effect:     'Provides +45 energy/s · 3 workers',
-        production: { energy: 45 },
+        cost:       { metal: 320, crystal: 160 },
+        buildTime:  480,
+        effect:     '+38 energy/s · 3 workers',
+        production: { energy: 38 },
         staffDrain: 3,
       },
     ],
@@ -307,25 +311,25 @@ export const BUILDINGS = {
     levels: [
       {
         level:      1,
-        cost:       { metal: 200, crystal: 100 },
-        buildTime:  180,
-        effect:     'Provides +35 energy/s · 2 workers',
+        cost:       { metal: 250, crystal: 120 },
+        buildTime:  300,
+        effect:     '+35 energy/s · 2 workers',
         production: { energy: 35 },
         staffDrain: 2,
       },
       {
         level:      2,
-        cost:       { metal: 500, crystal: 250 },
-        buildTime:  480,
-        effect:     'Provides +75 energy/s · 4 workers',
+        cost:       { metal: 600, crystal: 300 },
+        buildTime:  720,
+        effect:     '+75 energy/s · 4 workers',
         production: { energy: 75 },
         staffDrain: 4,
       },
       {
         level:      3,
-        cost:       { metal: 1200, crystal: 600 },
-        buildTime:  900,
-        effect:     'Provides +150 energy/s · 7 workers',
+        cost:       { metal: 1400, crystal: 700 },
+        buildTime:  1200,
+        effect:     '+150 energy/s · 7 workers',
         production: { energy: 150 },
         staffDrain: 7,
       },
@@ -333,6 +337,7 @@ export const BUILDINGS = {
   },
 
   // ── Research tile ──────────────────────────────────────────────────────────
+
   laboratory: {
     id:          'laboratory',
     name:        'Laboratory',
@@ -342,8 +347,8 @@ export const BUILDINGS = {
     levels: [
       {
         level:       1,
-        cost:        { metal: 100, crystal: 60 },
-        buildTime:   120,
+        cost:        { metal: 130, crystal: 80 },
+        buildTime:   180,
         effect:      'Enables technology research · uses 5 energy · 3 workers',
         production:  {},
         energyDrain: 5,
@@ -351,8 +356,8 @@ export const BUILDINGS = {
       },
       {
         level:       2,
-        cost:        { metal: 250, crystal: 150 },
-        buildTime:   360,
+        cost:        { metal: 320, crystal: 180 },
+        buildTime:   540,
         effect:      '+50% research speed · uses 8 energy · 5 workers',
         production:  {},
         energyDrain: 8,
@@ -360,8 +365,8 @@ export const BUILDINGS = {
       },
       {
         level:       3,
-        cost:        { metal: 600, crystal: 400 },
-        buildTime:   720,
+        cost:        { metal: 800, crystal: 450 },
+        buildTime:   900,
         effect:      'Unlocks advanced technologies · uses 14 energy · 8 workers',
         production:  {},
         energyDrain: 14,

@@ -38,9 +38,27 @@ Each player starts on their own planet, builds a civilization from scratch, expa
   - Cannot build/upgrade if not enough free population
   - "Need staff" indicator on button, similar to energy check
   - Quarters increase max population → more workers available
-- [ ] Balance pass — build times, costs and production values need tuning
-- [ ] Visual feedback when a building goes offline (energy deficit in future)
-- [ ] Tile lock visuals — show what's needed to unlock a locked tile (tooltip or label)
+- [x] Resource bar improvements
+  - Energy & population show free/max as `X/Y` in subtitle
+  - Metal & crystal show storage cap (`+3/s · /300`)
+  - Cost tags show additional worker delta (`👥 2`)
+  - Command Center must be built before anything else
+  - Drain/staff reserved immediately when build starts (not on completion)
+- [x] Storage caps for metal & crystal
+  - Base storage: metal 100, crystal 50
+  - Metal Mine / Crystal Drill each level raises the cap
+  - Production stops ticking when cap is reached
+- [x] Balance pass — build times, costs and production values tuned
+- [x] Visual feedback when a building goes offline (energy deficit)
+  - Offline = built + has energyDrain + colony in deficit
+  - Building row: red border, dimmed, `⚠ Offline` badge (replaces MAX/Build button)
+  - Grid dot: red pulsing dot instead of green
+- [x] Tile lock visuals — show what's needed to unlock a locked tile
+  - Config scanned for `unlocks: [{ slot }]` to find requirement per slot
+  - Shows `🏛️ Lv2` badge on locked tile (building icon + required level)
+  - Badge turns green when requirement is already met (building complete)
+  - Native tooltip: "Build Command Center to Level 2"
+  - Slots without defined unlock (future content) stay as `???`
 
 ---
 
