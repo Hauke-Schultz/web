@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { TILE_TYPES, PLANET_GRID, BUILDINGS } from './hawkStarConfig.js'
+import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
 
 // ── Singleton state ────────────────────────────────────────
 const planetName = ref('Kepler Prime')
@@ -143,12 +144,27 @@ const staffDelta = (id) => {
 }
 
 const commandCenterBuilt = computed(() => playerBuildings.value['command_center']?.level >= 1)
-const starMapLevel      = computed(() => {
+
+const starMapLevel = computed(() => {
   const state = playerBuildings.value['star_map']
   return state ? effectiveLevel(state) : 0
 })
-const reconDroneLevel   = computed(() => {
-  const state = playerBuildings.value['recon_drones']
+const spaceTechLevel = computed(() => {
+  const state = playerBuildings.value['space_tech']
+  return state ? effectiveLevel(state) : 0
+})
+// Recon Drone: short-range, scouts planets in home system
+const reconDroneLevel = computed(() => {
+  const state = playerBuildings.value['recon_drone']
+  return state ? effectiveLevel(state) : 0
+})
+// Galaxy Probe: long-range, flies to star systems to reveal planet count
+const galaxyProbeLevel = computed(() => {
+  const state = playerBuildings.value['galaxy_probe']
+  return state ? effectiveLevel(state) : 0
+})
+const colonyShipLevel = computed(() => {
+  const state = playerBuildings.value['colony_ship']
   return state ? effectiveLevel(state) : 0
 })
 
@@ -214,10 +230,6 @@ const remainingSec = (buildEndsAt) =>
 const formatTime = (sec) =>
   sec >= 60 ? `${Math.floor(sec / 60)}m ${sec % 60}s` : `${sec}s`
 
-// Returns CSS animation style for the progress fill.
-// Uses Date.now() (non-reactive) so the style is only re-evaluated when
-// buildEndsAt changes (new build), not every tick — the CSS animation
-// then plays forward naturally without flashing or disappearing early.
 const buildProgressStyle = (id) => {
   const state = playerBuildings.value[id]
   if (!state?.buildEndsAt) return {}
@@ -229,15 +241,82 @@ const buildProgressStyle = (id) => {
   }
 }
 
+// ── Planet scanning (Recon Drone → home system planets) ────
+const SCAN_TIME_BASE = 60 // seconds at recon_drone lv1
+
+const playerScannedPlanets = ref(['kepler_prime']) // home planet always known
+const activeScan           = ref(null)             // { planetId, endsAt } | null
+
+const remainingScanSec = computed(() =>
+  activeScan.value ? Math.max(0, Math.ceil((activeScan.value.endsAt - now.value) / 1000)) : 0
+)
+
+const scanProgressStyle = computed(() => {
+  if (!activeScan.value) return {}
+  const scanTime = Math.ceil(SCAN_TIME_BASE / Math.max(1, reconDroneLevel.value))
+  const elapsed  = Math.max(0, (Date.now() - (activeScan.value.endsAt - scanTime * 1000)) / 1000)
+  return { animationDuration: `${scanTime}s`, animationDelay: `-${elapsed}s` }
+})
+
+const startScan = (planetId) => {
+  if (activeScan.value) return
+  if (reconDroneLevel.value === 0) return
+  if (playerScannedPlanets.value.includes(planetId)) return
+  const scanTime = Math.ceil(SCAN_TIME_BASE / reconDroneLevel.value)
+  activeScan.value = { planetId, endsAt: Date.now() + scanTime * 1000 }
+}
+
+// ── Galaxy probing (Galaxy Probe → other star systems) ─────
+const HOME_SYSTEM    = GALAXY_SYSTEMS.find(s => s.home)
+const PROBE_SPEED    = 0.4 // map-units per second at galaxy_probe lv1
+
+const playerProbedSystems = ref(['kepler']) // home always known
+const activeGalaxyProbes  = ref([])         // [{ systemId, endsAt }]
+
+const probeFlightTime = (systemId) => {
+  const sys = GALAXY_SYSTEMS.find(s => s.id === systemId)
+  if (!sys || sys.home) return 0
+  const dx   = sys.x - HOME_SYSTEM.x
+  const dy   = sys.y - HOME_SYSTEM.y
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  return Math.ceil(dist / (PROBE_SPEED * Math.max(1, galaxyProbeLevel.value)))
+}
+
+const sendGalaxyProbe = (systemId) => {
+  if (galaxyProbeLevel.value === 0) return
+  if (playerProbedSystems.value.includes(systemId)) return
+  if (activeGalaxyProbes.value.find(p => p.systemId === systemId)) return
+  if (activeGalaxyProbes.value.length >= galaxyProbeLevel.value) return
+  const flightTime = probeFlightTime(systemId)
+  activeGalaxyProbes.value.push({ systemId, endsAt: Date.now() + flightTime * 1000 })
+}
+
+const remainingProbeSec = (systemId) => {
+  const probe = activeGalaxyProbes.value.find(p => p.systemId === systemId)
+  return probe ? Math.max(0, Math.ceil((probe.endsAt - now.value) / 1000)) : 0
+}
+
+const probeProgressStyle = (systemId) => {
+  const probe = activeGalaxyProbes.value.find(p => p.systemId === systemId)
+  if (!probe) return {}
+  const flightTime = probeFlightTime(systemId)
+  const elapsed    = Math.max(0, (Date.now() - (probe.endsAt - flightTime * 1000)) / 1000)
+  return { animationDuration: `${flightTime}s`, animationDelay: `-${elapsed}s` }
+}
+
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY = 'hawk-star-save'
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
-    planetName:      planetName.value,
-    playerResources: playerResources.value,
-    playerSlots:     playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
-    playerBuildings: playerBuildings.value,
+    planetName:           planetName.value,
+    playerResources:      playerResources.value,
+    playerSlots:          playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
+    playerBuildings:      playerBuildings.value,
+    playerScannedPlanets: playerScannedPlanets.value,
+    activeScan:           activeScan.value,
+    playerProbedSystems:  playerProbedSystems.value,
+    activeGalaxyProbes:   activeGalaxyProbes.value,
   }))
 }
 
@@ -259,6 +338,10 @@ const loadGame = () => {
         if (playerBuildings.value[id]) playerBuildings.value[id] = state
       }
     }
+    if (Array.isArray(data.playerScannedPlanets)) playerScannedPlanets.value = data.playerScannedPlanets
+    if (data.activeScan)                          activeScan.value           = data.activeScan
+    if (Array.isArray(data.playerProbedSystems))  playerProbedSystems.value  = data.playerProbedSystems
+    if (Array.isArray(data.activeGalaxyProbes))   activeGalaxyProbes.value   = data.activeGalaxyProbes
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
   }
@@ -272,6 +355,25 @@ export const resetGame = () => {
 // ── Tick ───────────────────────────────────────────────────
 const tick = () => {
   now.value = Date.now()
+
+  // Complete active planet scan
+  if (activeScan.value && activeScan.value.endsAt <= now.value) {
+    if (!playerScannedPlanets.value.includes(activeScan.value.planetId)) {
+      playerScannedPlanets.value.push(activeScan.value.planetId)
+    }
+    activeScan.value = null
+  }
+
+  // Complete galaxy probes
+  for (let i = activeGalaxyProbes.value.length - 1; i >= 0; i--) {
+    const probe = activeGalaxyProbes.value[i]
+    if (probe.endsAt <= now.value) {
+      if (!playerProbedSystems.value.includes(probe.systemId)) {
+        playerProbedSystems.value.push(probe.systemId)
+      }
+      activeGalaxyProbes.value.splice(i, 1)
+    }
+  }
 
   for (const [id, state] of Object.entries(playerBuildings.value)) {
     if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
@@ -345,9 +447,25 @@ export function useHawkStar() {
     maxStorage,
     // current level stats
     currentLevelDef,
-    // communication
+    // navigation
     starMapLevel,
+    // space tech
+    spaceTechLevel,
     reconDroneLevel,
+    galaxyProbeLevel,
+    colonyShipLevel,
+    // planet scanning
+    playerScannedPlanets,
+    activeScan,
+    remainingScanSec,
+    scanProgressStyle,
+    startScan,
+    // galaxy probing
+    playerProbedSystems,
+    activeGalaxyProbes,
+    sendGalaxyProbe,
+    remainingProbeSec,
+    probeProgressStyle,
     // grid
     unlockRequirement,
     slotsOnSlot,

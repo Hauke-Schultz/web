@@ -3,19 +3,30 @@ import { ref, computed, watch } from 'vue'
 import { useHawkStar } from '../useHawkStar.js'
 import { GALAXY_SYSTEMS, TRADE_ROUTES } from '../hawkStarGalaxyMock.js'
 
-const { starMapLevel, reconDroneLevel, planetName } = useHawkStar()
+const {
+  starMapLevel,
+  galaxyProbeLevel,
+  playerProbedSystems, activeGalaxyProbes,
+  sendGalaxyProbe, remainingProbeSec, probeProgressStyle,
+  formatTime,
+} = useHawkStar()
 
 // ── Visibility helpers ──────────────────────────────────────────────────────
 
-// A system is revealed on the map when star map level is high enough.
-const isVisible = (sys) => sys.minLevel <= starMapLevel.value
+// A system dot appears on the map when star map level is high enough.
+const isVisible  = (sys) => sys.minLevel <= starMapLevel.value
 
-// State and planet detail are only shown if recon drones have scanned the system,
-// OR it's the player's home system.
-const isScanned = (sys) => sys.home || reconDroneLevel.value >= sys.minLevel
+// Planet count + state is known once a probe has arrived (or it's home).
+const isProbed   = (sys) => sys.home || playerProbedSystems.value.includes(sys.id)
+const isProbing  = (sys) => !!activeGalaxyProbes.value.find(p => p.systemId === sys.id)
+const canProbe   = (sys) =>
+  galaxyProbeLevel.value > 0 &&
+  !isProbed(sys) &&
+  !isProbing(sys) &&
+  activeGalaxyProbes.value.length < galaxyProbeLevel.value
 
-// The state shown on the map dot / detail card.
-const effectiveState = (sys) => isScanned(sys) ? sys.state : 'unknown'
+// The state shown on the map dot.
+const effectiveState = (sys) => isProbed(sys) ? sys.state : 'unknown'
 
 // ── Derived collections ─────────────────────────────────────────────────────
 
@@ -71,13 +82,6 @@ const STATE_ICON = {
   enemy:       '⚠️',
   ally:        '🤝',
   unknown:     '❓',
-}
-
-const PLANET_STATE_ICON = {
-  own:         '🌍',
-  uncolonized: '⬜',
-  enemy:       '🔴',
-  ally:        '🟢',
 }
 
 const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd' }
@@ -147,7 +151,8 @@ const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd
             <span class="hs-card-name">{{ selected.name }}</span>
             <span class="hs-card-meta">
               {{ selected.starClass }}-class star
-              · {{ selected.planets.length }} planet{{ selected.planets.length > 1 ? 's' : '' }}
+              · <span v-if="isProbed(selected)">{{ selected.planets.length }} planet{{ selected.planets.length > 1 ? 's' : '' }}</span>
+                <span v-else class="hs-card-unknown-count">? planets</span>
             </span>
             <span class="hs-card-state" :class="`hs-card-state--${effectiveState(selected)}`">
               {{ STATE_LABEL[effectiveState(selected)] }}
@@ -156,36 +161,24 @@ const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd
           <button class="hs-card-close" @click="selected = null">✕</button>
         </div>
 
-        <!-- Scanned: show planet list -->
-        <template v-if="isScanned(selected)">
-          <div class="hs-planet-list">
-            <div
-              v-for="planet in selected.planets"
-              :key="planet.id"
-              class="hs-planet-row"
-            >
-              <span class="hs-planet-icon">{{ PLANET_STATE_ICON[planet.state] }}</span>
-              <span class="hs-planet-name">
-                {{ planet.name }}
-                <span v-if="planet.isHome" class="hs-planet-home-tag">home</span>
-              </span>
-              <span v-if="planet.owner" class="hs-planet-owner" :class="`hs-planet-owner--${planet.state}`">
-                {{ planet.owner }}
-              </span>
-              <span v-else-if="planet.slots !== null" class="hs-planet-slots">
-                {{ planet.slots }} slots
-              </span>
-            </div>
-          </div>
-        </template>
+        <!-- Probe in flight -->
+        <div v-if="isProbing(selected)" class="hs-card-probing">
+          <div class="hs-card-probe-bar" :style="probeProgressStyle(selected.id)" />
+          <span class="hs-card-probing-icon">🔭</span>
+          <span>Probe en route · {{ formatTime(remainingProbeSec(selected.id)) }}</span>
+        </div>
 
-        <!-- Not scanned: show recon hint -->
-        <template v-else>
-          <div class="hs-card-locked">
-            <span class="hs-card-locked-icon">🛸</span>
-            <span>Recon Drones Lv{{ selected.minLevel }} needed to reveal planet intel</span>
-          </div>
-        </template>
+        <!-- Not probed, not probing -->
+        <div v-else-if="!isProbed(selected)" class="hs-card-unprobed">
+          <span class="hs-card-unprobed-text">System not yet surveyed</span>
+          <button
+            v-if="canProbe(selected)"
+            class="hs-card-probe-btn"
+            @click="sendGalaxyProbe(selected.id)"
+          >🔭 Send Probe</button>
+          <span v-else-if="galaxyProbeLevel === 0" class="hs-card-probe-hint">Build Galaxy Probe to send a probe</span>
+          <span v-else class="hs-card-probe-hint">All probes busy ({{ activeGalaxyProbes.length }}/{{ galaxyProbeLevel }})</span>
+        </div>
       </div>
     </Transition>
 
@@ -417,65 +410,77 @@ $c-unknown:     #374151;
   &:hover { color: rgba(255,255,255,0.65); }
 }
 
-// ── Planet list ───────────────────────────────────────────────────────────────
-.hs-planet-list {
+// ── Unknown planet count ──────────────────────────────────────────────────────
+.hs-card-unknown-count { color: rgba(255,255,255,0.25); font-style: italic; }
+
+// ── Probe in flight ───────────────────────────────────────────────────────────
+.hs-card-probing {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--hs-r-md);
+  border: 1px solid rgba(251,191,36,0.25);
+  background: rgba(251,191,36,0.05);
+  font-size: 0.65rem;
+  color: rgba(251,191,36,0.85);
+}
+
+.hs-card-probe-bar {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px; width: 100%;
+  background: rgba(251,191,36,0.5);
+  transform-origin: left;
+  animation: hs-probe-fill linear forwards;
+}
+
+@keyframes hs-probe-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.hs-card-probing-icon { font-size: 0.875rem; flex-shrink: 0; }
+
+// ── Not probed ────────────────────────────────────────────────────────────────
+.hs-card-unprobed {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-.hs-planet-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 4px 6px;
-  border-radius: var(--hs-r-sm);
-  background: var(--hs-glass-sm);
-}
-
-.hs-planet-icon { font-size: 0.7rem; flex-shrink: 0; }
-.hs-planet-name {
-  flex: 1;
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.8);
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.hs-planet-home-tag {
-  font-size: 0.52rem;
-  background: var(--hs-accent);
-  color: #fff;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-weight: 700;
-}
-
-.hs-planet-owner {
-  font-size: 0.62rem;
-  font-weight: 600;
-  &--enemy { color: $c-enemy; }
-  &--ally  { color: $c-ally; }
-}
-
-.hs-planet-slots {
-  font-size: 0.6rem;
-  color: rgba(255,255,255,0.3);
-}
-
-// ── Locked (no recon drones) ──────────────────────────────────────────────────
-.hs-card-locked {
-  display: flex;
-  align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.25rem;
-  font-size: 0.65rem;
-  color: rgba(255,255,255,0.3);
+}
+
+.hs-card-unprobed-text {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.28);
   font-style: italic;
 }
 
-.hs-card-locked-icon { font-size: 1rem; flex-shrink: 0; }
+.hs-card-probe-btn {
+  align-self: flex-start;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--hs-r-md);
+  border: 1px solid rgba(251,191,36,0.35);
+  background: rgba(251,191,36,0.08);
+  color: rgba(251,191,36,0.9);
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: rgba(251,191,36,0.18);
+    border-color: rgba(251,191,36,0.6);
+  }
+}
+
+.hs-card-probe-hint {
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.2);
+  font-style: italic;
+}
 
 // ── Slide transition ──────────────────────────────────────────────────────────
 .hs-slide-enter-active,
