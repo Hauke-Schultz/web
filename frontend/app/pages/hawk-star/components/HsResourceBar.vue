@@ -63,11 +63,9 @@ const {
   gap: 0.375rem;
   width: 100%;
   max-width: 28rem;
-  margin-bottom: 1rem;
 
   @media (min-width: 640px) {
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
   }
 }
 

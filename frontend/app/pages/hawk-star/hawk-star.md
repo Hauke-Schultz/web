@@ -31,7 +31,7 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 - [x] LocalStorage save/load — persist progress across page refreshes
 - [x] Current stats on built buildings — show active production/drain instead of only next-level effect
 - [x] Power Plant moved to Energy tile (Base: Command Center + Quarters · Energy: Power Plant + Solar Array + Fusion Reactor)
-- [x] Communication tile — slot 6, unlocked by Laboratory Lv1
+- [x] Communication tile — slot 6, unlocked by Laboratory Lv2
   - [x] `recon_drones` — scout drones, 3 levels (intel gating for galaxy screen)
   - [x] `star_map` — galaxy navigation hub, 3 levels (prerequisite for Step 2 galaxy screen)
   - [x] `trade_harbor` — interplanetary docking, 3 levels (prerequisite for Step 3 trading)
@@ -43,9 +43,9 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 **Goal:** Give the player a sense of place in the galaxy — what they own, what's contested, where enemies are. Gated behind Communication tile buildings.
 
 #### 2a — Planet & System Data (frontend mock)
-- [ ] Static mock galaxy config — ~20 star systems, each with 1–3 planets, x/y coords
-- [ ] Planet states: `own` · `uncolonized` · `enemy` · `ally` · `unknown`
-- [ ] Visibility rules: home planet always visible; others revealed by Recon Drone & Star Map level
+- [x] Static mock galaxy config (`hawkStarGalaxyMock.js`) — 20 star systems, each with 1–3 planets, x/y coords, star class
+- [x] Planet states: `own` · `uncolonized` · `enemy` · `ally` · `unknown`
+- [x] Visibility rules: Star Map level → which systems appear · Recon Drone level → state & planet detail revealed · home always visible
 
 #### 2b — Galaxy Map Screen
 - [ ] Galaxy map accessible via "Galaxy" button in HUD — shown once Star Map Lv1 is built

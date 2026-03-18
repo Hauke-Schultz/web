@@ -1,84 +1,101 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useHawkStar } from '../useHawkStar.js'
+import { GALAXY_SYSTEMS, TRADE_ROUTES } from '../hawkStarGalaxyMock.js'
 
 const { starMapLevel, reconDroneLevel, planetName } = useHawkStar()
 
-// ── Static mock galaxy data ─────────────────────────────────────────────────
-// x/y are percentages within the map container (0–100).
-// minLevel = minimum star map level required to see this system.
-// state:  own | uncolonized | enemy | ally
-const SYSTEMS = [
-  { id: 'kepler',  name: 'Kepler Prime', x: 50, y: 49, home: true,  state: 'own',         owner: null,     planets: 1, minLevel: 0 },
-  { id: 'vega9',   name: 'Vega-9',       x: 37, y: 30, home: false, state: 'uncolonized', owner: null,     planets: 2, minLevel: 1 },
-  { id: 'arix',    name: 'Arix Prime',   x: 64, y: 27, home: false, state: 'enemy',       owner: 'Zarkon', planets: 1, minLevel: 1 },
-  { id: 'nebula3', name: 'Nebula-3',     x: 71, y: 57, home: false, state: 'uncolonized', owner: null,     planets: 3, minLevel: 1 },
-  { id: 'tartus',  name: 'Tartus IV',    x: 33, y: 64, home: false, state: 'uncolonized', owner: null,     planets: 2, minLevel: 1 },
-  { id: 'solaris', name: 'Solaris',      x: 21, y: 38, home: false, state: 'uncolonized', owner: null,     planets: 1, minLevel: 2 },
-  { id: 'kronos',  name: 'Kronos VI',    x: 80, y: 35, home: false, state: 'enemy',       owner: 'Vexar',  planets: 2, minLevel: 2 },
-  { id: 'dusk',    name: 'Dusk System',  x: 18, y: 75, home: false, state: 'uncolonized', owner: null,     planets: 1, minLevel: 2 },
-  { id: 'helix',   name: 'Helix-7',      x: 58, y: 80, home: false, state: 'ally',        owner: 'Asha',   planets: 3, minLevel: 2 },
-  { id: 'andor',   name: 'Andor Belt',   x: 84, y: 68, home: false, state: 'uncolonized', owner: null,     planets: 2, minLevel: 3 },
-  { id: 'rift',    name: 'Rift Delta',   x: 13, y: 18, home: false, state: 'enemy',       owner: 'Zarkon', planets: 1, minLevel: 3 },
-  { id: 'oberon',  name: 'Oberon',       x: 44, y: 12, home: false, state: 'enemy',       owner: 'Vexar',  planets: 2, minLevel: 3 },
-]
+// ── Visibility helpers ──────────────────────────────────────────────────────
 
-// Trade route connections shown at star map lv2+
-const TRADE_ROUTES = [
-  ['kepler', 'vega9'],
-  ['kepler', 'nebula3'],
-  ['kepler', 'helix'],
-  ['vega9',  'solaris'],
-  ['nebula3','kronos'],
-]
+// A system is revealed on the map when star map level is high enough.
+const isVisible = (sys) => sys.minLevel <= starMapLevel.value
 
-const selected = ref(null)
+// State and planet detail are only shown if recon drones have scanned the system,
+// OR it's the player's home system.
+const isScanned = (sys) => sys.home || reconDroneLevel.value >= sys.minLevel
 
-const visibleSystems = computed(() =>
-  SYSTEMS.filter(s => s.minLevel <= starMapLevel.value)
-)
+// The state shown on the map dot / detail card.
+const effectiveState = (sys) => isScanned(sys) ? sys.state : 'unknown'
+
+// ── Derived collections ─────────────────────────────────────────────────────
+
+const visibleSystems = computed(() => GALAXY_SYSTEMS.filter(isVisible))
 
 const visibleRoutes = computed(() => {
   if (starMapLevel.value < 2) return []
   const ids = new Set(visibleSystems.value.map(s => s.id))
-  return TRADE_ROUTES.filter(([a, b]) => ids.has(a) && ids.has(b))
+  return TRADE_ROUTES
+    .filter(([a, b]) => ids.has(a) && ids.has(b))
+    .map(([a, b]) => ({
+      a: GALAXY_SYSTEMS.find(s => s.id === a),
+      b: GALAXY_SYSTEMS.find(s => s.id === b),
+    }))
 })
 
-const systemById = (id) => SYSTEMS.find(s => s.id === id)
+// How many more systems the next star map level would reveal.
+const nextUnlock = computed(() => {
+  const next = starMapLevel.value + 1
+  if (next > 3) return null
+  const count = GALAXY_SYSTEMS.filter(s => s.minLevel === next).length
+  return count > 0 ? { level: next, count } : null
+})
+
+// ── Selection ───────────────────────────────────────────────────────────────
+
+const selected = ref(null)
 
 const selectSystem = (sys) => {
   selected.value = selected.value?.id === sys.id ? null : sys
 }
 
-const stateLabel = {
+// Clear selection if the selected system scrolls out of visibility.
+watch(visibleSystems, (systems) => {
+  if (selected.value && !systems.find(s => s.id === selected.value.id)) {
+    selected.value = null
+  }
+})
+
+// ── Label maps ──────────────────────────────────────────────────────────────
+
+const STATE_LABEL = {
   own:         'Your Colony',
   uncolonized: 'Uncolonized',
   enemy:       'Enemy Territory',
   ally:        'Allied',
+  unknown:     'Unknown',
 }
 
-const nextUnlock = computed(() => {
-  const nextLevel = starMapLevel.value + 1
-  const count = SYSTEMS.filter(s => s.minLevel === nextLevel).length
-  return count > 0 ? { level: nextLevel, count } : null
-})
+const STATE_ICON = {
+  own:         '🌍',
+  uncolonized: '🪐',
+  enemy:       '⚠️',
+  ally:        '🤝',
+  unknown:     '❓',
+}
+
+const PLANET_STATE_ICON = {
+  own:         '🌍',
+  uncolonized: '⬜',
+  enemy:       '🔴',
+  ally:        '🟢',
+}
+
+const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd' }
 </script>
 
 <template>
   <div class="hs-galaxy">
 
-    <!-- Map -->
+    <!-- Map canvas -->
     <div class="hs-galaxy-map" @click.self="selected = null">
 
-      <!-- SVG layer for trade routes -->
-      <svg v-if="visibleRoutes.length" class="hs-galaxy-svg">
+      <!-- Trade route SVG overlay (lv2+) -->
+      <svg v-if="visibleRoutes.length" class="hs-galaxy-svg" aria-hidden="true">
         <line
-          v-for="([a, b]) in visibleRoutes"
-          :key="`${a}-${b}`"
-          :x1="`${systemById(a).x}%`"
-          :y1="`${systemById(a).y}%`"
-          :x2="`${systemById(b).x}%`"
-          :y2="`${systemById(b).y}%`"
+          v-for="route in visibleRoutes"
+          :key="`${route.a.id}-${route.b.id}`"
+          :x1="`${route.a.x}%`" :y1="`${route.a.y}%`"
+          :x2="`${route.b.x}%`" :y2="`${route.b.y}%`"
           class="hs-route-line"
         />
       </svg>
@@ -89,19 +106,25 @@ const nextUnlock = computed(() => {
         :key="sys.id"
         class="hs-system"
         :class="[
-          `hs-system--${sys.state}`,
-          { 'hs-system--selected': selected?.id === sys.id, 'hs-system--home': sys.home }
+          `hs-system--${effectiveState(sys)}`,
+          { 'hs-system--home': sys.home, 'hs-system--selected': selected?.id === sys.id },
         ]"
         :style="{ left: `${sys.x}%`, top: `${sys.y}%` }"
         @click.stop="selectSystem(sys)"
       >
+        <!-- Star glow ring (color = star class) -->
+        <span
+          class="hs-system-star"
+          :style="{ '--star-color': STAR_CLASS_COLOR[sys.starClass] ?? '#fff' }"
+        />
         <span class="hs-system-dot" />
         <span class="hs-system-name">{{ sys.name }}</span>
       </button>
 
-      <!-- Fog of war hint -->
+      <!-- Fog of war upgrade hint -->
       <div v-if="nextUnlock" class="hs-fog-hint">
-        🔭 Upgrade Star Map to Lv{{ nextUnlock.level }} to reveal {{ nextUnlock.count }} more system{{ nextUnlock.count > 1 ? 's' : '' }}
+        🔭 Star Map Lv{{ nextUnlock.level }} reveals {{ nextUnlock.count }} more
+        system{{ nextUnlock.count > 1 ? 's' : '' }}
       </div>
     </div>
 
@@ -111,6 +134,7 @@ const nextUnlock = computed(() => {
       <span class="hs-legend-item hs-legend--ally">● Allied</span>
       <span class="hs-legend-item hs-legend--uncolonized">● Uncolonized</span>
       <span class="hs-legend-item hs-legend--enemy">● Enemy</span>
+      <span class="hs-legend-item hs-legend--unknown">● Unknown</span>
       <span v-if="starMapLevel >= 2" class="hs-legend-item hs-legend--route">── Trade Route</span>
     </div>
 
@@ -118,35 +142,50 @@ const nextUnlock = computed(() => {
     <Transition name="hs-slide">
       <div v-if="selected" class="hs-system-card">
         <div class="hs-card-header">
-          <span class="hs-card-icon">
-            <span v-if="selected.state === 'own'">🌍</span>
-            <span v-else-if="selected.state === 'enemy'">⚠️</span>
-            <span v-else-if="selected.state === 'ally'">🤝</span>
-            <span v-else>🪐</span>
-          </span>
-          <div>
-            <div class="hs-card-name">{{ selected.name }}</div>
-            <div class="hs-card-state" :class="`hs-card-state--${selected.state}`">{{ stateLabel[selected.state] }}</div>
+          <span class="hs-card-icon">{{ STATE_ICON[effectiveState(selected)] }}</span>
+          <div class="hs-card-title">
+            <span class="hs-card-name">{{ selected.name }}</span>
+            <span class="hs-card-meta">
+              {{ selected.starClass }}-class star
+              · {{ selected.planets.length }} planet{{ selected.planets.length > 1 ? 's' : '' }}
+            </span>
+            <span class="hs-card-state" :class="`hs-card-state--${effectiveState(selected)}`">
+              {{ STATE_LABEL[effectiveState(selected)] }}
+            </span>
           </div>
           <button class="hs-card-close" @click="selected = null">✕</button>
         </div>
-        <div class="hs-card-body">
-          <div class="hs-card-stat">
-            <span class="hs-card-stat-label">Planets</span>
-            <span class="hs-card-stat-val">{{ selected.planets }}</span>
+
+        <!-- Scanned: show planet list -->
+        <template v-if="isScanned(selected)">
+          <div class="hs-planet-list">
+            <div
+              v-for="planet in selected.planets"
+              :key="planet.id"
+              class="hs-planet-row"
+            >
+              <span class="hs-planet-icon">{{ PLANET_STATE_ICON[planet.state] }}</span>
+              <span class="hs-planet-name">
+                {{ planet.name }}
+                <span v-if="planet.isHome" class="hs-planet-home-tag">home</span>
+              </span>
+              <span v-if="planet.owner" class="hs-planet-owner" :class="`hs-planet-owner--${planet.state}`">
+                {{ planet.owner }}
+              </span>
+              <span v-else-if="planet.slots !== null" class="hs-planet-slots">
+                {{ planet.slots }} slots
+              </span>
+            </div>
           </div>
-          <div v-if="selected.owner" class="hs-card-stat">
-            <span class="hs-card-stat-label">Controlled by</span>
-            <span class="hs-card-stat-val" :class="`hs-card-state--${selected.state}`">{{ selected.owner }}</span>
+        </template>
+
+        <!-- Not scanned: show recon hint -->
+        <template v-else>
+          <div class="hs-card-locked">
+            <span class="hs-card-locked-icon">🛸</span>
+            <span>Recon Drones Lv{{ selected.minLevel }} needed to reveal planet intel</span>
           </div>
-          <div v-if="selected.home" class="hs-card-stat">
-            <span class="hs-card-stat-label">Planet</span>
-            <span class="hs-card-stat-val">{{ planetName }}</span>
-          </div>
-          <div v-if="reconDroneLevel === 0 && !selected.home" class="hs-card-note">
-            Build Recon Drones for detailed intel
-          </div>
-        </div>
+        </template>
       </div>
     </Transition>
 
@@ -154,11 +193,11 @@ const nextUnlock = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-// ── Color tokens ──────────────────────────────────────────────────────────────
 $c-own:         #60a5fa;
 $c-ally:        #34d399;
 $c-enemy:       #f87171;
 $c-uncolonized: #6b7280;
+$c-unknown:     #374151;
 
 .hs-galaxy {
   flex: 1;
@@ -168,40 +207,53 @@ $c-uncolonized: #6b7280;
   gap: 0.75rem;
 }
 
-// ── Map canvas ─────────────────────────────────────────────────────────────────
+// ── Map canvas ────────────────────────────────────────────────────────────────
 .hs-galaxy-map {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   background:
-    radial-gradient(ellipse 60% 50% at 45% 55%, rgba(59, 130, 246, 0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 35% at 75% 30%, rgba(139, 92, 246, 0.05) 0%, transparent 60%),
-    linear-gradient(to bottom, #050510, #080818);
+    radial-gradient(ellipse 60% 50% at 45% 55%, rgba(59,130,246,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 75% 30%, rgba(139,92,246,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 25% at 20% 70%, rgba(52,211,153,0.04) 0%, transparent 60%),
+    linear-gradient(160deg, #060612, #080818 60%, #060610);
   border: 1px solid var(--hs-glass-2xl);
   border-radius: var(--hs-r-lg);
   overflow: hidden;
 
-  // CSS star field
+  // Static star field
   &::before {
     content: '';
     position: absolute;
     inset: 0;
     background-image:
-      radial-gradient(1px 1px at  8%  12%, rgba(255,255,255,0.5) 0%, transparent 100%),
-      radial-gradient(1px 1px at 23%  44%, rgba(255,255,255,0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 41%  78%, rgba(255,255,255,0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 56%  19%, rgba(255,255,255,0.6) 0%, transparent 100%),
-      radial-gradient(1px 1px at 68%  63%, rgba(255,255,255,0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 77%  91%, rgba(255,255,255,0.5) 0%, transparent 100%),
-      radial-gradient(1px 1px at 89%  37%, rgba(255,255,255,0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 15%  83%, rgba(255,255,255,0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 92%  72%, rgba(255,255,255,0.5) 0%, transparent 100%),
-      radial-gradient(1px 1px at 32%   8%, rgba(255,255,255,0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 48%  55%, rgba(255,255,255,0.2) 0%, transparent 100%),
-      radial-gradient(1px 1px at 73%  16%, rgba(255,255,255,0.5) 0%, transparent 100%),
-      radial-gradient(1px 1px at  5%  60%, rgba(255,255,255,0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 85%  50%, rgba(255,255,255,0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 62%  88%, rgba(255,255,255,0.3) 0%, transparent 100%);
+      radial-gradient(1px 1px at  7%  11%, rgba(255,255,255,0.55) 0%, transparent 100%),
+      radial-gradient(1px 1px at 19%  44%, rgba(255,255,255,0.30) 0%, transparent 100%),
+      radial-gradient(1px 1px at 31%  78%, rgba(255,255,255,0.45) 0%, transparent 100%),
+      radial-gradient(1px 1px at 56%  17%, rgba(255,255,255,0.60) 0%, transparent 100%),
+      radial-gradient(1px 1px at 67%  63%, rgba(255,255,255,0.30) 0%, transparent 100%),
+      radial-gradient(1px 1px at 78%  91%, rgba(255,255,255,0.50) 0%, transparent 100%),
+      radial-gradient(1px 1px at 89%  36%, rgba(255,255,255,0.40) 0%, transparent 100%),
+      radial-gradient(1px 1px at 14%  83%, rgba(255,255,255,0.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 93%  71%, rgba(255,255,255,0.50) 0%, transparent 100%),
+      radial-gradient(1px 1px at 33%   8%, rgba(255,255,255,0.45) 0%, transparent 100%),
+      radial-gradient(1px 1px at 47%  53%, rgba(255,255,255,0.20) 0%, transparent 100%),
+      radial-gradient(1px 1px at 72%  15%, rgba(255,255,255,0.55) 0%, transparent 100%),
+      radial-gradient(1px 1px at  4%  59%, rgba(255,255,255,0.30) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85%  49%, rgba(255,255,255,0.40) 0%, transparent 100%),
+      radial-gradient(1px 1px at 61%  87%, rgba(255,255,255,0.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 43%  33%, rgba(255,255,255,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 25%  67%, rgba(255,255,255,0.40) 0%, transparent 100%),
+      radial-gradient(1px 1px at 95%  10%, rgba(255,255,255,0.35) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  // Fog of war vignette at edges
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 55%, rgba(4,4,14,0.7) 100%);
     pointer-events: none;
   }
 }
@@ -213,105 +265,117 @@ $c-uncolonized: #6b7280;
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 1;
 }
 
 .hs-route-line {
-  stroke: rgba(96, 165, 250, 0.2);
+  stroke: rgba(96,165,250,0.18);
   stroke-width: 1;
-  stroke-dasharray: 4 4;
+  stroke-dasharray: 4 6;
 }
 
 // ── System nodes ──────────────────────────────────────────────────────────────
 .hs-system {
   position: absolute;
+  z-index: 2;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
 
-  &:hover .hs-system-dot {
-    transform: scale(1.4);
-    box-shadow: 0 0 10px currentColor;
-  }
+  &:hover .hs-system-dot  { transform: scale(1.5); }
+  &:hover .hs-system-star { opacity: 0.8; transform: scale(1.6); }
 
-  &--selected .hs-system-dot {
-    transform: scale(1.5);
-    box-shadow: 0 0 12px currentColor;
-  }
+  &--selected .hs-system-dot  { transform: scale(1.6); }
+  &--selected .hs-system-star { opacity: 1; transform: scale(1.9); }
 
   &--home .hs-system-dot {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     animation: hs-pulse-home 2.5s ease-in-out infinite;
   }
 
-  // State colors
+  // Dot color per effective state
   &--own         { color: $c-own; }
   &--ally        { color: $c-ally; }
   &--enemy       { color: $c-enemy; }
   &--uncolonized { color: $c-uncolonized; }
+  &--unknown     { color: $c-unknown; }
+}
+
+.hs-system-star {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--star-color, #fff) 0%, transparent 70%);
+  opacity: 0.25;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
 }
 
 .hs-system-dot {
-  width: 10px;
-  height: 10px;
+  position: relative;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: currentColor;
   transition: transform 0.15s, box-shadow 0.15s;
   flex-shrink: 0;
+  box-shadow: 0 0 4px currentColor;
 }
 
 .hs-system-name {
-  font-size: 0.55rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.55);
   white-space: nowrap;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
   pointer-events: none;
+  letter-spacing: 0.02em;
 }
 
 @keyframes hs-pulse-home {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.6); }
-  50%       { box-shadow: 0 0 0 6px rgba(96, 165, 250, 0); }
+  0%, 100% { box-shadow: 0 0 4px $c-own, 0 0 0 0 rgba(96,165,250,0.5); }
+  50%       { box-shadow: 0 0 8px $c-own, 0 0 0 7px rgba(96,165,250,0); }
 }
 
 // ── Fog of war hint ───────────────────────────────────────────────────────────
 .hs-fog-hint {
   position: absolute;
-  bottom: 0.75rem;
+  bottom: 0.625rem;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.3);
-  background: rgba(0, 0, 0, 0.4);
-  padding: 4px 10px;
+  z-index: 3;
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.28);
+  background: rgba(0,0,0,0.45);
+  padding: 3px 10px;
   border-radius: 999px;
   white-space: nowrap;
   pointer-events: none;
+  backdrop-filter: blur(4px);
 }
 
 // ── Legend ────────────────────────────────────────────────────────────────────
 .hs-galaxy-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.625rem 1rem;
   padding: 0 0.25rem;
 }
 
-.hs-legend-item {
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.45);
-}
-
+.hs-legend-item     { font-size: 0.6rem; color: rgba(255,255,255,0.4); }
 .hs-legend--own         { color: $c-own; }
 .hs-legend--ally        { color: $c-ally; }
 .hs-legend--enemy       { color: $c-enemy; }
 .hs-legend--uncolonized { color: $c-uncolonized; }
-.hs-legend--route       { color: rgba(96, 165, 250, 0.4); }
+.hs-legend--unknown     { color: $c-unknown; }
+.hs-legend--route       { color: rgba(96,165,250,0.4); }
 
 // ── System detail card ────────────────────────────────────────────────────────
 .hs-system-card {
@@ -323,57 +387,95 @@ $c-uncolonized: #6b7280;
 
 .hs-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.625rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.625rem;
 }
 
-.hs-card-icon  { font-size: 1.5rem; flex-shrink: 0; }
-.hs-card-name  { font-size: 0.9rem; font-weight: 700; color: #fff; }
+.hs-card-icon  { font-size: 1.4rem; flex-shrink: 0; line-height: 1.2; }
+.hs-card-title { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.hs-card-name  { font-size: 0.875rem; font-weight: 700; color: #fff; }
+.hs-card-meta  { font-size: 0.6rem; color: rgba(255,255,255,0.35); }
 .hs-card-state {
-  font-size: 0.65rem;
-  margin-top: 1px;
-
+  font-size: 0.62rem;
+  font-weight: 600;
   &--own         { color: $c-own; }
   &--ally        { color: $c-ally; }
   &--enemy       { color: $c-enemy; }
   &--uncolonized { color: $c-uncolonized; }
+  &--unknown     { color: rgba(255,255,255,0.3); }
 }
 
 .hs-card-close {
-  margin-left: auto;
+  flex-shrink: 0;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255,255,255,0.25);
   cursor: pointer;
-  font-size: 0.75rem;
-  padding: 4px;
-
-  &:hover { color: rgba(255, 255, 255, 0.7); }
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  &:hover { color: rgba(255,255,255,0.65); }
 }
 
-.hs-card-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
-
-.hs-card-stat {
+// ── Planet list ───────────────────────────────────────────────────────────────
+.hs-planet-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
-.hs-card-stat-label { font-size: 0.55rem; opacity: 0.4; text-transform: uppercase; letter-spacing: 0.05em; }
-.hs-card-stat-val   { font-size: 0.8rem; font-weight: 600; color: #fff; }
+.hs-planet-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 4px 6px;
+  border-radius: var(--hs-r-sm);
+  background: var(--hs-glass-sm);
+}
 
-.hs-card-note {
-  width: 100%;
+.hs-planet-icon { font-size: 0.7rem; flex-shrink: 0; }
+.hs-planet-name {
+  flex: 1;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.8);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.hs-planet-home-tag {
+  font-size: 0.52rem;
+  background: var(--hs-accent);
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.hs-planet-owner {
+  font-size: 0.62rem;
+  font-weight: 600;
+  &--enemy { color: $c-enemy; }
+  &--ally  { color: $c-ally; }
+}
+
+.hs-planet-slots {
   font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.3);
-  font-style: italic;
-  margin-top: 2px;
+  color: rgba(255,255,255,0.3);
 }
+
+// ── Locked (no recon drones) ──────────────────────────────────────────────────
+.hs-card-locked {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.3);
+  font-style: italic;
+}
+
+.hs-card-locked-icon { font-size: 1rem; flex-shrink: 0; }
 
 // ── Slide transition ──────────────────────────────────────────────────────────
 .hs-slide-enter-active,

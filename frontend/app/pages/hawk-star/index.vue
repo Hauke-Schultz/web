@@ -27,8 +27,10 @@ watchEffect(() => {
 
 <template>
   <div class="hs-page">
-    <HsResourceBar />
-    <HsNavBar v-model:currentView="currentView" />
+    <div class="hs-top">
+      <HsNavBar v-model:currentView="currentView" />
+      <HsResourceBar />
+    </div>
 
     <div class="hs-main">
       <template v-if="currentView === 'planet'">
@@ -57,6 +59,20 @@ watchEffect(() => {
 
   @media (min-width: 640px) {
     padding: 1.5rem 1rem;
+  }
+}
+
+.hs-top {
+  display: flex;
+  gap: 0.375rem;
+  width: 100%;
+  max-width: calc(28rem + 0.375rem + calc((28rem - 3 * 0.375rem) / 4));
+  align-items: stretch;
+  margin-bottom: 1rem;
+
+  @media (min-width: 640px) {
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
   }
 }
 

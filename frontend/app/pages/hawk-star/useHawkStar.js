@@ -143,8 +143,14 @@ const staffDelta = (id) => {
 }
 
 const commandCenterBuilt = computed(() => playerBuildings.value['command_center']?.level >= 1)
-const starMapLevel      = computed(() => playerBuildings.value['star_map']?.level ?? 0)
-const reconDroneLevel   = computed(() => playerBuildings.value['recon_drones']?.level ?? 0)
+const starMapLevel      = computed(() => {
+  const state = playerBuildings.value['star_map']
+  return state ? effectiveLevel(state) : 0
+})
+const reconDroneLevel   = computed(() => {
+  const state = playerBuildings.value['recon_drones']
+  return state ? effectiveLevel(state) : 0
+})
 
 const canBuild = (id) =>
   (id === 'command_center' || commandCenterBuilt.value) &&
@@ -263,8 +269,6 @@ export const resetGame = () => {
   location.reload()
 }
 
-loadGame()
-
 // ── Tick ───────────────────────────────────────────────────
 const tick = () => {
   now.value = Date.now()
@@ -295,7 +299,9 @@ const tick = () => {
 }
 
 export const startTick = () => {
-  if (!tickInterval) tickInterval = setInterval(tick, 1000)
+  if (tickInterval) return
+  loadGame()
+  tickInterval = setInterval(tick, 1000)
 }
 
 export const stopTick = () => {

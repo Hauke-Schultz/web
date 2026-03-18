@@ -1,5 +1,5 @@
 <script setup>
-import { useHawkStar } from '../useHawkStar.js'
+import { useHawkStar, resetGame } from '../useHawkStar.js'
 
 const props = defineProps({
   currentView: { type: String, required: true },
@@ -24,15 +24,19 @@ const { starMapLevel } = useHawkStar()
       class="hs-nav-tab"
       :class="{
         'hs-nav-tab--active':  currentView === 'galaxy',
-        'hs-nav-tab--locked':  starMapLevel === 0,
+        'hs-nav-tab--locked':  starMapLevel < 1,
       }"
       :disabled="starMapLevel === 0"
-      :title="starMapLevel === 0 ? 'Build Star Map to unlock' : 'Galaxy Map'"
+      :title="starMapLevel < 1 ? 'Build Star Map to unlock' : 'Galaxy Map'"
       @click="emit('update:currentView', 'galaxy')"
     >
       <span class="hs-nav-icon">🗺️</span>
       <span>Galaxy</span>
       <span v-if="starMapLevel === 0" class="hs-nav-lock">🔒</span>
+    </button>
+
+    <button class="hs-nav-reset" title="Reset game (clears save)" @click="resetGame">
+      ↺ Reset
     </button>
   </nav>
 </template>
@@ -40,17 +44,24 @@ const { starMapLevel } = useHawkStar()
 <style lang="scss" scoped>
 .hs-nav {
   display: flex;
+  flex-direction: column;
   gap: 0.375rem;
-  width: 100%;
-  max-width: 52rem;
-  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+  width: calc((28rem - 3 * 0.375rem) / 4);
+
+  @media (min-width: 640px) {
+    gap: 0.5rem;
+    width: calc((28rem - 3 * 0.5rem) / 4);
+  }
 }
 
 .hs-nav-tab {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.875rem;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  padding: 0.25rem 0.15rem;
   border-radius: var(--hs-r-md);
   border: 1px solid var(--hs-line-sm);
   background: var(--hs-glass-sm);
@@ -77,6 +88,22 @@ const { starMapLevel } = useHawkStar()
   }
 }
 
-.hs-nav-icon { font-size: 0.875rem; }
+.hs-nav-icon { font-size: 1.1rem; line-height: 1; }
 .hs-nav-lock { font-size: 0.6rem; opacity: 0.7; margin-left: 2px; }
+
+.hs-nav-reset {
+  padding: 0.25rem 0.15rem;
+  border-radius: var(--hs-r-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: none;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover {
+    color: var(--hs-danger);
+    border-color: var(--hs-danger-border);
+  }
+}
 </style>
