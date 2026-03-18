@@ -23,16 +23,31 @@ const { starMapLevel } = useHawkStar()
     <button
       class="hs-nav-tab"
       :class="{
-        'hs-nav-tab--active':  currentView === 'galaxy',
-        'hs-nav-tab--locked':  starMapLevel < 1,
+        'hs-nav-tab--active': currentView === 'solar-system',
+        'hs-nav-tab--locked': starMapLevel < 1,
       }"
-      :disabled="starMapLevel === 0"
-      :title="starMapLevel < 1 ? 'Build Star Map to unlock' : 'Galaxy Map'"
+      :disabled="starMapLevel < 1"
+      :title="starMapLevel < 1 ? 'Build Star Map Lv1 to unlock' : 'Solar System'"
+      @click="emit('update:currentView', 'solar-system')"
+    >
+      <span class="hs-nav-icon">☀️</span>
+      <span>System</span>
+      <span v-if="starMapLevel < 1" class="hs-nav-lock">🔒</span>
+    </button>
+
+    <button
+      class="hs-nav-tab"
+      :class="{
+        'hs-nav-tab--active': currentView === 'galaxy',
+        'hs-nav-tab--locked': starMapLevel < 2,
+      }"
+      :disabled="starMapLevel < 2"
+      :title="starMapLevel < 2 ? 'Build Star Map Lv2 to unlock' : 'Galaxy Map'"
       @click="emit('update:currentView', 'galaxy')"
     >
       <span class="hs-nav-icon">🗺️</span>
       <span>Galaxy</span>
-      <span v-if="starMapLevel === 0" class="hs-nav-lock">🔒</span>
+      <span v-if="starMapLevel < 2" class="hs-nav-lock">🔒</span>
     </button>
 
     <button class="hs-nav-reset" title="Reset game (clears save)" @click="resetGame">

@@ -7,6 +7,7 @@ import HsPlanetGrid from './components/HsPlanetGrid.vue'
 import HsTilePanel from './components/HsTilePanel.vue'
 import HsNavBar from './components/HsNavBar.vue'
 import HsGalaxyMap from './components/HsGalaxyMap.vue'
+import HsSolarSystem from './components/HsSolarSystem.vue'
 
 definePageMeta({ hideHeader: true })
 
@@ -17,10 +18,13 @@ const { starMapLevel } = useHawkStar()
 
 const currentView = ref('planet')
 
-// Fall back to planet view if star map is removed (e.g. game reset)
+// Fall back if a view becomes locked again (e.g. game reset)
 watchEffect(() => {
-  if (currentView.value === 'galaxy' && starMapLevel.value === 0) {
+  if (currentView.value === 'solar-system' && starMapLevel.value < 1) {
     currentView.value = 'planet'
+  }
+  if (currentView.value === 'galaxy' && starMapLevel.value < 2) {
+    currentView.value = starMapLevel.value >= 1 ? 'solar-system' : 'planet'
   }
 })
 </script>
@@ -37,6 +41,7 @@ watchEffect(() => {
         <HsPlanetGrid />
         <HsTilePanel />
       </template>
+      <HsSolarSystem v-else-if="currentView === 'solar-system'" />
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
     </div>
   </div>
