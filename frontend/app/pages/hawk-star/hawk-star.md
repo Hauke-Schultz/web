@@ -31,40 +31,75 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 - [x] LocalStorage save/load — persist progress across page refreshes
 - [x] Current stats on built buildings — show active production/drain instead of only next-level effect
 - [x] Power Plant moved to Energy tile (Base: Command Center + Quarters · Energy: Power Plant + Solar Array + Fusion Reactor)
-- [x] Communication tile — slot 6, unlocked by Laboratory Lv2
-  - [x] `recon_drones` — scout drones, 3 levels (intel gating for galaxy screen)
-  - [x] `star_map` — galaxy navigation hub, 3 levels (prerequisite for Step 2 galaxy screen)
-  - [x] `trade_harbor` — interplanetary docking, 3 levels (prerequisite for Step 3 trading)
+- [x] Communication tile — slot 6, unlocked by Laboratory
+- [x] Research tile — Laboratory (unlocks Communication tile) + Space Technology (unlocks Space Base tile)
+- [x] Space Base tile — slot 3, unlocked by Space Technology Lv1
 
 ---
 
-### 🔲 Step 2 – Galaxy & Planet Network (Frontend)
+### ✅ Step 2a – Galaxy & Planet Network (Frontend Mock)
 
-**Goal:** Give the player a sense of place in the galaxy — what they own, what's contested, where enemies are. Gated behind Communication tile buildings.
+**Goal:** Give the player a sense of place in the galaxy — what they own, what's contested, where enemies are. Gated behind Space Base buildings.
 
-#### 2a — Planet & System Data (frontend mock)
-- [x] Static mock galaxy config (`hawkStarGalaxyMock.js`) — 20 star systems, each with 1–3 planets, x/y coords, star class
+- [x] Static mock galaxy config (`hawkStarGalaxyMock.js`) — 9 star systems, each with 4–8 planets, x/y coords, star class, trade routes
 - [x] Planet states: `own` · `uncolonized` · `enemy` · `ally` · `unknown`
-- [x] Visibility rules: Star Map level → which systems appear · Recon Drone level → state & planet detail revealed · home always visible
+- [x] NavBar — switch between Planet / Solar System / Galaxy views, gated by Star Map level
+- [x] Solar System view (`HsSolarSystem.vue`) — shows home system planets as tiles with state/type
+- [x] Galaxy Map view (`HsGalaxyMap.vue`) — star field canvas, system nodes with glow rings, fog of war by Star Map level
+- [x] Trade routes visible at Star Map Lv2 as dashed SVG lines
+- [x] System detail card — click system node to reveal name, planet count, state
 
-#### 2b — Galaxy Map Screen
-- [ ] Galaxy map accessible via "Galaxy" button in HUD — shown once Star Map Lv1 is built
-- [ ] 2D grid/scatter view — each node = one star system
-- [ ] Color-coded by ownership: own = blue · enemy = red · uncolonized = grey · fog of war = dark
-- [ ] Hover/click on a system → system card (planet list, owner, fleet presence if known)
-- [ ] Star Map Lv1 → known systems visible · Lv2 → trade routes · Lv3 → full galaxy, fog of war lifted
-- [ ] Recon Drones Lv1 → reveals nearest 3 systems · Lv2 → enemy movement hints · Lv3 → real-time flags
-- [ ] Player's home system always visible regardless of map level
+---
 
-#### 2c — Planet Detail
-- [ ] Click a known planet → planet card: owner name, tile count, defense level, last-seen time
-- [ ] Own planet links back to the base-building view
+### ✅ Step 2b – Unit System (Drones, Probes, Colony Ships)
 
-#### 2d — Future DB schema (planned for Step 4)
-- `galaxy_systems` — id, name, x, y, star_class
-- `planets` — id, system_id, name, slot_count, owner_id (nullable), conquered_at
-- `planet_visibility` — player_id, planet_id, last_seen_at, visibility_level (0–3)
-- `fleets` — id, owner_id, location_planet_id, destination_planet_id, arrives_at, ship_count
+**Goal:** Ships and drones are buildable units — each mission consumes one unit from inventory.
+
+- [x] `UNIT_COSTS` in config — per-unit cost and base build time for each unit type
+- [x] **Recon Drone** — build drones (60⚙️ 25💎, 90s base), send one per planet in home system; arrives and reveals planet details permanently
+- [x] **Galaxy Probe** — build probes (100⚙️ 50💎, 150s base), send one per star system; arrives and reveals planet count
+- [x] **Colony Ship** — build ships (300⚙️ 150💎, 300s base), send to scanned uncolonized planet; arrives and colonizes it
+- [x] Build time scales with building level (base / level)
+- [x] Simultaneous missions capped by building level (Lv1 = 1, Lv2 = 2, Lv3 = 3)
+- [x] Drone/colony progress bars on planet tiles (yellow = drone, blue = colony ship)
+- [x] Probe inventory bar in Galaxy Map with build button and in-flight count
+- [x] Drone + colony ship inventory bar in Solar System status bar
+- [x] Savegame version guard — old saves (pre-unit system) are automatically discarded
+
+---
+
+### 🔲 Step 2c – Pre-Backend Features (Frontend)
+
+**Goal:** Round out the frontend prototype before connecting a backend. All features stay client-side for now.
+
+#### Planets & Colonization
+- [ ] Colonized planets get a basic planet view (separate grid from home planet)
+- [ ] Each colonized planet starts with its own empty 3×3 grid (same building system)
+- [ ] Switch between owned planets via NavBar or planet list
+- [ ] Planet naming — player can rename their colonized planets
+
+#### Resources & Economy
+- [ ] Resource types on planets — each planet has a resource profile (e.g. metal-rich, crystal-poor) visible after scanning
+- [ ] Resources on remote planets affect production when colonized (bonus multiplier per tile)
+- [ ] Trade Harbor — local trading UI: exchange metal ↔ crystal at a configurable rate
+
+#### Space & Exploration
+- [ ] Colony ships to other star systems — requires Galaxy Probe to have revealed the system first
+- [ ] Fleet list — a panel showing all active drone/probe/ship missions with target and ETA
+- [ ] Planet slots revealed by scan — uncolonized planets show slot count after drone arrives
+
+#### Quality of Life
+- [ ] Event log — timestamped list of notable events (build complete, drone arrived, planet colonized, etc.)
+- [ ] Notification badge on NavBar tab when something completes while on a different view
+- [ ] Confirm dialog before sending a colony ship (it's expensive and irreversible)
+- [ ] Reset button in UI (instead of only via localStorage)
+- [ ] Keyboard shortcut to cycle views (← → arrows)
+
+#### Balance & Polish
+- [ ] Building panel shows unit build queue status when Space Base tile is selected
+- [ ] Planet tile tooltips — hover shows full planet name + state on mobile-unfriendly small tiles
+- [ ] Animate colonized planet tile transition (flash blue on arrival)
+- [ ] Sound effects toggle (optional, low-priority)
 
 ---
 
@@ -74,18 +109,18 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 
 - [ ] Backend setup (Node.js + Express or Fastify)
 - [ ] Database schema (PostgreSQL)
-  - `players` — auth, profile
-  - `player_resources` — current amounts per player
-  - `player_planet_slots` — unlocked state per slot
-  - `player_buildings` — `{ playerId, buildingId, level, buildEndsAt }`
-  - Galaxy tables from Step 2d
 - [ ] REST API endpoints
-  - `GET /planet` — load full player state
-  - `POST /build` — queue a build / upgrade
-  - `GET /galaxy` — visible systems for the requesting player
 - [ ] Server-side tick system — resource production calculated server-side on save/load
 - [ ] Auth — login, session, player identity
 - [ ] Frontend connects to API instead of local `ref` state
+
+#### Planned DB schema
+- `galaxy_systems` — id, name, x, y, star_class
+- `planets` — id, system_id, name, slot_count, owner_id (nullable), conquered_at
+- `planet_visibility` — player_id, planet_id, last_seen_at, visibility_level (0–3)
+- `player_units` — player_id, unit_type, inventory_count, build_ends_at
+- `unit_missions` — id, player_id, unit_type, target_id, arrives_at
+- `fleets` — id, owner_id, origin_id, destination_id, arrives_at, ship_count
 
 ---
 
@@ -111,6 +146,6 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 ## Vision (future steps)
 
 - **Step 4** — Research tree (Laboratory tile — tech unlocks, research queue)
-- **Step 5** — Spaceships & fleet movement (launch fleets, intercept, colonize)
+- **Step 5** — Combat: PvP fleets, intercept mechanics, siege
 - **Step 6** — Multiplayer: live trading via Trade Harbor, diplomacy, alliances
-- **Step 7** — Combat: PvP and NPC enemies (pirates, alien factions, siege mechanics)
+- **Step 7** — NPC factions (pirates, alien empires), events, galaxy events

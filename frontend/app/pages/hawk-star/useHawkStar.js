@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS } from './hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS } from './hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
 
 // ── Singleton state ────────────────────────────────────────
@@ -153,12 +153,10 @@ const spaceTechLevel = computed(() => {
   const state = playerBuildings.value['space_tech']
   return state ? effectiveLevel(state) : 0
 })
-// Recon Drone: short-range, scouts planets in home system
 const reconDroneLevel = computed(() => {
   const state = playerBuildings.value['recon_drone']
   return state ? effectiveLevel(state) : 0
 })
-// Galaxy Probe: long-range, flies to star systems to reveal planet count
 const galaxyProbeLevel = computed(() => {
   const state = playerBuildings.value['galaxy_probe']
   return state ? effectiveLevel(state) : 0
@@ -183,7 +181,6 @@ const startBuild = (id) => {
   playerBuildings.value[id].buildEndsAt = Date.now() + next.buildTime * 1000
 }
 
-// Current built level definition (null if not yet built)
 const currentLevelDef = (id) => {
   const lvl = getLevel(id)
   return lvl > 0 ? (BUILDINGS[id]?.levels[lvl - 1] ?? null) : null
@@ -241,54 +238,117 @@ const buildProgressStyle = (id) => {
   }
 }
 
-// ── Planet scanning (Recon Drone → home system planets) ────
-const SCAN_TIME_BASE = 60 // seconds at recon_drone lv1
+// ── Home system reference ──────────────────────────────────
+const HOME_SYSTEM = GALAXY_SYSTEMS.find(s => s.home)
 
-const playerScannedPlanets = ref(['kepler_prime']) // home planet always known
-const activeScan           = ref(null)             // { planetId, endsAt } | null
+// ── Recon Drones (home system planet scouting) ────────────
+// playerScannedPlanets: planets whose info has been revealed by a drone arriving
+const playerScannedPlanets = ref(['kepler_prime'])
+const reconDroneInventory  = ref(0)
+const reconDroneBuild      = ref(null)  // { endsAt } | null
+const activeDroneMissions  = ref([])    // [{ planetId, endsAt }]
 
-const remainingScanSec = computed(() =>
-  activeScan.value ? Math.max(0, Math.ceil((activeScan.value.endsAt - now.value) / 1000)) : 0
+const droneBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.recon_drone.buildTimeBase / Math.max(1, reconDroneLevel.value))
 )
 
-const scanProgressStyle = computed(() => {
-  if (!activeScan.value) return {}
-  const scanTime = Math.ceil(SCAN_TIME_BASE / Math.max(1, reconDroneLevel.value))
-  const elapsed  = Math.max(0, (Date.now() - (activeScan.value.endsAt - scanTime * 1000)) / 1000)
-  return { animationDuration: `${scanTime}s`, animationDelay: `-${elapsed}s` }
-})
-
-const startScan = (planetId) => {
-  if (activeScan.value) return
-  if (reconDroneLevel.value === 0) return
-  if (playerScannedPlanets.value.includes(planetId)) return
-  const scanTime = Math.ceil(SCAN_TIME_BASE / reconDroneLevel.value)
-  activeScan.value = { planetId, endsAt: Date.now() + scanTime * 1000 }
+const droneFlightTime = (planetId) => {
+  const idx = HOME_SYSTEM?.planets.findIndex(p => p.id === planetId) ?? 0
+  return Math.ceil(60 * (idx + 1) / Math.max(1, reconDroneLevel.value))
 }
 
-// ── Galaxy probing (Galaxy Probe → other star systems) ─────
-const HOME_SYSTEM    = GALAXY_SYSTEMS.find(s => s.home)
-const PROBE_SPEED    = 0.4 // map-units per second at galaxy_probe lv1
+const canBuildDrone = computed(() =>
+  reconDroneLevel.value > 0 &&
+  !reconDroneBuild.value &&
+  canAfford(UNIT_COSTS.recon_drone.cost)
+)
 
-const playerProbedSystems = ref(['kepler']) // home always known
-const activeGalaxyProbes  = ref([])         // [{ systemId, endsAt }]
+const buildReconDrone = () => {
+  if (!canBuildDrone.value) return
+  for (const [res, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
+    playerResources.value[res] -= amt
+  }
+  reconDroneBuild.value = { endsAt: Date.now() + droneBuildTime.value * 1000 }
+}
+
+const canSendDrone = (planetId) =>
+  reconDroneInventory.value > 0 &&
+  !playerScannedPlanets.value.includes(planetId) &&
+  !activeDroneMissions.value.find(m => m.planetId === planetId) &&
+  activeDroneMissions.value.length < reconDroneLevel.value
+
+const sendReconDrone = (planetId) => {
+  if (!canSendDrone(planetId)) return
+  reconDroneInventory.value -= 1
+  activeDroneMissions.value.push({ planetId, endsAt: Date.now() + droneFlightTime(planetId) * 1000 })
+}
+
+const remainingDroneSec = (planetId) => {
+  const m = activeDroneMissions.value.find(m => m.planetId === planetId)
+  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
+}
+
+const droneProgressStyle = (planetId) => {
+  const m = activeDroneMissions.value.find(m => m.planetId === planetId)
+  if (!m) return {}
+  const ft = droneFlightTime(planetId)
+  const elapsed = Math.max(0, (Date.now() - (m.endsAt - ft * 1000)) / 1000)
+  return { animationDuration: `${ft}s`, animationDelay: `-${elapsed}s` }
+}
+
+const droneBuildProgressStyle = computed(() => {
+  if (!reconDroneBuild.value) return {}
+  const bt = droneBuildTime.value
+  const elapsed = Math.max(0, (Date.now() - (reconDroneBuild.value.endsAt - bt * 1000)) / 1000)
+  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+})
+
+// ── Galaxy Probes (remote system scouting) ─────────────────
+const HOME_SYSTEM_REF = GALAXY_SYSTEMS.find(s => s.home)
+const PROBE_SPEED     = 0.4 // map-units per second at level 1
+
+const playerProbedSystems  = ref(['kepler'])
+const galaxyProbeInventory = ref(0)
+const galaxyProbeBuild     = ref(null)  // { endsAt } | null
+const activeGalaxyProbes   = ref([])    // [{ systemId, endsAt }]
+
+const probeBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.galaxy_probe.buildTimeBase / Math.max(1, galaxyProbeLevel.value))
+)
 
 const probeFlightTime = (systemId) => {
   const sys = GALAXY_SYSTEMS.find(s => s.id === systemId)
   if (!sys || sys.home) return 0
-  const dx   = sys.x - HOME_SYSTEM.x
-  const dy   = sys.y - HOME_SYSTEM.y
+  const dx   = sys.x - HOME_SYSTEM_REF.x
+  const dy   = sys.y - HOME_SYSTEM_REF.y
   const dist = Math.sqrt(dx * dx + dy * dy)
   return Math.ceil(dist / (PROBE_SPEED * Math.max(1, galaxyProbeLevel.value)))
 }
 
+const canBuildProbe = computed(() =>
+  galaxyProbeLevel.value > 0 &&
+  !galaxyProbeBuild.value &&
+  canAfford(UNIT_COSTS.galaxy_probe.cost)
+)
+
+const buildGalaxyProbe = () => {
+  if (!canBuildProbe.value) return
+  for (const [res, amt] of Object.entries(UNIT_COSTS.galaxy_probe.cost)) {
+    playerResources.value[res] -= amt
+  }
+  galaxyProbeBuild.value = { endsAt: Date.now() + probeBuildTime.value * 1000 }
+}
+
+const canSendProbe = (systemId) =>
+  galaxyProbeInventory.value > 0 &&
+  !playerProbedSystems.value.includes(systemId) &&
+  !activeGalaxyProbes.value.find(p => p.systemId === systemId) &&
+  activeGalaxyProbes.value.length < galaxyProbeLevel.value
+
 const sendGalaxyProbe = (systemId) => {
-  if (galaxyProbeLevel.value === 0) return
-  if (playerProbedSystems.value.includes(systemId)) return
-  if (activeGalaxyProbes.value.find(p => p.systemId === systemId)) return
-  if (activeGalaxyProbes.value.length >= galaxyProbeLevel.value) return
-  const flightTime = probeFlightTime(systemId)
-  activeGalaxyProbes.value.push({ systemId, endsAt: Date.now() + flightTime * 1000 })
+  if (!canSendProbe(systemId)) return
+  galaxyProbeInventory.value -= 1
+  activeGalaxyProbes.value.push({ systemId, endsAt: Date.now() + probeFlightTime(systemId) * 1000 })
 }
 
 const remainingProbeSec = (systemId) => {
@@ -299,24 +359,110 @@ const remainingProbeSec = (systemId) => {
 const probeProgressStyle = (systemId) => {
   const probe = activeGalaxyProbes.value.find(p => p.systemId === systemId)
   if (!probe) return {}
-  const flightTime = probeFlightTime(systemId)
-  const elapsed    = Math.max(0, (Date.now() - (probe.endsAt - flightTime * 1000)) / 1000)
-  return { animationDuration: `${flightTime}s`, animationDelay: `-${elapsed}s` }
+  const ft      = probeFlightTime(systemId)
+  const elapsed = Math.max(0, (Date.now() - (probe.endsAt - ft * 1000)) / 1000)
+  return { animationDuration: `${ft}s`, animationDelay: `-${elapsed}s` }
 }
 
+const probeBuildProgressStyle = computed(() => {
+  if (!galaxyProbeBuild.value) return {}
+  const bt      = probeBuildTime.value
+  const elapsed = Math.max(0, (Date.now() - (galaxyProbeBuild.value.endsAt - bt * 1000)) / 1000)
+  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+})
+
+// ── Colony Ships (home system colonization) ────────────────
+const playerColonizedPlanets = ref(['kepler_prime'])
+const colonyShipInventory    = ref(0)
+const colonyShipBuild        = ref(null)  // { endsAt } | null
+const activeColonyMissions   = ref([])    // [{ planetId, endsAt }]
+
+const colonyShipBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.colony_ship.buildTimeBase / Math.max(1, colonyShipLevel.value))
+)
+
+const colonyFlightTime = (planetId) => {
+  const idx = HOME_SYSTEM?.planets.findIndex(p => p.id === planetId) ?? 0
+  return Math.ceil(120 * (idx + 1) / Math.max(1, colonyShipLevel.value))
+}
+
+const canBuildColonyShip = computed(() =>
+  colonyShipLevel.value > 0 &&
+  !colonyShipBuild.value &&
+  canAfford(UNIT_COSTS.colony_ship.cost)
+)
+
+const buildColonyShip = () => {
+  if (!canBuildColonyShip.value) return
+  for (const [res, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
+    playerResources.value[res] -= amt
+  }
+  colonyShipBuild.value = { endsAt: Date.now() + colonyShipBuildTime.value * 1000 }
+}
+
+const canSendColonyShip = (planetId) => {
+  const planet = HOME_SYSTEM?.planets.find(p => p.id === planetId)
+  return (
+    colonyShipInventory.value > 0 &&
+    !!planet &&
+    !planet.isHome &&
+    planet.state === 'uncolonized' &&
+    playerScannedPlanets.value.includes(planetId) &&
+    !playerColonizedPlanets.value.includes(planetId) &&
+    !activeColonyMissions.value.find(m => m.planetId === planetId) &&
+    activeColonyMissions.value.length < Math.max(1, colonyShipLevel.value)
+  )
+}
+
+const sendColonyShip = (planetId) => {
+  if (!canSendColonyShip(planetId)) return
+  colonyShipInventory.value -= 1
+  activeColonyMissions.value.push({ planetId, endsAt: Date.now() + colonyFlightTime(planetId) * 1000 })
+}
+
+const remainingColonySec = (planetId) => {
+  const m = activeColonyMissions.value.find(m => m.planetId === planetId)
+  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
+}
+
+const colonyProgressStyle = (planetId) => {
+  const m = activeColonyMissions.value.find(m => m.planetId === planetId)
+  if (!m) return {}
+  const ft      = colonyFlightTime(planetId)
+  const elapsed = Math.max(0, (Date.now() - (m.endsAt - ft * 1000)) / 1000)
+  return { animationDuration: `${ft}s`, animationDelay: `-${elapsed}s` }
+}
+
+const colonyShipBuildProgressStyle = computed(() => {
+  if (!colonyShipBuild.value) return {}
+  const bt      = colonyShipBuildTime.value
+  const elapsed = Math.max(0, (Date.now() - (colonyShipBuild.value.endsAt - bt * 1000)) / 1000)
+  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+})
+
 // ── LocalStorage persistence ───────────────────────────────
-const SAVE_KEY = 'hawk-star-save'
+const SAVE_KEY     = 'hawk-star-save'
+const SAVE_VERSION = 2
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
-    planetName:           planetName.value,
-    playerResources:      playerResources.value,
-    playerSlots:          playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
-    playerBuildings:      playerBuildings.value,
-    playerScannedPlanets: playerScannedPlanets.value,
-    activeScan:           activeScan.value,
-    playerProbedSystems:  playerProbedSystems.value,
-    activeGalaxyProbes:   activeGalaxyProbes.value,
+    version:               SAVE_VERSION,
+    planetName:            planetName.value,
+    playerResources:       playerResources.value,
+    playerSlots:           playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
+    playerBuildings:       playerBuildings.value,
+    playerScannedPlanets:  playerScannedPlanets.value,
+    reconDroneInventory:   reconDroneInventory.value,
+    reconDroneBuild:       reconDroneBuild.value,
+    activeDroneMissions:   activeDroneMissions.value,
+    playerProbedSystems:   playerProbedSystems.value,
+    galaxyProbeInventory:  galaxyProbeInventory.value,
+    galaxyProbeBuild:      galaxyProbeBuild.value,
+    activeGalaxyProbes:    activeGalaxyProbes.value,
+    playerColonizedPlanets: playerColonizedPlanets.value,
+    colonyShipInventory:   colonyShipInventory.value,
+    colonyShipBuild:       colonyShipBuild.value,
+    activeColonyMissions:  activeColonyMissions.value,
   }))
 }
 
@@ -325,6 +471,11 @@ const loadGame = () => {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return
     const data = JSON.parse(raw)
+    // Discard saves from an older format (before unit inventory system)
+    if ((data.version ?? 1) < SAVE_VERSION) {
+      localStorage.removeItem(SAVE_KEY)
+      return
+    }
     if (data.planetName)      planetName.value = data.planetName
     if (data.playerResources) playerResources.value = data.playerResources
     if (data.playerSlots) {
@@ -338,10 +489,18 @@ const loadGame = () => {
         if (playerBuildings.value[id]) playerBuildings.value[id] = state
       }
     }
-    if (Array.isArray(data.playerScannedPlanets)) playerScannedPlanets.value = data.playerScannedPlanets
-    if (data.activeScan)                          activeScan.value           = data.activeScan
-    if (Array.isArray(data.playerProbedSystems))  playerProbedSystems.value  = data.playerProbedSystems
-    if (Array.isArray(data.activeGalaxyProbes))   activeGalaxyProbes.value   = data.activeGalaxyProbes
+    if (Array.isArray(data.playerScannedPlanets))   playerScannedPlanets.value   = data.playerScannedPlanets
+    if (typeof data.reconDroneInventory === 'number') reconDroneInventory.value   = data.reconDroneInventory
+    if (data.reconDroneBuild)                        reconDroneBuild.value        = data.reconDroneBuild
+    if (Array.isArray(data.activeDroneMissions))     activeDroneMissions.value    = data.activeDroneMissions
+    if (Array.isArray(data.playerProbedSystems))     playerProbedSystems.value    = data.playerProbedSystems
+    if (typeof data.galaxyProbeInventory === 'number') galaxyProbeInventory.value = data.galaxyProbeInventory
+    if (data.galaxyProbeBuild)                       galaxyProbeBuild.value       = data.galaxyProbeBuild
+    if (Array.isArray(data.activeGalaxyProbes))      activeGalaxyProbes.value     = data.activeGalaxyProbes
+    if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
+    if (typeof data.colonyShipInventory === 'number') colonyShipInventory.value   = data.colonyShipInventory
+    if (data.colonyShipBuild)                        colonyShipBuild.value        = data.colonyShipBuild
+    if (Array.isArray(data.activeColonyMissions))    activeColonyMissions.value   = data.activeColonyMissions
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
   }
@@ -356,15 +515,30 @@ export const resetGame = () => {
 const tick = () => {
   now.value = Date.now()
 
-  // Complete active planet scan
-  if (activeScan.value && activeScan.value.endsAt <= now.value) {
-    if (!playerScannedPlanets.value.includes(activeScan.value.planetId)) {
-      playerScannedPlanets.value.push(activeScan.value.planetId)
-    }
-    activeScan.value = null
+  // Complete drone build
+  if (reconDroneBuild.value && reconDroneBuild.value.endsAt <= now.value) {
+    reconDroneInventory.value += 1
+    reconDroneBuild.value = null
   }
 
-  // Complete galaxy probes
+  // Complete drone missions → reveal planet
+  for (let i = activeDroneMissions.value.length - 1; i >= 0; i--) {
+    const m = activeDroneMissions.value[i]
+    if (m.endsAt <= now.value) {
+      if (!playerScannedPlanets.value.includes(m.planetId)) {
+        playerScannedPlanets.value.push(m.planetId)
+      }
+      activeDroneMissions.value.splice(i, 1)
+    }
+  }
+
+  // Complete galaxy probe build
+  if (galaxyProbeBuild.value && galaxyProbeBuild.value.endsAt <= now.value) {
+    galaxyProbeInventory.value += 1
+    galaxyProbeBuild.value = null
+  }
+
+  // Complete galaxy probes → reveal system
   for (let i = activeGalaxyProbes.value.length - 1; i >= 0; i--) {
     const probe = activeGalaxyProbes.value[i]
     if (probe.endsAt <= now.value) {
@@ -375,6 +549,24 @@ const tick = () => {
     }
   }
 
+  // Complete colony ship build
+  if (colonyShipBuild.value && colonyShipBuild.value.endsAt <= now.value) {
+    colonyShipInventory.value += 1
+    colonyShipBuild.value = null
+  }
+
+  // Complete colony missions → colonize planet
+  for (let i = activeColonyMissions.value.length - 1; i >= 0; i--) {
+    const m = activeColonyMissions.value[i]
+    if (m.endsAt <= now.value) {
+      if (!playerColonizedPlanets.value.includes(m.planetId)) {
+        playerColonizedPlanets.value.push(m.planetId)
+      }
+      activeColonyMissions.value.splice(i, 1)
+    }
+  }
+
+  // Complete building upgrades
   for (const [id, state] of Object.entries(playerBuildings.value)) {
     if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
     state.level += 1
@@ -391,6 +583,7 @@ const tick = () => {
     }
   }
 
+  // Resource production
   for (const [res, amt] of Object.entries(production.value)) {
     const newVal = Math.max(0, (playerResources.value[res] ?? 0) + amt)
     const cap = maxStorage.value[res]
@@ -454,18 +647,45 @@ export function useHawkStar() {
     reconDroneLevel,
     galaxyProbeLevel,
     colonyShipLevel,
-    // planet scanning
+    // recon drones
     playerScannedPlanets,
-    activeScan,
-    remainingScanSec,
-    scanProgressStyle,
-    startScan,
-    // galaxy probing
+    reconDroneInventory,
+    reconDroneBuild,
+    activeDroneMissions,
+    droneBuildTime,
+    canBuildDrone,
+    buildReconDrone,
+    canSendDrone,
+    sendReconDrone,
+    remainingDroneSec,
+    droneProgressStyle,
+    droneBuildProgressStyle,
+    // galaxy probes
     playerProbedSystems,
+    galaxyProbeInventory,
+    galaxyProbeBuild,
     activeGalaxyProbes,
+    probeBuildTime,
+    canBuildProbe,
+    buildGalaxyProbe,
+    canSendProbe,
     sendGalaxyProbe,
     remainingProbeSec,
     probeProgressStyle,
+    probeBuildProgressStyle,
+    // colony ships
+    playerColonizedPlanets,
+    colonyShipInventory,
+    colonyShipBuild,
+    activeColonyMissions,
+    colonyShipBuildTime,
+    canBuildColonyShip,
+    buildColonyShip,
+    canSendColonyShip,
+    sendColonyShip,
+    remainingColonySec,
+    colonyProgressStyle,
+    colonyShipBuildProgressStyle,
     // grid
     unlockRequirement,
     slotsOnSlot,
@@ -473,5 +693,7 @@ export function useHawkStar() {
     remainingSec,
     formatTime,
     buildProgressStyle,
+    // unit costs (for UI display)
+    UNIT_COSTS,
   }
 }

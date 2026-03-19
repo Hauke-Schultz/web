@@ -5,31 +5,23 @@ import { GALAXY_SYSTEMS, TRADE_ROUTES } from '../hawkStarGalaxyMock.js'
 
 const {
   starMapLevel,
-  galaxyProbeLevel,
-  playerProbedSystems, activeGalaxyProbes,
-  sendGalaxyProbe, remainingProbeSec, probeProgressStyle,
-  formatTime,
+  galaxyProbeLevel, galaxyProbeInventory, galaxyProbeBuild,
+  activeGalaxyProbes, probeBuildTime,
+  canBuildProbe, buildGalaxyProbe,
+  canSendProbe, sendGalaxyProbe,
+  playerProbedSystems,
+  remainingProbeSec, probeProgressStyle, probeBuildProgressStyle,
+  formatTime, UNIT_COSTS,
 } = useHawkStar()
 
 // ── Visibility helpers ──────────────────────────────────────────────────────
-
-// A system dot appears on the map when star map level is high enough.
 const isVisible  = (sys) => sys.minLevel <= starMapLevel.value
-
-// Planet count + state is known once a probe has arrived (or it's home).
 const isProbed   = (sys) => sys.home || playerProbedSystems.value.includes(sys.id)
 const isProbing  = (sys) => !!activeGalaxyProbes.value.find(p => p.systemId === sys.id)
-const canProbe   = (sys) =>
-  galaxyProbeLevel.value > 0 &&
-  !isProbed(sys) &&
-  !isProbing(sys) &&
-  activeGalaxyProbes.value.length < galaxyProbeLevel.value
 
-// The state shown on the map dot.
 const effectiveState = (sys) => isProbed(sys) ? sys.state : 'unknown'
 
 // ── Derived collections ─────────────────────────────────────────────────────
-
 const visibleSystems = computed(() => GALAXY_SYSTEMS.filter(isVisible))
 
 const visibleRoutes = computed(() => {
@@ -43,7 +35,6 @@ const visibleRoutes = computed(() => {
     }))
 })
 
-// How many more systems the next star map level would reveal.
 const nextUnlock = computed(() => {
   const next = starMapLevel.value + 1
   if (next > 3) return null
@@ -52,14 +43,12 @@ const nextUnlock = computed(() => {
 })
 
 // ── Selection ───────────────────────────────────────────────────────────────
-
 const selected = ref(null)
 
 const selectSystem = (sys) => {
   selected.value = selected.value?.id === sys.id ? null : sys
 }
 
-// Clear selection if the selected system scrolls out of visibility.
 watch(visibleSystems, (systems) => {
   if (selected.value && !systems.find(s => s.id === selected.value.id)) {
     selected.value = null
@@ -67,7 +56,6 @@ watch(visibleSystems, (systems) => {
 })
 
 // ── Label maps ──────────────────────────────────────────────────────────────
-
 const STATE_LABEL = {
   own:         'Your Colony',
   uncolonized: 'Uncolonized',
@@ -85,6 +73,8 @@ const STATE_ICON = {
 }
 
 const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd' }
+
+const probeCost = UNIT_COSTS.galaxy_probe.cost
 </script>
 
 <template>
@@ -116,7 +106,6 @@ const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd
         :style="{ left: `${sys.x}%`, top: `${sys.y}%` }"
         @click.stop="selectSystem(sys)"
       >
-        <!-- Star glow ring (color = star class) -->
         <span
           class="hs-system-star"
           :style="{ '--star-color': STAR_CLASS_COLOR[sys.starClass] ?? '#fff' }"
@@ -140,6 +129,37 @@ const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd
       <span class="hs-legend-item hs-legend--enemy">● Enemy</span>
       <span class="hs-legend-item hs-legend--unknown">● Unknown</span>
       <span v-if="starMapLevel >= 2" class="hs-legend-item hs-legend--route">── Trade Route</span>
+    </div>
+
+    <!-- Probe inventory bar -->
+    <div class="hs-probe-bar">
+      <div
+        class="hs-probe-bar-item"
+        :class="galaxyProbeLevel > 0 ? 'hs-probe-bar-item--active' : 'hs-probe-bar-item--locked'"
+      >
+        <span>🔭 Probes</span>
+        <span class="hs-probe-bar-sub">
+          <template v-if="galaxyProbeLevel === 0">Galaxy Probe building needed</template>
+          <template v-else>{{ galaxyProbeInventory }} ready · {{ activeGalaxyProbes.length }} in flight</template>
+        </span>
+
+        <!-- Build probe button -->
+        <button
+          v-if="galaxyProbeLevel > 0 && !galaxyProbeBuild"
+          class="hs-probe-build-btn"
+          :class="{ 'hs-probe-build-btn--disabled': !canBuildProbe }"
+          :disabled="!canBuildProbe"
+          @click="buildGalaxyProbe"
+        >
+          Build ({{ probeCost.metal }}⚙️ {{ probeCost.crystal }}💎 · {{ formatTime(probeBuildTime) }})
+        </button>
+
+        <!-- Build in progress -->
+        <span v-else-if="galaxyProbeBuild" class="hs-probe-building">
+          <span class="hs-probe-build-bar" :style="probeBuildProgressStyle" />
+          Building probe…
+        </span>
+      </div>
     </div>
 
     <!-- System detail card -->
@@ -172,11 +192,12 @@ const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd
         <div v-else-if="!isProbed(selected)" class="hs-card-unprobed">
           <span class="hs-card-unprobed-text">System not yet surveyed</span>
           <button
-            v-if="canProbe(selected)"
+            v-if="canSendProbe(selected.id)"
             class="hs-card-probe-btn"
             @click="sendGalaxyProbe(selected.id)"
           >🔭 Send Probe</button>
-          <span v-else-if="galaxyProbeLevel === 0" class="hs-card-probe-hint">Build Galaxy Probe to send a probe</span>
+          <span v-else-if="galaxyProbeLevel === 0" class="hs-card-probe-hint">Build Galaxy Probe facility first</span>
+          <span v-else-if="galaxyProbeInventory === 0" class="hs-card-probe-hint">No probes — build one in the probe bar</span>
           <span v-else class="hs-card-probe-hint">All probes busy ({{ activeGalaxyProbes.length }}/{{ galaxyProbeLevel }})</span>
         </div>
       </div>
@@ -214,7 +235,6 @@ $c-unknown:     #374151;
   border-radius: var(--hs-r-lg);
   overflow: hidden;
 
-  // Static star field
   &::before {
     content: '';
     position: absolute;
@@ -241,7 +261,6 @@ $c-unknown:     #374151;
     pointer-events: none;
   }
 
-  // Fog of war vignette at edges
   &::after {
     content: '';
     position: absolute;
@@ -293,7 +312,6 @@ $c-unknown:     #374151;
     animation: hs-pulse-home 2.5s ease-in-out infinite;
   }
 
-  // Dot color per effective state
   &--own         { color: $c-own; }
   &--ally        { color: $c-ally; }
   &--enemy       { color: $c-enemy; }
@@ -370,6 +388,82 @@ $c-unknown:     #374151;
 .hs-legend--unknown     { color: $c-unknown; }
 .hs-legend--route       { color: rgba(96,165,250,0.4); }
 
+// ── Probe inventory bar ───────────────────────────────────────────────────────
+.hs-probe-bar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hs-probe-bar-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.3rem 0.625rem;
+  border-radius: var(--hs-r-md);
+  border: 1px solid var(--hs-line-lg);
+  background: var(--hs-glass-sm);
+  font-size: 0.62rem;
+  font-weight: 600;
+
+  &--active { border-color: rgba(96,165,250,0.3); color: rgba(255,255,255,0.8); }
+  &--locked { color: rgba(255,255,255,0.25); font-style: italic; }
+}
+
+.hs-probe-bar-sub {
+  font-size: 0.55rem;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.hs-probe-build-btn {
+  padding: 2px 8px;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid rgba(251,191,36,0.35);
+  background: rgba(251,191,36,0.08);
+  color: rgba(251,191,36,0.85);
+  font-size: 0.52rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(251,191,36,0.18);
+    border-color: rgba(251,191,36,0.6);
+  }
+
+  &--disabled, &:disabled { opacity: 0.35; cursor: not-allowed; }
+}
+
+.hs-probe-building {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px 8px;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid rgba(251,191,36,0.25);
+  background: rgba(251,191,36,0.05);
+  font-size: 0.52rem;
+  color: rgba(251,191,36,0.7);
+  font-style: italic;
+}
+
+.hs-probe-build-bar {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px; width: 100%;
+  background: rgba(251,191,36,0.5);
+  transform-origin: left;
+  animation: hs-probe-fill linear forwards;
+}
+
+@keyframes hs-probe-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
 // ── System detail card ────────────────────────────────────────────────────────
 .hs-system-card {
   background: var(--hs-glass-sm);
@@ -410,7 +504,6 @@ $c-unknown:     #374151;
   &:hover { color: rgba(255,255,255,0.65); }
 }
 
-// ── Unknown planet count ──────────────────────────────────────────────────────
 .hs-card-unknown-count { color: rgba(255,255,255,0.25); font-style: italic; }
 
 // ── Probe in flight ───────────────────────────────────────────────────────────
@@ -435,11 +528,6 @@ $c-unknown:     #374151;
   background: rgba(251,191,36,0.5);
   transform-origin: left;
   animation: hs-probe-fill linear forwards;
-}
-
-@keyframes hs-probe-fill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
 }
 
 .hs-card-probing-icon { font-size: 0.875rem; flex-shrink: 0; }

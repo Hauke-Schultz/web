@@ -16,6 +16,14 @@
  *   playerBuildings  → player_buildings  { playerId, buildingId, level, buildEndsAt }
  */
 
+// ── Unit production costs ─────────────────────────────────────────────────────
+// Cost to build ONE unit (drone / probe / ship). Building level divides buildTimeBase.
+export const UNIT_COSTS = {
+  recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 90  },
+  galaxy_probe: { cost: { metal: 100, crystal: 50  }, buildTimeBase: 150 },
+  colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 300 },
+}
+
 // ── Resources ─────────────────────────────────────────────────────────────────
 export const RESOURCES = {
   population: { id: 'population', name: 'Population', icon: '👥', color: '#a78bfa' },
