@@ -72,34 +72,24 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 
 **Goal:** Round out the frontend prototype before connecting a backend. All features stay client-side for now.
 
+#### Space Units on Planet View
+- [x] Space Base tile shows a "Space Units" section in the tile panel
+- [x] Build Recon Drones, Galaxy Probes and Colony Ships directly from the planet view
+- [x] Build progress bar + countdown visible in the planet tile panel
+- [x] Inventory count shown as badge on each unit icon
+
+#### Defense Tile
+- [x] New `defense` tile type at slot 1 — unlocked by Weapons Research Lv1
+- [x] New `weapons_research` building in the Research tile (unlocks slot 1)
+- [x] `shield_generator` — 3 levels, absorbs 20/40/60% incoming damage
+- [x] `missile_battery` — 3 levels, intercepts 1/3/6 ships per wave
+- [x] `orbital_cannon` — 3 levels, heavy strike 1/2/4× per battle
+- [x] `planetary_radar` — 3 levels, early-warning detection range 1→3+ systems
+
 #### Planets & Colonization
 - [ ] Colonized planets get a basic planet view (separate grid from home planet)
 - [ ] Each colonized planet starts with its own empty 3×3 grid (same building system)
 - [ ] Switch between owned planets via NavBar or planet list
-- [ ] Planet naming — player can rename their colonized planets
-
-#### Resources & Economy
-- [ ] Resource types on planets — each planet has a resource profile (e.g. metal-rich, crystal-poor) visible after scanning
-- [ ] Resources on remote planets affect production when colonized (bonus multiplier per tile)
-- [ ] Trade Harbor — local trading UI: exchange metal ↔ crystal at a configurable rate
-
-#### Space & Exploration
-- [ ] Colony ships to other star systems — requires Galaxy Probe to have revealed the system first
-- [ ] Fleet list — a panel showing all active drone/probe/ship missions with target and ETA
-- [ ] Planet slots revealed by scan — uncolonized planets show slot count after drone arrives
-
-#### Quality of Life
-- [ ] Event log — timestamped list of notable events (build complete, drone arrived, planet colonized, etc.)
-- [ ] Notification badge on NavBar tab when something completes while on a different view
-- [ ] Confirm dialog before sending a colony ship (it's expensive and irreversible)
-- [ ] Reset button in UI (instead of only via localStorage)
-- [ ] Keyboard shortcut to cycle views (← → arrows)
-
-#### Balance & Polish
-- [ ] Building panel shows unit build queue status when Space Base tile is selected
-- [ ] Planet tile tooltips — hover shows full planet name + state on mobile-unfriendly small tiles
-- [ ] Animate colonized planet tile transition (flash blue on arrival)
-- [ ] Sound effects toggle (optional, low-priority)
 
 ---
 

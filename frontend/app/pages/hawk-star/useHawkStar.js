@@ -1,9 +1,30 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS } from './hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, CROP_DEFS } from './hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
 
+// ── Starting planet pool ───────────────────────────────────
+const START_CONFIGS = [
+  { system: 'Kepler System',  planet: 'Kepler Prime'    },
+  { system: 'Vega-9',         planet: 'Vega Reach'      },
+  { system: 'Tau Ceti',       planet: 'Ceti Alpha'      },
+  { system: 'Proxima Ring',   planet: 'Proxima III'     },
+  { system: 'Sirius Reach',   planet: 'Sirius Outpost'  },
+  { system: 'Aether Prime',   planet: 'Aethon'          },
+  { system: 'Nova Horus',     planet: 'Horus Station'   },
+  { system: 'Mira Delta',     planet: 'Mira IV'         },
+  { system: 'Helion Belt',    planet: 'Helion Base'     },
+  { system: 'Cygnus Deep',    planet: 'Cygnus Outpost'  },
+]
+
+const randomStartConfig = () =>
+  START_CONFIGS[Math.floor(Math.random() * START_CONFIGS.length)]
+
 // ── Singleton state ────────────────────────────────────────
-const planetName = ref('Kepler Prime')
+const playerName  = ref('')
+const homeConfig  = ref(randomStartConfig())
+const planetName  = ref(homeConfig.value.planet)
+const systemName  = ref(homeConfig.value.system)
+const isFirstRun  = computed(() => playerName.value === '')
 
 const playerResources = ref({
   population: 15,
@@ -440,14 +461,54 @@ const colonyShipBuildProgressStyle = computed(() => {
   return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
 })
 
+// ── Crops (Agriculture tile) ───────────────────────────────
+const cropInventory = ref(Object.fromEntries(Object.keys(CROP_DEFS).map(id => [id, 0])))
+const cropQueue     = ref(null)  // { cropId, endsAt } | null
+
+const cropGrowTime = (cropId) => {
+  const crop = CROP_DEFS[cropId]
+  if (!crop) return 0
+  const lvl = effectiveLevel(playerBuildings.value[crop.requiresBuilding] ?? { level: 0, buildEndsAt: null })
+  return Math.ceil(crop.growTimeBase / Math.max(1, lvl))
+}
+
+const canGrowCrop = (cropId) => {
+  const crop = CROP_DEFS[cropId]
+  if (!crop) return false
+  const lvl = effectiveLevel(playerBuildings.value[crop.requiresBuilding] ?? { level: 0, buildEndsAt: null })
+  return !cropQueue.value && lvl >= crop.requiresLevel && canAfford(crop.cost)
+}
+
+const startCropGrow = (cropId) => {
+  if (!canGrowCrop(cropId)) return
+  const crop = CROP_DEFS[cropId]
+  for (const [res, amt] of Object.entries(crop.cost)) {
+    playerResources.value[res] -= amt
+  }
+  cropQueue.value = { cropId, endsAt: Date.now() + cropGrowTime(cropId) * 1000 }
+}
+
+const remainingCropSec = computed(() =>
+  cropQueue.value ? Math.max(0, Math.ceil((cropQueue.value.endsAt - now.value) / 1000)) : 0
+)
+
+const cropQueueProgressStyle = computed(() => {
+  if (!cropQueue.value) return {}
+  const gt      = cropGrowTime(cropQueue.value.cropId)
+  const elapsed = Math.max(0, (Date.now() - (cropQueue.value.endsAt - gt * 1000)) / 1000)
+  return { animationDuration: `${gt}s`, animationDelay: `-${elapsed}s` }
+})
+
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 2
+const SAVE_VERSION = 4
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
     version:               SAVE_VERSION,
+    playerName:            playerName.value,
     planetName:            planetName.value,
+    systemName:            systemName.value,
     playerResources:       playerResources.value,
     playerSlots:           playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
     playerBuildings:       playerBuildings.value,
@@ -463,6 +524,8 @@ const saveGame = () => {
     colonyShipInventory:   colonyShipInventory.value,
     colonyShipBuild:       colonyShipBuild.value,
     activeColonyMissions:  activeColonyMissions.value,
+    cropInventory:         cropInventory.value,
+    cropQueue:             cropQueue.value,
   }))
 }
 
@@ -476,7 +539,9 @@ const loadGame = () => {
       localStorage.removeItem(SAVE_KEY)
       return
     }
-    if (data.planetName)      planetName.value = data.planetName
+    if (data.playerName)      playerName.value  = data.playerName
+    if (data.planetName)      planetName.value  = data.planetName
+    if (data.systemName)      systemName.value  = data.systemName
     if (data.playerResources) playerResources.value = data.playerResources
     if (data.playerSlots) {
       playerSlots.value = playerSlots.value.map(s => {
@@ -501,6 +566,12 @@ const loadGame = () => {
     if (typeof data.colonyShipInventory === 'number') colonyShipInventory.value   = data.colonyShipInventory
     if (data.colonyShipBuild)                        colonyShipBuild.value        = data.colonyShipBuild
     if (Array.isArray(data.activeColonyMissions))    activeColonyMissions.value   = data.activeColonyMissions
+    if (data.cropInventory) {
+      for (const [id, count] of Object.entries(data.cropInventory)) {
+        if (id in cropInventory.value) cropInventory.value[id] = count
+      }
+    }
+    if (data.cropQueue) cropQueue.value = data.cropQueue
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
   }
@@ -509,6 +580,11 @@ const loadGame = () => {
 export const resetGame = () => {
   localStorage.removeItem(SAVE_KEY)
   location.reload()
+}
+
+export const completeSetup = (name) => {
+  playerName.value = name.trim()
+  saveGame()
 }
 
 // ── Tick ───────────────────────────────────────────────────
@@ -566,6 +642,15 @@ const tick = () => {
     }
   }
 
+  // Complete crop growth
+  if (cropQueue.value && cropQueue.value.endsAt <= now.value) {
+    const { cropId } = cropQueue.value
+    cropInventory.value[cropId] = (cropInventory.value[cropId] ?? 0) + 1
+    const popBonus = CROP_DEFS[cropId]?.popBonus ?? 0
+    if (popBonus > 0) playerResources.value.population += popBonus
+    cropQueue.value = null
+  }
+
   // Complete building upgrades
   for (const [id, state] of Object.entries(playerBuildings.value)) {
     if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
@@ -608,7 +693,10 @@ export const stopTick = () => {
 export function useHawkStar() {
   return {
     // state
+    playerName,
     planetName,
+    systemName,
+    isFirstRun,
     playerResources,
     playerSlots,
     playerBuildings,
@@ -695,5 +783,14 @@ export function useHawkStar() {
     buildProgressStyle,
     // unit costs (for UI display)
     UNIT_COSTS,
+    // crops
+    cropInventory,
+    cropQueue,
+    cropGrowTime,
+    canGrowCrop,
+    startCropGrow,
+    remainingCropSec,
+    cropQueueProgressStyle,
+    CROP_DEFS,
   }
 }
