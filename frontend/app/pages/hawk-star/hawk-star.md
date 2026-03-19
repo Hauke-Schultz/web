@@ -81,10 +81,26 @@ Each player starts on their own planet, builds a civilization from scratch, expa
 #### Defense Tile
 - [x] New `defense` tile type at slot 1 — unlocked by Weapons Research Lv1
 - [x] New `weapons_research` building in the Research tile (unlocks slot 1)
-- [x] `shield_generator` — 3 levels, absorbs 20/40/60% incoming damage
-- [x] `missile_battery` — 3 levels, intercepts 1/3/6 ships per wave
-- [x] `orbital_cannon` — 3 levels, heavy strike 1/2/4× per battle
-- [x] `planetary_radar` — 3 levels, early-warning detection range 1→3+ systems
+- [x] `shield_generator` — 3 levels, absorbs 20/40/60% incoming damage (only defense building for now)
+
+#### Planet Types
+- [x] 4 planet types: **Terrestrial** 🌿, **Volcanic** 🌋, **Frozen** ❄️, **Ocean** 🌊
+- [x] Type assigned at start from mock planet data (`MOCK_TYPE_TO_PLANET_TYPE` lookup)
+- [x] Planet type badge shown right of planet name, color-coded per type
+- [x] Type-specific special buildings: `magma_forge` + `geothermal_tap` (volcanic), `cryo_excavator` + `cryo_lab` (frozen), `tidal_generator` (ocean)
+- [x] Buildings filtered in tile panel — only show buildings valid for current planet type
+
+#### Agriculture Refactor
+- [x] Removed all old crop/farm buildings; single generic `farm` building (all types, 3 levels)
+- [x] One trade crop per planet type: `terra_wheat` (terrestrial), `ember_root` (volcanic), `frost_spore` (frozen), `sea_kelp` (ocean)
+- [x] Crops filtered by planet type — only the matching crop is visible in the agriculture tile panel
+
+#### First-Run Setup
+- [x] Random uncolonized planet assigned from galaxy mock on first run (dynamic `buildStartPool()`)
+- [x] Setup overlay (teleport) — shows assigned system + planet + type, commander name input
+- [x] Player name displayed left of planet name in planet header
+- [x] Dynamic `homeSystemId`/`homePlanetId` refs — Solar System and Galaxy Map fully reflect assigned home
+- [x] All build times capped at 60 s for testing
 
 #### Planets & Colonization
 - [ ] Colonized planets get a basic planet view (separate grid from home planet)

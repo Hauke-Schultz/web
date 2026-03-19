@@ -11,15 +11,19 @@ const {
   canSendProbe, sendGalaxyProbe,
   playerProbedSystems,
   remainingProbeSec, probeProgressStyle, probeBuildProgressStyle,
+  homeSystemId,
   formatTime, UNIT_COSTS,
 } = useHawkStar()
 
 // ── Visibility helpers ──────────────────────────────────────────────────────
 const isVisible  = (sys) => sys.minLevel <= starMapLevel.value
-const isProbed   = (sys) => sys.home || playerProbedSystems.value.includes(sys.id)
+const isProbed   = (sys) => sys.id === homeSystemId.value || playerProbedSystems.value.includes(sys.id)
 const isProbing  = (sys) => !!activeGalaxyProbes.value.find(p => p.systemId === sys.id)
 
-const effectiveState = (sys) => isProbed(sys) ? sys.state : 'unknown'
+const effectiveState = (sys) => {
+  if (sys.id === homeSystemId.value) return 'own'
+  return isProbed(sys) ? sys.state : 'unknown'
+}
 
 // ── Derived collections ─────────────────────────────────────────────────────
 const visibleSystems = computed(() => GALAXY_SYSTEMS.filter(isVisible))
@@ -101,7 +105,7 @@ const probeCost = UNIT_COSTS.galaxy_probe.cost
         class="hs-system"
         :class="[
           `hs-system--${effectiveState(sys)}`,
-          { 'hs-system--home': sys.home, 'hs-system--selected': selected?.id === sys.id },
+          { 'hs-system--home': sys.id === homeSystemId, 'hs-system--selected': selected?.id === sys.id },
         ]"
         :style="{ left: `${sys.x}%`, top: `${sys.y}%` }"
         @click.stop="selectSystem(sys)"

@@ -22,6 +22,7 @@ const {
   remainingSec,
   formatTime,
   buildProgressStyle,
+  planetType,
   // crops
   cropInventory,
   cropQueue,
@@ -59,13 +60,15 @@ const {
 const isAgricultureTile = computed(() => activeTileType.value?.id === 'agriculture')
 const isSpacebaseTile   = computed(() => activeTileType.value?.id === 'spacebase')
 
-// All crop defs, annotated with unlock status
+// Only the one crop matching this planet's type, annotated with unlock status
 const allCropDefs = computed(() =>
-  Object.values(CROP_DEFS).map(crop => {
-    const bState   = playerBuildings.value[crop.requiresBuilding]
-    const builtLvl = bState ? (bState.buildEndsAt ? bState.level + 1 : bState.level) : 0
-    return { ...crop, unlocked: builtLvl >= crop.requiresLevel, builtLvl }
-  })
+  Object.values(CROP_DEFS)
+    .filter(crop => !crop.planetType || crop.planetType === planetType.value)
+    .map(crop => {
+      const bState   = playerBuildings.value[crop.requiresBuilding]
+      const builtLvl = bState ? (bState.buildEndsAt ? bState.level + 1 : bState.level) : 0
+      return { ...crop, unlocked: builtLvl >= crop.requiresLevel, builtLvl }
+    })
 )
 
 const hasCropsInInventory = computed(() =>
@@ -356,7 +359,7 @@ const hasCropsInInventory = computed(() =>
           <div class="hs-crop-action">
             <template v-if="!crop.unlocked">
               <span class="hs-crop-lock-hint">
-                {{ BUILDINGS[crop.requiresBuilding]?.name }} Lv{{ crop.requiresLevel }}
+                Build Farm first
               </span>
             </template>
             <template v-else>

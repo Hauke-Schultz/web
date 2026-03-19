@@ -1,10 +1,13 @@
 <script setup>
+import { computed } from 'vue'
 import { TILE_TYPES } from '../hawkStarConfig.js'
-import { useHawkStar } from '../useHawkStar.js'
+import {resetGame, useHawkStar} from '../useHawkStar.js'
 
 const {
   playerName,
   planetName,
+  planetType,
+  PLANET_TYPES,
   playerSlots,
   activeSlot,
   selectSlot,
@@ -12,6 +15,8 @@ const {
   unlockRequirement,
   getLevel,
 } = useHawkStar()
+
+const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 </script>
 
 <template>
@@ -19,6 +24,12 @@ const {
     <div class="hs-planet-header">
       <span class="hs-player-name">{{ playerName }}</span>
       <span class="hs-planet-name">🪐 {{ planetName }}</span>
+      <span
+        v-if="currentPlanetType"
+        class="hs-planet-type-badge"
+        :class="`hs-planet-type-badge--${planetType}`"
+        :title="currentPlanetType.description"
+      >{{ currentPlanetType.icon }} {{ currentPlanetType.name }}</span>
     </div>
     <div class="hs-grid">
     <div
@@ -55,6 +66,10 @@ const {
       </div>
     </div>
   </div>
+
+	  <button class="hs-nav-reset" title="Reset game (clears save)" @click="resetGame">
+		  ↺ Reset Game
+	  </button>
   </div>
 </template>
 
@@ -90,6 +105,38 @@ const {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   opacity: 0.6;
+}
+
+.hs-planet-type-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+  cursor: default;
+
+  &--terrestrial {
+    color: #86efac;
+    border-color: rgba(134, 239, 172, 0.35);
+    background: rgba(134, 239, 172, 0.08);
+  }
+  &--volcanic {
+    color: #fca5a5;
+    border-color: rgba(252, 165, 165, 0.35);
+    background: rgba(252, 165, 165, 0.08);
+  }
+  &--frozen {
+    color: #93c5fd;
+    border-color: rgba(147, 197, 253, 0.35);
+    background: rgba(147, 197, 253, 0.08);
+  }
+  &--ocean {
+    color: #67e8f9;
+    border-color: rgba(103, 232, 249, 0.35);
+    background: rgba(103, 232, 249, 0.08);
+  }
 }
 
 .hs-grid {
@@ -175,5 +222,21 @@ const {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
+}
+
+.hs-nav-reset {
+	padding: 0.25rem 0.15rem;
+	border-radius: var(--hs-r-md);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: none;
+	color: rgba(255, 255, 255, 0.2);
+	font-size: 0.65rem;
+	cursor: pointer;
+	transition: color 0.15s, border-color 0.15s;
+
+	&:hover {
+		color: var(--hs-danger);
+		border-color: var(--hs-danger-border);
+	}
 }
 </style>

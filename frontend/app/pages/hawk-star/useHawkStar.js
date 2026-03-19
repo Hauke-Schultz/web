@@ -1,30 +1,43 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, CROP_DEFS } from './hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, CROP_DEFS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE } from './hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
 
-// ── Starting planet pool ───────────────────────────────────
-const START_CONFIGS = [
-  { system: 'Kepler System',  planet: 'Kepler Prime'    },
-  { system: 'Vega-9',         planet: 'Vega Reach'      },
-  { system: 'Tau Ceti',       planet: 'Ceti Alpha'      },
-  { system: 'Proxima Ring',   planet: 'Proxima III'     },
-  { system: 'Sirius Reach',   planet: 'Sirius Outpost'  },
-  { system: 'Aether Prime',   planet: 'Aethon'          },
-  { system: 'Nova Horus',     planet: 'Horus Station'   },
-  { system: 'Mira Delta',     planet: 'Mira IV'         },
-  { system: 'Helion Belt',    planet: 'Helion Base'     },
-  { system: 'Cygnus Deep',    planet: 'Cygnus Outpost'  },
-]
+// ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
+const buildStartPool = () => {
+  const pool = []
+  for (const sys of GALAXY_SYSTEMS) {
+    for (const planet of sys.planets) {
+      if (planet.state === 'uncolonized') {
+        pool.push({
+          system:     sys.name,
+          systemId:   sys.id,
+          planet:     planet.name,
+          planetId:   planet.id,
+          planetType: MOCK_TYPE_TO_PLANET_TYPE[planet.type] ?? 'terrestrial',
+        })
+      }
+    }
+  }
+  return pool
+}
 
-const randomStartConfig = () =>
-  START_CONFIGS[Math.floor(Math.random() * START_CONFIGS.length)]
+const randomStartConfig = () => {
+  const pool = buildStartPool()
+  return pool[Math.floor(Math.random() * pool.length)]
+}
 
 // ── Singleton state ────────────────────────────────────────
-const playerName  = ref('')
-const homeConfig  = ref(randomStartConfig())
-const planetName  = ref(homeConfig.value.planet)
-const systemName  = ref(homeConfig.value.system)
-const isFirstRun  = computed(() => playerName.value === '')
+const playerName   = ref('')
+const homeConfig   = ref(randomStartConfig())
+const planetName   = ref(homeConfig.value.planet)
+const systemName   = ref(homeConfig.value.system)
+const planetType   = ref(homeConfig.value.planetType)
+const homeSystemId = ref(homeConfig.value.systemId)
+const homePlanetId = ref(homeConfig.value.planetId)
+const isFirstRun   = computed(() => playerName.value === '')
+
+// ── Home system (reactive, drives Solar System + Galaxy views) ─────────────
+const homeSystem = computed(() => GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value))
 
 const playerResources = ref({
   population: 15,
@@ -64,7 +77,10 @@ const selectSlot = (slot) => {
 // ── Building helpers ───────────────────────────────────────
 const buildingsForActiveSlot = computed(() => {
   if (!activeTileType.value) return []
-  return Object.values(BUILDINGS).filter(b => b.tileType === activeTileType.value.id)
+  return Object.values(BUILDINGS).filter(b =>
+    b.tileType === activeTileType.value.id &&
+    (!b.planetTypes || b.planetTypes.includes(planetType.value))
+  )
 })
 
 const getLevel = (id) => playerBuildings.value[id]?.level ?? 0
@@ -259,12 +275,11 @@ const buildProgressStyle = (id) => {
   }
 }
 
-// ── Home system reference ──────────────────────────────────
-const HOME_SYSTEM = GALAXY_SYSTEMS.find(s => s.home)
+// (homeSystem computed is declared near the top of the singleton state)
 
 // ── Recon Drones (home system planet scouting) ────────────
 // playerScannedPlanets: planets whose info has been revealed by a drone arriving
-const playerScannedPlanets = ref(['kepler_prime'])
+const playerScannedPlanets = ref([homePlanetId.value])
 const reconDroneInventory  = ref(0)
 const reconDroneBuild      = ref(null)  // { endsAt } | null
 const activeDroneMissions  = ref([])    // [{ planetId, endsAt }]
@@ -274,7 +289,7 @@ const droneBuildTime = computed(() =>
 )
 
 const droneFlightTime = (planetId) => {
-  const idx = HOME_SYSTEM?.planets.findIndex(p => p.id === planetId) ?? 0
+  const idx = homeSystem.value?.planets.findIndex(p => p.id === planetId) ?? 0
   return Math.ceil(60 * (idx + 1) / Math.max(1, reconDroneLevel.value))
 }
 
@@ -325,10 +340,9 @@ const droneBuildProgressStyle = computed(() => {
 })
 
 // ── Galaxy Probes (remote system scouting) ─────────────────
-const HOME_SYSTEM_REF = GALAXY_SYSTEMS.find(s => s.home)
-const PROBE_SPEED     = 0.4 // map-units per second at level 1
+const PROBE_SPEED = 0.4 // map-units per second at level 1
 
-const playerProbedSystems  = ref(['kepler'])
+const playerProbedSystems  = ref([homeSystemId.value])
 const galaxyProbeInventory = ref(0)
 const galaxyProbeBuild     = ref(null)  // { endsAt } | null
 const activeGalaxyProbes   = ref([])    // [{ systemId, endsAt }]
@@ -339,9 +353,9 @@ const probeBuildTime = computed(() =>
 
 const probeFlightTime = (systemId) => {
   const sys = GALAXY_SYSTEMS.find(s => s.id === systemId)
-  if (!sys || sys.home) return 0
-  const dx   = sys.x - HOME_SYSTEM_REF.x
-  const dy   = sys.y - HOME_SYSTEM_REF.y
+  if (!sys || sys.id === homeSystemId.value) return 0
+  const dx   = sys.x - (homeSystem.value?.x ?? 50)
+  const dy   = sys.y - (homeSystem.value?.y ?? 50)
   const dist = Math.sqrt(dx * dx + dy * dy)
   return Math.ceil(dist / (PROBE_SPEED * Math.max(1, galaxyProbeLevel.value)))
 }
@@ -393,7 +407,7 @@ const probeBuildProgressStyle = computed(() => {
 })
 
 // ── Colony Ships (home system colonization) ────────────────
-const playerColonizedPlanets = ref(['kepler_prime'])
+const playerColonizedPlanets = ref([homePlanetId.value])
 const colonyShipInventory    = ref(0)
 const colonyShipBuild        = ref(null)  // { endsAt } | null
 const activeColonyMissions   = ref([])    // [{ planetId, endsAt }]
@@ -403,7 +417,7 @@ const colonyShipBuildTime = computed(() =>
 )
 
 const colonyFlightTime = (planetId) => {
-  const idx = HOME_SYSTEM?.planets.findIndex(p => p.id === planetId) ?? 0
+  const idx = homeSystem.value?.planets.findIndex(p => p.id === planetId) ?? 0
   return Math.ceil(120 * (idx + 1) / Math.max(1, colonyShipLevel.value))
 }
 
@@ -422,7 +436,7 @@ const buildColonyShip = () => {
 }
 
 const canSendColonyShip = (planetId) => {
-  const planet = HOME_SYSTEM?.planets.find(p => p.id === planetId)
+  const planet = homeSystem.value?.planets.find(p => p.id === planetId)
   return (
     colonyShipInventory.value > 0 &&
     !!planet &&
@@ -475,6 +489,7 @@ const cropGrowTime = (cropId) => {
 const canGrowCrop = (cropId) => {
   const crop = CROP_DEFS[cropId]
   if (!crop) return false
+  if (crop.planetType && crop.planetType !== planetType.value) return false
   const lvl = effectiveLevel(playerBuildings.value[crop.requiresBuilding] ?? { level: 0, buildEndsAt: null })
   return !cropQueue.value && lvl >= crop.requiresLevel && canAfford(crop.cost)
 }
@@ -501,7 +516,7 @@ const cropQueueProgressStyle = computed(() => {
 
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 4
+const SAVE_VERSION = 7
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -509,6 +524,9 @@ const saveGame = () => {
     playerName:            playerName.value,
     planetName:            planetName.value,
     systemName:            systemName.value,
+    planetType:            planetType.value,
+    homeSystemId:          homeSystemId.value,
+    homePlanetId:          homePlanetId.value,
     playerResources:       playerResources.value,
     playerSlots:           playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
     playerBuildings:       playerBuildings.value,
@@ -539,9 +557,12 @@ const loadGame = () => {
       localStorage.removeItem(SAVE_KEY)
       return
     }
-    if (data.playerName)      playerName.value  = data.playerName
-    if (data.planetName)      planetName.value  = data.planetName
-    if (data.systemName)      systemName.value  = data.systemName
+    if (data.playerName)      playerName.value   = data.playerName
+    if (data.planetName)      planetName.value   = data.planetName
+    if (data.systemName)      systemName.value   = data.systemName
+    if (data.planetType)      planetType.value   = data.planetType
+    if (data.homeSystemId)    homeSystemId.value = data.homeSystemId
+    if (data.homePlanetId)    homePlanetId.value = data.homePlanetId
     if (data.playerResources) playerResources.value = data.playerResources
     if (data.playerSlots) {
       playerSlots.value = playerSlots.value.map(s => {
@@ -696,7 +717,12 @@ export function useHawkStar() {
     playerName,
     planetName,
     systemName,
+    planetType,
+    homeSystemId,
+    homePlanetId,
+    homeSystem,
     isFirstRun,
+    PLANET_TYPES,
     playerResources,
     playerSlots,
     playerBuildings,

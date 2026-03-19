@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watchEffect } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { startTick, stopTick, completeSetup, useHawkStar } from './useHawkStar.js'
 import HsResourceBar from './components/HsResourceBar.vue'
@@ -14,7 +14,8 @@ definePageMeta({ hideHeader: true })
 onMounted(startTick)
 onUnmounted(stopTick)
 
-const { starMapLevel, isFirstRun, playerName, planetName, systemName } = useHawkStar()
+const { starMapLevel, isFirstRun, playerName, planetName, systemName, planetType, PLANET_TYPES } = useHawkStar()
+const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 
 const currentView = ref('planet')
 const setupName   = ref('')
@@ -63,6 +64,9 @@ watchEffect(() => {
           <div class="hs-setup-planet-card">
             <div class="hs-setup-planet-system">{{ systemName }}</div>
             <div class="hs-setup-planet-name">🪐 {{ planetName }}</div>
+            <div v-if="currentPlanetType" class="hs-setup-planet-type">
+              {{ currentPlanetType.icon }} {{ currentPlanetType.name }} — {{ currentPlanetType.description }}
+            </div>
           </div>
 
           <p class="hs-setup-label">Enter your commander name</p>
@@ -148,6 +152,13 @@ watchEffect(() => {
   font-size: 1rem;
   font-weight: 700;
   color: #a5b4fc;
+}
+
+.hs-setup-planet-type {
+  font-size: 0.62rem;
+  opacity: 0.45;
+  text-align: center;
+  margin-top: 2px;
 }
 
 .hs-setup-label {

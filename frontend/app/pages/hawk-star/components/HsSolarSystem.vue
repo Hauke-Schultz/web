@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue'
-import { GALAXY_SYSTEMS } from '../hawkStarGalaxyMock.js'
 import { useHawkStar } from '../useHawkStar.js'
 
 const {
@@ -16,20 +15,20 @@ const {
   canBuildColonyShip, buildColonyShip,
   canSendColonyShip, sendColonyShip,
   remainingColonySec, colonyProgressStyle, colonyShipBuildProgressStyle,
+  homeSystem, homePlanetId,
   formatTime, UNIT_COSTS,
 } = useHawkStar()
 
-const homeSystem = computed(() => GALAXY_SYSTEMS.find(s => s.home))
-const planets    = computed(() => homeSystem.value?.planets ?? [])
+const planets = computed(() => homeSystem.value?.planets ?? [])
 
-const isScanned    = (id) => playerScannedPlanets.value.includes(id)
-const isColonized  = (id) => playerColonizedPlanets.value.includes(id)
+const isScanned      = (id) => playerScannedPlanets.value.includes(id)
+const isColonized    = (id) => playerColonizedPlanets.value.includes(id)
 const isDroneEnRoute = (id) => !!activeDroneMissions.value.find(m => m.planetId === id)
 const isColonizing   = (id) => !!activeColonyMissions.value.find(m => m.planetId === id)
 
 // Effective state per planet
 const effectivePlanetState = (planet) => {
-  if (planet.isHome || isColonized(planet.id)) return 'own'
+  if (planet.id === homePlanetId.value || isColonized(planet.id)) return 'own'
   if (isColonizing(planet.id)) return 'colonizing'
   if (isScanned(planet.id)) return planet.state
   if (isDroneEnRoute(planet.id)) return 'scanning'
@@ -103,7 +102,7 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
         <!-- Name -->
         <span class="hs-solar-tile-name">
           {{ planet.name }}
-          <span v-if="planet.isHome" class="hs-solar-home-tag">home</span>
+          <span v-if="planet.id === homePlanetId" class="hs-solar-home-tag">home</span>
         </span>
 
         <!-- Own / colonized -->

@@ -24,6 +24,45 @@ export const UNIT_COSTS = {
   colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 60  },
 }
 
+// ── Planet types ──────────────────────────────────────────────────────────────
+// Maps from mock planet.type (rock/gas/lava/ice/ocean) to game type.
+// Each type unlocks or restricts certain buildings.
+export const PLANET_TYPES = {
+  terrestrial: {
+    id:          'terrestrial',
+    name:        'Terrestrial',
+    icon:        '🌍',
+    mockTypes:   ['rock', 'gas'],
+    description: 'Balanced planet. All standard buildings available, no special bonuses.',
+  },
+  volcanic: {
+    id:          'volcanic',
+    name:        'Volcanic',
+    icon:        '🌋',
+    mockTypes:   ['lava'],
+    description: 'Rich in metal. Special mining & energy buildings, limited agriculture.',
+  },
+  frozen: {
+    id:          'frozen',
+    name:        'Frozen',
+    icon:        '🧊',
+    mockTypes:   ['ice'],
+    description: 'Crystal-rich permafrost. Special excavators and cryo research.',
+  },
+  ocean: {
+    id:          'ocean',
+    name:        'Ocean',
+    icon:        '🌊',
+    mockTypes:   ['ocean'],
+    description: 'Farming paradise. Enormous population potential, weak mining.',
+  },
+}
+
+// Maps mock planet.type → PLANET_TYPES key
+export const MOCK_TYPE_TO_PLANET_TYPE = Object.fromEntries(
+  Object.values(PLANET_TYPES).flatMap(pt => pt.mockTypes.map(t => [t, pt.id]))
+)
+
 // ── Resources ─────────────────────────────────────────────────────────────────
 export const RESOURCES = {
   population: { id: 'population', name: 'Population', icon: '👥', color: '#a78bfa' },
@@ -49,9 +88,9 @@ export const TILE_TYPES = {
 // tileType: null = unknown/locked, string = tile type id
 export const PLANET_GRID = [
   { slot: 1, tileType: 'defense',      startsUnlocked: false },
-  { slot: 2, tileType: 'mining',       startsUnlocked: false },
+  { slot: 2, tileType: 'mining',       startsUnlocked: true },
   { slot: 3, tileType: 'spacebase',    startsUnlocked: false },
-  { slot: 4, tileType: 'energy',       startsUnlocked: true },
+  { slot: 4, tileType: 'energy',       startsUnlocked: false },
   { slot: 5, tileType: 'base',         startsUnlocked: true },
   { slot: 6, tileType: 'communication', startsUnlocked: false },
   { slot: 7, tileType: 'agriculture',  startsUnlocked: true },
@@ -94,7 +133,7 @@ export const BUILDINGS = {
         effect:     'Unlocks the Mining tile · 1 worker',
         production: {},
         staffDrain: 1,
-        unlocks:    [{ slot: 2 }],
+        unlocks:    [{ slot: 4 }],
       },
       {
         level:       2,
@@ -104,6 +143,7 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 2,
         staffDrain:  2,
+        unlocks:     [{ slot: 8 }],
         popBonus:    5,
       },
       {
@@ -114,7 +154,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 3,
         staffDrain:  3,
-        unlocks:     [{ slot: 8 }],
         popBonus:    10,
       },
     ],
@@ -705,6 +744,200 @@ export const BUILDINGS = {
     ],
   },
 
+  // ── Volcanic-only buildings ────────────────────────────────────────────────
+
+  magma_forge: {
+    id:          'magma_forge',
+    name:        'Magma Forge',
+    tileType:    'mining',
+    planetTypes: ['volcanic'],
+    icon:        '🔥',
+    description: 'Taps volcanic vents for superheated ore extraction. Far exceeds standard mines.',
+    levels: [
+      {
+        level:           1,
+        cost:            { metal: 50, crystal: 10 },
+        buildTime:       15,
+        effect:          '+5 metal/s · 500 storage · uses 6 energy · 3 workers',
+        production:      { metal: 5 },
+        energyDrain:     6,
+        staffDrain:      3,
+        storageCapacity: { metal: 500 },
+      },
+      {
+        level:           2,
+        cost:            { metal: 130, crystal: 30 },
+        buildTime:       30,
+        effect:          '+12 metal/s · 1200 storage · uses 10 energy · 5 workers',
+        production:      { metal: 12 },
+        energyDrain:     10,
+        staffDrain:      5,
+        storageCapacity: { metal: 1200 },
+      },
+      {
+        level:           3,
+        cost:            { metal: 320, crystal: 80 },
+        buildTime:       50,
+        effect:          '+25 metal/s · 2500 storage · uses 16 energy · 8 workers',
+        production:      { metal: 25 },
+        energyDrain:     16,
+        staffDrain:      8,
+        storageCapacity: { metal: 2500 },
+      },
+    ],
+  },
+
+  geothermal_tap: {
+    id:          'geothermal_tap',
+    name:        'Geothermal Tap',
+    tileType:    'energy',
+    planetTypes: ['volcanic'],
+    icon:        '♨️',
+    description: 'Harnesses volcanic heat for cheap, reliable energy output.',
+    levels: [
+      {
+        level:      1,
+        cost:       { metal: 30, crystal: 10 },
+        buildTime:  10,
+        effect:     '+10 energy/s · 1 worker',
+        production: { energy: 10 },
+        staffDrain: 1,
+      },
+      {
+        level:      2,
+        cost:       { metal: 80, crystal: 25 },
+        buildTime:  25,
+        effect:     '+24 energy/s · 2 workers',
+        production: { energy: 24 },
+        staffDrain: 2,
+      },
+      {
+        level:      3,
+        cost:       { metal: 200, crystal: 60 },
+        buildTime:  45,
+        effect:     '+50 energy/s · 3 workers',
+        production: { energy: 50 },
+        staffDrain: 3,
+      },
+    ],
+  },
+
+  // ── Frozen-only buildings ──────────────────────────────────────────────────
+
+  cryo_excavator: {
+    id:          'cryo_excavator',
+    name:        'Cryo Excavator',
+    tileType:    'mining',
+    planetTypes: ['frozen'],
+    icon:        '❄️',
+    description: 'Drills through permafrost to reach crystal-dense bedrock.',
+    levels: [
+      {
+        level:           1,
+        cost:            { metal: 60, crystal: 20 },
+        buildTime:       15,
+        effect:          '+3 crystal/s · 400 storage · uses 3 energy · 2 workers',
+        production:      { crystal: 3 },
+        energyDrain:     3,
+        staffDrain:      2,
+        storageCapacity: { crystal: 400 },
+      },
+      {
+        level:           2,
+        cost:            { metal: 150, crystal: 50 },
+        buildTime:       30,
+        effect:          '+8 crystal/s · 900 storage · uses 6 energy · 4 workers',
+        production:      { crystal: 8 },
+        energyDrain:     6,
+        staffDrain:      4,
+        storageCapacity: { crystal: 900 },
+      },
+      {
+        level:           3,
+        cost:            { metal: 370, crystal: 120 },
+        buildTime:       55,
+        effect:          '+18 crystal/s · 2000 storage · uses 10 energy · 6 workers',
+        production:      { crystal: 18 },
+        energyDrain:     10,
+        staffDrain:      6,
+        storageCapacity: { crystal: 2000 },
+      },
+    ],
+  },
+
+  cryo_lab: {
+    id:          'cryo_lab',
+    name:        'Cryo Lab',
+    tileType:    'research',
+    planetTypes: ['frozen'],
+    icon:        '🧪',
+    description: 'Sub-zero research chambers that accelerate crystal-based experiments.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 100, crystal: 100 },
+        buildTime:   25,
+        effect:      'Crystal synthesis research · uses 4 energy · 2 workers',
+        production:  {},
+        energyDrain: 4,
+        staffDrain:  2,
+      },
+      {
+        level:       2,
+        cost:        { metal: 250, crystal: 250 },
+        buildTime:   45,
+        effect:      '2× crystal research speed · uses 8 energy · 4 workers',
+        production:  {},
+        energyDrain: 8,
+        staffDrain:  4,
+      },
+      {
+        level:       3,
+        cost:        { metal: 600, crystal: 600 },
+        buildTime:   60,
+        effect:      'Crystal-based propulsion research · uses 14 energy · 7 workers',
+        production:  {},
+        energyDrain: 14,
+        staffDrain:  7,
+      },
+    ],
+  },
+
+  tidal_generator: {
+    id:          'tidal_generator',
+    name:        'Tidal Generator',
+    tileType:    'energy',
+    planetTypes: ['ocean'],
+    icon:        '🌊',
+    description: 'Harvests kinetic energy from ocean tides. Cheap and reliable.',
+    levels: [
+      {
+        level:      1,
+        cost:       { metal: 35, crystal: 15 },
+        buildTime:  12,
+        effect:     '+9 energy/s · 1 worker',
+        production: { energy: 9 },
+        staffDrain: 1,
+      },
+      {
+        level:      2,
+        cost:       { metal: 90, crystal: 40 },
+        buildTime:  28,
+        effect:     '+20 energy/s · 2 workers',
+        production: { energy: 20 },
+        staffDrain: 2,
+      },
+      {
+        level:      3,
+        cost:       { metal: 220, crystal: 100 },
+        buildTime:  50,
+        effect:     '+42 energy/s · 3 workers',
+        production: { energy: 42 },
+        staffDrain: 3,
+      },
+    ],
+  },
+
   // ── Defense tile ───────────────────────────────────────────────────────────
   // Unlocked by Weapons Research Lv1. Houses shields, weapons and radar.
 
@@ -745,295 +978,94 @@ export const BUILDINGS = {
     ],
   },
 
-  missile_battery: {
-    id:          'missile_battery',
-    name:        'Missile Battery',
-    tileType:    'defense',
-    icon:        '🎯',
-    description: 'Anti-ship missile launchers. Intercepts incoming fleets before they reach orbit.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 200, crystal: 80 },
-        buildTime:   25,
-        effect:      'Intercepts 1 ship per wave · uses 5 energy · 2 workers',
-        production:  {},
-        energyDrain: 5,
-        staffDrain:  2,
-      },
-      {
-        level:       2,
-        cost:        { metal: 500, crystal: 200 },
-        buildTime:   45,
-        effect:      'Intercepts 3 ships per wave · 2× missile speed · uses 10 energy · 4 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  4,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1100, crystal: 450 },
-        buildTime:   60,
-        effect:      'Intercepts 6 ships per wave · point-defense mode · uses 18 energy · 7 workers',
-        production:  {},
-        energyDrain: 18,
-        staffDrain:  7,
-      },
-    ],
-  },
-
-  orbital_cannon: {
-    id:          'orbital_cannon',
-    name:        'Orbital Cannon',
-    tileType:    'defense',
-    icon:        '💥',
-    description: 'Heavy rail-gun platform in low orbit. Deals massive damage to attackers.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 600, crystal: 300 },
-        buildTime:   40,
-        effect:      'High-damage strike once per battle · uses 12 energy · 5 workers',
-        production:  {},
-        energyDrain: 12,
-        staffDrain:  5,
-      },
-      {
-        level:       2,
-        cost:        { metal: 1400, crystal: 700 },
-        buildTime:   55,
-        effect:      'Fires 2× per battle · 50% more damage · uses 22 energy · 9 workers',
-        production:  {},
-        energyDrain: 22,
-        staffDrain:  9,
-      },
-      {
-        level:       3,
-        cost:        { metal: 3000, crystal: 1500 },
-        buildTime:   60,
-        effect:      'Fires 4× per battle · planetary siege mode unlocked · uses 38 energy · 14 workers',
-        production:  {},
-        energyDrain: 38,
-        staffDrain:  14,
-      },
-    ],
-  },
-
-  planetary_radar: {
-    id:          'planetary_radar',
-    name:        'Planetary Radar',
-    tileType:    'defense',
-    icon:        '🔭',
-    description: 'Early-warning network. Detects incoming fleets and alerts the colony.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 120, crystal: 60 },
-        buildTime:   20,
-        effect:      'Detects fleets 1 system away · 30s advance warning · uses 3 energy · 2 workers',
-        production:  {},
-        energyDrain: 3,
-        staffDrain:  2,
-      },
-      {
-        level:       2,
-        cost:        { metal: 300, crystal: 150 },
-        buildTime:   40,
-        effect:      'Detects fleets 3 systems away · reveals fleet size · uses 6 energy · 3 workers',
-        production:  {},
-        energyDrain: 6,
-        staffDrain:  3,
-      },
-      {
-        level:       3,
-        cost:        { metal: 700, crystal: 350 },
-        buildTime:   60,
-        effect:      'Galaxy-wide detection · reveals fleet composition · uses 11 energy · 5 workers',
-        production:  {},
-        energyDrain: 11,
-        staffDrain:  5,
-      },
-    ],
-  },
-
   // ── Agriculture tile ───────────────────────────────────────────────────────
 
-  greenhouse: {
-    id:          'greenhouse',
-    name:        'Greenhouse',
+  farm: {
+    id:          'farm',
+    name:        'Farm',
     tileType:    'agriculture',
     icon:        '🌱',
-    description: 'Basic food production. Enables crop cultivation for research.',
+    description: 'Cultivates the local ecosystem. Enables growing your planet\'s unique trade crop.',
     levels: [
       {
         level:       1,
         cost:        { metal: 50, crystal: 20 },
         buildTime:   15,
-        effect:      '+8 max pop · enables Nutri-Kelp cultivation · uses 2 energy · 2 workers',
+        effect:      'Enables crop cultivation · uses 2 energy · 2 workers',
         production:  {},
         energyDrain: 2,
         staffDrain:  2,
-        popBonus:    8,
       },
       {
         level:       2,
         cost:        { metal: 150, crystal: 60 },
         buildTime:   30,
-        effect:      '+12 max pop · enables Synth Grain · faster crop growth · uses 4 energy · 3 workers',
+        effect:      '2× crop growth speed · uses 4 energy · 3 workers',
         production:  {},
         energyDrain: 4,
         staffDrain:  3,
-        popBonus:    12,
       },
       {
         level:       3,
         cost:        { metal: 380, crystal: 160 },
         buildTime:   50,
-        effect:      '+20 max pop · crop grow time halved again · uses 6 energy · 4 workers',
+        effect:      '3× crop growth speed · uses 6 energy · 4 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  4,
-        popBonus:    20,
-      },
-    ],
-  },
-
-  hydroponic_farm: {
-    id:          'hydroponic_farm',
-    name:        'Hydroponic Farm',
-    tileType:    'agriculture',
-    icon:        '🌾',
-    description: 'Precision cultivation chambers for specialized research crops.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 130, crystal: 80 },
-        buildTime:   25,
-        effect:      '+10 max pop · enables Crystal Moss cultivation · uses 5 energy · 3 workers',
-        production:  {},
-        energyDrain: 5,
-        staffDrain:  3,
-        popBonus:    10,
-      },
-      {
-        level:       2,
-        cost:        { metal: 320, crystal: 200 },
-        buildTime:   45,
-        effect:      '+15 max pop · enables Xenoflora · 2× crop speed · uses 8 energy · 5 workers',
-        production:  {},
-        energyDrain: 8,
-        staffDrain:  5,
-        popBonus:    15,
-      },
-      {
-        level:       3,
-        cost:        { metal: 750, crystal: 480 },
-        buildTime:   60,
-        effect:      '+25 max pop · grow 2 crops simultaneously · uses 14 energy · 8 workers',
-        production:  {},
-        energyDrain: 14,
-        staffDrain:  8,
-        popBonus:    25,
-      },
-    ],
-  },
-
-  biosphere: {
-    id:          'biosphere',
-    name:        'Biosphere',
-    tileType:    'agriculture',
-    icon:        '🏔️',
-    description: 'A self-contained planetary ecosystem. Enables exotic rare crops.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 550, crystal: 320 },
-        buildTime:   50,
-        effect:      '+35 max pop · enables Stellar Spore cultivation · uses 10 energy · 6 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  6,
-        popBonus:    35,
-      },
-      {
-        level:       2,
-        cost:        { metal: 1300, crystal: 750 },
-        buildTime:   60,
-        effect:      '+60 max pop · planetary terraforming prep · uses 18 energy · 10 workers',
-        production:  {},
-        energyDrain: 18,
-        staffDrain:  10,
-        popBonus:    60,
       },
     ],
   },
 }
 
 // ── Crop definitions ──────────────────────────────────────────────────────────
-// Crops are cultivated one at a time (queue). Grow time is divided by the
-// level of the requiresBuilding. Harvested crops land in inventory.
-// popBonus crops apply their bonus automatically on harvest.
-// researchUnlock crops accumulate in inventory — used later by the Research tile.
+// One unique trade crop per planet type. Grown one at a time (queue).
+// Grow time is divided by the farm level. Harvested crops land in inventory
+// and can later be traded via the Trade Harbor.
 
 export const CROP_DEFS = {
-  nutri_kelp: {
-    id:               'nutri_kelp',
-    name:             'Nutri-Kelp',
+  terra_wheat: {
+    id:               'terra_wheat',
+    name:             'Terra Wheat',
+    icon:             '🌾',
+    planetType:       'terrestrial',
+    requiresBuilding: 'farm',
+    requiresLevel:    1,
+    cost:             { metal: 10, crystal: 5 },
+    growTimeBase:     30,
+    description:      'A hardy staple grain grown on terrestrial worlds. Valued across the galaxy.',
+  },
+  ember_root: {
+    id:               'ember_root',
+    name:             'Ember Root',
+    icon:             '🔥',
+    planetType:       'volcanic',
+    requiresBuilding: 'farm',
+    requiresLevel:    1,
+    cost:             { metal: 15, crystal: 5 },
+    growTimeBase:     35,
+    description:      'Heat-adapted tuber that thrives in volcanic soil. Rare and highly sought after.',
+  },
+  frost_spore: {
+    id:               'frost_spore',
+    name:             'Frost Spore',
+    icon:             '❄️',
+    planetType:       'frozen',
+    requiresBuilding: 'farm',
+    requiresLevel:    1,
+    cost:             { metal: 5, crystal: 15 },
+    growTimeBase:     35,
+    description:      'A crystalline fungus that grows under permafrost. Used in cryo-research.',
+  },
+  sea_kelp: {
+    id:               'sea_kelp',
+    name:             'Sea Kelp',
     icon:             '🌿',
-    requiresBuilding: 'greenhouse',
+    planetType:       'ocean',
+    requiresBuilding: 'farm',
     requiresLevel:    1,
     cost:             { metal: 5, crystal: 10 },
-    growTimeBase:     20,
-    popBonus:         5,
-    researchUnlock:   null,
-    description:      '+5 max population on harvest',
-  },
-  synth_grain: {
-    id:               'synth_grain',
-    name:             'Synth Grain',
-    icon:             '🌾',
-    requiresBuilding: 'greenhouse',
-    requiresLevel:    2,
-    cost:             { metal: 20, crystal: 30 },
-    growTimeBase:     30,
-    popBonus:         0,
-    researchUnlock:   'bio_processing',
-    description:      'Unlocks Bio-Processing research',
-  },
-  crystal_moss: {
-    id:               'crystal_moss',
-    name:             'Crystal Moss',
-    icon:             '💠',
-    requiresBuilding: 'hydroponic_farm',
-    requiresLevel:    1,
-    cost:             { metal: 50, crystal: 15 },
-    growTimeBase:     40,
-    popBonus:         0,
-    researchUnlock:   'crystal_synthesis',
-    description:      'Unlocks Crystal Synthesis research',
-  },
-  xenoflora: {
-    id:               'xenoflora',
-    name:             'Xenoflora',
-    icon:             '🌸',
-    requiresBuilding: 'hydroponic_farm',
-    requiresLevel:    2,
-    cost:             { metal: 90, crystal: 55 },
-    growTimeBase:     50,
-    popBonus:         0,
-    researchUnlock:   'genetic_enhancement',
-    description:      'Unlocks Genetic Enhancement research',
-  },
-  stellar_spore: {
-    id:               'stellar_spore',
-    name:             'Stellar Spore',
-    icon:             '✨',
-    requiresBuilding: 'biosphere',
-    requiresLevel:    1,
-    cost:             { metal: 130, crystal: 95 },
-    growTimeBase:     60,
-    popBonus:         0,
-    researchUnlock:   'terraforming_compound',
-    description:      'Unlocks Terraforming research',
+    growTimeBase:     25,
+    description:      'Fast-growing ocean plant. Abundant and easy to cultivate on ocean worlds.',
   },
 }

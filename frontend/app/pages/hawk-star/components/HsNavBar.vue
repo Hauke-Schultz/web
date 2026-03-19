@@ -1,5 +1,5 @@
 <script setup>
-import { useHawkStar, resetGame } from '../useHawkStar.js'
+import { useHawkStar } from '../useHawkStar.js'
 
 const props = defineProps({
   currentView: { type: String, required: true },
@@ -48,10 +48,6 @@ const { starMapLevel } = useHawkStar()
       <span class="hs-nav-icon">🗺️</span>
       <span>Galaxy</span>
       <span v-if="starMapLevel < 2" class="hs-nav-lock">🔒</span>
-    </button>
-
-    <button class="hs-nav-reset" title="Reset game (clears save)" @click="resetGame">
-      ↺ Reset
     </button>
   </nav>
 </template>
@@ -106,19 +102,4 @@ const { starMapLevel } = useHawkStar()
 .hs-nav-icon { font-size: 1.1rem; line-height: 1; }
 .hs-nav-lock { font-size: 0.6rem; opacity: 0.7; margin-left: 2px; }
 
-.hs-nav-reset {
-  padding: 0.25rem 0.15rem;
-  border-radius: var(--hs-r-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: none;
-  color: rgba(255, 255, 255, 0.2);
-  font-size: 0.65rem;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-
-  &:hover {
-    color: var(--hs-danger);
-    border-color: var(--hs-danger-border);
-  }
-}
 </style>
