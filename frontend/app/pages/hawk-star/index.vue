@@ -60,15 +60,6 @@ watchEffect(() => {
           <div class="hs-setup-logo">🪐</div>
           <h1 class="hs-setup-title">Hawk-Star</h1>
           <p class="hs-setup-sub">Your colony has been assigned a starting planet.</p>
-
-          <div class="hs-setup-planet-card">
-            <div class="hs-setup-planet-system">{{ systemName }}</div>
-            <div class="hs-setup-planet-name">🪐 {{ planetName }}</div>
-            <div v-if="currentPlanetType" class="hs-setup-planet-type">
-              {{ currentPlanetType.icon }} {{ currentPlanetType.name }} — {{ currentPlanetType.description }}
-            </div>
-          </div>
-
           <p class="hs-setup-label">Enter your commander name</p>
           <input
             v-model="setupName"
@@ -139,26 +130,6 @@ watchEffect(() => {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-}
-
-.hs-setup-planet-system {
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.35;
-}
-
-.hs-setup-planet-name {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #a5b4fc;
-}
-
-.hs-setup-planet-type {
-  font-size: 0.62rem;
-  opacity: 0.45;
-  text-align: center;
-  margin-top: 2px;
 }
 
 .hs-setup-label {

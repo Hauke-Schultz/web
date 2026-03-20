@@ -293,6 +293,14 @@ const droneFlightTime = (planetId) => {
   return Math.ceil(60 * (idx + 1) / Math.max(1, reconDroneLevel.value))
 }
 
+const droneFlightTimeBetween = (fromId, toId) => {
+  const ps = homeSystem.value?.planets ?? []
+  const fi = ps.findIndex(p => p.id === fromId)
+  const ti = ps.findIndex(p => p.id === toId)
+  const dist = Math.max(1, Math.abs(fi - ti))
+  return Math.ceil(60 * dist / Math.max(1, reconDroneLevel.value))
+}
+
 const canBuildDrone = computed(() =>
   reconDroneLevel.value > 0 &&
   !reconDroneBuild.value &&
@@ -313,10 +321,11 @@ const canSendDrone = (planetId) =>
   !activeDroneMissions.value.find(m => m.planetId === planetId) &&
   activeDroneMissions.value.length < reconDroneLevel.value
 
-const sendReconDrone = (planetId) => {
+const sendReconDrone = (planetId, fromPlanetId) => {
   if (!canSendDrone(planetId)) return
   reconDroneInventory.value -= 1
-  activeDroneMissions.value.push({ planetId, endsAt: Date.now() + droneFlightTime(planetId) * 1000 })
+  const ft = fromPlanetId ? droneFlightTimeBetween(fromPlanetId, planetId) : droneFlightTime(planetId)
+  activeDroneMissions.value.push({ planetId, endsAt: Date.now() + ft * 1000 })
 }
 
 const remainingDroneSec = (planetId) => {
@@ -421,6 +430,14 @@ const colonyFlightTime = (planetId) => {
   return Math.ceil(120 * (idx + 1) / Math.max(1, colonyShipLevel.value))
 }
 
+const colonyFlightTimeBetween = (fromId, toId) => {
+  const ps = homeSystem.value?.planets ?? []
+  const fi = ps.findIndex(p => p.id === fromId)
+  const ti = ps.findIndex(p => p.id === toId)
+  const dist = Math.max(1, Math.abs(fi - ti))
+  return Math.ceil(120 * dist / Math.max(1, colonyShipLevel.value))
+}
+
 const canBuildColonyShip = computed(() =>
   colonyShipLevel.value > 0 &&
   !colonyShipBuild.value &&
@@ -449,10 +466,11 @@ const canSendColonyShip = (planetId) => {
   )
 }
 
-const sendColonyShip = (planetId) => {
+const sendColonyShip = (planetId, fromPlanetId) => {
   if (!canSendColonyShip(planetId)) return
   colonyShipInventory.value -= 1
-  activeColonyMissions.value.push({ planetId, endsAt: Date.now() + colonyFlightTime(planetId) * 1000 })
+  const ft = fromPlanetId ? colonyFlightTimeBetween(fromPlanetId, planetId) : colonyFlightTime(planetId)
+  activeColonyMissions.value.push({ planetId, endsAt: Date.now() + ft * 1000 })
 }
 
 const remainingColonySec = (planetId) => {
@@ -771,9 +789,11 @@ export function useHawkStar() {
     buildReconDrone,
     canSendDrone,
     sendReconDrone,
+    droneFlightTime,
     remainingDroneSec,
     droneProgressStyle,
     droneBuildProgressStyle,
+    droneFlightTimeBetween,
     // galaxy probes
     playerProbedSystems,
     galaxyProbeInventory,
@@ -797,9 +817,11 @@ export function useHawkStar() {
     buildColonyShip,
     canSendColonyShip,
     sendColonyShip,
+    colonyFlightTime,
     remainingColonySec,
     colonyProgressStyle,
     colonyShipBuildProgressStyle,
+    colonyFlightTimeBetween,
     // grid
     unlockRequirement,
     slotsOnSlot,

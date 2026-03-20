@@ -1,22 +1,21 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useHawkStar } from '../useHawkStar.js'
 
 const {
   reconDroneLevel, colonyShipLevel,
   playerScannedPlanets, playerColonizedPlanets,
-  reconDroneInventory, reconDroneBuild,
-  activeDroneMissions, droneBuildTime,
-  canBuildDrone, buildReconDrone,
+  reconDroneInventory, colonyShipInventory,
+  activeDroneMissions,
   canSendDrone, sendReconDrone,
-  remainingDroneSec, droneProgressStyle, droneBuildProgressStyle,
-  colonyShipInventory, colonyShipBuild,
-  activeColonyMissions, colonyShipBuildTime,
-  canBuildColonyShip, buildColonyShip,
+  remainingDroneSec, droneProgressStyle,
+  droneFlightTimeBetween,
+  activeColonyMissions,
   canSendColonyShip, sendColonyShip,
-  remainingColonySec, colonyProgressStyle, colonyShipBuildProgressStyle,
+  remainingColonySec, colonyProgressStyle,
+  colonyFlightTimeBetween,
   homeSystem, homePlanetId,
-  formatTime, UNIT_COSTS,
+  formatTime,
 } = useHawkStar()
 
 const planets = computed(() => homeSystem.value?.planets ?? [])
@@ -26,7 +25,6 @@ const isColonized    = (id) => playerColonizedPlanets.value.includes(id)
 const isDroneEnRoute = (id) => !!activeDroneMissions.value.find(m => m.planetId === id)
 const isColonizing   = (id) => !!activeColonyMissions.value.find(m => m.planetId === id)
 
-// Effective state per planet
 const effectivePlanetState = (planet) => {
   if (planet.id === homePlanetId.value || isColonized(planet.id)) return 'own'
   if (isColonizing(planet.id)) return 'colonizing'
@@ -35,7 +33,30 @@ const effectivePlanetState = (planet) => {
   return 'unknown'
 }
 
-const tileClass = (planet) => `hs-solar-tile--${effectivePlanetState(planet)}`
+// ── Selection ─────────────────────────────────────────────
+const selectedPlanetId = ref(null)
+
+const toggleSelect = (planet) => {
+  if (effectivePlanetState(planet) !== 'own') return
+  selectedPlanetId.value = selectedPlanetId.value === planet.id ? null : planet.id
+}
+
+const selectedIsOwn = computed(() => selectedPlanetId.value !== null)
+
+const tileClass = (planet) => [
+  `hs-solar-tile--${effectivePlanetState(planet)}`,
+  selectedPlanetId.value === planet.id ? 'hs-solar-tile--selected' : '',
+]
+
+const flightTime = (targetPlanetId) =>
+  selectedPlanetId.value
+    ? droneFlightTimeBetween(selectedPlanetId.value, targetPlanetId)
+    : 0
+
+const colonyTime = (targetPlanetId) =>
+  selectedPlanetId.value
+    ? colonyFlightTimeBetween(selectedPlanetId.value, targetPlanetId)
+    : 0
 
 const PLANET_TYPE_ICON = { rock: '🪨', gas: '🌀', ice: '🧊', lava: '🌋', ocean: '🌊' }
 const STAR_CLASS_LABEL = { G: 'Yellow Dwarf', K: 'Orange Dwarf', M: 'Red Dwarf', F: 'White Star' }
@@ -49,16 +70,12 @@ const STATE_LABEL = {
 
 const planetIcon = (planet) => {
   const state = effectivePlanetState(planet)
-  if (state === 'own')       return PLANET_TYPE_ICON[planet.type] ?? '🪐'
+  if (state === 'own')        return PLANET_TYPE_ICON[planet.type] ?? '🪐'
   if (state === 'colonizing') return '🚀'
   if (state === 'scanning')   return '🛸'
   if (state === 'unknown')    return '❓'
-  // scanned
   return PLANET_TYPE_ICON[planet.type] ?? '🪐'
 }
-
-const droneBuildCost = UNIT_COSTS.recon_drone.cost
-const colonyBuildCost = UNIT_COSTS.colony_ship.cost
 </script>
 
 <template>
@@ -81,6 +98,7 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
         :key="planet.id"
         class="hs-solar-tile"
         :class="tileClass(planet)"
+        @click="toggleSelect(planet)"
       >
         <!-- Drone flight progress bar -->
         <div
@@ -111,6 +129,11 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
             {{ STATE_LABEL.own }}
           </span>
           <span v-if="planet.slots !== null" class="hs-solar-tile-slots">{{ planet.slots }} slots</span>
+          <!-- Unit counts when selected -->
+          <div v-if="selectedPlanetId === planet.id" class="hs-solar-tile-units">
+            <span v-if="reconDroneLevel > 0">🛸 {{ reconDroneInventory }}</span>
+            <span v-if="colonyShipLevel > 0">🚀 {{ colonyShipInventory }}</span>
+          </div>
         </template>
 
         <!-- Colony ship en route -->
@@ -125,14 +148,16 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
             {{ STATE_LABEL[planet.state] }}
           </span>
           <span v-if="planet.owner" class="hs-solar-tile-owner">{{ planet.owner }}</span>
-          <!-- Colonize button for free planets -->
-          <button
-            v-if="canSendColonyShip(planet.id)"
-            class="hs-solar-action-btn hs-solar-action-btn--colony"
-            @click="sendColonyShip(planet.id)"
-          >🚀 Colonize</button>
+          <!-- Colonize button: only visible when a base is selected -->
+          <template v-if="selectedIsOwn && canSendColonyShip(planet.id)">
+            <button
+              class="hs-solar-action-btn hs-solar-action-btn--colony"
+              @click.stop="sendColonyShip(planet.id, selectedPlanetId)"
+            >🚀 Colonize</button>
+            <span class="hs-solar-tile-flight-time">{{ formatTime(colonyTime(planet.id)) }}</span>
+          </template>
           <span
-            v-else-if="planet.state === 'uncolonized' && colonyShipLevel > 0 && colonyShipInventory === 0"
+            v-else-if="selectedIsOwn && planet.state === 'uncolonized' && colonyShipLevel > 0 && colonyShipInventory === 0"
             class="hs-solar-tile-hint"
           >build colony ship</span>
         </template>
@@ -143,88 +168,21 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
           <span class="hs-solar-tile-timer">{{ formatTime(remainingDroneSec(planet.id)) }}</span>
         </template>
 
-        <!-- Unknown: send drone or hint -->
+        <!-- Unknown: send drone button only visible when a base is selected -->
         <template v-else>
           <span class="hs-solar-tile-unknown-label">Unknown</span>
-          <button
-            v-if="canSendDrone(planet.id)"
-            class="hs-solar-action-btn hs-solar-action-btn--drone"
-            @click="sendReconDrone(planet.id)"
-          >🛸 Send Drone</button>
-          <span v-else-if="reconDroneLevel === 0" class="hs-solar-tile-hint">needs Space Base</span>
-          <span v-else-if="reconDroneInventory === 0" class="hs-solar-tile-hint">no drones</span>
-          <span v-else class="hs-solar-tile-hint">busy</span>
+          <template v-if="selectedIsOwn && canSendDrone(planet.id)">
+            <button
+              class="hs-solar-action-btn hs-solar-action-btn--drone"
+              @click.stop="sendReconDrone(planet.id, selectedPlanetId)"
+            >🛸 Send Drone</button>
+            <span class="hs-solar-tile-flight-time">{{ formatTime(flightTime(planet.id)) }}</span>
+          </template>
         </template>
 
       </div>
     </div>
 
-    <!-- Status bar: Drone section -->
-    <div class="hs-solar-status">
-
-      <!-- Drone hangar -->
-      <div
-        class="hs-solar-status-item"
-        :class="reconDroneLevel > 0 ? 'hs-solar-status--active' : 'hs-solar-status--locked'"
-      >
-        <span>🛸 Drones</span>
-        <span class="hs-solar-status-sub">
-          <template v-if="reconDroneLevel === 0">Space Base needed</template>
-          <template v-else>{{ reconDroneInventory }} ready</template>
-        </span>
-        <!-- Build drone button -->
-        <button
-          v-if="reconDroneLevel > 0 && !reconDroneBuild"
-          class="hs-solar-build-btn"
-          :class="{ 'hs-solar-build-btn--disabled': !canBuildDrone }"
-          :disabled="!canBuildDrone"
-          @click="buildReconDrone"
-        >
-          Build ({{ droneBuildCost.metal }}⚙️ {{ droneBuildCost.crystal }}💎 · {{ formatTime(droneBuildTime) }})
-        </button>
-        <!-- Building in progress -->
-        <span v-else-if="reconDroneBuild" class="hs-solar-building-indicator">
-          <span class="hs-solar-build-bar" :style="droneBuildProgressStyle" />
-          Building…
-        </span>
-      </div>
-
-      <!-- Active drone missions -->
-      <div
-        v-if="activeDroneMissions.length > 0"
-        class="hs-solar-status-item hs-solar-status--scanning"
-      >
-        🛸 {{ activeDroneMissions.length }} mission{{ activeDroneMissions.length > 1 ? 's' : '' }} active
-      </div>
-
-      <!-- Colony ship dock -->
-      <div
-        class="hs-solar-status-item"
-        :class="colonyShipLevel > 0 ? 'hs-solar-status--active' : 'hs-solar-status--locked'"
-      >
-        <span>🚀 Colony Ships</span>
-        <span class="hs-solar-status-sub">
-          <template v-if="colonyShipLevel === 0">Space Base needed</template>
-          <template v-else>{{ colonyShipInventory }} ready</template>
-        </span>
-        <!-- Build ship button -->
-        <button
-          v-if="colonyShipLevel > 0 && !colonyShipBuild"
-          class="hs-solar-build-btn"
-          :class="{ 'hs-solar-build-btn--disabled': !canBuildColonyShip }"
-          :disabled="!canBuildColonyShip"
-          @click="buildColonyShip"
-        >
-          Build ({{ colonyBuildCost.metal }}⚙️ {{ colonyBuildCost.crystal }}💎 · {{ formatTime(colonyShipBuildTime) }})
-        </button>
-        <!-- Building in progress -->
-        <span v-else-if="colonyShipBuild" class="hs-solar-building-indicator">
-          <span class="hs-solar-build-bar hs-solar-build-bar--colony" :style="colonyShipBuildProgressStyle" />
-          Building…
-        </span>
-      </div>
-
-    </div>
   </div>
 </template>
 
@@ -288,13 +246,19 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
   }
 
   &--sun         { border-color: rgba(253,230,138,0.3); background: rgba(253,230,138,0.05); }
-  &--own         { border-color: rgba(96,165,250,0.25); }
+  &--own         { border-color: rgba(96,165,250,0.25); cursor: pointer; }
   &--enemy       { border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.04); }
   &--ally        { border-color: rgba(52,211,153,0.2); }
   &--uncolonized { border-color: var(--hs-line-lg); }
   &--unknown     { border-color: rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
   &--scanning    { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.04); }
   &--colonizing  { border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.04); }
+
+  &--selected {
+    outline: 2px solid rgba(96,165,250,0.55);
+    outline-offset: -1px;
+    background: rgba(96,165,250,0.07);
+  }
 }
 
 // ── Progress bars ────────────────────────────────────────────────────────────
@@ -386,6 +350,21 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
   font-style: italic;
 }
 
+.hs-solar-tile-units {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 2px;
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.55);
+  font-weight: 600;
+}
+
+.hs-solar-tile-flight-time {
+  font-size: 0.48rem;
+  color: rgba(251,191,36,0.65);
+  font-variant-numeric: tabular-nums;
+}
+
 // ── Action buttons on tiles ───────────────────────────────────────────────────
 .hs-solar-action-btn {
   margin-top: 1px;
@@ -412,84 +391,4 @@ const colonyBuildCost = UNIT_COSTS.colony_ship.cost
   }
 }
 
-// ── Status bar ───────────────────────────────────────────────────────────────
-.hs-solar-status {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
-
-.hs-solar-status-item {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  padding: 0.3rem 0.625rem;
-  border-radius: var(--hs-r-md);
-  border: 1px solid var(--hs-line-lg);
-  background: var(--hs-glass-sm);
-  font-size: 0.62rem;
-  font-weight: 600;
-
-  &.hs-solar-status--active   { border-color: rgba(96,165,250,0.3); color: rgba(255,255,255,0.8); }
-  &.hs-solar-status--locked   { color: rgba(255,255,255,0.25); font-style: italic; }
-  &.hs-solar-status--scanning { border-color: rgba(251,191,36,0.35); color: rgba(251,191,36,0.85); }
-}
-
-.hs-solar-status-sub {
-  font-size: 0.55rem;
-  font-weight: 400;
-  opacity: 0.6;
-}
-
-// ── Build button in status bar ────────────────────────────────────────────────
-.hs-solar-build-btn {
-  padding: 2px 8px;
-  border-radius: var(--hs-r-sm);
-  border: 1px solid rgba(251,191,36,0.35);
-  background: rgba(251,191,36,0.08);
-  color: rgba(251,191,36,0.85);
-  font-size: 0.52rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-
-  &:hover:not(:disabled) {
-    background: rgba(251,191,36,0.18);
-    border-color: rgba(251,191,36,0.6);
-  }
-
-  &--disabled, &:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-}
-
-// ── Build-in-progress indicator ───────────────────────────────────────────────
-.hs-solar-building-indicator {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 2px 8px;
-  border-radius: var(--hs-r-sm);
-  border: 1px solid rgba(251,191,36,0.25);
-  background: rgba(251,191,36,0.05);
-  font-size: 0.52rem;
-  color: rgba(251,191,36,0.7);
-  font-style: italic;
-}
-
-.hs-solar-build-bar {
-  position: absolute;
-  bottom: 0; left: 0;
-  height: 2px; width: 100%;
-  background: rgba(251,191,36,0.5);
-  transform-origin: left;
-  animation: hs-bar-fill linear forwards;
-
-  &--colony { background: rgba(96,165,250,0.5); }
-}
 </style>
