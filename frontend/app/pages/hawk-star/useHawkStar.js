@@ -37,8 +37,8 @@ const isFirstRun   = computed(() => playerName.value === '')
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
-const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0 }
-const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0 }
+const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
+const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
 
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
   if (allPlanetStates.value[planetId]) return
@@ -154,7 +154,7 @@ const totalStaffDrain = computed(() => {
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
 
 // ── Storage caps ───────────────────────────────────────────
-const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0 }
+const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
 
 const maxStorage = computed(() => {
   const caps = { ...BASE_STORAGE }
@@ -231,6 +231,10 @@ const galaxyProbeLevel = computed(() => {
 })
 const colonyShipLevel = computed(() => {
   const state = homeBuilding('colony_ship')
+  return state ? effectiveLevel(state) : 0
+})
+const warshipBayLevel = computed(() => {
+  const state = homeBuilding('warship_bay')
   return state ? effectiveLevel(state) : 0
 })
 
@@ -546,6 +550,37 @@ const colonyShipBuildProgressStyle = computed(() => {
   return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
 })
 
+// ── Warships ───────────────────────────────────────────────
+const warshipInventory  = ref(0)
+const warshipBuild      = ref(null)  // { endsAt } | null
+
+const warshipBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.warship.buildTimeBase / Math.max(1, warshipBayLevel.value))
+)
+
+const canBuildWarship = computed(() =>
+  warshipBayLevel.value > 0 &&
+  !warshipBuild.value &&
+  warshipInventory.value < warshipBayLevel.value &&
+  canAffordFromHome(UNIT_COSTS.warship.cost)
+)
+
+const buildWarship = () => {
+  if (!canBuildWarship.value) return
+  const res = allPlanetStates.value[homePlanetId.value].resources
+  for (const [r, amt] of Object.entries(UNIT_COSTS.warship.cost)) {
+    res[r] -= amt
+  }
+  warshipBuild.value = { endsAt: Date.now() + warshipBuildTime.value * 1000 }
+}
+
+const warshipBuildProgressStyle = computed(() => {
+  if (!warshipBuild.value) return {}
+  const bt      = warshipBuildTime.value
+  const elapsed = Math.max(0, (Date.now() - (warshipBuild.value.endsAt - bt * 1000)) / 1000)
+  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+})
+
 // ── Crops (Agriculture tile) ───────────────────────────────
 const cropInventory = ref(Object.fromEntries(Object.keys(CROP_DEFS).map(id => [id, 0])))
 const cropQueue     = ref(null)  // { cropId, endsAt } | null
@@ -669,6 +704,8 @@ const saveGame = () => {
     colonyShipInventory:   colonyShipInventory.value,
     colonyShipBuild:       colonyShipBuild.value,
     activeColonyMissions:  activeColonyMissions.value,
+    warshipInventory:      warshipInventory.value,
+    warshipBuild:          warshipBuild.value,
     cropInventory:         cropInventory.value,
     cropQueue:             cropQueue.value,
     conversionQueue:       conversionQueue.value,
@@ -723,6 +760,8 @@ const loadGame = () => {
     if (typeof data.colonyShipInventory === 'number') colonyShipInventory.value   = data.colonyShipInventory
     if (data.colonyShipBuild)                        colonyShipBuild.value        = data.colonyShipBuild
     if (Array.isArray(data.activeColonyMissions))    activeColonyMissions.value   = data.activeColonyMissions
+    if (typeof data.warshipInventory === 'number') warshipInventory.value = data.warshipInventory
+    if (data.warshipBuild)                         warshipBuild.value     = data.warshipBuild
     if (data.cropInventory) {
       for (const [id, count] of Object.entries(data.cropInventory)) {
         if (id in cropInventory.value) cropInventory.value[id] = count
@@ -803,6 +842,12 @@ const tick = () => {
       }
       activeColonyMissions.value.splice(i, 1)
     }
+  }
+
+  // Complete warship build
+  if (warshipBuild.value && warshipBuild.value.endsAt <= now.value) {
+    warshipInventory.value += 1
+    warshipBuild.value = null
   }
 
   // Complete crop growth
@@ -956,6 +1001,7 @@ export function useHawkStar() {
     reconDroneLevel,
     galaxyProbeLevel,
     colonyShipLevel,
+    warshipBayLevel,
     // recon drones
     playerScannedPlanets,
     reconDroneInventory,
@@ -1000,6 +1046,13 @@ export function useHawkStar() {
     colonyProgressStyle,
     colonyShipBuildProgressStyle,
     colonyFlightTimeBetween,
+    // warships
+    warshipInventory,
+    warshipBuild,
+    warshipBuildTime,
+    canBuildWarship,
+    buildWarship,
+    warshipBuildProgressStyle,
     // grid
     unlockRequirement,
     slotsOnSlot,

@@ -32,6 +32,13 @@ const {
   startCropGrow,
   remainingCropSec,
   cropQueueProgressStyle,
+  // conversions
+  conversionQueue,
+  conversionTime,
+  canConvert,
+  startConversion,
+  remainingConversionSec,
+  conversionProgressStyle,
   // recon drones
   reconDroneLevel,
   reconDroneInventory,
@@ -56,10 +63,44 @@ const {
   canBuildColonyShip,
   buildColonyShip,
   colonyShipBuildProgressStyle,
+  // warships
+  warshipBayLevel,
+  warshipInventory,
+  warshipBuild,
+  warshipBuildTime,
+  canBuildWarship,
+  buildWarship,
+  warshipBuildProgressStyle,
 } = useHawkStar()
 
 const isAgricultureTile = computed(() => activeTileType.value?.id === 'agriculture')
 const isSpacebaseTile   = computed(() => activeTileType.value?.id === 'spacebase')
+const isHightechTile    = computed(() => activeTileType.value?.id === 'hightech')
+
+const hightechBuilding = computed(() => {
+  if (!isHightechTile.value) return null
+  return buildingsForActiveSlot.value.find(b => BUILDINGS[b.id]?.conversions?.length > 0) ?? null
+})
+
+const conversionQueueOutput = computed(() => {
+  if (!conversionQueue.value) return null
+  const recipe = BUILDINGS[conversionQueue.value.buildingId]?.conversions?.[conversionQueue.value.recipeIndex]
+  if (!recipe) return null
+  const resId = Object.keys(recipe.output)[0]
+  return RESOURCES[resId] ?? null
+})
+
+const availableConversions = computed(() => {
+  if (!hightechBuilding.value) return []
+  const bId = hightechBuilding.value.id
+  const lvl = getLevel(bId)
+  return (BUILDINGS[bId]?.conversions ?? []).map((recipe, index) => ({
+    ...recipe,
+    index,
+    buildingId: bId,
+    unlocked: !recipe.requiresLevel || lvl >= recipe.requiresLevel,
+  }))
+})
 
 // Only the one crop matching this planet's type, annotated with unlock status
 const allCropDefs = computed(() =>
@@ -311,7 +352,48 @@ const hasCropsInInventory = computed(() =>
         </div>
       </div>
 
-      <div v-if="reconDroneLevel === 0 && galaxyProbeLevel === 0 && colonyShipLevel === 0" class="hs-unit-locked">
+      <!-- Warship -->
+      <div v-if="warshipBayLevel > 0" class="hs-unit-row hs-unit-row--warship">
+        <div class="hs-unit-icon-wrap">
+          <span class="hs-unit-icon">⚔️</span>
+          <span v-if="warshipInventory > 0" class="hs-unit-count-badge hs-unit-count-badge--warship">{{ warshipInventory }}</span>
+        </div>
+        <div class="hs-unit-info">
+          <div class="hs-unit-name">Warship <span class="hs-unit-stock">× {{ warshipInventory }} / {{ warshipBayLevel }}</span></div>
+          <div class="hs-unit-desc">Heavy combat vessel. Requires Super Alloy &amp; Pure Crystal.</div>
+          <div class="hs-unit-cost-row">
+            <span
+              v-for="(amt, resId) in UNIT_COSTS.warship.cost"
+              :key="resId"
+              class="hs-cost-tag"
+              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
+          </div>
+          <div v-if="warshipBuild" class="hs-progress-row">
+            <div class="hs-progress-track">
+              <div
+                :key="warshipBuild.endsAt"
+                class="hs-progress-fill hs-progress-fill--warship"
+                :style="warshipBuildProgressStyle"
+              />
+            </div>
+            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((warshipBuild.endsAt - Date.now()) / 1000))) }}</span>
+          </div>
+        </div>
+        <div class="hs-unit-action">
+          <span v-if="warshipBuild" class="hs-status-building">Building…</span>
+          <button
+            v-else
+            class="hs-btn-build"
+            :class="{ 'hs-btn-build--disabled': !canBuildWarship }"
+            :disabled="!canBuildWarship"
+            @click.stop="buildWarship()"
+          >Build</button>
+        </div>
+      </div>
+
+      <div v-if="reconDroneLevel === 0 && galaxyProbeLevel === 0 && colonyShipLevel === 0 && warshipBayLevel === 0" class="hs-unit-locked">
         Build Space Base facilities to produce units
       </div>
     </div>
@@ -379,6 +461,69 @@ const hasCropsInInventory = computed(() =>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ── High-Tech conversion section ── -->
+    <div v-if="isHightechTile && hightechBuilding" class="hs-conv-section">
+      <div class="hs-conv-section-title">⚗️ Conversions</div>
+
+      <!-- Active conversion queue -->
+      <div v-if="conversionQueue" class="hs-conv-queue-row">
+        <div class="hs-conv-queue-bar" :style="conversionProgressStyle" />
+        <span class="hs-conv-queue-icon">{{ conversionQueueOutput?.icon }}</span>
+        <span class="hs-conv-queue-name">{{ conversionQueueOutput?.name }}</span>
+        <span class="hs-conv-queue-label">Converting…</span>
+        <span class="hs-conv-queue-time">{{ formatTime(remainingConversionSec) }}</span>
+      </div>
+
+      <div v-if="availableConversions.length === 0" class="hs-conv-empty">
+        Build the refinery to unlock conversions
+      </div>
+
+      <div class="hs-conv-list">
+        <div
+          v-for="recipe in availableConversions"
+          :key="recipe.index"
+          class="hs-conv-row"
+          :class="{ 'hs-conv-row--locked': !recipe.unlocked }"
+        >
+          <!-- Input → Output -->
+          <div class="hs-conv-formula">
+            <span
+              v-for="(amt, resId) in recipe.input"
+              :key="resId"
+              class="hs-conv-res"
+              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-conv-res--ok' : 'hs-conv-res--no'"
+            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            <span class="hs-conv-arrow">→</span>
+            <span
+              v-for="(amt, resId) in recipe.output"
+              :key="resId"
+              class="hs-conv-res hs-conv-res--out"
+            >{{ RESOURCES[resId]?.icon }} {{ RESOURCES[resId]?.name }} ×{{ amt }}</span>
+          </div>
+
+          <!-- Duration + action -->
+          <div class="hs-conv-action">
+            <template v-if="!recipe.unlocked">
+              <span class="hs-conv-locked">🔒 Lv{{ recipe.requiresLevel }}</span>
+            </template>
+            <template v-else>
+              <span class="hs-conv-time">⏱ {{ formatTime(conversionTime(recipe.buildingId, recipe.index)) }}</span>
+              <button
+                class="hs-btn-convert"
+                :class="{ 'hs-btn-convert--disabled': !canConvert(recipe.buildingId, recipe.index) }"
+                :disabled="!canConvert(recipe.buildingId, recipe.index)"
+                @click="startConversion(recipe.buildingId, recipe.index)"
+              >Convert</button>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="isHightechTile && !hightechBuilding" class="hs-conv-empty">
+      Build a High-Tech facility to unlock conversions
     </div>
 
   </div>
@@ -622,8 +767,19 @@ const hasCropsInInventory = computed(() =>
 
 .hs-unit-action { flex-shrink: 0; }
 
-.hs-progress-fill--unit   { background: #f59e0b; }
-.hs-progress-fill--colony { background: #60a5fa; }
+.hs-progress-fill--unit    { background: #f59e0b; }
+.hs-progress-fill--colony  { background: #60a5fa; }
+.hs-progress-fill--warship { background: #f87171; }
+
+.hs-unit-row--warship {
+  border-color: rgba(248, 113, 113, 0.25);
+  background: rgba(248, 113, 113, 0.04);
+}
+
+.hs-unit-count-badge--warship {
+  background: #f87171;
+  color: #fff;
+}
 
 .hs-unit-locked {
   text-align: center;
@@ -773,5 +929,146 @@ const hasCropsInInventory = computed(() =>
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
+}
+
+// ── High-Tech conversion section ──────────────────────────────────────────────
+.hs-conv-section {
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hs-line-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hs-conv-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hs-conv-queue-row {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--hs-r-md);
+  border: 1px solid rgba(139,92,246,0.3);
+  background: rgba(139,92,246,0.07);
+  font-size: 0.65rem;
+}
+
+.hs-conv-queue-bar {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px; width: 100%;
+  background: rgba(139,92,246,0.6);
+  transform-origin: left;
+  animation: hs-conv-fill linear forwards;
+}
+
+@keyframes hs-conv-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.hs-conv-queue-icon  { font-size: 0.875rem; }
+.hs-conv-queue-name  { font-weight: 600; color: rgba(167,139,250,0.95); flex: 1; }
+.hs-conv-queue-label { color: rgba(167,139,250,0.6); font-style: italic; }
+.hs-conv-queue-time  {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: rgba(167,139,250,0.95);
+  flex-shrink: 0;
+}
+
+.hs-conv-list { display: flex; flex-direction: column; gap: 0.375rem; }
+
+.hs-conv-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--hs-glass-sm);
+  border: 1px solid var(--hs-line-sm);
+  border-radius: var(--hs-r-md);
+  padding: 0.5rem 0.6rem;
+  transition: opacity 0.2s;
+
+  &--locked { opacity: 0.4; }
+}
+
+.hs-conv-formula {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.hs-conv-res {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 5px;
+
+  &--ok  { background: var(--hs-ok-bg);          color: var(--hs-ok-muted); }
+  &--no  { background: var(--hs-danger-bg-cost);  color: var(--hs-danger-muted); }
+  &--out { background: rgba(139,92,246,0.12);     color: rgba(167,139,250,0.9); }
+}
+
+.hs-conv-arrow { font-size: 0.7rem; opacity: 0.4; }
+
+.hs-conv-action {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.hs-conv-time {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+}
+
+.hs-conv-locked {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.2);
+  white-space: nowrap;
+}
+
+.hs-conv-empty {
+  text-align: center;
+  padding: 0.75rem;
+  opacity: 0.25;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.hs-btn-convert {
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid rgba(139,92,246,0.45);
+  background: rgba(139,92,246,0.12);
+  color: rgba(167,139,250,0.95);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(139,92,246,0.25);
+    border-color: rgba(139,92,246,0.7);
+  }
+
+  &--disabled, &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
 }
 </style>

@@ -8,10 +8,7 @@ const { playerResources, production, maxStorage, planetType } = useHawkStar()
 const EXCLUDED_IDS = ['population', 'energy']
 
 const allResources = computed(() =>
-  Object.values(RESOURCES).filter(r =>
-    !EXCLUDED_IDS.includes(r.id) &&
-    (!r.planetTypes || r.planetTypes.includes(planetType.value))
-  )
+  Object.values(RESOURCES).filter(r => !EXCLUDED_IDS.includes(r.id))
 )
 </script>
 
