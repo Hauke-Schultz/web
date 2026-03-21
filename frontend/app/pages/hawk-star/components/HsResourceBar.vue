@@ -13,8 +13,13 @@ const {
   planetType,
 } = useHawkStar()
 
+const BAR_IDS = ['population', 'metal', 'crystal', 'cryo', 'energy']
+
 const visibleResources = computed(() =>
-  Object.values(RESOURCES).filter(r => !r.planetTypes || r.planetTypes.includes(planetType.value))
+  Object.values(RESOURCES).filter(r =>
+    BAR_IDS.includes(r.id) &&
+    (!r.planetTypes || r.planetTypes.includes(planetType.value))
+  )
 )
 </script>
 

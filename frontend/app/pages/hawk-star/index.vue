@@ -8,6 +8,7 @@ import HsTilePanel from './components/HsTilePanel.vue'
 import HsNavBar from './components/HsNavBar.vue'
 import HsGalaxyMap from './components/HsGalaxyMap.vue'
 import HsSolarSystem from './components/HsSolarSystem.vue'
+import HsAllResourcePanel from './components/HsAllResourcePanel.vue'
 
 definePageMeta({ hideHeader: true })
 

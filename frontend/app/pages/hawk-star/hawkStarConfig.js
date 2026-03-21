@@ -72,7 +72,10 @@ export const RESOURCES = {
   cryo:       { id: 'cryo',       name: 'Cryonite',   icon: '❄️',  color: '#a5f3fc', planetTypes: ['frozen'] },
   obsidian:   { id: 'obsidian',   name: 'Obsidian',   icon: '🪨',  color: '#1f2937', planetTypes: ['volcanic'] },
   biomass:    { id: 'biomass',    name: 'Biomass',    icon: '🌿',  color: '#4ade80', planetTypes: ['ocean'] },
-  energy:     { id: 'energy',     name: 'Energy',     icon: '⚡',  color: '#fbbf24' },
+  energy:       { id: 'energy',       name: 'Energy',       icon: '⚡',  color: '#fbbf24' },
+  pure_crystal: { id: 'pure_crystal', name: 'Pure Crystal', icon: '🔷',  color: '#38bdf8', planetTypes: ['frozen'], refined: true },
+  super_alloy:  { id: 'super_alloy',  name: 'Super Alloy',  icon: '🔩',  color: '#e2e8f0', planetTypes: ['frozen'], refined: true },
+  quantum_shard:{ id: 'quantum_shard',name: 'Quantum Shard',icon: '💠',  color: '#818cf8', planetTypes: ['frozen'], refined: true },
 }
 
 // ── Tile types ────────────────────────────────────────────────────────────────
@@ -85,6 +88,7 @@ export const TILE_TYPES = {
   spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for probes and colony ships' },
   agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Food production and special crop cultivation for advanced research' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
+  hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
 }
 
 // ── Planet grid (3×3, slot 5 = center = base) ────────────────────────────────
@@ -99,7 +103,7 @@ export const PLANET_GRID = [
   { slot: 6, tileType: 'communication', startsUnlocked: false },
   { slot: 7, tileType: 'agriculture',  startsUnlocked: true },
   { slot: 8, tileType: 'research',     startsUnlocked: false },
-  { slot: 9, tileType: null,           startsUnlocked: false },
+  { slot: 9, tileType: 'hightech',     startsUnlocked: false },
 ]
 
 // ── Buildings ─────────────────────────────────────────────────────────────────
@@ -983,10 +987,11 @@ export const BUILDINGS = {
         level:       3,
         cost:        { metal: 800, crystal: 450 },
         buildTime:   55,
-        effect:      'Unlocks advanced technologies · uses 14 energy · 8 workers',
+        effect:      'Unlocks advanced technologies · Unlocks High-Tech tile · uses 14 energy · 8 workers',
         production:  {},
         energyDrain: 14,
         staffDrain:  8,
+        unlocks:     [{ slot: 9 }],
       },
     ],
   },
@@ -1145,44 +1150,6 @@ export const BUILDINGS = {
 
   // ── Frozen-only buildings ──────────────────────────────────────────────────
 
-  cryo_lab: {
-    id:          'cryo_lab',
-    name:        'Cryo Lab',
-    tileType:    'research',
-    planetTypes: ['frozen'],
-    icon:        '🧪',
-    description: 'Sub-zero research chambers that accelerate crystal-based experiments.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 100, crystal: 100 },
-        buildTime:   25,
-        effect:      'Crystal synthesis research · uses 4 energy · 2 workers',
-        production:  {},
-        energyDrain: 4,
-        staffDrain:  2,
-      },
-      {
-        level:       2,
-        cost:        { metal: 250, crystal: 250 },
-        buildTime:   45,
-        effect:      '2× crystal research speed · uses 8 energy · 4 workers',
-        production:  {},
-        energyDrain: 8,
-        staffDrain:  4,
-      },
-      {
-        level:       3,
-        cost:        { metal: 600, crystal: 600 },
-        buildTime:   60,
-        effect:      'Crystal-based propulsion research · uses 14 energy · 7 workers',
-        production:  {},
-        energyDrain: 14,
-        staffDrain:  7,
-      },
-    ],
-  },
-
   tidal_generator: {
     id:          'tidal_generator',
     name:        'Tidal Generator',
@@ -1215,6 +1182,52 @@ export const BUILDINGS = {
         production: { energy: 42 },
         staffDrain: 3,
       },
+    ],
+  },
+
+  // ── High-Tech tile ─────────────────────────────────────────────────────────
+  // Planet-exclusive advanced processing. Each planet type gets its own refinery.
+
+  cryo_refinery: {
+    id:          'cryo_refinery',
+    name:        'Cryo Refinery',
+    tileType:    'hightech',
+    planetTypes: ['frozen'],
+    icon:        '🧬',
+    description: 'Converts raw materials using cryonite into superior refined substances. Frozen planets only.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 300, crystal: 150, cryo: 80 },
+        buildTime:   40,
+        effect:      'Unlocks Crystal→Pure Crystal & Alloy→Super Alloy conversion · uses 6 energy · 3 workers',
+        production:  {},
+        energyDrain: 6,
+        staffDrain:  3,
+      },
+      {
+        level:       2,
+        cost:        { metal: 700, crystal: 350, cryo: 200 },
+        buildTime:   60,
+        effect:      '2× conversion throughput · uses 10 energy · 5 workers',
+        production:  {},
+        energyDrain: 10,
+        staffDrain:  5,
+      },
+      {
+        level:       3,
+        cost:        { metal: 1600, crystal: 800, cryo: 500 },
+        buildTime:   80,
+        effect:      '4× throughput · unlocks Pure Crystal→Quantum Shard · uses 16 energy · 8 workers',
+        production:  {},
+        energyDrain: 16,
+        staffDrain:  8,
+      },
+    ],
+    conversions: [
+      { input: { crystal: 10, cryo: 5  }, output: { pure_crystal: 1  }, durationBase: 20 },
+      { input: { alloy:   10, cryo: 5  }, output: { super_alloy:  1  }, durationBase: 20 },
+      { input: { pure_crystal: 5, cryo: 10 }, output: { quantum_shard: 1 }, durationBase: 60, requiresLevel: 3 },
     ],
   },
 

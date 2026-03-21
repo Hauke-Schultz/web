@@ -37,8 +37,8 @@ const isFirstRun   = computed(() => playerName.value === '')
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
-const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0 }
-const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0 }
+const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0 }
+const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0 }
 
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
   if (allPlanetStates.value[planetId]) return
@@ -154,7 +154,7 @@ const totalStaffDrain = computed(() => {
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
 
 // ── Storage caps ───────────────────────────────────────────
-const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 0, cryo: 0, obsidian: 0, biomass: 0 }
+const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0 }
 
 const maxStorage = computed(() => {
   const caps = { ...BASE_STORAGE }
@@ -586,9 +586,59 @@ const cropQueueProgressStyle = computed(() => {
   return { animationDuration: `${gt}s`, animationDelay: `-${elapsed}s` }
 })
 
+// ── Conversion Queue (High-Tech / Cryo Refinery) ──────────
+const conversionQueue = ref(null)  // { buildingId, recipeIndex, planetId, endsAt } | null
+
+const conversionTime = (buildingId, recipeIndex) => {
+  const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
+  if (!recipe) return 0
+  const lvl = getLevel(buildingId)
+  const throughput = Math.pow(2, lvl - 1) // lv1→1×, lv2→2×, lv3→4×
+  return Math.ceil(recipe.durationBase / Math.max(1, throughput))
+}
+
+const canConvert = (buildingId, recipeIndex) => {
+  const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
+  if (!recipe) return false
+  const lvl = getLevel(buildingId)
+  if (lvl === 0) return false
+  if (recipe.requiresLevel && lvl < recipe.requiresLevel) return false
+  if (conversionQueue.value) return false
+  return canAfford(recipe.input)
+}
+
+const startConversion = (buildingId, recipeIndex) => {
+  if (!canConvert(buildingId, recipeIndex)) return
+  const recipe = BUILDINGS[buildingId].conversions[recipeIndex]
+  const res = allPlanetStates.value[activePlanetId.value].resources
+  for (const [r, amt] of Object.entries(recipe.input)) {
+    res[r] -= amt
+  }
+  conversionQueue.value = {
+    buildingId,
+    recipeIndex,
+    planetId: activePlanetId.value,
+    endsAt:   Date.now() + conversionTime(buildingId, recipeIndex) * 1000,
+  }
+}
+
+const remainingConversionSec = computed(() =>
+  conversionQueue.value
+    ? Math.max(0, Math.ceil((conversionQueue.value.endsAt - now.value) / 1000))
+    : 0
+)
+
+const conversionProgressStyle = computed(() => {
+  if (!conversionQueue.value) return {}
+  const { buildingId, recipeIndex } = conversionQueue.value
+  const ct      = conversionTime(buildingId, recipeIndex)
+  const elapsed = Math.max(0, (Date.now() - (conversionQueue.value.endsAt - ct * 1000)) / 1000)
+  return { animationDuration: `${ct}s`, animationDelay: `-${elapsed}s` }
+})
+
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 10
+const SAVE_VERSION = 11
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -621,6 +671,7 @@ const saveGame = () => {
     activeColonyMissions:  activeColonyMissions.value,
     cropInventory:         cropInventory.value,
     cropQueue:             cropQueue.value,
+    conversionQueue:       conversionQueue.value,
   }))
 }
 
@@ -677,7 +728,8 @@ const loadGame = () => {
         if (id in cropInventory.value) cropInventory.value[id] = count
       }
     }
-    if (data.cropQueue) cropQueue.value = data.cropQueue
+    if (data.cropQueue)        cropQueue.value        = data.cropQueue
+    if (data.conversionQueue)  conversionQueue.value  = data.conversionQueue
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
   }
@@ -763,6 +815,21 @@ const tick = () => {
       if (homeRes) homeRes.population += popBonus
     }
     cropQueue.value = null
+  }
+
+  // Complete conversion
+  if (conversionQueue.value && conversionQueue.value.endsAt <= now.value) {
+    const { buildingId, recipeIndex, planetId } = conversionQueue.value
+    const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
+    if (recipe) {
+      const res = allPlanetStates.value[planetId]?.resources
+      if (res) {
+        for (const [r, amt] of Object.entries(recipe.output)) {
+          res[r] = (res[r] ?? 0) + amt
+        }
+      }
+    }
+    conversionQueue.value = null
   }
 
   // Complete building upgrades + resource production for ALL planets
@@ -951,5 +1018,12 @@ export function useHawkStar() {
     remainingCropSec,
     cropQueueProgressStyle,
     CROP_DEFS,
+    // conversions
+    conversionQueue,
+    conversionTime,
+    canConvert,
+    startConversion,
+    remainingConversionSec,
+    conversionProgressStyle,
   }
 }
