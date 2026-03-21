@@ -11,6 +11,7 @@ const {
   canSendProbe, sendGalaxyProbe,
   playerProbedSystems,
   remainingProbeSec, probeProgressStyle, probeBuildProgressStyle,
+  probeFlightTimeBetween,
   homeSystemId,
   formatTime, UNIT_COSTS,
 } = useHawkStar()
@@ -47,7 +48,13 @@ const nextUnlock = computed(() => {
 })
 
 // ── Selection ───────────────────────────────────────────────────────────────
-const selected = ref(null)
+// Pre-select the home system
+const selected = ref(GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value) ?? null)
+
+// Base system: the currently selected own system (probes launch from here)
+const selectedBase = computed(() =>
+  selected.value && effectiveState(selected.value) === 'own' ? selected.value : null
+)
 
 const selectSystem = (sys) => {
   selected.value = selected.value?.id === sys.id ? null : sys
@@ -99,7 +106,7 @@ const probeCost = UNIT_COSTS.galaxy_probe.cost
       </svg>
 
       <!-- System nodes -->
-      <button
+      <div
         v-for="sys in visibleSystems"
         :key="sys.id"
         class="hs-system"
@@ -116,7 +123,21 @@ const probeCost = UNIT_COSTS.galaxy_probe.cost
         />
         <span class="hs-system-dot" />
         <span class="hs-system-name">{{ sys.name }}</span>
-      </button>
+        <!-- Probe count on own selected system -->
+        <span
+          v-if="selected?.id === sys.id && effectiveState(sys) === 'own' && galaxyProbeLevel > 0"
+          class="hs-system-probe-count"
+        >🔭 {{ galaxyProbeInventory }}</span>
+        <!-- Send button + flight time for unprobed targets when a base is selected -->
+        <template v-else-if="selectedBase && sys.id !== selectedBase.id && !isProbed(sys) && !isProbing(sys)">
+          <span class="hs-system-flight-time">{{ formatTime(probeFlightTimeBetween(selectedBase.id, sys.id)) }}</span>
+          <button
+            v-if="canSendProbe(sys.id)"
+            class="hs-system-send-btn"
+            @click.stop="sendGalaxyProbe(sys.id, selectedBase.id)"
+          >Send</button>
+        </template>
+      </div>
 
       <!-- Fog of war upgrade hint -->
       <div v-if="nextUnlock" class="hs-fog-hint">
@@ -195,14 +216,20 @@ const probeCost = UNIT_COSTS.galaxy_probe.cost
         <!-- Not probed, not probing -->
         <div v-else-if="!isProbed(selected)" class="hs-card-unprobed">
           <span class="hs-card-unprobed-text">System not yet surveyed</span>
-          <button
-            v-if="canSendProbe(selected.id)"
-            class="hs-card-probe-btn"
-            @click="sendGalaxyProbe(selected.id)"
-          >🔭 Send Probe</button>
-          <span v-else-if="galaxyProbeLevel === 0" class="hs-card-probe-hint">Build Galaxy Probe facility first</span>
-          <span v-else-if="galaxyProbeInventory === 0" class="hs-card-probe-hint">No probes — build one in the probe bar</span>
-          <span v-else class="hs-card-probe-hint">All probes busy ({{ activeGalaxyProbes.length }}/{{ galaxyProbeLevel }})</span>
+          <template v-if="selectedBase">
+            <button
+              v-if="canSendProbe(selected.id)"
+              class="hs-card-probe-btn"
+              @click="sendGalaxyProbe(selected.id, selectedBase.id)"
+            >
+              🔭 Send Probe
+              <span class="hs-card-probe-time">{{ formatTime(probeFlightTimeBetween(selectedBase.id, selected.id)) }}</span>
+            </button>
+            <span v-else-if="galaxyProbeLevel === 0" class="hs-card-probe-hint">Build Galaxy Probe facility first</span>
+            <span v-else-if="galaxyProbeInventory === 0" class="hs-card-probe-hint">No probes — build one in the probe bar</span>
+            <span v-else class="hs-card-probe-hint">All probes busy ({{ activeGalaxyProbes.length }}/{{ galaxyProbeLevel }})</span>
+          </template>
+          <span v-else class="hs-card-probe-hint">Select your home system first to dispatch</span>
         </div>
       </div>
     </Transition>
@@ -303,6 +330,7 @@ $c-unknown:     #374151;
   border: none;
   cursor: pointer;
   padding: 6px;
+  user-select: none;
 
   &:hover .hs-system-dot  { transform: scale(1.5); }
   &:hover .hs-system-star { opacity: 0.8; transform: scale(1.6); }
@@ -352,6 +380,41 @@ $c-unknown:     #374151;
   text-shadow: 0 1px 4px rgba(0,0,0,0.9);
   pointer-events: none;
   letter-spacing: 0.02em;
+}
+
+.hs-system-probe-count {
+  font-size: 0.48rem;
+  color: rgba(96,165,250,0.85);
+  font-weight: 700;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  pointer-events: none;
+}
+
+.hs-system-flight-time {
+  font-size: 0.44rem;
+  color: rgba(251,191,36,0.65);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  pointer-events: none;
+}
+
+.hs-system-send-btn {
+  margin-top: 1px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(251,191,36,0.4);
+  background: rgba(251,191,36,0.1);
+  color: rgba(251,191,36,0.9);
+  font-size: 0.42rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  pointer-events: all;
+
+  &:hover {
+    background: rgba(251,191,36,0.22);
+    border-color: rgba(251,191,36,0.65);
+  }
 }
 
 @keyframes hs-pulse-home {
@@ -552,6 +615,9 @@ $c-unknown:     #374151;
 
 .hs-card-probe-btn {
   align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.25rem 0.75rem;
   border-radius: var(--hs-r-md);
   border: 1px solid rgba(251,191,36,0.35);
@@ -566,6 +632,13 @@ $c-unknown:     #374151;
     background: rgba(251,191,36,0.18);
     border-color: rgba(251,191,36,0.6);
   }
+}
+
+.hs-card-probe-time {
+  font-size: 0.55rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+  font-weight: 400;
 }
 
 .hs-card-probe-hint {

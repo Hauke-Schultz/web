@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { RESOURCES } from '../hawkStarConfig.js'
 import { useHawkStar } from '../useHawkStar.js'
 
@@ -9,13 +10,18 @@ const {
   freeWorkers,
   maxStorage,
   energyDeficit,
+  planetType,
 } = useHawkStar()
+
+const visibleResources = computed(() =>
+  Object.values(RESOURCES).filter(r => !r.planetTypes || r.planetTypes.includes(planetType.value))
+)
 </script>
 
 <template>
-  <div class="hs-resources">
+  <div class="hs-resources" :style="{ gridTemplateColumns: `repeat(${visibleResources.length}, 1fr)` }">
     <div
-      v-for="res in RESOURCES"
+      v-for="res in visibleResources"
       :key="res.id"
       class="hs-res-card"
       :class="{
@@ -59,10 +65,9 @@ const {
 <style lang="scss" scoped>
 .hs-resources {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 0.375rem;
   width: 100%;
-  max-width: 28rem;
+  max-width: 34rem;
 
   @media (min-width: 640px) {
     gap: 0.5rem;

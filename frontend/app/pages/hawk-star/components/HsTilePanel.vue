@@ -10,6 +10,7 @@ const {
   buildingsForActiveSlot,
   getLevel,
   isBuildingInProgress,
+  isBuildingLocked,
   nextLevelDef,
   canBuild,
   startBuild,
@@ -155,6 +156,11 @@ const hasCropsInInventory = computed(() =>
           </template>
           <template v-else-if="!nextLevelDef(bDef.id)">
             <span class="hs-status-max">MAX</span>
+          </template>
+          <template v-else-if="isBuildingLocked(bDef.id)">
+            <span class="hs-status-locked">
+              {{ BUILDINGS[bDef.id].requiresBuilding ? `🔒 ${BUILDINGS[BUILDINGS[bDef.id].requiresBuilding]?.name ?? ''} Lv${BUILDINGS[bDef.id].requiresLevel}` : '🔒 Locked' }}
+            </span>
           </template>
           <template v-else>
             <div class="hs-btn-wrap">
@@ -536,6 +542,7 @@ const hasCropsInInventory = computed(() =>
 .hs-status-building { font-size: 0.7rem; font-weight: 600; color: var(--hs-warn);         white-space: nowrap; }
 .hs-status-max      { font-size: 0.7rem; font-weight: 700; color: var(--hs-accent-badge);  letter-spacing: 0.05em; }
 .hs-status-offline  { font-size: 0.7rem; font-weight: 700; color: var(--hs-danger);        white-space: nowrap; animation: pulse 1.5s ease-in-out infinite; }
+.hs-status-locked   { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
 
 .hs-empty { text-align: center; padding: 1.5rem; opacity: 0.25; font-size: 0.875rem; }
 

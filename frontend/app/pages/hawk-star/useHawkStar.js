@@ -29,32 +29,51 @@ const randomStartConfig = () => {
 // ── Singleton state ────────────────────────────────────────
 const playerName   = ref('')
 const homeConfig   = ref(randomStartConfig())
-const planetName   = ref(homeConfig.value.planet)
 const systemName   = ref(homeConfig.value.system)
-const planetType   = ref(homeConfig.value.planetType)
 const homeSystemId = ref(homeConfig.value.systemId)
 const homePlanetId = ref(homeConfig.value.planetId)
 const isFirstRun   = computed(() => playerName.value === '')
 
+// ── Per-planet state (slots + buildings + resources) ───────
+const allPlanetStates = ref({})
+
+const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0 }
+const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0 }
+
+const initializePlanetState = (planetId, pType, pName, isHome = false) => {
+  if (allPlanetStates.value[planetId]) return
+  allPlanetStates.value[planetId] = {
+    planetType: pType,
+    planetName: pName,
+    resources:  isHome ? { ...HOME_START_RESOURCES } : { ...COLONY_START_RESOURCES },
+    slots:      PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked })),
+    buildings:  Object.fromEntries(Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }])),
+  }
+}
+
+initializePlanetState(homeConfig.value.planetId, homeConfig.value.planetType, homeConfig.value.planet, true)
+
+const activePlanetId = ref(homeConfig.value.planetId)
+
+const setActivePlanet = (planetId) => {
+  if (!allPlanetStates.value[planetId]) return
+  activePlanetId.value = planetId
+  activeSlot.value = 5
+}
+
+// Computed aliases — Vue tracks nested mutations through these
+const playerSlots     = computed(() => allPlanetStates.value[activePlanetId.value]?.slots ?? [])
+const playerBuildings = computed(() => allPlanetStates.value[activePlanetId.value]?.buildings ?? {})
+const planetType      = computed(() => allPlanetStates.value[activePlanetId.value]?.planetType ?? 'terrestrial')
+const planetName      = computed(() => allPlanetStates.value[activePlanetId.value]?.planetName ?? '')
+
 // ── Home system (reactive, drives Solar System + Galaxy views) ─────────────
 const homeSystem = computed(() => GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value))
 
-const playerResources = ref({
-  population: 15,
-  metal:      200,
-  crystal:    80,
-  energy:     0,
-})
+// Per-planet resource aliases
+const playerResources = computed(() => allPlanetStates.value[activePlanetId.value]?.resources ?? {})
+const homeResources   = computed(() => allPlanetStates.value[homePlanetId.value]?.resources ?? {})
 
-const playerSlots = ref(
-  PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked }))
-)
-
-const playerBuildings = ref(
-  Object.fromEntries(
-    Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }])
-  )
-)
 
 const activeSlot = ref(5)
 const now = ref(Date.now())
@@ -91,7 +110,7 @@ const nextLevelDef = (id) => BUILDINGS[id]?.levels[getLevel(id)] ?? null
 
 const effectiveLevel = (state) => state.buildEndsAt ? state.level + 1 : state.level
 
-// ── Production & energy ────────────────────────────────────
+// ── Production & energy (active planet) ───────────────────
 const grossProduction = computed(() => {
   const prod = {}
   for (const [id, state] of Object.entries(playerBuildings.value)) {
@@ -135,7 +154,7 @@ const totalStaffDrain = computed(() => {
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
 
 // ── Storage caps ───────────────────────────────────────────
-const BASE_STORAGE = { metal: 100, crystal: 50 }
+const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 0, cryo: 0, obsidian: 0, biomass: 0 }
 
 const maxStorage = computed(() => {
   const caps = { ...BASE_STORAGE }
@@ -153,6 +172,15 @@ const maxStorage = computed(() => {
 const canAfford = (cost) => {
   for (const [res, amt] of Object.entries(cost)) {
     if ((playerResources.value[res] ?? 0) < amt) return false
+  }
+  return true
+}
+
+// Unit builds always draw from home planet
+const canAffordFromHome = (cost) => {
+  const res = allPlanetStates.value[homePlanetId.value]?.resources ?? {}
+  for (const [r, amt] of Object.entries(cost)) {
+    if ((res[r] ?? 0) < amt) return false
   }
   return true
 }
@@ -180,30 +208,40 @@ const staffDelta = (id) => {
   return next.staffDrain - current
 }
 
+// Command center: active planet (each planet can build independently)
 const commandCenterBuilt = computed(() => playerBuildings.value['command_center']?.level >= 1)
 
+// Space facilities always read from home planet
+const homeBuilding = (id) => allPlanetStates.value[homePlanetId.value]?.buildings[id]
 const starMapLevel = computed(() => {
-  const state = playerBuildings.value['star_map']
+  const state = homeBuilding('star_map')
   return state ? effectiveLevel(state) : 0
 })
 const spaceTechLevel = computed(() => {
-  const state = playerBuildings.value['space_tech']
+  const state = homeBuilding('space_tech')
   return state ? effectiveLevel(state) : 0
 })
 const reconDroneLevel = computed(() => {
-  const state = playerBuildings.value['recon_drone']
+  const state = homeBuilding('recon_drone')
   return state ? effectiveLevel(state) : 0
 })
 const galaxyProbeLevel = computed(() => {
-  const state = playerBuildings.value['galaxy_probe']
+  const state = homeBuilding('galaxy_probe')
   return state ? effectiveLevel(state) : 0
 })
 const colonyShipLevel = computed(() => {
-  const state = playerBuildings.value['colony_ship']
+  const state = homeBuilding('colony_ship')
   return state ? effectiveLevel(state) : 0
 })
 
+const isBuildingLocked = (id) => {
+  const req = BUILDINGS[id]?.requiresBuilding
+  if (!req) return false
+  return getLevel(req) < (BUILDINGS[id]?.requiresLevel ?? 1)
+}
+
 const canBuild = (id) =>
+  !isBuildingLocked(id) &&
   (id === 'command_center' || commandCenterBuilt.value) &&
   canAfford(nextLevelDef(id)?.cost ?? {}) &&
   hasEnoughPower(id) &&
@@ -212,10 +250,11 @@ const canBuild = (id) =>
 const startBuild = (id) => {
   const next = nextLevelDef(id)
   if (!next || isBuildingInProgress(id) || !canBuild(id)) return
-  for (const [res, amt] of Object.entries(next.cost)) {
-    playerResources.value[res] -= amt
+  const res = allPlanetStates.value[activePlanetId.value].resources
+  for (const [r, amt] of Object.entries(next.cost)) {
+    res[r] -= amt
   }
-  playerBuildings.value[id].buildEndsAt = Date.now() + next.buildTime * 1000
+  allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt = Date.now() + next.buildTime * 1000
 }
 
 const currentLevelDef = (id) => {
@@ -304,13 +343,14 @@ const droneFlightTimeBetween = (fromId, toId) => {
 const canBuildDrone = computed(() =>
   reconDroneLevel.value > 0 &&
   !reconDroneBuild.value &&
-  canAfford(UNIT_COSTS.recon_drone.cost)
+  canAffordFromHome(UNIT_COSTS.recon_drone.cost)
 )
 
 const buildReconDrone = () => {
   if (!canBuildDrone.value) return
-  for (const [res, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
-    playerResources.value[res] -= amt
+  const res = allPlanetStates.value[homePlanetId.value].resources
+  for (const [r, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
+    res[r] -= amt
   }
   reconDroneBuild.value = { endsAt: Date.now() + droneBuildTime.value * 1000 }
 }
@@ -369,16 +409,27 @@ const probeFlightTime = (systemId) => {
   return Math.ceil(dist / (PROBE_SPEED * Math.max(1, galaxyProbeLevel.value)))
 }
 
+const probeFlightTimeBetween = (fromId, toId) => {
+  const from = GALAXY_SYSTEMS.find(s => s.id === fromId)
+  const to   = GALAXY_SYSTEMS.find(s => s.id === toId)
+  if (!from || !to || fromId === toId) return 0
+  const dx   = to.x - from.x
+  const dy   = to.y - from.y
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  return Math.ceil(dist / (PROBE_SPEED * Math.max(1, galaxyProbeLevel.value)))
+}
+
 const canBuildProbe = computed(() =>
   galaxyProbeLevel.value > 0 &&
   !galaxyProbeBuild.value &&
-  canAfford(UNIT_COSTS.galaxy_probe.cost)
+  canAffordFromHome(UNIT_COSTS.galaxy_probe.cost)
 )
 
 const buildGalaxyProbe = () => {
   if (!canBuildProbe.value) return
-  for (const [res, amt] of Object.entries(UNIT_COSTS.galaxy_probe.cost)) {
-    playerResources.value[res] -= amt
+  const res = allPlanetStates.value[homePlanetId.value].resources
+  for (const [r, amt] of Object.entries(UNIT_COSTS.galaxy_probe.cost)) {
+    res[r] -= amt
   }
   galaxyProbeBuild.value = { endsAt: Date.now() + probeBuildTime.value * 1000 }
 }
@@ -389,10 +440,11 @@ const canSendProbe = (systemId) =>
   !activeGalaxyProbes.value.find(p => p.systemId === systemId) &&
   activeGalaxyProbes.value.length < galaxyProbeLevel.value
 
-const sendGalaxyProbe = (systemId) => {
+const sendGalaxyProbe = (systemId, fromSystemId) => {
   if (!canSendProbe(systemId)) return
   galaxyProbeInventory.value -= 1
-  activeGalaxyProbes.value.push({ systemId, endsAt: Date.now() + probeFlightTime(systemId) * 1000 })
+  const ft = fromSystemId ? probeFlightTimeBetween(fromSystemId, systemId) : probeFlightTime(systemId)
+  activeGalaxyProbes.value.push({ systemId, endsAt: Date.now() + ft * 1000 })
 }
 
 const remainingProbeSec = (systemId) => {
@@ -441,13 +493,14 @@ const colonyFlightTimeBetween = (fromId, toId) => {
 const canBuildColonyShip = computed(() =>
   colonyShipLevel.value > 0 &&
   !colonyShipBuild.value &&
-  canAfford(UNIT_COSTS.colony_ship.cost)
+  canAffordFromHome(UNIT_COSTS.colony_ship.cost)
 )
 
 const buildColonyShip = () => {
   if (!canBuildColonyShip.value) return
-  for (const [res, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
-    playerResources.value[res] -= amt
+  const res = allPlanetStates.value[homePlanetId.value].resources
+  for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
+    res[r] -= amt
   }
   colonyShipBuild.value = { endsAt: Date.now() + colonyShipBuildTime.value * 1000 }
 }
@@ -515,8 +568,9 @@ const canGrowCrop = (cropId) => {
 const startCropGrow = (cropId) => {
   if (!canGrowCrop(cropId)) return
   const crop = CROP_DEFS[cropId]
-  for (const [res, amt] of Object.entries(crop.cost)) {
-    playerResources.value[res] -= amt
+  const res = allPlanetStates.value[activePlanetId.value].resources
+  for (const [r, amt] of Object.entries(crop.cost)) {
+    res[r] -= amt
   }
   cropQueue.value = { cropId, endsAt: Date.now() + cropGrowTime(cropId) * 1000 }
 }
@@ -534,20 +588,25 @@ const cropQueueProgressStyle = computed(() => {
 
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 7
+const SAVE_VERSION = 10
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
     version:               SAVE_VERSION,
     playerName:            playerName.value,
-    planetName:            planetName.value,
     systemName:            systemName.value,
-    planetType:            planetType.value,
     homeSystemId:          homeSystemId.value,
     homePlanetId:          homePlanetId.value,
-    playerResources:       playerResources.value,
-    playerSlots:           playerSlots.value.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
-    playerBuildings:       playerBuildings.value,
+    activePlanetId:        activePlanetId.value,
+    allPlanetStates:       Object.fromEntries(
+      Object.entries(allPlanetStates.value).map(([pid, ps]) => [pid, {
+        planetType: ps.planetType,
+        planetName: ps.planetName,
+        resources:  ps.resources,
+        slots:      ps.slots.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
+        buildings:  ps.buildings,
+      }])
+    ),
     playerScannedPlanets:  playerScannedPlanets.value,
     reconDroneInventory:   reconDroneInventory.value,
     reconDroneBuild:       reconDroneBuild.value,
@@ -575,23 +634,31 @@ const loadGame = () => {
       localStorage.removeItem(SAVE_KEY)
       return
     }
-    if (data.playerName)      playerName.value   = data.playerName
-    if (data.planetName)      planetName.value   = data.planetName
-    if (data.systemName)      systemName.value   = data.systemName
-    if (data.planetType)      planetType.value   = data.planetType
-    if (data.homeSystemId)    homeSystemId.value = data.homeSystemId
-    if (data.homePlanetId)    homePlanetId.value = data.homePlanetId
-    if (data.playerResources) playerResources.value = data.playerResources
-    if (data.playerSlots) {
-      playerSlots.value = playerSlots.value.map(s => {
-        const saved = data.playerSlots.find(ps => ps.slot === s.slot)
-        return saved ? { ...s, unlocked: saved.unlocked } : s
-      })
-    }
-    if (data.playerBuildings) {
-      for (const [id, state] of Object.entries(data.playerBuildings)) {
-        if (playerBuildings.value[id]) playerBuildings.value[id] = state
+    if (data.playerName)   playerName.value   = data.playerName
+    if (data.systemName)   systemName.value   = data.systemName
+    if (data.homeSystemId) homeSystemId.value = data.homeSystemId
+    if (data.homePlanetId) homePlanetId.value = data.homePlanetId
+    if (data.allPlanetStates) {
+      for (const [pid, ps] of Object.entries(data.allPlanetStates)) {
+        const freshSlots     = PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked }))
+        const freshBuildings = Object.fromEntries(Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }]))
+        const isHome = pid === (data.homePlanetId ?? homePlanetId.value)
+        allPlanetStates.value[pid] = {
+          planetType: ps.planetType ?? 'terrestrial',
+          planetName: ps.planetName ?? '',
+          resources:  ps.resources ?? (isHome ? { ...HOME_START_RESOURCES } : { ...COLONY_START_RESOURCES }),
+          slots: freshSlots.map(s => {
+            const saved = ps.slots?.find(ps2 => ps2.slot === s.slot)
+            return saved ? { ...s, unlocked: saved.unlocked } : s
+          }),
+          buildings: Object.fromEntries(
+            Object.keys(BUILDINGS).map(id => [id, ps.buildings?.[id] ?? freshBuildings[id]])
+          ),
+        }
       }
+    }
+    if (data.activePlanetId && allPlanetStates.value[data.activePlanetId]) {
+      activePlanetId.value = data.activePlanetId
     }
     if (Array.isArray(data.playerScannedPlanets))   playerScannedPlanets.value   = data.playerScannedPlanets
     if (typeof data.reconDroneInventory === 'number') reconDroneInventory.value   = data.reconDroneInventory
@@ -670,12 +737,17 @@ const tick = () => {
     colonyShipBuild.value = null
   }
 
-  // Complete colony missions → colonize planet
+  // Complete colony missions → colonize planet + initialize its state
   for (let i = activeColonyMissions.value.length - 1; i >= 0; i--) {
     const m = activeColonyMissions.value[i]
     if (m.endsAt <= now.value) {
       if (!playerColonizedPlanets.value.includes(m.planetId)) {
         playerColonizedPlanets.value.push(m.planetId)
+        const planet = homeSystem.value?.planets.find(p => p.id === m.planetId)
+        if (planet) {
+          const pType = MOCK_TYPE_TO_PLANET_TYPE[planet.type] ?? 'terrestrial'
+          initializePlanetState(m.planetId, pType, planet.name)
+        }
       }
       activeColonyMissions.value.splice(i, 1)
     }
@@ -686,32 +758,67 @@ const tick = () => {
     const { cropId } = cropQueue.value
     cropInventory.value[cropId] = (cropInventory.value[cropId] ?? 0) + 1
     const popBonus = CROP_DEFS[cropId]?.popBonus ?? 0
-    if (popBonus > 0) playerResources.value.population += popBonus
+    if (popBonus > 0) {
+      const homeRes = allPlanetStates.value[homePlanetId.value]?.resources
+      if (homeRes) homeRes.population += popBonus
+    }
     cropQueue.value = null
   }
 
-  // Complete building upgrades
-  for (const [id, state] of Object.entries(playerBuildings.value)) {
-    if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
-    state.level += 1
-    state.buildEndsAt = null
-    const levelDef = BUILDINGS[id]?.levels[state.level - 1]
-    if (levelDef?.unlocks) {
-      for (const { slot } of levelDef.unlocks) {
-        const s = playerSlots.value.find(ps => ps.slot === slot)
-        if (s) s.unlocked = true
+  // Complete building upgrades + resource production for ALL planets
+  for (const [, pstate] of Object.entries(allPlanetStates.value)) {
+    const pb = pstate.buildings
+    const pr = pstate.resources
+
+    // Complete builds
+    for (const [id, state] of Object.entries(pb)) {
+      if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
+      state.level += 1
+      state.buildEndsAt = null
+      const levelDef = BUILDINGS[id]?.levels[state.level - 1]
+      if (levelDef?.unlocks) {
+        for (const { slot } of levelDef.unlocks) {
+          const s = pstate.slots.find(ps => ps.slot === slot)
+          if (s) s.unlocked = true
+        }
+      }
+      if (levelDef?.popBonus) {
+        pr.population += levelDef.popBonus
       }
     }
-    if (levelDef?.popBonus) {
-      playerResources.value.population += levelDef.popBonus
-    }
-  }
 
-  // Resource production
-  for (const [res, amt] of Object.entries(production.value)) {
-    const newVal = Math.max(0, (playerResources.value[res] ?? 0) + amt)
-    const cap = maxStorage.value[res]
-    playerResources.value[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
+    // Production: gross output
+    const prod = {}
+    for (const [id, state] of Object.entries(pb)) {
+      if (state.level === 0) continue
+      const levelDef = BUILDINGS[id]?.levels[state.level - 1]
+      for (const [res, amt] of Object.entries(levelDef?.production ?? {})) {
+        prod[res] = (prod[res] ?? 0) + amt
+      }
+    }
+    // Energy drain
+    let energyDrain = 0
+    for (const [id, state] of Object.entries(pb)) {
+      const lvl = effectiveLevel(state)
+      if (lvl === 0) continue
+      energyDrain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
+    }
+    // Storage caps
+    const caps = { ...BASE_STORAGE }
+    for (const [id, state] of Object.entries(pb)) {
+      if (state.level === 0) continue
+      const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
+      for (const [res, cap] of Object.entries(storage)) {
+        caps[res] = (caps[res] ?? 0) + cap
+      }
+    }
+    // Apply net production
+    const net = { ...prod, energy: (prod.energy ?? 0) - energyDrain }
+    for (const [res, amt] of Object.entries(net)) {
+      const cap = caps[res]
+      const newVal = Math.max(0, (pr[res] ?? 0) + amt)
+      pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
+    }
   }
 
   saveGame()
@@ -740,6 +847,8 @@ export function useHawkStar() {
     homePlanetId,
     homeSystem,
     isFirstRun,
+    activePlanetId,
+    setActivePlanet,
     PLANET_TYPES,
     playerResources,
     playerSlots,
@@ -753,6 +862,7 @@ export function useHawkStar() {
     // building helpers
     getLevel,
     isBuildingInProgress,
+    isBuildingLocked,
     nextLevelDef,
     canBuild,
     startBuild,
@@ -807,6 +917,7 @@ export function useHawkStar() {
     remainingProbeSec,
     probeProgressStyle,
     probeBuildProgressStyle,
+    probeFlightTimeBetween,
     // colony ships
     playerColonizedPlanets,
     colonyShipInventory,

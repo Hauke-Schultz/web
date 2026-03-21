@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE } from '../hawkStarConfig.js'
 import { useHawkStar } from '../useHawkStar.js'
 
 const {
@@ -15,6 +16,7 @@ const {
   remainingColonySec, colonyProgressStyle,
   colonyFlightTimeBetween,
   homeSystem, homePlanetId,
+  activePlanetId, setActivePlanet,
   formatTime,
 } = useHawkStar()
 
@@ -39,6 +41,7 @@ const selectedPlanetId = ref(null)
 const toggleSelect = (planet) => {
   if (effectivePlanetState(planet) !== 'own') return
   selectedPlanetId.value = selectedPlanetId.value === planet.id ? null : planet.id
+  setActivePlanet(planet.id)
 }
 
 const selectedIsOwn = computed(() => selectedPlanetId.value !== null)
@@ -58,7 +61,10 @@ const colonyTime = (targetPlanetId) =>
     ? colonyFlightTimeBetween(selectedPlanetId.value, targetPlanetId)
     : 0
 
-const PLANET_TYPE_ICON = { rock: '🪨', gas: '🌀', ice: '🧊', lava: '🌋', ocean: '🌊' }
+const planetTypeIcon = (mockType) => {
+  const key = MOCK_TYPE_TO_PLANET_TYPE[mockType]
+  return PLANET_TYPES[key]?.icon ?? '🪐'
+}
 const STAR_CLASS_LABEL = { G: 'Yellow Dwarf', K: 'Orange Dwarf', M: 'Red Dwarf', F: 'White Star' }
 
 const STATE_COLOR = {
@@ -70,11 +76,10 @@ const STATE_LABEL = {
 
 const planetIcon = (planet) => {
   const state = effectivePlanetState(planet)
-  if (state === 'own')        return PLANET_TYPE_ICON[planet.type] ?? '🪐'
   if (state === 'colonizing') return '🚀'
   if (state === 'scanning')   return '🛸'
   if (state === 'unknown')    return '❓'
-  return PLANET_TYPE_ICON[planet.type] ?? '🪐'
+  return planetTypeIcon(planet.type)
 }
 </script>
 
@@ -121,6 +126,7 @@ const planetIcon = (planet) => {
         <span class="hs-solar-tile-name">
           {{ planet.name }}
           <span v-if="planet.id === homePlanetId" class="hs-solar-home-tag">home</span>
+          <span v-else-if="planet.id === activePlanetId" class="hs-solar-active-tag">active</span>
         </span>
 
         <!-- Own / colonized -->
@@ -302,6 +308,16 @@ const planetIcon = (planet) => {
   font-size: 0.48rem;
   background: var(--hs-accent);
   color: #fff;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+.hs-solar-active-tag {
+  font-size: 0.48rem;
+  background: rgba(52,211,153,0.25);
+  color: #34d399;
+  border: 1px solid rgba(52,211,153,0.4);
   padding: 1px 4px;
   border-radius: 3px;
   font-weight: 700;

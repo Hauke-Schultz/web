@@ -14,6 +14,8 @@ const {
   slotsOnSlot,
   unlockRequirement,
   getLevel,
+  homePlanetId,
+  activePlanetId,
 } = useHawkStar()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
@@ -23,7 +25,10 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
   <div class="hs-planet-wrap">
     <div class="hs-planet-header">
       <span class="hs-player-name">{{ playerName }}</span>
-      <span class="hs-planet-name">🪐 {{ planetName }}</span>
+      <span class="hs-planet-name">
+        🪐 {{ planetName }}
+        <span v-if="activePlanetId !== homePlanetId" class="hs-planet-colony-badge">colony</span>
+      </span>
       <span
         v-if="currentPlanetType"
         class="hs-planet-type-badge"
@@ -105,6 +110,21 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
   letter-spacing: 0.06em;
   text-transform: uppercase;
   opacity: 0.6;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.hs-planet-colony-badge {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #34d399;
+  background: rgba(52,211,153,0.15);
+  border: 1px solid rgba(52,211,153,0.35);
+  padding: 1px 5px;
+  border-radius: 999px;
 }
 
 .hs-planet-type-badge {
