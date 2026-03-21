@@ -23,7 +23,11 @@ export const UNIT_COSTS = {
   galaxy_probe: { cost: { metal: 100, crystal: 50  }, buildTimeBase: 40  },
   colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 60  },
   warship:      { cost: { metal: 600, crystal: 300, super_alloy: 12, pure_crystal: 8 }, buildTimeBase: 120 },
+  freighter:    { cost: { metal: 400, crystal: 200 }, buildTimeBase: 90  },
 }
+
+// Cargo capacity per freighter bay level (in resource units)
+export const FREIGHTER_CARGO_CAPACITY = [0, 200, 500, 1000]
 
 // ── Planet types ──────────────────────────────────────────────────────────────
 // Maps from mock planet.type (rock/gas/lava/ice/ocean) to game type.
@@ -93,7 +97,7 @@ export const TILE_TYPES = {
   energy:        { id: 'energy',        name: 'Energy',        icon: '🔋', description: 'Power generation' },
   research:      { id: 'research',      name: 'Research',      icon: '🔬', description: 'Technology development' },
   communication: { id: 'communication', name: 'Communication', icon: '📡', description: 'Intel, navigation & interplanetary trade' },
-  spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for probes and colony ships' },
+  spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for probes, colony ships and freighters' },
   agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Food production and special crop cultivation for advanced research' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
@@ -888,43 +892,6 @@ export const BUILDINGS = {
     ],
   },
 
-  trade_harbor: {
-    id:          'trade_harbor',
-    name:        'Trade Harbor',
-    tileType:    'communication',
-    icon:        '🚀',
-    description: 'Interplanetary docking hub for trade ships and resource exchange.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 200, crystal: 100 },
-        buildTime:   35,
-        effect:      'Enables resource trading with other players · uses 5 energy · 3 workers',
-        production:  {},
-        energyDrain: 5,
-        staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 500, crystal: 250 },
-        buildTime:   50,
-        effect:      'Access to galactic market pricing · uses 8 energy · 5 workers',
-        production:  {},
-        energyDrain: 8,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1200, crystal: 600 },
-        buildTime:   60,
-        effect:      'Passive income from established trade routes · uses 14 energy · 8 workers',
-        production:  {},
-        energyDrain: 14,
-        staffDrain:  8,
-      },
-    ],
-  },
-
   // ── Research tile ──────────────────────────────────────────────────────────
 
   space_tech: {
@@ -1153,6 +1120,45 @@ export const BUILDINGS = {
         effect:      '4× build speed · 3 warship slots · firepower +120% · uses 35 energy · 14 workers',
         production:  {},
         energyDrain: 35,
+        staffDrain:  14,
+      },
+    ],
+  },
+
+  freighter_bay: {
+    id:               'freighter_bay',
+    name:             'Freighter Bay',
+    tileType:         'spacebase',
+    icon:             '🚢',
+    description:      'Cargo dock for building freighters. Transport resources between your colonies. Needs Space Technology Lv 1.',
+    requiresBuilding: 'space_tech',
+    requiresLevel:    1,
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 500, crystal: 250 },
+        buildTime:   60,
+        effect:      'Build freighters · 200 cargo capacity · uses 10 energy · 5 workers',
+        production:  {},
+        energyDrain: 10,
+        staffDrain:  5,
+      },
+      {
+        level:       2,
+        cost:        { metal: 1200, crystal: 600 },
+        buildTime:   80,
+        effect:      '500 cargo capacity · 2× build speed · uses 16 energy · 8 workers',
+        production:  {},
+        energyDrain: 16,
+        staffDrain:  8,
+      },
+      {
+        level:       3,
+        cost:        { metal: 2800, crystal: 1400 },
+        buildTime:   100,
+        effect:      '1000 cargo capacity · 4× build speed · uses 28 energy · 14 workers',
+        production:  {},
+        energyDrain: 28,
         staffDrain:  14,
       },
     ],

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE } from '../hawkStarConfig.js'
+import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, RESOURCES, UNIT_COSTS } from '../hawkStarConfig.js'
 import { useHawkStar } from '../useHawkStar.js'
 
 const {
@@ -18,6 +18,22 @@ const {
   homeSystem, homePlanetId,
   activePlanetId, setActivePlanet,
   formatTime,
+  // freighters
+  freighterBayLevel,
+  freighterInventory,
+  freighterBuild,
+  activeFreighterMissions,
+  freighterBuildTime,
+  freighterCargoCapacity,
+  canBuildFreighter,
+  buildFreighter,
+  sendFreighter,
+  freighterFlightTimeBetween,
+  remainingFreighterSec,
+  freighterProgressStyle,
+  freighterBuildProgressStyle,
+  getPlanetName,
+  getPlanetResources,
 } = useHawkStar()
 
 const planets = computed(() => homeSystem.value?.planets ?? [])
@@ -81,6 +97,73 @@ const planetIcon = (planet) => {
   if (state === 'unknown')    return '❓'
   return planetTypeIcon(planet.type)
 }
+
+// ── Freighter helpers ────────────────────────────────────────────────────────
+const TRANSPORTABLE = Object.keys(RESOURCES).filter(r => r !== 'energy' && r !== 'population')
+
+const freighterDest  = ref(null)   // selected destination planet id
+const freighterCargo = ref({})     // { resourceId: amount }
+
+// Reset cargo when source or destination changes
+const selectFreighterDest = (planetId) => {
+  freighterDest.value  = planetId
+  freighterCargo.value = {}
+}
+
+const freighterCargoTotal = computed(() =>
+  Object.values(freighterCargo.value).reduce((a, b) => a + b, 0)
+)
+
+const sourcePlanetResources = computed(() =>
+  selectedPlanetId.value ? getPlanetResources(selectedPlanetId.value) : {}
+)
+
+const transportableResources = computed(() =>
+  TRANSPORTABLE.filter(r => Math.floor(sourcePlanetResources.value[r] ?? 0) > 0)
+)
+
+const maxForResource = (res) => {
+  const available = Math.floor(sourcePlanetResources.value[res] ?? 0)
+  const currentOther = Object.entries(freighterCargo.value)
+    .filter(([r]) => r !== res)
+    .reduce((a, [, v]) => a + v, 0)
+  return Math.min(available, freighterCargoCapacity.value - currentOther)
+}
+
+const clampCargo = (res) => {
+  const max = maxForResource(res)
+  if ((freighterCargo.value[res] ?? 0) > max) {
+    freighterCargo.value[res] = max
+  }
+}
+
+const isFreighterEnRoute = (planetId) =>
+  activeFreighterMissions.value.some(m => m.toPlanetId === planetId || m.fromPlanetId === planetId)
+
+const doSendFreighter = () => {
+  if (!freighterDest.value) return
+  const cargo = Object.fromEntries(
+    Object.entries(freighterCargo.value).filter(([, v]) => v > 0)
+  )
+  sendFreighter(selectedPlanetId.value, freighterDest.value, cargo)
+  freighterDest.value  = null
+  freighterCargo.value = {}
+}
+
+const ownedPlanets = computed(() =>
+  (homeSystem.value?.planets ?? []).filter(p =>
+    p.id === homePlanetId.value || playerColonizedPlanets.value.includes(p.id)
+  )
+)
+
+const freighterMissionsForPlanet = (planetId) =>
+  activeFreighterMissions.value.filter(m => m.fromPlanetId === planetId || m.toPlanetId === planetId)
+
+const cargoSummary = (cargo) =>
+  Object.entries(cargo)
+    .filter(([, v]) => v > 0)
+    .map(([r, v]) => `${RESOURCES[r]?.icon ?? r} ${v}`)
+    .join(' ')
 </script>
 
 <template>
@@ -117,6 +200,12 @@ const planetIcon = (planet) => {
           v-else-if="isColonizing(planet.id)"
           class="hs-solar-progress-bar hs-solar-progress-bar--colony"
           :style="colonyProgressStyle(planet.id)"
+        />
+
+        <!-- Freighter en-route indicator -->
+        <div
+          v-else-if="isFreighterEnRoute(planet.id)"
+          class="hs-solar-progress-bar hs-solar-progress-bar--freighter"
         />
 
         <!-- Icon -->
@@ -187,6 +276,120 @@ const planetIcon = (planet) => {
         </template>
 
       </div>
+    </div>
+
+    <!-- ── Freighter Panel ──────────────────────────────────────────────── -->
+    <div v-if="freighterBayLevel > 0" class="hs-freighter-panel">
+
+      <!-- Header row -->
+      <div class="hs-freighter-header">
+        <span class="hs-freighter-title">🚢 Frachter</span>
+        <span class="hs-freighter-count">{{ freighterInventory }} verfügbar</span>
+
+        <!-- Build button -->
+        <button
+          v-if="canBuildFreighter"
+          class="hs-freighter-build-btn"
+          @click="buildFreighter"
+        >Bauen {{ formatTime(freighterBuildTime) }}</button>
+
+        <!-- Build in progress -->
+        <template v-else-if="freighterBuild">
+          <div class="hs-freighter-build-bar">
+            <div class="hs-freighter-build-bar-fill" :style="freighterBuildProgressStyle" />
+          </div>
+          <span class="hs-freighter-build-timer">{{ formatTime(Math.max(0, Math.ceil((freighterBuild.endsAt - Date.now()) / 1000))) }}</span>
+        </template>
+
+        <!-- Can't afford -->
+        <span v-else class="hs-freighter-build-hint">
+          Kosten: ⚙️ {{ UNIT_COSTS.freighter.cost.metal }} 💎 {{ UNIT_COSTS.freighter.cost.crystal }}
+        </span>
+      </div>
+
+      <!-- Active missions -->
+      <div
+        v-for="m in activeFreighterMissions"
+        :key="m.id"
+        class="hs-freighter-mission"
+      >
+        <div class="hs-freighter-mission-bar">
+          <div class="hs-freighter-mission-bar-fill" :style="freighterProgressStyle(m.id)" />
+        </div>
+        <span class="hs-freighter-mission-route">
+          🚢 {{ getPlanetName(m.fromPlanetId) }} → {{ getPlanetName(m.toPlanetId) }}
+        </span>
+        <span class="hs-freighter-mission-timer">{{ formatTime(remainingFreighterSec(m.id)) }}</span>
+        <span class="hs-freighter-mission-cargo">{{ cargoSummary(m.cargo) }}</span>
+      </div>
+
+      <!-- New mission form (when an own planet is selected + freighter available) -->
+      <div
+        v-if="selectedPlanetId && freighterInventory > 0"
+        class="hs-freighter-new"
+      >
+        <div class="hs-freighter-new-title">
+          Neuer Flug von <strong>{{ getPlanetName(selectedPlanetId) }}</strong>
+        </div>
+
+        <!-- Destination picker -->
+        <div class="hs-freighter-dest-row">
+          <span class="hs-freighter-label">Ziel:</span>
+          <button
+            v-for="p in ownedPlanets.filter(p => p.id !== selectedPlanetId)"
+            :key="p.id"
+            class="hs-freighter-dest-btn"
+            :class="{ 'hs-freighter-dest-btn--active': freighterDest === p.id }"
+            @click="selectFreighterDest(p.id)"
+          >{{ p.name }}</button>
+        </div>
+
+        <!-- Cargo selection -->
+        <template v-if="freighterDest">
+          <div class="hs-freighter-capacity">
+            Fracht: {{ freighterCargoTotal }} / {{ freighterCargoCapacity }}
+          </div>
+
+          <div
+            v-for="res in transportableResources"
+            :key="res"
+            class="hs-freighter-cargo-row"
+          >
+            <span class="hs-freighter-cargo-icon">{{ RESOURCES[res].icon }}</span>
+            <span class="hs-freighter-cargo-name">{{ RESOURCES[res].name }}</span>
+            <span class="hs-freighter-cargo-avail">{{ Math.floor(sourcePlanetResources[res] ?? 0) }}</span>
+            <input
+              class="hs-freighter-cargo-input"
+              type="number"
+              min="0"
+              :max="maxForResource(res)"
+              :value="freighterCargo[res] ?? 0"
+              @input="freighterCargo[res] = Math.min(Math.max(0, Number($event.target.value)), maxForResource(res)); clampCargo(res)"
+            />
+          </div>
+
+          <div v-if="transportableResources.length === 0" class="hs-freighter-empty-hint">
+            Keine transportierbaren Rohstoffe auf diesem Planeten.
+          </div>
+
+          <button
+            v-if="freighterCargoTotal > 0"
+            class="hs-freighter-send-btn"
+            @click="doSendFreighter"
+          >
+            🚀 Absenden → {{ getPlanetName(freighterDest) }}
+            ({{ formatTime(freighterFlightTimeBetween(selectedPlanetId, freighterDest)) }})
+          </button>
+        </template>
+      </div>
+
+      <div v-else-if="freighterBayLevel > 0 && freighterInventory === 0 && !freighterBuild" class="hs-freighter-hint">
+        Baue einen Frachter, um Rohstoffe zwischen Kolonien zu transportieren.
+      </div>
+      <div v-else-if="freighterBayLevel > 0 && freighterInventory > 0 && !selectedPlanetId" class="hs-freighter-hint">
+        Wähle einen eigenen Planeten aus, um einen Frachter zu beladen.
+      </div>
+
     </div>
 
   </div>
@@ -277,8 +480,9 @@ const planetIcon = (planet) => {
   transform-origin: left;
   animation: hs-bar-fill linear forwards;
 
-  &--drone  { background: rgba(251,191,36,0.5); }
-  &--colony { background: rgba(96,165,250,0.5); }
+  &--drone     { background: rgba(251,191,36,0.5); }
+  &--colony   { background: rgba(96,165,250,0.5); }
+  &--freighter { background: rgba(52,211,153,0.4); }
 }
 
 @keyframes hs-bar-fill {
@@ -405,6 +609,253 @@ const planetIcon = (planet) => {
     color: rgba(96,165,250,0.9);
     &:hover { background: rgba(96,165,250,0.18); border-color: rgba(96,165,250,0.6); }
   }
+}
+
+// ── Freighter panel ───────────────────────────────────────────────────────────
+.hs-freighter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--hs-glass-sm);
+  border: 1px solid rgba(52,211,153,0.18);
+  border-radius: var(--hs-r-md);
+  padding: 0.625rem 0.75rem;
+}
+
+.hs-freighter-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.hs-freighter-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(52,211,153,0.9);
+}
+
+.hs-freighter-count {
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-freighter-build-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.52rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(52,211,153,0.35);
+  background: rgba(52,211,153,0.08);
+  color: rgba(52,211,153,0.9);
+  &:hover { background: rgba(52,211,153,0.18); border-color: rgba(52,211,153,0.6); }
+}
+
+.hs-freighter-build-bar {
+  margin-left: auto;
+  position: relative;
+  width: 80px;
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hs-freighter-build-bar-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(52,211,153,0.5);
+  transform-origin: left;
+  animation: hs-bar-fill linear forwards;
+}
+
+.hs-freighter-build-timer {
+  font-size: 0.5rem;
+  color: rgba(52,211,153,0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-freighter-build-hint {
+  margin-left: auto;
+  font-size: 0.48rem;
+  color: rgba(255,255,255,0.25);
+}
+
+// Active mission row
+.hs-freighter-mission {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem;
+  background: rgba(52,211,153,0.04);
+  border: 1px solid rgba(52,211,153,0.12);
+  border-radius: var(--hs-r-sm);
+  overflow: hidden;
+}
+
+.hs-freighter-mission-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+}
+
+.hs-freighter-mission-bar-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(52,211,153,0.45);
+  transform-origin: left;
+  animation: hs-bar-fill linear forwards;
+}
+
+.hs-freighter-mission-route {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.7);
+  flex: 1;
+}
+
+.hs-freighter-mission-timer {
+  font-size: 0.52rem;
+  color: rgba(52,211,153,0.85);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.hs-freighter-mission-cargo {
+  font-size: 0.48rem;
+  color: rgba(255,255,255,0.35);
+}
+
+// New mission form
+.hs-freighter-new {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--hs-r-sm);
+}
+
+.hs-freighter-new-title {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.55);
+
+  strong { color: rgba(255,255,255,0.8); }
+}
+
+.hs-freighter-dest-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.hs-freighter-label {
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.4);
+}
+
+.hs-freighter-dest-btn {
+  padding: 2px 7px;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.55);
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
+
+  &--active {
+    border-color: rgba(52,211,153,0.5);
+    background: rgba(52,211,153,0.1);
+    color: rgba(52,211,153,0.95);
+  }
+}
+
+.hs-freighter-capacity {
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-freighter-cargo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hs-freighter-cargo-icon {
+  font-size: 0.75rem;
+  line-height: 1;
+  width: 1rem;
+  text-align: center;
+}
+
+.hs-freighter-cargo-name {
+  flex: 1;
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.6);
+}
+
+.hs-freighter-cargo-avail {
+  font-size: 0.48rem;
+  color: rgba(255,255,255,0.3);
+  font-variant-numeric: tabular-nums;
+  min-width: 2rem;
+  text-align: right;
+}
+
+.hs-freighter-cargo-input {
+  width: 4rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--hs-r-sm);
+  color: rgba(255,255,255,0.85);
+  font-size: 0.52rem;
+  padding: 2px 5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(52,211,153,0.4);
+  }
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button { opacity: 1; }
+}
+
+.hs-freighter-send-btn {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 3px 10px;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.52rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(52,211,153,0.4);
+  background: rgba(52,211,153,0.1);
+  color: rgba(52,211,153,0.95);
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.7); }
+}
+
+.hs-freighter-empty-hint,
+.hs-freighter-hint {
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.22);
+  font-style: italic;
 }
 
 </style>

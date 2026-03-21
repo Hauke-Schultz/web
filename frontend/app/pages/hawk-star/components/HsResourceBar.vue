@@ -13,7 +13,7 @@ const {
   planetType,
 } = useHawkStar()
 
-const BAR_IDS = ['population', 'metal', 'crystal', 'cryo', 'energy']
+const BAR_IDS = ['population', 'metal', 'crystal', 'alloy', 'cryo', 'obsidian', 'biomass', 'energy']
 
 const visibleResources = computed(() =>
   Object.values(RESOURCES).filter(r =>

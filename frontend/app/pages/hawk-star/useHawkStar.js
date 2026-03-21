@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, CROP_DEFS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE } from './hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, CROP_DEFS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY } from './hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
@@ -235,6 +235,10 @@ const colonyShipLevel = computed(() => {
 })
 const warshipBayLevel = computed(() => {
   const state = homeBuilding('warship_bay')
+  return state ? effectiveLevel(state) : 0
+})
+const freighterBayLevel = computed(() => {
+  const state = homeBuilding('freighter_bay')
   return state ? effectiveLevel(state) : 0
 })
 
@@ -581,6 +585,109 @@ const warshipBuildProgressStyle = computed(() => {
   return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
 })
 
+// ── Freighters (resource transport between colonies) ────────
+const freighterInventory       = ref(0)
+const freighterBuild           = ref(null)   // { endsAt } | null
+const activeFreighterMissions  = ref([])     // [{ id, fromPlanetId, toPlanetId, cargo, endsAt, flightTime }]
+
+const freighterBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.freighter.buildTimeBase / Math.max(1, freighterBayLevel.value))
+)
+
+const freighterCargoCapacity = computed(() =>
+  FREIGHTER_CARGO_CAPACITY[freighterBayLevel.value] ?? 0
+)
+
+const canBuildFreighter = computed(() =>
+  freighterBayLevel.value > 0 &&
+  !freighterBuild.value &&
+  canAffordFromHome(UNIT_COSTS.freighter.cost)
+)
+
+const buildFreighter = () => {
+  if (!canBuildFreighter.value) return
+  const res = allPlanetStates.value[homePlanetId.value].resources
+  for (const [r, amt] of Object.entries(UNIT_COSTS.freighter.cost)) {
+    res[r] -= amt
+  }
+  freighterBuild.value = { endsAt: Date.now() + freighterBuildTime.value * 1000 }
+}
+
+const freighterFlightTimeBetween = (fromId, toId) => {
+  const ps = homeSystem.value?.planets ?? []
+  const fi = ps.findIndex(p => p.id === fromId)
+  const ti = ps.findIndex(p => p.id === toId)
+  const dist = Math.max(1, Math.abs(fi - ti))
+  return Math.ceil(120 * dist / Math.max(1, freighterBayLevel.value))
+}
+
+// Helper: storage caps for any planet (used when delivering cargo)
+const maxStorageForPlanet = (planetId) => {
+  const pb = allPlanetStates.value[planetId]?.buildings ?? {}
+  const caps = { ...BASE_STORAGE }
+  for (const [id, state] of Object.entries(pb)) {
+    if (state.level === 0) continue
+    const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
+    for (const [res, cap] of Object.entries(storage)) {
+      caps[res] = (caps[res] ?? 0) + cap
+    }
+  }
+  return caps
+}
+
+const getPlanetName      = (planetId) => allPlanetStates.value[planetId]?.planetName ?? '?'
+const getPlanetResources = (planetId) => allPlanetStates.value[planetId]?.resources ?? {}
+
+const canSendFreighter = (fromPlanetId, toPlanetId, cargo) => {
+  if (freighterInventory.value <= 0) return false
+  if (!fromPlanetId || !toPlanetId || fromPlanetId === toPlanetId) return false
+  if (!allPlanetStates.value[fromPlanetId] || !allPlanetStates.value[toPlanetId]) return false
+  const total = Object.values(cargo).reduce((a, b) => a + b, 0)
+  if (total <= 0 || total > freighterCargoCapacity.value) return false
+  const fromRes = allPlanetStates.value[fromPlanetId].resources
+  for (const [r, amt] of Object.entries(cargo)) {
+    if (amt > 0 && (fromRes[r] ?? 0) < amt) return false
+  }
+  return true
+}
+
+const sendFreighter = (fromPlanetId, toPlanetId, cargo) => {
+  if (!canSendFreighter(fromPlanetId, toPlanetId, cargo)) return
+  const fromRes = allPlanetStates.value[fromPlanetId].resources
+  for (const [r, amt] of Object.entries(cargo)) {
+    if (amt > 0) fromRes[r] -= amt
+  }
+  freighterInventory.value -= 1
+  const ft = freighterFlightTimeBetween(fromPlanetId, toPlanetId)
+  activeFreighterMissions.value.push({
+    id:           Date.now(),
+    fromPlanetId,
+    toPlanetId,
+    cargo:        { ...cargo },
+    endsAt:       Date.now() + ft * 1000,
+    flightTime:   ft,
+  })
+}
+
+const remainingFreighterSec = (missionId) => {
+  const m = activeFreighterMissions.value.find(m => m.id === missionId)
+  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
+}
+
+const freighterProgressStyle = (missionId) => {
+  const m = activeFreighterMissions.value.find(m => m.id === missionId)
+  if (!m) return {}
+  const elapsed = Math.max(0, (Date.now() - (m.endsAt - m.flightTime * 1000)) / 1000)
+  return { animationDuration: `${m.flightTime}s`, animationDelay: `-${elapsed}s` }
+}
+
+const freighterBuildProgressStyle = computed(() => {
+  if (!freighterBuild.value) return {}
+  const bt      = freighterBuildTime.value
+  const elapsed = Math.max(0, (Date.now() - (freighterBuild.value.endsAt - bt * 1000)) / 1000)
+  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+})
+
 // ── Crops (Agriculture tile) ───────────────────────────────
 const cropInventory = ref(Object.fromEntries(Object.keys(CROP_DEFS).map(id => [id, 0])))
 const cropQueue     = ref(null)  // { cropId, endsAt } | null
@@ -622,14 +729,27 @@ const cropQueueProgressStyle = computed(() => {
 })
 
 // ── Conversion Queue (High-Tech / Cryo Refinery) ──────────
-const conversionQueue = ref(null)  // { buildingId, recipeIndex, planetId, endsAt } | null
+// remaining: how many additional runs are queued after the current one
+const conversionQueue = ref(null)  // { buildingId, recipeIndex, planetId, endsAt, remaining } | null
 
-const conversionTime = (buildingId, recipeIndex) => {
+// Compute conversion time using a specific planet's building level (for tick)
+const conversionTimeForPlanet = (buildingId, recipeIndex, planetId) => {
   const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
   if (!recipe) return 0
-  const lvl = getLevel(buildingId)
+  const lvl = allPlanetStates.value[planetId]?.buildings[buildingId]?.level ?? 0
   const throughput = Math.pow(2, lvl - 1) // lv1→1×, lv2→2×, lv3→4×
   return Math.ceil(recipe.durationBase / Math.max(1, throughput))
+}
+
+const conversionTime = (buildingId, recipeIndex) =>
+  conversionTimeForPlanet(buildingId, recipeIndex, activePlanetId.value)
+
+// Max batch size the player can queue (based on active planet's building level)
+const conversionMaxBatch = (buildingId) => {
+  const lvl = getLevel(buildingId)
+  if (lvl >= 3) return 20
+  if (lvl >= 2) return 10
+  return 1
 }
 
 const canConvert = (buildingId, recipeIndex) => {
@@ -642,7 +762,8 @@ const canConvert = (buildingId, recipeIndex) => {
   return canAfford(recipe.input)
 }
 
-const startConversion = (buildingId, recipeIndex) => {
+// count: total number of conversions to run (1 = just one, 10 = batch of 10)
+const startConversion = (buildingId, recipeIndex, count = 1) => {
   if (!canConvert(buildingId, recipeIndex)) return
   const recipe = BUILDINGS[buildingId].conversions[recipeIndex]
   const res = allPlanetStates.value[activePlanetId.value].resources
@@ -652,8 +773,9 @@ const startConversion = (buildingId, recipeIndex) => {
   conversionQueue.value = {
     buildingId,
     recipeIndex,
-    planetId: activePlanetId.value,
-    endsAt:   Date.now() + conversionTime(buildingId, recipeIndex) * 1000,
+    planetId:  activePlanetId.value,
+    endsAt:    Date.now() + conversionTime(buildingId, recipeIndex) * 1000,
+    remaining: Math.max(0, count - 1),
   }
 }
 
@@ -673,7 +795,7 @@ const conversionProgressStyle = computed(() => {
 
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 11
+const SAVE_VERSION = 12
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -706,6 +828,9 @@ const saveGame = () => {
     activeColonyMissions:  activeColonyMissions.value,
     warshipInventory:      warshipInventory.value,
     warshipBuild:          warshipBuild.value,
+    freighterInventory:    freighterInventory.value,
+    freighterBuild:        freighterBuild.value,
+    activeFreighterMissions: activeFreighterMissions.value,
     cropInventory:         cropInventory.value,
     cropQueue:             cropQueue.value,
     conversionQueue:       conversionQueue.value,
@@ -762,6 +887,9 @@ const loadGame = () => {
     if (Array.isArray(data.activeColonyMissions))    activeColonyMissions.value   = data.activeColonyMissions
     if (typeof data.warshipInventory === 'number') warshipInventory.value = data.warshipInventory
     if (data.warshipBuild)                         warshipBuild.value     = data.warshipBuild
+    if (typeof data.freighterInventory === 'number') freighterInventory.value  = data.freighterInventory
+    if (data.freighterBuild)                         freighterBuild.value      = data.freighterBuild
+    if (Array.isArray(data.activeFreighterMissions)) activeFreighterMissions.value = data.activeFreighterMissions
     if (data.cropInventory) {
       for (const [id, count] of Object.entries(data.cropInventory)) {
         if (id in cropInventory.value) cropInventory.value[id] = count
@@ -850,6 +978,32 @@ const tick = () => {
     warshipBuild.value = null
   }
 
+  // Complete freighter build
+  if (freighterBuild.value && freighterBuild.value.endsAt <= now.value) {
+    freighterInventory.value += 1
+    freighterBuild.value = null
+  }
+
+  // Complete freighter missions → deliver cargo + return freighter to fleet
+  for (let i = activeFreighterMissions.value.length - 1; i >= 0; i--) {
+    const m = activeFreighterMissions.value[i]
+    if (m.endsAt <= now.value) {
+      const toRes  = allPlanetStates.value[m.toPlanetId]?.resources
+      if (toRes) {
+        const caps = maxStorageForPlanet(m.toPlanetId)
+        for (const [r, amt] of Object.entries(m.cargo)) {
+          if (amt <= 0) continue
+          const cap = caps[r]
+          toRes[r] = cap !== undefined
+            ? Math.min((toRes[r] ?? 0) + amt, cap)
+            : (toRes[r] ?? 0) + amt
+        }
+      }
+      freighterInventory.value += 1
+      activeFreighterMissions.value.splice(i, 1)
+    }
+  }
+
   // Complete crop growth
   if (cropQueue.value && cropQueue.value.endsAt <= now.value) {
     const { cropId } = cropQueue.value
@@ -862,9 +1016,9 @@ const tick = () => {
     cropQueue.value = null
   }
 
-  // Complete conversion
+  // Complete conversion — auto-continue batch if remaining > 0
   if (conversionQueue.value && conversionQueue.value.endsAt <= now.value) {
-    const { buildingId, recipeIndex, planetId } = conversionQueue.value
+    const { buildingId, recipeIndex, planetId, remaining } = conversionQueue.value
     const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
     if (recipe) {
       const res = allPlanetStates.value[planetId]?.resources
@@ -872,9 +1026,28 @@ const tick = () => {
         for (const [r, amt] of Object.entries(recipe.output)) {
           res[r] = (res[r] ?? 0) + amt
         }
+        // Auto-start next run if batch has remaining items and resources allow
+        if (remaining > 0) {
+          let affordable = true
+          for (const [r, amt] of Object.entries(recipe.input)) {
+            if ((res[r] ?? 0) < amt) { affordable = false; break }
+          }
+          if (affordable) {
+            for (const [r, amt] of Object.entries(recipe.input)) { res[r] -= amt }
+            const ct = conversionTimeForPlanet(buildingId, recipeIndex, planetId)
+            conversionQueue.value = { buildingId, recipeIndex, planetId, endsAt: now.value + ct * 1000, remaining: remaining - 1 }
+          } else {
+            conversionQueue.value = null
+          }
+        } else {
+          conversionQueue.value = null
+        }
+      } else {
+        conversionQueue.value = null
       }
+    } else {
+      conversionQueue.value = null
     }
-    conversionQueue.value = null
   }
 
   // Complete building upgrades + resource production for ALL planets
@@ -1053,6 +1226,23 @@ export function useHawkStar() {
     canBuildWarship,
     buildWarship,
     warshipBuildProgressStyle,
+    // freighters
+    freighterBayLevel,
+    freighterInventory,
+    freighterBuild,
+    activeFreighterMissions,
+    freighterBuildTime,
+    freighterCargoCapacity,
+    canBuildFreighter,
+    buildFreighter,
+    canSendFreighter,
+    sendFreighter,
+    freighterFlightTimeBetween,
+    remainingFreighterSec,
+    freighterProgressStyle,
+    freighterBuildProgressStyle,
+    getPlanetName,
+    getPlanetResources,
     // grid
     unlockRequirement,
     slotsOnSlot,
@@ -1074,6 +1264,7 @@ export function useHawkStar() {
     // conversions
     conversionQueue,
     conversionTime,
+    conversionMaxBatch,
     canConvert,
     startConversion,
     remainingConversionSec,
