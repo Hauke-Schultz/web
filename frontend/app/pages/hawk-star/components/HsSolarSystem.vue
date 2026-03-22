@@ -4,7 +4,8 @@ import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, RESOURCES, UNIT_COSTS } from '.
 import { useHawkStar } from '../useHawkStar.js'
 
 const {
-  reconDroneLevel, colonyShipLevel,
+	playerName,
+	reconDroneLevel, colonyShipLevel,
   playerScannedPlanets, playerColonizedPlanets,
   reconDroneInventory, colonyShipInventory,
   activeDroneMissions,
@@ -214,15 +215,14 @@ const cargoSummary = (cargo) =>
         <!-- Name -->
         <span class="hs-solar-tile-name">
           {{ planet.name }}
-          <span v-if="planet.id === homePlanetId" class="hs-solar-home-tag">home</span>
-          <span v-else-if="planet.id === activePlanetId" class="hs-solar-active-tag">active</span>
         </span>
 
         <!-- Own / colonized -->
         <template v-if="effectivePlanetState(planet) === 'own'">
           <span class="hs-solar-tile-state" :style="{ color: STATE_COLOR.own }">
-            {{ STATE_LABEL.own }}
+            {{ playerName }}
           </span>
+	        <span v-if="planet.id === activePlanetId" class="hs-solar-active-tag">active</span>
           <span v-if="planet.slots !== null" class="hs-solar-tile-slots">{{ planet.slots }} slots</span>
           <!-- Unit counts when selected -->
           <div v-if="selectedPlanetId === planet.id" class="hs-solar-tile-units">

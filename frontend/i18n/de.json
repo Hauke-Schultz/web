@@ -26,7 +26,7 @@
     "note_text": "Viele Projekte auf dieser Seite befinden sich in aktiver Entwicklung oder sind bewusste Prototypen. Fehler und unfertige Bereiche gehören dazu – genau das ist der Sinn des Ganzen."
   },
   "party": {
-    "title": "Party — MyProject",
+    "title": "Toni & Hauke Ehe-Challenge Party",
     "description": "Alle Infos zur Party.",
     "event": {
       "title": "Toni & Hauke Ehe-Challenge Party",
@@ -37,11 +37,11 @@
       "hotelWebsite": "https://www.hotel-hafen-hamburg.de/",
       "address": "Seewartenstraße 9, 20459 Hamburg",
       "description": "Wir haben nicht nur 15 Jahre Ehe-Challenge gemeistert, sondern feiern auch einen weiteren Meilenstein!\n\nToni wurde 50, oder wie sie es ausdrückt: Sie steigt im Wert.\n\nJetzt kommt das Bonuslevel:\nParty! 🥳\n\nKommt und feiert mit uns, wenn wir zusammen weiterleveln – mit Musik, Spaß und ganz viel Konfetti! 🎊",
-      "dresscode": "Nach Belieben – Hauptsache ihr fühlt euch wohl!",
+      "dresscode": "Nach Belieben - Hauptsache ihr fühlt euch wohl!",
       "program": [
-        { "time": "16:00", "icon": "🍾", "activity": "Welcome-Drink & Anstoßen" },
+        { "time": "16:00", "icon": "🍾", "activity": "Welcome-Drink & Anstoßen (Sekt, Bier oder Cola – Hauptsache Spaß!)" },
         { "time": "17:00", "icon": "🍽️", "activity": "Feines Dinner mit guter Gesellschaft" },
-        { "time": "19:00", "icon": "🎶", "activity": "Let's dance! Die Party startet" },
+        { "time": "19:00", "icon": "🎶", "activity": "Let’s dance! Die Party startet" },
         { "time": "03:00", "icon": "😎", "activity": "Last Call – wer bis hier bleibt, ist Legende" }
       ]
     },
@@ -66,18 +66,19 @@
       },
       "hotel": {
         "title": "🏨 Hotel",
-        "text1": "Ihr möchtet vor Ort übernachten? Das Hotel Hafen Hamburg bietet Zimmer direkt am Veranstaltungsort.",
-        "text2": "Aktuelle Preise findet ihr auf der Hotel-Website."
+        "text1": "Ihr möchtet vor Ort übernachten? Das Hotel Hafen Hamburg bietet Zimmer.",
+        "text2": "Bei Fragen zur Übernachtung meldet euch gerne bei uns!"
       },
       "travel": {
         "title": "🚗 Anreise",
-        "parking": "Das Hotel verfügt über Parkplätze (ca. 25 € / Tag).",
-        "public": "Empfohlen: Anreise mit S-Bahn — Haltestelle Landungsbrücken, 5 Minuten Fußweg."
+        "parking": "Das Hotel verfügt über Parkplätze (ca. 25€ pro Tag).",
+        "public": "Wir empfehlen alternativ die Anreise mit öffentlichen Verkehrsmitteln. Das Hotel liegt nur 5 Gehminuten von der S-Bahn-Station Landungsbrücken entfernt."
       },
       "gifts": {
         "title": "🎁 Geschenke",
         "text1": "Das größte Geschenk ist eure Anwesenheit!",
-        "text2": "Wer trotzdem etwas mitbringen möchte: ein Umschlag freut uns sehr. 🫶"
+        "text2": "Wir haben alles, was wir brauchen. Wenn ihr etwas beisteuern möchtet, freuen wir uns über einen Beitrag im Umschlag.",
+        "text3": "Wir investieren kräftig in diese Party, damit wir einen unvergesslichen Abend haben! \uD83C\uDF89\uD83D\uDE01\uD83E\uDEF6"
       },
       "save": {
         "title": "📅 Termin speichern",

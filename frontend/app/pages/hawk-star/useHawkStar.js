@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, CROP_DEFS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY } from './hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY } from './hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
@@ -40,6 +40,23 @@ const allPlanetStates = ref({})
 const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
 const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
 
+const freshDock = () => ({
+  reconDroneInventory:    0,
+  reconDroneBuild:        null,
+  activeDroneMissions:    [],
+  galaxyProbeInventory:   0,
+  galaxyProbeBuild:       null,
+  activeGalaxyProbes:     [],
+  colonyShipInventory:    0,
+  colonyShipBuild:        null,
+  activeColonyMissions:   [],
+  warshipInventory:       0,
+  warshipBuild:           null,
+  freighterInventory:     0,
+  freighterBuild:         null,
+  activeFreighterMissions: [],
+})
+
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
   if (allPlanetStates.value[planetId]) return
   allPlanetStates.value[planetId] = {
@@ -48,6 +65,7 @@ const initializePlanetState = (planetId, pType, pName, isHome = false) => {
     resources:  isHome ? { ...HOME_START_RESOURCES } : { ...COLONY_START_RESOURCES },
     slots:      PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked })),
     buildings:  Object.fromEntries(Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }])),
+    dock:       freshDock(),
   }
 }
 
@@ -222,23 +240,23 @@ const spaceTechLevel = computed(() => {
   return state ? effectiveLevel(state) : 0
 })
 const reconDroneLevel = computed(() => {
-  const state = homeBuilding('recon_drone')
+  const state = playerBuildings.value['recon_drone']
   return state ? effectiveLevel(state) : 0
 })
 const galaxyProbeLevel = computed(() => {
-  const state = homeBuilding('galaxy_probe')
+  const state = playerBuildings.value['galaxy_probe']
   return state ? effectiveLevel(state) : 0
 })
 const colonyShipLevel = computed(() => {
-  const state = homeBuilding('colony_ship')
+  const state = playerBuildings.value['colony_ship']
   return state ? effectiveLevel(state) : 0
 })
 const warshipBayLevel = computed(() => {
-  const state = homeBuilding('warship_bay')
+  const state = playerBuildings.value['warship_bay']
   return state ? effectiveLevel(state) : 0
 })
 const freighterBayLevel = computed(() => {
-  const state = homeBuilding('freighter_bay')
+  const state = playerBuildings.value['freighter_bay']
   return state ? effectiveLevel(state) : 0
 })
 
@@ -327,9 +345,10 @@ const buildProgressStyle = (id) => {
 // ── Recon Drones (home system planet scouting) ────────────
 // playerScannedPlanets: planets whose info has been revealed by a drone arriving
 const playerScannedPlanets = ref([homePlanetId.value])
-const reconDroneInventory  = ref(0)
-const reconDroneBuild      = ref(null)  // { endsAt } | null
-const activeDroneMissions  = ref([])    // [{ planetId, endsAt }]
+// Per-planet dock aliases (computed from active planet's dock)
+const reconDroneInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.reconDroneInventory ?? 0)
+const reconDroneBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.reconDroneBuild ?? null)
+const activeDroneMissions = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeDroneMissions ?? [])
 
 const droneBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.recon_drone.buildTimeBase / Math.max(1, reconDroneLevel.value))
@@ -351,16 +370,18 @@ const droneFlightTimeBetween = (fromId, toId) => {
 const canBuildDrone = computed(() =>
   reconDroneLevel.value > 0 &&
   !reconDroneBuild.value &&
-  canAffordFromHome(UNIT_COSTS.recon_drone.cost)
+  canAfford(UNIT_COSTS.recon_drone.cost)
 )
 
 const buildReconDrone = () => {
   if (!canBuildDrone.value) return
-  const res = allPlanetStates.value[homePlanetId.value].resources
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  const res = allPlanetStates.value[activePlanetId.value].resources
   for (const [r, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
     res[r] -= amt
   }
-  reconDroneBuild.value = { endsAt: Date.now() + droneBuildTime.value * 1000 }
+  dock.reconDroneBuild = { endsAt: Date.now() + droneBuildTime.value * 1000 }
 }
 
 const canSendDrone = (planetId) =>
@@ -371,9 +392,11 @@ const canSendDrone = (planetId) =>
 
 const sendReconDrone = (planetId, fromPlanetId) => {
   if (!canSendDrone(planetId)) return
-  reconDroneInventory.value -= 1
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  dock.reconDroneInventory -= 1
   const ft = fromPlanetId ? droneFlightTimeBetween(fromPlanetId, planetId) : droneFlightTime(planetId)
-  activeDroneMissions.value.push({ planetId, endsAt: Date.now() + ft * 1000 })
+  dock.activeDroneMissions.push({ planetId, endsAt: Date.now() + ft * 1000 })
 }
 
 const remainingDroneSec = (planetId) => {
@@ -399,10 +422,11 @@ const droneBuildProgressStyle = computed(() => {
 // ── Galaxy Probes (remote system scouting) ─────────────────
 const PROBE_SPEED = 0.4 // map-units per second at level 1
 
-const playerProbedSystems  = ref([homeSystemId.value])
-const galaxyProbeInventory = ref(0)
-const galaxyProbeBuild     = ref(null)  // { endsAt } | null
-const activeGalaxyProbes   = ref([])    // [{ systemId, endsAt }]
+const playerProbedSystems = ref([homeSystemId.value])
+// Per-planet dock aliases
+const galaxyProbeInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.galaxyProbeInventory ?? 0)
+const galaxyProbeBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.galaxyProbeBuild ?? null)
+const activeGalaxyProbes   = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeGalaxyProbes ?? [])
 
 const probeBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.galaxy_probe.buildTimeBase / Math.max(1, galaxyProbeLevel.value))
@@ -430,16 +454,18 @@ const probeFlightTimeBetween = (fromId, toId) => {
 const canBuildProbe = computed(() =>
   galaxyProbeLevel.value > 0 &&
   !galaxyProbeBuild.value &&
-  canAffordFromHome(UNIT_COSTS.galaxy_probe.cost)
+  canAfford(UNIT_COSTS.galaxy_probe.cost)
 )
 
 const buildGalaxyProbe = () => {
   if (!canBuildProbe.value) return
-  const res = allPlanetStates.value[homePlanetId.value].resources
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  const res = allPlanetStates.value[activePlanetId.value].resources
   for (const [r, amt] of Object.entries(UNIT_COSTS.galaxy_probe.cost)) {
     res[r] -= amt
   }
-  galaxyProbeBuild.value = { endsAt: Date.now() + probeBuildTime.value * 1000 }
+  dock.galaxyProbeBuild = { endsAt: Date.now() + probeBuildTime.value * 1000 }
 }
 
 const canSendProbe = (systemId) =>
@@ -450,9 +476,11 @@ const canSendProbe = (systemId) =>
 
 const sendGalaxyProbe = (systemId, fromSystemId) => {
   if (!canSendProbe(systemId)) return
-  galaxyProbeInventory.value -= 1
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  dock.galaxyProbeInventory -= 1
   const ft = fromSystemId ? probeFlightTimeBetween(fromSystemId, systemId) : probeFlightTime(systemId)
-  activeGalaxyProbes.value.push({ systemId, endsAt: Date.now() + ft * 1000 })
+  dock.activeGalaxyProbes.push({ systemId, endsAt: Date.now() + ft * 1000 })
 }
 
 const remainingProbeSec = (systemId) => {
@@ -477,9 +505,10 @@ const probeBuildProgressStyle = computed(() => {
 
 // ── Colony Ships (home system colonization) ────────────────
 const playerColonizedPlanets = ref([homePlanetId.value])
-const colonyShipInventory    = ref(0)
-const colonyShipBuild        = ref(null)  // { endsAt } | null
-const activeColonyMissions   = ref([])    // [{ planetId, endsAt }]
+// Per-planet dock aliases
+const colonyShipInventory  = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipInventory ?? 0)
+const colonyShipBuild      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipBuild ?? null)
+const activeColonyMissions = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeColonyMissions ?? [])
 
 const colonyShipBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.colony_ship.buildTimeBase / Math.max(1, colonyShipLevel.value))
@@ -501,16 +530,18 @@ const colonyFlightTimeBetween = (fromId, toId) => {
 const canBuildColonyShip = computed(() =>
   colonyShipLevel.value > 0 &&
   !colonyShipBuild.value &&
-  canAffordFromHome(UNIT_COSTS.colony_ship.cost)
+  canAfford(UNIT_COSTS.colony_ship.cost)
 )
 
 const buildColonyShip = () => {
   if (!canBuildColonyShip.value) return
-  const res = allPlanetStates.value[homePlanetId.value].resources
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  const res = allPlanetStates.value[activePlanetId.value].resources
   for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
     res[r] -= amt
   }
-  colonyShipBuild.value = { endsAt: Date.now() + colonyShipBuildTime.value * 1000 }
+  dock.colonyShipBuild = { endsAt: Date.now() + colonyShipBuildTime.value * 1000 }
 }
 
 const canSendColonyShip = (planetId) => {
@@ -529,9 +560,11 @@ const canSendColonyShip = (planetId) => {
 
 const sendColonyShip = (planetId, fromPlanetId) => {
   if (!canSendColonyShip(planetId)) return
-  colonyShipInventory.value -= 1
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  dock.colonyShipInventory -= 1
   const ft = fromPlanetId ? colonyFlightTimeBetween(fromPlanetId, planetId) : colonyFlightTime(planetId)
-  activeColonyMissions.value.push({ planetId, endsAt: Date.now() + ft * 1000 })
+  dock.activeColonyMissions.push({ planetId, endsAt: Date.now() + ft * 1000 })
 }
 
 const remainingColonySec = (planetId) => {
@@ -555,8 +588,9 @@ const colonyShipBuildProgressStyle = computed(() => {
 })
 
 // ── Warships ───────────────────────────────────────────────
-const warshipInventory  = ref(0)
-const warshipBuild      = ref(null)  // { endsAt } | null
+// Per-planet dock aliases
+const warshipInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipInventory ?? 0)
+const warshipBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipBuild ?? null)
 
 const warshipBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.warship.buildTimeBase / Math.max(1, warshipBayLevel.value))
@@ -566,16 +600,18 @@ const canBuildWarship = computed(() =>
   warshipBayLevel.value > 0 &&
   !warshipBuild.value &&
   warshipInventory.value < warshipBayLevel.value &&
-  canAffordFromHome(UNIT_COSTS.warship.cost)
+  canAfford(UNIT_COSTS.warship.cost)
 )
 
 const buildWarship = () => {
   if (!canBuildWarship.value) return
-  const res = allPlanetStates.value[homePlanetId.value].resources
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  const res = allPlanetStates.value[activePlanetId.value].resources
   for (const [r, amt] of Object.entries(UNIT_COSTS.warship.cost)) {
     res[r] -= amt
   }
-  warshipBuild.value = { endsAt: Date.now() + warshipBuildTime.value * 1000 }
+  dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000 }
 }
 
 const warshipBuildProgressStyle = computed(() => {
@@ -586,9 +622,10 @@ const warshipBuildProgressStyle = computed(() => {
 })
 
 // ── Freighters (resource transport between colonies) ────────
-const freighterInventory       = ref(0)
-const freighterBuild           = ref(null)   // { endsAt } | null
-const activeFreighterMissions  = ref([])     // [{ id, fromPlanetId, toPlanetId, cargo, endsAt, flightTime }]
+// Per-planet dock aliases
+const freighterInventory      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighterInventory ?? 0)
+const freighterBuild          = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighterBuild ?? null)
+const activeFreighterMissions = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeFreighterMissions ?? [])
 
 const freighterBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.freighter.buildTimeBase / Math.max(1, freighterBayLevel.value))
@@ -601,16 +638,18 @@ const freighterCargoCapacity = computed(() =>
 const canBuildFreighter = computed(() =>
   freighterBayLevel.value > 0 &&
   !freighterBuild.value &&
-  canAffordFromHome(UNIT_COSTS.freighter.cost)
+  canAfford(UNIT_COSTS.freighter.cost)
 )
 
 const buildFreighter = () => {
   if (!canBuildFreighter.value) return
-  const res = allPlanetStates.value[homePlanetId.value].resources
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  const res = allPlanetStates.value[activePlanetId.value].resources
   for (const [r, amt] of Object.entries(UNIT_COSTS.freighter.cost)) {
     res[r] -= amt
   }
-  freighterBuild.value = { endsAt: Date.now() + freighterBuildTime.value * 1000 }
+  dock.freighterBuild = { endsAt: Date.now() + freighterBuildTime.value * 1000 }
 }
 
 const freighterFlightTimeBetween = (fromId, toId) => {
@@ -653,13 +692,15 @@ const canSendFreighter = (fromPlanetId, toPlanetId, cargo) => {
 
 const sendFreighter = (fromPlanetId, toPlanetId, cargo) => {
   if (!canSendFreighter(fromPlanetId, toPlanetId, cargo)) return
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
   const fromRes = allPlanetStates.value[fromPlanetId].resources
   for (const [r, amt] of Object.entries(cargo)) {
     if (amt > 0) fromRes[r] -= amt
   }
-  freighterInventory.value -= 1
+  dock.freighterInventory -= 1
   const ft = freighterFlightTimeBetween(fromPlanetId, toPlanetId)
-  activeFreighterMissions.value.push({
+  dock.activeFreighterMissions.push({
     id:           Date.now(),
     fromPlanetId,
     toPlanetId,
@@ -686,46 +727,6 @@ const freighterBuildProgressStyle = computed(() => {
   const bt      = freighterBuildTime.value
   const elapsed = Math.max(0, (Date.now() - (freighterBuild.value.endsAt - bt * 1000)) / 1000)
   return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
-})
-
-// ── Crops (Agriculture tile) ───────────────────────────────
-const cropInventory = ref(Object.fromEntries(Object.keys(CROP_DEFS).map(id => [id, 0])))
-const cropQueue     = ref(null)  // { cropId, endsAt } | null
-
-const cropGrowTime = (cropId) => {
-  const crop = CROP_DEFS[cropId]
-  if (!crop) return 0
-  const lvl = effectiveLevel(playerBuildings.value[crop.requiresBuilding] ?? { level: 0, buildEndsAt: null })
-  return Math.ceil(crop.growTimeBase / Math.max(1, lvl))
-}
-
-const canGrowCrop = (cropId) => {
-  const crop = CROP_DEFS[cropId]
-  if (!crop) return false
-  if (crop.planetType && crop.planetType !== planetType.value) return false
-  const lvl = effectiveLevel(playerBuildings.value[crop.requiresBuilding] ?? { level: 0, buildEndsAt: null })
-  return !cropQueue.value && lvl >= crop.requiresLevel && canAfford(crop.cost)
-}
-
-const startCropGrow = (cropId) => {
-  if (!canGrowCrop(cropId)) return
-  const crop = CROP_DEFS[cropId]
-  const res = allPlanetStates.value[activePlanetId.value].resources
-  for (const [r, amt] of Object.entries(crop.cost)) {
-    res[r] -= amt
-  }
-  cropQueue.value = { cropId, endsAt: Date.now() + cropGrowTime(cropId) * 1000 }
-}
-
-const remainingCropSec = computed(() =>
-  cropQueue.value ? Math.max(0, Math.ceil((cropQueue.value.endsAt - now.value) / 1000)) : 0
-)
-
-const cropQueueProgressStyle = computed(() => {
-  if (!cropQueue.value) return {}
-  const gt      = cropGrowTime(cropQueue.value.cropId)
-  const elapsed = Math.max(0, (Date.now() - (cropQueue.value.endsAt - gt * 1000)) / 1000)
-  return { animationDuration: `${gt}s`, animationDelay: `-${elapsed}s` }
 })
 
 // ── Conversion Queue (High-Tech / Cryo Refinery) ──────────
@@ -795,7 +796,7 @@ const conversionProgressStyle = computed(() => {
 
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 12
+const SAVE_VERSION = 13
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -812,28 +813,13 @@ const saveGame = () => {
         resources:  ps.resources,
         slots:      ps.slots.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
         buildings:  ps.buildings,
+        dock:       ps.dock,
       }])
     ),
-    playerScannedPlanets:  playerScannedPlanets.value,
-    reconDroneInventory:   reconDroneInventory.value,
-    reconDroneBuild:       reconDroneBuild.value,
-    activeDroneMissions:   activeDroneMissions.value,
-    playerProbedSystems:   playerProbedSystems.value,
-    galaxyProbeInventory:  galaxyProbeInventory.value,
-    galaxyProbeBuild:      galaxyProbeBuild.value,
-    activeGalaxyProbes:    activeGalaxyProbes.value,
+    playerScannedPlanets:   playerScannedPlanets.value,
+    playerProbedSystems:    playerProbedSystems.value,
     playerColonizedPlanets: playerColonizedPlanets.value,
-    colonyShipInventory:   colonyShipInventory.value,
-    colonyShipBuild:       colonyShipBuild.value,
-    activeColonyMissions:  activeColonyMissions.value,
-    warshipInventory:      warshipInventory.value,
-    warshipBuild:          warshipBuild.value,
-    freighterInventory:    freighterInventory.value,
-    freighterBuild:        freighterBuild.value,
-    activeFreighterMissions: activeFreighterMissions.value,
-    cropInventory:         cropInventory.value,
-    cropQueue:             cropQueue.value,
-    conversionQueue:       conversionQueue.value,
+    conversionQueue:        conversionQueue.value,
   }))
 }
 
@@ -856,6 +842,7 @@ const loadGame = () => {
         const freshSlots     = PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked }))
         const freshBuildings = Object.fromEntries(Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }]))
         const isHome = pid === (data.homePlanetId ?? homePlanetId.value)
+        const savedDock = ps.dock ?? {}
         allPlanetStates.value[pid] = {
           planetType: ps.planetType ?? 'terrestrial',
           planetName: ps.planetName ?? '',
@@ -867,6 +854,14 @@ const loadGame = () => {
           buildings: Object.fromEntries(
             Object.keys(BUILDINGS).map(id => [id, ps.buildings?.[id] ?? freshBuildings[id]])
           ),
+          dock: {
+            ...freshDock(),
+            ...savedDock,
+            activeDroneMissions:    Array.isArray(savedDock.activeDroneMissions)    ? savedDock.activeDroneMissions    : [],
+            activeGalaxyProbes:     Array.isArray(savedDock.activeGalaxyProbes)     ? savedDock.activeGalaxyProbes     : [],
+            activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
+            activeFreighterMissions: Array.isArray(savedDock.activeFreighterMissions) ? savedDock.activeFreighterMissions : [],
+          },
         }
       }
     }
@@ -874,28 +869,8 @@ const loadGame = () => {
       activePlanetId.value = data.activePlanetId
     }
     if (Array.isArray(data.playerScannedPlanets))   playerScannedPlanets.value   = data.playerScannedPlanets
-    if (typeof data.reconDroneInventory === 'number') reconDroneInventory.value   = data.reconDroneInventory
-    if (data.reconDroneBuild)                        reconDroneBuild.value        = data.reconDroneBuild
-    if (Array.isArray(data.activeDroneMissions))     activeDroneMissions.value    = data.activeDroneMissions
     if (Array.isArray(data.playerProbedSystems))     playerProbedSystems.value    = data.playerProbedSystems
-    if (typeof data.galaxyProbeInventory === 'number') galaxyProbeInventory.value = data.galaxyProbeInventory
-    if (data.galaxyProbeBuild)                       galaxyProbeBuild.value       = data.galaxyProbeBuild
-    if (Array.isArray(data.activeGalaxyProbes))      activeGalaxyProbes.value     = data.activeGalaxyProbes
     if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
-    if (typeof data.colonyShipInventory === 'number') colonyShipInventory.value   = data.colonyShipInventory
-    if (data.colonyShipBuild)                        colonyShipBuild.value        = data.colonyShipBuild
-    if (Array.isArray(data.activeColonyMissions))    activeColonyMissions.value   = data.activeColonyMissions
-    if (typeof data.warshipInventory === 'number') warshipInventory.value = data.warshipInventory
-    if (data.warshipBuild)                         warshipBuild.value     = data.warshipBuild
-    if (typeof data.freighterInventory === 'number') freighterInventory.value  = data.freighterInventory
-    if (data.freighterBuild)                         freighterBuild.value      = data.freighterBuild
-    if (Array.isArray(data.activeFreighterMissions)) activeFreighterMissions.value = data.activeFreighterMissions
-    if (data.cropInventory) {
-      for (const [id, count] of Object.entries(data.cropInventory)) {
-        if (id in cropInventory.value) cropInventory.value[id] = count
-      }
-    }
-    if (data.cropQueue)        cropQueue.value        = data.cropQueue
     if (data.conversionQueue)  conversionQueue.value  = data.conversionQueue
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
@@ -915,106 +890,6 @@ export const completeSetup = (name) => {
 // ── Tick ───────────────────────────────────────────────────
 const tick = () => {
   now.value = Date.now()
-
-  // Complete drone build
-  if (reconDroneBuild.value && reconDroneBuild.value.endsAt <= now.value) {
-    reconDroneInventory.value += 1
-    reconDroneBuild.value = null
-  }
-
-  // Complete drone missions → reveal planet
-  for (let i = activeDroneMissions.value.length - 1; i >= 0; i--) {
-    const m = activeDroneMissions.value[i]
-    if (m.endsAt <= now.value) {
-      if (!playerScannedPlanets.value.includes(m.planetId)) {
-        playerScannedPlanets.value.push(m.planetId)
-      }
-      activeDroneMissions.value.splice(i, 1)
-    }
-  }
-
-  // Complete galaxy probe build
-  if (galaxyProbeBuild.value && galaxyProbeBuild.value.endsAt <= now.value) {
-    galaxyProbeInventory.value += 1
-    galaxyProbeBuild.value = null
-  }
-
-  // Complete galaxy probes → reveal system
-  for (let i = activeGalaxyProbes.value.length - 1; i >= 0; i--) {
-    const probe = activeGalaxyProbes.value[i]
-    if (probe.endsAt <= now.value) {
-      if (!playerProbedSystems.value.includes(probe.systemId)) {
-        playerProbedSystems.value.push(probe.systemId)
-      }
-      activeGalaxyProbes.value.splice(i, 1)
-    }
-  }
-
-  // Complete colony ship build
-  if (colonyShipBuild.value && colonyShipBuild.value.endsAt <= now.value) {
-    colonyShipInventory.value += 1
-    colonyShipBuild.value = null
-  }
-
-  // Complete colony missions → colonize planet + initialize its state
-  for (let i = activeColonyMissions.value.length - 1; i >= 0; i--) {
-    const m = activeColonyMissions.value[i]
-    if (m.endsAt <= now.value) {
-      if (!playerColonizedPlanets.value.includes(m.planetId)) {
-        playerColonizedPlanets.value.push(m.planetId)
-        const planet = homeSystem.value?.planets.find(p => p.id === m.planetId)
-        if (planet) {
-          const pType = MOCK_TYPE_TO_PLANET_TYPE[planet.type] ?? 'terrestrial'
-          initializePlanetState(m.planetId, pType, planet.name)
-        }
-      }
-      activeColonyMissions.value.splice(i, 1)
-    }
-  }
-
-  // Complete warship build
-  if (warshipBuild.value && warshipBuild.value.endsAt <= now.value) {
-    warshipInventory.value += 1
-    warshipBuild.value = null
-  }
-
-  // Complete freighter build
-  if (freighterBuild.value && freighterBuild.value.endsAt <= now.value) {
-    freighterInventory.value += 1
-    freighterBuild.value = null
-  }
-
-  // Complete freighter missions → deliver cargo + return freighter to fleet
-  for (let i = activeFreighterMissions.value.length - 1; i >= 0; i--) {
-    const m = activeFreighterMissions.value[i]
-    if (m.endsAt <= now.value) {
-      const toRes  = allPlanetStates.value[m.toPlanetId]?.resources
-      if (toRes) {
-        const caps = maxStorageForPlanet(m.toPlanetId)
-        for (const [r, amt] of Object.entries(m.cargo)) {
-          if (amt <= 0) continue
-          const cap = caps[r]
-          toRes[r] = cap !== undefined
-            ? Math.min((toRes[r] ?? 0) + amt, cap)
-            : (toRes[r] ?? 0) + amt
-        }
-      }
-      freighterInventory.value += 1
-      activeFreighterMissions.value.splice(i, 1)
-    }
-  }
-
-  // Complete crop growth
-  if (cropQueue.value && cropQueue.value.endsAt <= now.value) {
-    const { cropId } = cropQueue.value
-    cropInventory.value[cropId] = (cropInventory.value[cropId] ?? 0) + 1
-    const popBonus = CROP_DEFS[cropId]?.popBonus ?? 0
-    if (popBonus > 0) {
-      const homeRes = allPlanetStates.value[homePlanetId.value]?.resources
-      if (homeRes) homeRes.population += popBonus
-    }
-    cropQueue.value = null
-  }
 
   // Complete conversion — auto-continue batch if remaining > 0
   if (conversionQueue.value && conversionQueue.value.endsAt <= now.value) {
@@ -1050,8 +925,85 @@ const tick = () => {
     }
   }
 
-  // Complete building upgrades + resource production for ALL planets
+  // Complete building upgrades + resource production + dock for ALL planets
   for (const [, pstate] of Object.entries(allPlanetStates.value)) {
+    // ── Dock processing ───────────────────────────────────
+    const dock = pstate.dock
+    if (dock) {
+      // Recon drone build
+      if (dock.reconDroneBuild && dock.reconDroneBuild.endsAt <= now.value) {
+        dock.reconDroneInventory += 1
+        dock.reconDroneBuild = null
+      }
+      // Recon drone missions → reveal planet
+      for (let i = dock.activeDroneMissions.length - 1; i >= 0; i--) {
+        const m = dock.activeDroneMissions[i]
+        if (m.endsAt <= now.value) {
+          if (!playerScannedPlanets.value.includes(m.planetId)) playerScannedPlanets.value.push(m.planetId)
+          dock.activeDroneMissions.splice(i, 1)
+        }
+      }
+      // Galaxy probe build
+      if (dock.galaxyProbeBuild && dock.galaxyProbeBuild.endsAt <= now.value) {
+        dock.galaxyProbeInventory += 1
+        dock.galaxyProbeBuild = null
+      }
+      // Galaxy probes → reveal system
+      for (let i = dock.activeGalaxyProbes.length - 1; i >= 0; i--) {
+        const probe = dock.activeGalaxyProbes[i]
+        if (probe.endsAt <= now.value) {
+          if (!playerProbedSystems.value.includes(probe.systemId)) playerProbedSystems.value.push(probe.systemId)
+          dock.activeGalaxyProbes.splice(i, 1)
+        }
+      }
+      // Colony ship build
+      if (dock.colonyShipBuild && dock.colonyShipBuild.endsAt <= now.value) {
+        dock.colonyShipInventory += 1
+        dock.colonyShipBuild = null
+      }
+      // Colony missions → colonize planet
+      for (let i = dock.activeColonyMissions.length - 1; i >= 0; i--) {
+        const m = dock.activeColonyMissions[i]
+        if (m.endsAt <= now.value) {
+          if (!playerColonizedPlanets.value.includes(m.planetId)) {
+            playerColonizedPlanets.value.push(m.planetId)
+            const planet = homeSystem.value?.planets.find(p => p.id === m.planetId)
+            if (planet) {
+              const pType = MOCK_TYPE_TO_PLANET_TYPE[planet.type] ?? 'terrestrial'
+              initializePlanetState(m.planetId, pType, planet.name)
+            }
+          }
+          dock.activeColonyMissions.splice(i, 1)
+        }
+      }
+      // Warship build
+      if (dock.warshipBuild && dock.warshipBuild.endsAt <= now.value) {
+        dock.warshipInventory += 1
+        dock.warshipBuild = null
+      }
+      // Freighter build
+      if (dock.freighterBuild && dock.freighterBuild.endsAt <= now.value) {
+        dock.freighterInventory += 1
+        dock.freighterBuild = null
+      }
+      // Freighter missions → deliver cargo
+      for (let i = dock.activeFreighterMissions.length - 1; i >= 0; i--) {
+        const m = dock.activeFreighterMissions[i]
+        if (m.endsAt <= now.value) {
+          const toRes = allPlanetStates.value[m.toPlanetId]?.resources
+          if (toRes) {
+            const caps = maxStorageForPlanet(m.toPlanetId)
+            for (const [r, amt] of Object.entries(m.cargo)) {
+              if (amt <= 0) continue
+              const cap = caps[r]
+              toRes[r] = cap !== undefined ? Math.min((toRes[r] ?? 0) + amt, cap) : (toRes[r] ?? 0) + amt
+            }
+          }
+          dock.freighterInventory += 1
+          dock.activeFreighterMissions.splice(i, 1)
+        }
+      }
+    }
     const pb = pstate.buildings
     const pr = pstate.resources
 
@@ -1252,15 +1204,6 @@ export function useHawkStar() {
     buildProgressStyle,
     // unit costs (for UI display)
     UNIT_COSTS,
-    // crops
-    cropInventory,
-    cropQueue,
-    cropGrowTime,
-    canGrowCrop,
-    startCropGrow,
-    remainingCropSec,
-    cropQueueProgressStyle,
-    CROP_DEFS,
     // conversions
     conversionQueue,
     conversionTime,

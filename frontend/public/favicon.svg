@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512"><svg width="512" height="512" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" version="1.1">
+ <defs>
+  <!-- Neon glow filter -->
+  <filter height="200%" id="SvgjsFilter1003" width="200%" x="-50%" y="-50%">
+   <feGaussianBlur result="coloredBlur" stdDeviation="2"></feGaussianBlur>
+   <feMerge>
+    <feMergeNode in="coloredBlur"></feMergeNode>
+    <feMergeNode in="SourceGraphic"></feMergeNode>
+   </feMerge>
+  </filter>
+ </defs>
+ <g class="layer" display="inline">
+  <title>Pacman Neon</title>
+  <path d="m482.37,89.4c-46.96,-54.72 -116.61,-89.4 -194.37,-89.4c-141.38,0 -256,114.61 -256,256s114.62,256 256,256c77.76,0 147.41,-34.68 194.36,-89.4c-54.12,-55.53 -132.24,-110.07 -186.36,-165.6l186.37,-167.6zm-160.37,-29.1c16.72,1 35.7,15.98 35.7,35.7s-15.98,35.7 -35.7,35.7s-35.7,-15.98 -35.7,-35.7c0,-19.72 18.98,-36.7 35.7,-35.7z" fill="#4f46e5" filter="url(#neonGlow)" id="SvgjsPath1002" transform="matrix(1 0 0 1 0 0)"></path>
+ </g>
+</svg><style>@media (prefers-color-scheme: light) { :root { filter: none; } }
+@media (prefers-color-scheme: dark) { :root { filter: none; } }
+</style></svg>

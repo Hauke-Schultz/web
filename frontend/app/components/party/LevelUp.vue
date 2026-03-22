@@ -235,10 +235,10 @@ const saveNameOnBlur = () => {
     <!-- Vorderseite: Spiel -->
     <div v-show="!isFlipped" class="flex flex-col gap-4 p-6 text-white w-full h-full">
       <div class="text-center">
-        <div class="text-[clamp(1.875rem,6vw,4rem)] font-bold leading-none [text-shadow:0_2px_8px_rgba(0,0,0,0.4)]">
+        <div class="text-[3rem] font-bold leading-none mt-2 [text-shadow:0_2px_8px_rgba(0,0,0,0.4)]">
           Level {{ currentLevel }}
         </div>
-        <div class="text-base font-medium opacity-90 min-h-[1.5em] mt-[6px] [text-shadow:0_1px_4px_rgba(0,0,0,0.3)]">
+        <div class="text-[1.5rem] font-medium opacity-90 min-h-[1.5em] mt-6 mb-8 [text-shadow:0_1px_4px_rgba(0,0,0,0.3)]">
           {{ getLevelTitle(currentLevel) }}
         </div>
       </div>

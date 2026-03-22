@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ hideNav: true })
+definePageMeta({ hideHeader: true })
 
 const { t, tm, rt } = useI18n()
 
@@ -85,7 +85,7 @@ useHead({ title: () => t('party.event.title') })
   <div class="party-page relative min-h-dvh">
 
     <!-- Hero -->
-    <section class="py-16 px-6 text-center text-white bg-gradient-to-br from-primary to-success">
+    <section class="py-8 px-6 text-center text-white bg-gradient-to-br from-primary to-success">
       <h1 class="text-[clamp(1.5rem,4vw,2.25rem)] text-white mb-3">{{ event.title }}</h1>
     </section>
 
@@ -174,7 +174,7 @@ useHead({ title: () => t('party.event.title') })
       <!-- Dresscode -->
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.dresscode.title') }}</h2>
-        <p class="card__text">{{ event.dresscode }}</p>
+        <p class="card__text text-[1.25rem] text-accent">{{ event.dresscode }}</p>
       </section>
 
       <!-- Hotel -->
@@ -192,35 +192,11 @@ useHead({ title: () => t('party.event.title') })
       </section>
 
       <!-- Geschenke -->
-      <section class="card">
+      <section class="card card--wide">
         <h2 class="card__title">{{ t('party.cards.gifts.title') }}</h2>
         <p class="card__text">{{ t('party.cards.gifts.text1') }}</p>
         <p class="card__text">{{ t('party.cards.gifts.text2') }}</p>
-      </section>
-
-      <!-- Kalender -->
-      <section class="card">
-        <h2 class="card__title">{{ t('party.cards.save.title') }}</h2>
-        <p class="card__text">{{ t('party.cards.save.lead') }}</p>
-        <div class="flex flex-wrap gap-2 mt-3">
-          <button
-            class="px-5 py-2 border-0 rounded-lg font-semibold cursor-pointer text-white transition-all hover:brightness-110 hover:-translate-y-px bg-[#4285f4]"
-            @click="addGoogle"
-          >{{ t('party.cards.save.google') }}</button>
-          <button
-            class="px-5 py-2 border-0 rounded-lg font-semibold cursor-pointer text-white transition-all hover:brightness-110 hover:-translate-y-px bg-[#0078d4]"
-            @click="addOutlook"
-          >{{ t('party.cards.save.outlook') }}</button>
-          <button
-            class="px-5 py-2 border-0 rounded-lg font-semibold cursor-pointer text-white transition-all hover:brightness-110 hover:-translate-y-px bg-[#555]"
-            @click="downloadIcs"
-          >{{ t('party.cards.save.apple') }}</button>
-        </div>
-      </section>
-
-      <!-- RSVP -->
-      <section class="card card--wide card--flush">
-        <PartyRsvp />
+        <p class="card__text">{{ t('party.cards.gifts.text3') }}</p>
       </section>
 
       <!-- Bilder Slider -->
@@ -237,7 +213,15 @@ useHead({ title: () => t('party.event.title') })
 </template>
 
 <style lang="scss" scoped>
-	.container {
-		max-width: 1200px;
+.container {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	width: 100%;
+	max-width: 72rem;
+
+	@media (min-width: 640px) {
+		flex-direction: row;
 	}
+}
 </style>
