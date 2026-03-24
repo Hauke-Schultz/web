@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { RESOURCES, BUILDINGS, UNIT_COSTS } from '../hawkStarConfig.js'
+import { RESOURCES, BUILDINGS, UNIT_COSTS, WARSHIP_CLASSES } from '../hawkStarConfig.js'
 import { useHawkStar } from '../useHawkStar.js'
 
 const {
@@ -58,6 +58,7 @@ const {
   colonyShipBuildProgressStyle,
   // warships
   warshipBayLevel,
+  warships,
   warshipInventory,
   warshipBuild,
   warshipBuildTime,
@@ -368,6 +369,41 @@ const getPlanetLabel = (planetId) => {
         <div class="hs-dock-action">
           <span v-if="warshipBuild" class="hs-status-building">Building…</span>
           <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
+        </div>
+      </div>
+
+      <!-- Warship Fleet -->
+      <div v-if="warships.length > 0" class="hs-warship-fleet">
+        <div class="hs-warship-fleet-title">⚔️ Fleet ({{ warships.length }})</div>
+        <div
+          v-for="ship in warships"
+          :key="ship.id"
+          class="hs-warship-card"
+        >
+          <div class="hs-warship-card-header">
+            <span class="hs-warship-card-icon">{{ ship.icon }}</span>
+            <span class="hs-warship-card-name">{{ ship.name }}</span>
+            <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+          </div>
+          <div class="hs-warship-card-stats">
+            <span class="hs-warship-stat hs-warship-stat--hull" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
+            <span class="hs-warship-stat hs-warship-stat--shield" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
+            <span class="hs-warship-stat hs-warship-stat--speed" title="Speed">⚡ {{ ship.speed }}</span>
+          </div>
+          <div class="hs-warship-weapons">
+            <span class="hs-warship-weapons-label">Weapons</span>
+            <div class="hs-warship-weapon-slots">
+              <div
+                v-for="(weapon, idx) in ship.weapons"
+                :key="idx"
+                class="hs-warship-weapon-slot"
+                :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
+              >
+                <span v-if="weapon">{{ weapon.icon }} {{ weapon.name }}</span>
+                <span v-else class="hs-warship-weapon-slot-empty-label">— empty —</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -840,6 +876,110 @@ const getPlanetLabel = (planetId) => {
 .hs-progress-fill--colony   { background: #60a5fa; }
 .hs-progress-fill--warship  { background: #f87171; }
 .hs-progress-fill--freighter { background: #34d399; }
+
+// ── Warship fleet ─────────────────────────────────────────────────────────────
+.hs-warship-fleet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.hs-warship-fleet-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(248,113,113,0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hs-warship-card {
+  background: rgba(248,113,113,0.05);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 6px;
+  padding: 0.45rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hs-warship-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.hs-warship-card-icon { font-size: 0.9rem; line-height: 1; }
+
+.hs-warship-card-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+}
+
+.hs-warship-card-class {
+  flex: 1;
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.3);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hs-warship-card-stats {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hs-warship-stat {
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+}
+
+.hs-warship-weapons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.hs-warship-weapons-label {
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hs-warship-weapon-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.hs-warship-weapon-slot {
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 0.55rem;
+  font-weight: 600;
+
+  &--empty {
+    border: 1px dashed rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.02);
+  }
+
+  &--equipped {
+    border: 1px solid rgba(248,113,113,0.35);
+    background: rgba(248,113,113,0.08);
+    color: rgba(248,113,113,0.9);
+  }
+}
+
+.hs-warship-weapon-slot-empty-label {
+  color: rgba(255,255,255,0.18);
+  font-style: italic;
+}
 
 // ── Active missions ────────────────────────────────────────────────────────────
 .hs-dock-missions-title {

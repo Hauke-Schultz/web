@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY } from './hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES } from './hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
@@ -50,7 +50,7 @@ const freshDock = () => ({
   colonyShipInventory:    0,
   colonyShipBuild:        null,
   activeColonyMissions:   [],
-  warshipInventory:       0,
+  warships:               [],   // array of warship objects { id, classId, hull, hullMax, shield, shieldMax, weapons[] }
   warshipBuild:           null,
   freighterInventory:     0,
   freighterBuild:         null,
@@ -172,7 +172,7 @@ const totalStaffDrain = computed(() => {
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
 
 // ── Storage caps ───────────────────────────────────────────
-const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
+const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 50, cryo: 50, obsidian: 50, biomass: 50, pure_crystal: 50, super_alloy: 50, quantum_shard: 50, nano_alloy: 50, composite: 50, hardened_steel: 50, lava_gem: 50, bio_polymer: 50, coral_steel: 50 }
 
 const maxStorage = computed(() => {
   const caps = { ...BASE_STORAGE }
@@ -240,23 +240,23 @@ const spaceTechLevel = computed(() => {
   return state ? effectiveLevel(state) : 0
 })
 const reconDroneLevel = computed(() => {
-  const state = playerBuildings.value['recon_drone']
+  const state = homeBuilding('recon_drone')
   return state ? effectiveLevel(state) : 0
 })
 const galaxyProbeLevel = computed(() => {
-  const state = playerBuildings.value['galaxy_probe']
+  const state = homeBuilding('galaxy_probe')
   return state ? effectiveLevel(state) : 0
 })
 const colonyShipLevel = computed(() => {
-  const state = playerBuildings.value['colony_ship']
+  const state = homeBuilding('colony_ship')
   return state ? effectiveLevel(state) : 0
 })
 const warshipBayLevel = computed(() => {
-  const state = playerBuildings.value['warship_bay']
+  const state = homeBuilding('warship_bay')
   return state ? effectiveLevel(state) : 0
 })
 const freighterBayLevel = computed(() => {
-  const state = playerBuildings.value['freighter_bay']
+  const state = homeBuilding('freighter_bay')
   return state ? effectiveLevel(state) : 0
 })
 
@@ -589,7 +589,8 @@ const colonyShipBuildProgressStyle = computed(() => {
 
 // ── Warships ───────────────────────────────────────────────
 // Per-planet dock aliases
-const warshipInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipInventory ?? 0)
+const warships         = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warships ?? [])
+const warshipInventory = computed(() => warships.value.length)
 const warshipBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipBuild ?? null)
 
 const warshipBuildTime = computed(() =>
@@ -611,7 +612,8 @@ const buildWarship = () => {
   for (const [r, amt] of Object.entries(UNIT_COSTS.warship.cost)) {
     res[r] -= amt
   }
-  dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000 }
+  const cls = WARSHIP_CLASSES.frigate
+  dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000, classId: cls.id }
 }
 
 const warshipBuildProgressStyle = computed(() => {
@@ -677,12 +679,15 @@ const maxStorageForPlanet = (planetId) => {
 const getPlanetName      = (planetId) => allPlanetStates.value[planetId]?.planetName ?? '?'
 const getPlanetResources = (planetId) => allPlanetStates.value[planetId]?.resources ?? {}
 
+const planetHasDock = (planetId) =>
+  (allPlanetStates.value[planetId]?.slots ?? []).some(s => s.tileType === 'spacebase' && s.unlocked)
+
 const canSendFreighter = (fromPlanetId, toPlanetId, cargo) => {
   if (freighterInventory.value <= 0) return false
   if (!fromPlanetId || !toPlanetId || fromPlanetId === toPlanetId) return false
   if (!allPlanetStates.value[fromPlanetId] || !allPlanetStates.value[toPlanetId]) return false
   const total = Object.values(cargo).reduce((a, b) => a + b, 0)
-  if (total <= 0 || total > freighterCargoCapacity.value) return false
+  if (total > freighterCargoCapacity.value) return false
   const fromRes = allPlanetStates.value[fromPlanetId].resources
   for (const [r, amt] of Object.entries(cargo)) {
     if (amt > 0 && (fromRes[r] ?? 0) < amt) return false
@@ -978,7 +983,20 @@ const tick = () => {
       }
       // Warship build
       if (dock.warshipBuild && dock.warshipBuild.endsAt <= now.value) {
-        dock.warshipInventory += 1
+        if (!dock.warships) dock.warships = []
+        const cls = WARSHIP_CLASSES[dock.warshipBuild.classId] ?? WARSHIP_CLASSES.frigate
+        dock.warships.push({
+          id:        `ws_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          classId:   cls.id,
+          name:      cls.name,
+          icon:      cls.icon,
+          hull:      cls.hull,
+          hullMax:   cls.hull,
+          shield:    cls.shield,
+          shieldMax: cls.shield,
+          speed:     cls.speed,
+          weapons:   Array(cls.weaponSlots).fill(null),
+        })
         dock.warshipBuild = null
       }
       // Freighter build
@@ -990,16 +1008,18 @@ const tick = () => {
       for (let i = dock.activeFreighterMissions.length - 1; i >= 0; i--) {
         const m = dock.activeFreighterMissions[i]
         if (m.endsAt <= now.value) {
-          const toRes = allPlanetStates.value[m.toPlanetId]?.resources
-          if (toRes) {
+          const toPlanetState = allPlanetStates.value[m.toPlanetId]
+          if (toPlanetState) {
             const caps = maxStorageForPlanet(m.toPlanetId)
             for (const [r, amt] of Object.entries(m.cargo)) {
               if (amt <= 0) continue
               const cap = caps[r]
-              toRes[r] = cap !== undefined ? Math.min((toRes[r] ?? 0) + amt, cap) : (toRes[r] ?? 0) + amt
+              toPlanetState.resources[r] = cap !== undefined
+                ? Math.min((toPlanetState.resources[r] ?? 0) + amt, cap)
+                : (toPlanetState.resources[r] ?? 0) + amt
             }
+            toPlanetState.dock.freighterInventory += 1
           }
-          dock.freighterInventory += 1
           dock.activeFreighterMissions.splice(i, 1)
         }
       }
@@ -1172,6 +1192,7 @@ export function useHawkStar() {
     colonyShipBuildProgressStyle,
     colonyFlightTimeBetween,
     // warships
+    warships,
     warshipInventory,
     warshipBuild,
     warshipBuildTime,
@@ -1195,6 +1216,7 @@ export function useHawkStar() {
     freighterBuildProgressStyle,
     getPlanetName,
     getPlanetResources,
+    planetHasDock,
     // grid
     unlockRequirement,
     slotsOnSlot,

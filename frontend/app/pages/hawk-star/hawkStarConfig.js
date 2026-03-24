@@ -29,6 +29,21 @@ export const UNIT_COSTS = {
 // Cargo capacity per freighter bay level (in resource units)
 export const FREIGHTER_CARGO_CAPACITY = [0, 200, 500, 1000]
 
+// ── Warship classes ───────────────────────────────────────────────────────────
+// Each warship built gets a snapshot of its class stats + empty weapon slots.
+export const WARSHIP_CLASSES = {
+  frigate: {
+    id:          'frigate',
+    name:        'Hawk Frigate',
+    icon:        '🛡️',
+    hull:        150,
+    shield:      30,
+    speed:       8,
+    weaponSlots: 2,
+    description: 'Light combat vessel. Fast and agile with 2 weapon slots.',
+  },
+}
+
 // ── Planet types ──────────────────────────────────────────────────────────────
 // Maps from mock planet.type (rock/gas/lava/ice/ocean) to game type.
 // Each type unlocks or restricts certain buildings.
@@ -1097,7 +1112,7 @@ export const BUILDINGS = {
     levels: [
       {
         level:       1,
-        cost:        { metal: 800, crystal: 400, super_alloy: 20, pure_crystal: 10 },
+        cost:        { metal: 800, crystal: 400 },
         buildTime:   60,
         effect:      'Enables warship construction · 1 warship slot · uses 12 energy · 5 workers',
         production:  {},
