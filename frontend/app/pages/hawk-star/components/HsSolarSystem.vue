@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, RESOURCES } from '../hawkStarConfig.js'
 import { useHawkStar } from '../useHawkStar.js'
 
@@ -133,6 +133,9 @@ const ownedPlanets = computed(() =>
 )
 
 const freighterDest = ref(null)
+
+// ── Dock panel tab ────────────────────────────────────────────────────────────
+const dockTab = ref(null)
 
 const doSendFreighter = () => {
   if (!freighterDest.value) return
@@ -281,76 +284,114 @@ const doSendFreighter = () => {
       v-if="reconDroneLevel > 0 || galaxyProbeLevel > 0 || colonyShipLevel > 0 || warshipBayLevel > 0 || freighterInventory > 0"
       class="hs-dock-panel"
     >
-      <span class="hs-dock-panel-title">🛠 Dock</span>
-      <div class="hs-dock-unit-list">
-        <div v-if="reconDroneLevel > 0" class="hs-dock-unit-row">
-          <span class="hs-dock-unit-icon">🛸</span>
-          <span class="hs-dock-unit-name">Recon Drone</span>
-          <span class="hs-dock-unit-count">{{ reconDroneInventory }}</span>
-        </div>
-        <div v-if="galaxyProbeLevel > 0" class="hs-dock-unit-row">
-          <span class="hs-dock-unit-icon">🔭</span>
-          <span class="hs-dock-unit-name">Galaxy Probe</span>
-          <span class="hs-dock-unit-count">{{ galaxyProbeInventory }}</span>
-        </div>
-        <div v-if="colonyShipLevel > 0" class="hs-dock-unit-row">
-          <span class="hs-dock-unit-icon">🚀</span>
-          <span class="hs-dock-unit-name">Colony Ship</span>
-          <span class="hs-dock-unit-count">{{ colonyShipInventory }}</span>
-        </div>
-        <div v-if="warshipBayLevel > 0" class="hs-dock-unit-row">
-          <span class="hs-dock-unit-icon">⚔️</span>
-          <span class="hs-dock-unit-name">Warship</span>
-          <span class="hs-dock-unit-count">{{ warshipInventory }}</span>
-        </div>
-        <div v-if="freighterInventory > 0" class="hs-dock-unit-row">
-          <span class="hs-dock-unit-icon">🚢</span>
-          <span class="hs-dock-unit-name">Freighter</span>
-          <span class="hs-dock-unit-count">{{ freighterInventory }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Freighter Cargo Panel ─────────────────────────────────────────── -->
-    <div v-if="freighterInventory > 0" class="hs-freighter-cargo-panel">
-      <div class="hs-freighter-cargo-header">
-        <span class="hs-freighter-cargo-title">🚢 Frachter beladen</span>
-        <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
-      </div>
-      <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">Keine Ressourcen verfügbar</div>
-      <div class="hs-freighter-cargo-grid">
-        <div v-for="res in loadableResources" :key="res.id" class="hs-freighter-cargo-tile" :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[res.id] ?? 0) > 0 }">
-          <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
-          <div class="hs-freighter-cargo-tile__info">
-            <span class="hs-freighter-cargo-tile__name">{{ res.name }}</span>
-            <span class="hs-freighter-cargo-tile__avail">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
-          </div>
-          <div class="hs-stepper hs-stepper--cargo">
-            <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) <= 0" @click.stop="stepCargo(res.id, -1)">−</button>
-            <span class="hs-stepper__val">{{ freighterCargo[res.id] ?? 0 }}</span>
-            <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) >= cargoMax(res.id) || freighterCargoTotal >= freighterCargoCapacity" @click.stop="stepCargo(res.id, 1)">+</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Destination + send -->
-      <div class="hs-freighter-dest-row">
+      <!-- Left: navigation -->
+      <nav class="hs-dock-nav">
         <button
-          v-for="p in ownedPlanets.filter(op => op.id !== activePlanetId && planetHasDock(op.id))"
-          :key="p.id"
-          class="hs-freighter-dest-btn"
-          :class="{ 'hs-freighter-dest-btn--active': freighterDest === p.id }"
-          @click="freighterDest = freighterDest === p.id ? null : p.id"
-        >{{ p.name }}</button>
+          v-if="reconDroneLevel > 0 || galaxyProbeLevel > 0 || colonyShipLevel > 0"
+          class="hs-dock-nav-item"
+          :class="{ 'hs-dock-nav-item--active': dockTab === 'probes' }"
+          @click="dockTab = dockTab === 'probes' ? null : 'probes'"
+        >
+          <span class="hs-dock-nav-icon">🛸</span>
+          <span class="hs-dock-nav-label">Sonden</span>
+          <span class="hs-dock-nav-count">{{ reconDroneInventory + galaxyProbeInventory + colonyShipInventory }}</span>
+        </button>
+        <button
+          v-if="freighterInventory > 0"
+          class="hs-dock-nav-item"
+          :class="{ 'hs-dock-nav-item--active': dockTab === 'freighter' }"
+          @click="dockTab = dockTab === 'freighter' ? null : 'freighter'"
+        >
+          <span class="hs-dock-nav-icon">🚢</span>
+          <span class="hs-dock-nav-label">Frachter</span>
+          <span class="hs-dock-nav-count">{{ freighterInventory }}</span>
+        </button>
+        <button
+          v-if="warshipBayLevel > 0"
+          class="hs-dock-nav-item"
+          :class="{ 'hs-dock-nav-item--active': dockTab === 'warship' }"
+          @click="dockTab = dockTab === 'warship' ? null : 'warship'"
+        >
+          <span class="hs-dock-nav-icon">⚔️</span>
+          <span class="hs-dock-nav-label">Krieg</span>
+          <span class="hs-dock-nav-count">{{ warshipInventory }}</span>
+        </button>
+      </nav>
+
+      <!-- Right: detail -->
+      <div v-if="dockTab" class="hs-dock-detail">
+
+        <!-- Sonden & Schiffe -->
+        <template v-if="dockTab === 'probes'">
+          <span class="hs-dock-detail-title">Sonden & Schiffe</span>
+          <div class="hs-dock-unit-list">
+            <div v-if="reconDroneLevel > 0" class="hs-dock-unit-row">
+              <span class="hs-dock-unit-icon">🛸</span>
+              <span class="hs-dock-unit-name">Recon Drone</span>
+              <span class="hs-dock-unit-count">{{ reconDroneInventory }}</span>
+            </div>
+            <div v-if="galaxyProbeLevel > 0" class="hs-dock-unit-row">
+              <span class="hs-dock-unit-icon">🔭</span>
+              <span class="hs-dock-unit-name">Galaxy Probe</span>
+              <span class="hs-dock-unit-count">{{ galaxyProbeInventory }}</span>
+            </div>
+            <div v-if="colonyShipLevel > 0" class="hs-dock-unit-row">
+              <span class="hs-dock-unit-icon">🚀</span>
+              <span class="hs-dock-unit-name">Colony Ship</span>
+              <span class="hs-dock-unit-count">{{ colonyShipInventory }}</span>
+            </div>
+          </div>
+        </template>
+
+        <!-- Frachter Cargo Panel -->
+        <template v-else-if="dockTab === 'freighter'">
+          <div class="hs-freighter-cargo-header">
+            <span class="hs-freighter-cargo-title">🚢 Frachter beladen</span>
+            <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
+          </div>
+          <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">Keine Ressourcen verfügbar</div>
+          <div class="hs-freighter-cargo-grid">
+            <div v-for="res in loadableResources" :key="res.id" class="hs-freighter-cargo-tile" :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[res.id] ?? 0) > 0 }">
+              <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
+              <div class="hs-freighter-cargo-tile__info">
+                <span class="hs-freighter-cargo-tile__name">{{ res.name }}</span>
+                <span class="hs-freighter-cargo-tile__avail">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
+              </div>
+              <div class="hs-stepper hs-stepper--cargo">
+                <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) <= 0" @click.stop="stepCargo(res.id, -1)">−</button>
+                <span class="hs-stepper__val">{{ freighterCargo[res.id] ?? 0 }}</span>
+                <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) >= cargoMax(res.id) || freighterCargoTotal >= freighterCargoCapacity" @click.stop="stepCargo(res.id, 1)">+</button>
+              </div>
+            </div>
+          </div>
+          <div class="hs-freighter-dest-row">
+            <button
+              v-for="p in ownedPlanets.filter(op => op.id !== activePlanetId && planetHasDock(op.id))"
+              :key="p.id"
+              class="hs-freighter-dest-btn"
+              :class="{ 'hs-freighter-dest-btn--active': freighterDest === p.id }"
+              @click="freighterDest = freighterDest === p.id ? null : p.id"
+            >{{ p.name }}</button>
+          </div>
+          <button v-if="freighterDest" class="hs-freighter-send-btn" @click="doSendFreighter">
+            🚀 Absenden → {{ ownedPlanets.find(p => p.id === freighterDest)?.name }}
+            ({{ formatTime(freighterFlightTimeBetween(activePlanetId, freighterDest)) }})
+          </button>
+        </template>
+
+        <!-- Warship Fleet -->
+        <template v-else-if="dockTab === 'warship'">
+          <span class="hs-dock-detail-title">Kriegsflotte</span>
+          <div class="hs-dock-unit-list">
+            <div class="hs-dock-unit-row">
+              <span class="hs-dock-unit-icon">⚔️</span>
+              <span class="hs-dock-unit-name">Hawk Frigate</span>
+              <span class="hs-dock-unit-count">{{ warshipInventory }}</span>
+            </div>
+          </div>
+        </template>
+
       </div>
-      <button
-        v-if="freighterDest"
-        class="hs-freighter-send-btn"
-        @click="doSendFreighter"
-      >
-        🚀 Absenden → {{ ownedPlanets.find(p => p.id === freighterDest)?.name }}
-        ({{ formatTime(freighterFlightTimeBetween(activePlanetId, freighterDest)) }})
-      </button>
     </div>
 
   </div>
@@ -613,18 +654,68 @@ const doSendFreighter = () => {
 // ── Dock panel ────────────────────────────────────────────────────────────────
 .hs-dock-panel {
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  flex-direction: row;
   background: var(--hs-glass-sm);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--hs-r-md);
-  padding: 0.5rem 0.625rem;
+  overflow: hidden;
+  min-height: 4rem;
 }
 
-.hs-dock-panel-title {
-  font-size: 0.6rem;
+.hs-dock-nav {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+
+.hs-dock-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.55rem 0.6rem;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.4);
+  transition: background 0.15s, color 0.15s;
+  min-width: 3.75rem;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); }
+  &--active { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+}
+
+.hs-dock-nav-icon { font-size: 0.95rem; line-height: 1; }
+
+.hs-dock-nav-label {
+  font-size: 0.48rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hs-dock-nav-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-dock-detail {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hs-dock-detail-title {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.4);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -656,16 +747,7 @@ const doSendFreighter = () => {
   color: rgba(255,255,255,0.8);
 }
 
-// ── Freighter cargo panel ─────────────────────────────────────────────────────
-.hs-freighter-cargo-panel {
-  background: var(--hs-glass-sm);
-  border: 1px solid rgba(52,211,153,0.2);
-  border-radius: var(--hs-r-md);
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
+// ── Freighter cargo (now inside dock detail) ───────────────────────────────────
 
 .hs-freighter-cargo-header {
   display: flex;

@@ -7,7 +7,8 @@
       "Bash(npm run:*)",
       "Bash(cd \"C:/Users/hauke/WebstormProjects/web/frontend\" && npm install matter-js 2>&1 | tail -5)",
       "Bash(node:*)",
-      "Bash(1:*)"
+      "Bash(1:*)",
+      "Bash(find C:UsershaukeWebstormProjectsweb -iname *dock* -o -iname *freighter* -o -iname *warship*)"
     ]
   }
 }

@@ -22,7 +22,7 @@ export const UNIT_COSTS = {
   recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 30  },
   galaxy_probe: { cost: { metal: 100, crystal: 50  }, buildTimeBase: 40  },
   colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 60  },
-  warship:      { cost: { metal: 600, crystal: 300, super_alloy: 12, pure_crystal: 8 }, buildTimeBase: 120 },
+  warship:      { cost: { metal: 600, crystal: 300 }, buildTimeBase: 120 },
   freighter:    { cost: { metal: 400, crystal: 200 }, buildTimeBase: 90  },
 }
 
@@ -1121,7 +1121,7 @@ export const BUILDINGS = {
       },
       {
         level:       2,
-        cost:        { metal: 1800, crystal: 900, super_alloy: 50, pure_crystal: 25 },
+        cost:        { metal: 1800, crystal: 900, nano_alloy: 50, pure_crystal: 25 },
         buildTime:   80,
         effect:      '2× build speed · 2 warship slots · firepower +50% · uses 20 energy · 8 workers',
         production:  {},
@@ -1130,7 +1130,7 @@ export const BUILDINGS = {
       },
       {
         level:       3,
-        cost:        { metal: 4000, crystal: 2000, super_alloy: 120, pure_crystal: 60 },
+        cost:        { metal: 4000, crystal: 2000, nano_alloy: 120, pure_crystal: 60 },
         buildTime:   100,
         effect:      '4× build speed · 3 warship slots · firepower +120% · uses 35 energy · 14 workers',
         production:  {},

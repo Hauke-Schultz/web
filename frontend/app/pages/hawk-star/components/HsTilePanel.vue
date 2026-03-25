@@ -702,12 +702,6 @@ const getPlanetLabel = (planetId) => {
   height: 100%;
   background: var(--hs-warn);
   border-radius: 9999px;
-  animation: hs-build-fill linear forwards;
-}
-
-@keyframes hs-build-fill {
-  from { width: 0 }
-  to   { width: 100% }
 }
 
 .hs-progress-time {
