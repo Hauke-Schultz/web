@@ -333,11 +333,8 @@ const buildProgressStyle = (id) => {
   const state = playerBuildings.value[id]
   if (!state?.buildEndsAt) return {}
   const buildTime = BUILDINGS[id]?.levels[getLevel(id)]?.buildTime ?? 1
-  const elapsed = Math.max(0, (Date.now() - (state.buildEndsAt - buildTime * 1000)) / 1000)
-  return {
-    animationDuration: `${buildTime}s`,
-    animationDelay: `-${elapsed}s`,
-  }
+  const pct = Math.min(100, Math.max(0, (1 - (state.buildEndsAt - now.value) / (buildTime * 1000)) * 100))
+  return { width: `${pct}%` }
 }
 
 // (homeSystem computed is declared near the top of the singleton state)
@@ -408,15 +405,13 @@ const droneProgressStyle = (planetId) => {
   const m = activeDroneMissions.value.find(m => m.planetId === planetId)
   if (!m) return {}
   const ft = droneFlightTime(planetId)
-  const elapsed = Math.max(0, (Date.now() - (m.endsAt - ft * 1000)) / 1000)
-  return { animationDuration: `${ft}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${ft}s` }
 }
 
 const droneBuildProgressStyle = computed(() => {
   if (!reconDroneBuild.value) return {}
   const bt = droneBuildTime.value
-  const elapsed = Math.max(0, (Date.now() - (reconDroneBuild.value.endsAt - bt * 1000)) / 1000)
-  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${bt}s` }
 })
 
 // ── Galaxy Probes (remote system scouting) ─────────────────
@@ -492,15 +487,13 @@ const probeProgressStyle = (systemId) => {
   const probe = activeGalaxyProbes.value.find(p => p.systemId === systemId)
   if (!probe) return {}
   const ft      = probeFlightTime(systemId)
-  const elapsed = Math.max(0, (Date.now() - (probe.endsAt - ft * 1000)) / 1000)
-  return { animationDuration: `${ft}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${ft}s` }
 }
 
 const probeBuildProgressStyle = computed(() => {
   if (!galaxyProbeBuild.value) return {}
   const bt      = probeBuildTime.value
-  const elapsed = Math.max(0, (Date.now() - (galaxyProbeBuild.value.endsAt - bt * 1000)) / 1000)
-  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${bt}s` }
 })
 
 // ── Colony Ships (home system colonization) ────────────────
@@ -576,15 +569,13 @@ const colonyProgressStyle = (planetId) => {
   const m = activeColonyMissions.value.find(m => m.planetId === planetId)
   if (!m) return {}
   const ft      = colonyFlightTime(planetId)
-  const elapsed = Math.max(0, (Date.now() - (m.endsAt - ft * 1000)) / 1000)
-  return { animationDuration: `${ft}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${ft}s` }
 }
 
 const colonyShipBuildProgressStyle = computed(() => {
   if (!colonyShipBuild.value) return {}
   const bt      = colonyShipBuildTime.value
-  const elapsed = Math.max(0, (Date.now() - (colonyShipBuild.value.endsAt - bt * 1000)) / 1000)
-  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${bt}s` }
 })
 
 // ── Warships ───────────────────────────────────────────────
@@ -619,8 +610,7 @@ const buildWarship = () => {
 const warshipBuildProgressStyle = computed(() => {
   if (!warshipBuild.value) return {}
   const bt      = warshipBuildTime.value
-  const elapsed = Math.max(0, (Date.now() - (warshipBuild.value.endsAt - bt * 1000)) / 1000)
-  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${bt}s` }
 })
 
 // ── Freighters (resource transport between colonies) ────────
@@ -723,15 +713,13 @@ const remainingFreighterSec = (missionId) => {
 const freighterProgressStyle = (missionId) => {
   const m = activeFreighterMissions.value.find(m => m.id === missionId)
   if (!m) return {}
-  const elapsed = Math.max(0, (Date.now() - (m.endsAt - m.flightTime * 1000)) / 1000)
-  return { animationDuration: `${m.flightTime}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${m.flightTime}s` }
 }
 
 const freighterBuildProgressStyle = computed(() => {
   if (!freighterBuild.value) return {}
   const bt      = freighterBuildTime.value
-  const elapsed = Math.max(0, (Date.now() - (freighterBuild.value.endsAt - bt * 1000)) / 1000)
-  return { animationDuration: `${bt}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${bt}s` }
 })
 
 // ── Conversion Queue (High-Tech / Cryo Refinery) ──────────
@@ -795,8 +783,7 @@ const conversionProgressStyle = computed(() => {
   if (!conversionQueue.value) return {}
   const { buildingId, recipeIndex } = conversionQueue.value
   const ct      = conversionTime(buildingId, recipeIndex)
-  const elapsed = Math.max(0, (Date.now() - (conversionQueue.value.endsAt - ct * 1000)) / 1000)
-  return { animationDuration: `${ct}s`, animationDelay: `-${elapsed}s` }
+  return { animationDuration: `${ct}s` }
 })
 
 // ── LocalStorage persistence ───────────────────────────────
