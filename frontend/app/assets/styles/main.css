@@ -14,8 +14,10 @@
   --c-primary:     #aa77ff;
   --c-primary-h:   #c299ff;
   --c-accent:      #ff88dd;
-  --c-success:     #00d4a0;
+  --c-success:     #10b981;
   --c-border:      #3d2a6e;
+  --c-blue:        #4F46E5;
+  --c-purple:      #a78bfa;
   --c-shadow:      rgba(0 0 0 / 0.5);
 }
 
@@ -30,6 +32,8 @@
   --c-accent:      #ff66cc;
   --c-success:     #00b894;
   --c-border:      #ddd6f5;
+  --c-blue:        #4F46E5;
+  --c-purple:      #a78bfa;
   --c-shadow:      rgba(119 51 238 / 0.13);
 }
 
@@ -44,6 +48,8 @@
   --c-accent:      #ff88dd;
   --c-success:     #00d4a0;
   --c-border:      #3d2a6e;
+  --c-blue:        #4F46E5;
+  --c-purple:      #a78bfa;
   --c-shadow:      rgba(0 0 0 / 0.5);
 }
 
@@ -61,6 +67,8 @@
   --color-success:     var(--c-success);
   --color-border:      var(--c-border);
   --color-white:       #ffffff;
+  --color-black:       #000000;
+  --color-blue:        #4F46E5;
 
   --font-family-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
@@ -202,12 +210,6 @@
     &.card--flush,
     &.card--game { padding: 0; }
 
-    &.card--highlight {
-      background: linear-gradient(135deg, var(--c-primary), var(--c-success));
-      border: none;
-      color: #fff;
-    }
-
     @media (min-width: 640px) {
       width: calc(50% - 8px);
       &.card--wide { width: 100%; }
@@ -217,6 +219,12 @@
       width: calc(33.333% - 11px);
       &.card--wide { width: calc(50% - 8px); }
     }
+  }
+
+  .card--highlight {
+    background: linear-gradient(135deg, var(--c-blue), var(--c-success));
+    border: none;
+    color: #fff;
   }
 
   .card__title {

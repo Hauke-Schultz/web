@@ -3,3 +3,5 @@ dist/
 .idea
 .tmp
 app.yaml
+.env
+.env.local

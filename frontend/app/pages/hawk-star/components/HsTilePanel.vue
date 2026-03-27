@@ -133,6 +133,9 @@ const setConversionCount = (bId, idx, val) => {
   conversionCounts.value[`${bId}_${idx}`] = Math.min(Math.max(1, Math.floor(val)), max)
 }
 
+// ── Dock tabs ──────────────────────────────────────────────────────────────────
+const dockTab = ref('dock')
+
 // ── Dock panel ─────────────────────────────────────────────────────────────────
 const CARGO_EXCLUDED = ['population', 'energy']
 
@@ -265,215 +268,224 @@ const getPlanetLabel = (planetId) => {
       </div>
     </div>
 
-    <div v-if="buildingsForActiveSlot.length === 0" class="hs-empty">
-      Select an unlocked tile to manage buildings
-    </div>
-
     <!-- ── Dock (Space Base tile only) ── -->
     <div v-if="isSpacebaseTile" class="hs-dock-section">
-      <div class="hs-dock-section-title">⚓ Dock</div>
 
-      <!-- Recon Drone -->
-      <div v-if="reconDroneLevel > 0" class="hs-dock-row">
-        <div class="hs-dock-icon-wrap">
-          <span class="hs-dock-icon">🛸</span>
-          <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
-        </div>
-        <div class="hs-dock-info">
-          <div class="hs-dock-name">
-            Recon Drone
-            <span v-if="activeDroneMissions.length" class="hs-dock-active-badge">{{ activeDroneMissions.length }} unterwegs</span>
-          </div>
-          <div class="hs-dock-desc">Scout planets in your home system</div>
-          <div class="hs-dock-cost-row">
-            <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-            <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
-          </div>
-          <div v-if="reconDroneBuild" class="hs-progress-row">
-            <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
-            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
-          </div>
-        </div>
-        <div class="hs-dock-action">
-          <span v-if="reconDroneBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">Build</button>
-        </div>
+      <!-- Tab bar -->
+      <div class="hs-dock-tabs">
+        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'dock' }" @click.stop="dockTab = 'dock'">
+          ⚓ Dock
+        </button>
+        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'fleet' }" @click.stop="dockTab = 'fleet'">
+          ⚔️ Flotte
+          <span v-if="warships.length" class="hs-dock-tab-badge">{{ warships.length }}</span>
+        </button>
+        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'cargo' }" @click.stop="dockTab = 'cargo'">
+          🚢 Fracht
+          <span v-if="activeFreighterMissions.length" class="hs-dock-tab-badge hs-dock-tab-badge--active">{{ activeFreighterMissions.length }}</span>
+        </button>
+        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'missions' }" @click.stop="dockTab = 'missions'">
+          🗺️ Missionen
+          <span v-if="activeDroneMissions.length + activeGalaxyProbes.length + activeColonyMissions.length + activeFreighterMissions.length > 0" class="hs-dock-tab-badge hs-dock-tab-badge--active">{{ activeDroneMissions.length + activeGalaxyProbes.length + activeColonyMissions.length + activeFreighterMissions.length }}</span>
+        </button>
       </div>
 
-      <!-- Galaxy Probe -->
-      <div v-if="galaxyProbeLevel > 0" class="hs-dock-row">
-        <div class="hs-dock-icon-wrap">
-          <span class="hs-dock-icon">🔭</span>
-          <span v-if="galaxyProbeInventory > 0" class="hs-dock-badge">{{ galaxyProbeInventory }}</span>
-        </div>
-        <div class="hs-dock-info">
-          <div class="hs-dock-name">
-            Galaxy Probe
-            <span v-if="activeGalaxyProbes.length" class="hs-dock-active-badge">{{ activeGalaxyProbes.length }} unterwegs</span>
+      <!-- ── Tab: Dock (unit construction) ── -->
+      <template v-if="dockTab === 'dock'">
+        <!-- Recon Drone -->
+        <div v-if="reconDroneLevel > 0" class="hs-dock-row">
+          <div class="hs-dock-icon-wrap">
+            <span class="hs-dock-icon">🛸</span>
+            <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
           </div>
-          <div class="hs-dock-desc">Scout distant star systems</div>
-          <div class="hs-dock-cost-row">
-            <span v-for="(amt, resId) in UNIT_COSTS.galaxy_probe.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-            <span class="hs-unit-time-tag">⏱ {{ formatTime(probeBuildTime) }}</span>
+          <div class="hs-dock-info">
+            <div class="hs-dock-name">Recon Drone</div>
+            <div class="hs-dock-desc">Scout planets in your home system</div>
+            <div class="hs-dock-cost-row">
+              <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
+            </div>
+            <div v-if="reconDroneBuild" class="hs-progress-row">
+              <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
+              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
+            </div>
           </div>
-          <div v-if="galaxyProbeBuild" class="hs-progress-row">
-            <div class="hs-progress-track"><div :key="galaxyProbeBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="probeBuildProgressStyle" /></div>
-            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((galaxyProbeBuild.endsAt - Date.now()) / 1000))) }}</span>
+          <div class="hs-dock-action">
+            <span v-if="reconDroneBuild" class="hs-status-building">Building…</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">Build</button>
           </div>
         </div>
-        <div class="hs-dock-action">
-          <span v-if="galaxyProbeBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">Build</button>
-        </div>
-      </div>
 
-      <!-- Colony Ship -->
-      <div v-if="colonyShipLevel > 0" class="hs-dock-row">
-        <div class="hs-dock-icon-wrap">
-          <span class="hs-dock-icon">🚀</span>
-          <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
-        </div>
-        <div class="hs-dock-info">
-          <div class="hs-dock-name">
-            Colony Ship
-            <span v-if="activeColonyMissions.length" class="hs-dock-active-badge">{{ activeColonyMissions.length }} unterwegs</span>
+        <!-- Galaxy Probe -->
+        <div v-if="galaxyProbeLevel > 0" class="hs-dock-row">
+          <div class="hs-dock-icon-wrap">
+            <span class="hs-dock-icon">🔭</span>
+            <span v-if="galaxyProbeInventory > 0" class="hs-dock-badge">{{ galaxyProbeInventory }}</span>
           </div>
-          <div class="hs-dock-desc">Colonize unoccupied planets</div>
-          <div class="hs-dock-cost-row">
-            <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-            <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
+          <div class="hs-dock-info">
+            <div class="hs-dock-name">Galaxy Probe</div>
+            <div class="hs-dock-desc">Scout distant star systems</div>
+            <div class="hs-dock-cost-row">
+              <span v-for="(amt, resId) in UNIT_COSTS.galaxy_probe.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <span class="hs-unit-time-tag">⏱ {{ formatTime(probeBuildTime) }}</span>
+            </div>
+            <div v-if="galaxyProbeBuild" class="hs-progress-row">
+              <div class="hs-progress-track"><div :key="galaxyProbeBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="probeBuildProgressStyle" /></div>
+              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((galaxyProbeBuild.endsAt - Date.now()) / 1000))) }}</span>
+            </div>
           </div>
-          <div v-if="colonyShipBuild" class="hs-progress-row">
-            <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
-            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
+          <div class="hs-dock-action">
+            <span v-if="galaxyProbeBuild" class="hs-status-building">Building…</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">Build</button>
           </div>
         </div>
-        <div class="hs-dock-action">
-          <span v-if="colonyShipBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">Build</button>
-        </div>
-      </div>
 
-      <!-- Warship -->
-      <div v-if="warshipBayLevel > 0" class="hs-dock-row hs-dock-row--warship">
-        <div class="hs-dock-icon-wrap">
-          <span class="hs-dock-icon">⚔️</span>
-          <span v-if="warshipInventory > 0" class="hs-dock-badge hs-dock-badge--warship">{{ warshipInventory }}</span>
-        </div>
-        <div class="hs-dock-info">
-          <div class="hs-dock-name">Warship <span class="hs-dock-count">× {{ warshipInventory }} / {{ warshipBayLevel }}</span></div>
-          <div class="hs-dock-desc">Heavy combat vessel. Requires Super Alloy &amp; Pure Crystal.</div>
-          <div class="hs-dock-cost-row">
-            <span v-for="(amt, resId) in UNIT_COSTS.warship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-            <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
+        <!-- Colony Ship -->
+        <div v-if="colonyShipLevel > 0" class="hs-dock-row">
+          <div class="hs-dock-icon-wrap">
+            <span class="hs-dock-icon">🚀</span>
+            <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
           </div>
-          <div v-if="warshipBuild" class="hs-progress-row">
-            <div class="hs-progress-track"><div :key="warshipBuild.endsAt" class="hs-progress-fill hs-progress-fill--warship" :style="warshipBuildProgressStyle" /></div>
-            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((warshipBuild.endsAt - Date.now()) / 1000))) }}</span>
+          <div class="hs-dock-info">
+            <div class="hs-dock-name">Colony Ship</div>
+            <div class="hs-dock-desc">Colonize unoccupied planets</div>
+            <div class="hs-dock-cost-row">
+              <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
+            </div>
+            <div v-if="colonyShipBuild" class="hs-progress-row">
+              <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
+              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
+            </div>
+          </div>
+          <div class="hs-dock-action">
+            <span v-if="colonyShipBuild" class="hs-status-building">Building…</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">Build</button>
           </div>
         </div>
-        <div class="hs-dock-action">
-          <span v-if="warshipBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
-        </div>
-      </div>
 
-      <!-- Warship Fleet -->
-      <div v-if="warships.length > 0" class="hs-warship-fleet">
-        <div class="hs-warship-fleet-title">⚔️ Fleet ({{ warships.length }})</div>
-        <div
-          v-for="ship in warships"
-          :key="ship.id"
-          class="hs-warship-card"
-        >
-          <div class="hs-warship-card-header">
-            <span class="hs-warship-card-icon">{{ ship.icon }}</span>
-            <span class="hs-warship-card-name">{{ ship.name }}</span>
-            <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+        <!-- Warship -->
+        <div v-if="warshipBayLevel > 0" class="hs-dock-row hs-dock-row--warship">
+          <div class="hs-dock-icon-wrap">
+            <span class="hs-dock-icon">⚔️</span>
+            <span v-if="warshipInventory > 0" class="hs-dock-badge hs-dock-badge--warship">{{ warshipInventory }}</span>
           </div>
-          <div class="hs-warship-card-stats">
-            <span class="hs-warship-stat hs-warship-stat--hull" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
-            <span class="hs-warship-stat hs-warship-stat--shield" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
-            <span class="hs-warship-stat hs-warship-stat--speed" title="Speed">⚡ {{ ship.speed }}</span>
+          <div class="hs-dock-info">
+            <div class="hs-dock-name">Warship <span class="hs-dock-count">× {{ warshipInventory }} / {{ warshipBayLevel }}</span></div>
+            <div class="hs-dock-desc">Heavy combat vessel. Requires Super Alloy &amp; Pure Crystal.</div>
+            <div class="hs-dock-cost-row">
+              <span v-for="(amt, resId) in UNIT_COSTS.warship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
+            </div>
+            <div v-if="warshipBuild" class="hs-progress-row">
+              <div class="hs-progress-track"><div :key="warshipBuild.endsAt" class="hs-progress-fill hs-progress-fill--warship" :style="warshipBuildProgressStyle" /></div>
+              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((warshipBuild.endsAt - Date.now()) / 1000))) }}</span>
+            </div>
           </div>
-          <div class="hs-warship-weapons">
-            <span class="hs-warship-weapons-label">Weapons</span>
-            <div class="hs-warship-weapon-slots">
-              <div
-                v-for="(weapon, idx) in ship.weapons"
-                :key="idx"
-                class="hs-warship-weapon-slot"
-                :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
-              >
-                <span v-if="weapon">{{ weapon.icon }} {{ weapon.name }}</span>
-                <span v-else class="hs-warship-weapon-slot-empty-label">— empty —</span>
+          <div class="hs-dock-action">
+            <span v-if="warshipBuild" class="hs-status-building">Building…</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
+          </div>
+        </div>
+
+        <!-- Freighter (build only) -->
+        <div v-if="freighterBayLevel > 0" class="hs-dock-row hs-dock-row--freighter">
+          <div class="hs-dock-icon-wrap">
+            <span class="hs-dock-icon">🚢</span>
+            <span v-if="freighterInventory > 0" class="hs-dock-badge hs-dock-badge--freighter">{{ freighterInventory }}</span>
+          </div>
+          <div class="hs-dock-info">
+            <div class="hs-dock-name">Freighter</div>
+            <div class="hs-dock-desc">Transport resources between colonies · {{ freighterCargoCapacity }} cargo</div>
+            <div class="hs-dock-cost-row">
+              <span v-for="(amt, resId) in UNIT_COSTS.freighter.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <span class="hs-unit-time-tag">⏱ {{ formatTime(freighterBuildTime) }}</span>
+            </div>
+            <div v-if="freighterBuild" class="hs-progress-row">
+              <div class="hs-progress-track"><div :key="freighterBuild.endsAt" class="hs-progress-fill hs-progress-fill--freighter" :style="freighterBuildProgressStyle" /></div>
+              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((freighterBuild.endsAt - Date.now()) / 1000))) }}</span>
+            </div>
+          </div>
+          <div class="hs-dock-action">
+            <span v-if="freighterBuild" class="hs-status-building">Building…</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">Build</button>
+          </div>
+        </div>
+
+        <div v-if="reconDroneLevel === 0 && galaxyProbeLevel === 0 && colonyShipLevel === 0 && warshipBayLevel === 0 && freighterBayLevel === 0" class="hs-dock-empty">
+          Build Space Base facilities to produce units
+        </div>
+      </template>
+
+      <!-- ── Tab: Fleet ── -->
+      <template v-else-if="dockTab === 'fleet'">
+        <div v-if="warships.length === 0" class="hs-dock-empty">Keine Kriegsschiffe gebaut</div>
+        <div v-else class="hs-warship-fleet">
+          <div
+            v-for="ship in warships"
+            :key="ship.id"
+            class="hs-warship-card"
+          >
+            <div class="hs-warship-card-header">
+              <span class="hs-warship-card-icon">{{ ship.icon }}</span>
+              <span class="hs-warship-card-name">{{ ship.name }}</span>
+              <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+            </div>
+            <div class="hs-warship-card-stats">
+              <span class="hs-warship-stat hs-warship-stat--hull" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
+              <span class="hs-warship-stat hs-warship-stat--shield" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
+              <span class="hs-warship-stat hs-warship-stat--speed" title="Speed">⚡ {{ ship.speed }}</span>
+            </div>
+            <div class="hs-warship-weapons">
+              <span class="hs-warship-weapons-label">Weapons</span>
+              <div class="hs-warship-weapon-slots">
+                <div
+                  v-for="(weapon, idx) in ship.weapons"
+                  :key="idx"
+                  class="hs-warship-weapon-slot"
+                  :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
+                >
+                  <span v-if="weapon">{{ weapon.icon }} {{ weapon.name }}</span>
+                  <span v-else class="hs-warship-weapon-slot-empty-label">— empty —</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </template>
 
-      <!-- Freighter -->
-      <div
-        v-if="freighterBayLevel > 0"
-        class="hs-dock-row hs-dock-row--freighter"
-      >
-        <div class="hs-dock-icon-wrap">
-          <span class="hs-dock-icon">🚢</span>
-          <span v-if="freighterInventory > 0" class="hs-dock-badge hs-dock-badge--freighter">{{ freighterInventory }}</span>
-        </div>
-        <div class="hs-dock-info">
-          <div class="hs-dock-name">
-            Freighter
-            <span v-if="activeFreighterMissions.length" class="hs-dock-active-badge">{{ activeFreighterMissions.length }} unterwegs</span>
+      <!-- ── Tab: Fracht ── -->
+      <template v-else-if="dockTab === 'cargo'">
+        <div v-if="freighterInventory === 0" class="hs-dock-empty">Kein Frachter verfügbar</div>
+        <div v-else class="hs-freighter-cargo-panel">
+          <div class="hs-freighter-cargo-header">
+            <span class="hs-freighter-cargo-title">🚢 Frachter beladen</span>
+            <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
           </div>
-          <div class="hs-dock-desc">Transport resources between your colonies · {{ freighterCargoCapacity }} cargo</div>
-          <div class="hs-dock-cost-row">
-            <span v-for="(amt, resId) in UNIT_COSTS.freighter.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-            <span class="hs-unit-time-tag">⏱ {{ formatTime(freighterBuildTime) }}</span>
-          </div>
-          <div v-if="freighterBuild" class="hs-progress-row">
-            <div class="hs-progress-track"><div :key="freighterBuild.endsAt" class="hs-progress-fill hs-progress-fill--freighter" :style="freighterBuildProgressStyle" /></div>
-            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((freighterBuild.endsAt - Date.now()) / 1000))) }}</span>
-          </div>
-        </div>
-        <div class="hs-dock-action">
-	        <span v-if="freighterBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">Build</button>
-        </div>
-      </div>
-
-      <!-- Freighter cargo grid -->
-      <div v-if="freighterInventory > 0" class="hs-freighter-cargo-panel">
-        <div class="hs-freighter-cargo-header">
-          <span class="hs-freighter-cargo-title">🚢 Frachter beladen</span>
-          <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
-        </div>
-        <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">Keine Ressourcen verfügbar</div>
-        <div class="hs-freighter-cargo-grid">
-          <div v-for="res in loadableResources" :key="res.id" class="hs-freighter-cargo-tile" :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[res.id] ?? 0) > 0 }">
-            <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
-            <div class="hs-freighter-cargo-tile__info">
-              <span class="hs-freighter-cargo-tile__name">{{ res.name }}</span>
-              <span class="hs-freighter-cargo-tile__avail">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
-            </div>
-            <div class="hs-stepper hs-stepper--cargo">
-              <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) <= 0" @click.stop="stepCargo(res.id, -1)">−</button>
-              <span class="hs-stepper__val">{{ freighterCargo[res.id] ?? 0 }}</span>
-              <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) >= cargoMax(res.id) || freighterCargoTotal >= freighterCargoCapacity" @click.stop="stepCargo(res.id, 1)">+</button>
+          <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">Keine Ressourcen verfügbar</div>
+          <div class="hs-freighter-cargo-grid">
+            <div v-for="res in loadableResources" :key="res.id" class="hs-freighter-cargo-tile" :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[res.id] ?? 0) > 0 }">
+              <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
+              <div class="hs-freighter-cargo-tile__info">
+                <span class="hs-freighter-cargo-tile__name">{{ res.name }}</span>
+                <span class="hs-freighter-cargo-tile__avail">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
+              </div>
+              <div class="hs-stepper hs-stepper--cargo">
+                <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) <= 0" @click.stop="stepCargo(res.id, -1)">−</button>
+                <span class="hs-stepper__val">{{ freighterCargo[res.id] ?? 0 }}</span>
+                <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) >= cargoMax(res.id) || freighterCargoTotal >= freighterCargoCapacity" @click.stop="stepCargo(res.id, 1)">+</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </template>
 
-      <div v-if="reconDroneLevel === 0 && galaxyProbeLevel === 0 && colonyShipLevel === 0 && warshipBayLevel === 0 && freighterBayLevel === 0" class="hs-dock-empty">
-        Build Space Base facilities to produce units
-      </div>
-
-      <!-- Active Missions -->
-      <template v-if="activeDroneMissions.length || activeGalaxyProbes.length || activeColonyMissions.length || activeFreighterMissions.length">
-        <div class="hs-dock-missions-title">Active Missions</div>
-        <div class="hs-dock-missions">
+      <!-- ── Tab: Missionen ── -->
+      <template v-else-if="dockTab === 'missions'">
+        <div v-if="!activeDroneMissions.length && !activeGalaxyProbes.length && !activeColonyMissions.length && !activeFreighterMissions.length" class="hs-dock-empty">
+          Keine aktiven Missionen
+        </div>
+        <div v-else class="hs-dock-missions">
           <div v-for="m in activeDroneMissions" :key="m.planetId" class="hs-dock-mission-row">
             <span class="hs-dock-mission-icon">🛸</span>
             <div class="hs-dock-mission-info">
@@ -521,6 +533,11 @@ const getPlanetLabel = (planetId) => {
           </div>
         </div>
       </template>
+
+    </div>
+
+    <div v-if="buildingsForActiveSlot.length === 0 && !isSpacebaseTile" class="hs-empty">
+      Select an unlocked tile to manage buildings
     </div>
 
     <!-- ── High-Tech conversion section ── -->
@@ -608,6 +625,8 @@ const getPlanetLabel = (planetId) => {
   border: 1px solid var(--hs-glass-2xl);
   border-radius: var(--hs-r-lg);
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .hs-panel-header {
@@ -758,12 +777,66 @@ const getPlanetLabel = (planetId) => {
 
 // ── Dock section ──────────────────────────────────────────────────────────────
 .hs-dock-section {
-  margin-top: 0.875rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--hs-line-sm);
+  order: -1;
+  margin-bottom: 0.875rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--hs-line-sm);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.hs-dock-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--hs-glass-sm);
+  border: 1px solid var(--hs-line-sm);
+  border-radius: var(--hs-r-md);
+  padding: 3px;
+}
+
+.hs-dock-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--hs-r-sm);
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.62rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover { color: rgba(255,255,255,0.7); background: var(--hs-glass-lg); }
+
+  &--active {
+    background: var(--hs-glass-2xl);
+    color: rgba(255,255,255,0.9);
+  }
+}
+
+.hs-dock-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.6);
+  font-size: 0.55rem;
+  font-weight: 700;
+
+  &--active {
+    background: rgba(251,191,36,0.25);
+    color: rgba(251,191,36,0.95);
+  }
 }
 
 .hs-dock-section-title {

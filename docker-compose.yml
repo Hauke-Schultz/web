@@ -1,0 +1,49 @@
+services:
+  php:
+    build: ./docker/php
+    ports:
+      - "8000:80"
+    volumes:
+      - ./api:/var/www/html/api
+      - ./docker/php/apache.conf:/etc/apache2/sites-enabled/000-default.conf
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-myapp}
+      DB_USER: ${DB_USER:-appuser}
+      DB_PASS: ${DB_PASS:-secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootsecret}
+      MYSQL_DATABASE: ${DB_NAME:-myapp}
+      MYSQL_USER: ${DB_USER:-appuser}
+      MYSQL_PASSWORD: ${DB_PASS:-secret}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootsecret}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootsecret}
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:

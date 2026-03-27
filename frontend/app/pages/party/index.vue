@@ -85,7 +85,7 @@ useHead({ title: () => t('party.event.title') })
   <div class="party-page relative min-h-dvh">
 
     <!-- Hero -->
-    <section class="py-8 px-6 text-center text-white bg-gradient-to-br from-primary to-success">
+    <section class="py-8 px-6 text-center text-white card--highlight">
       <h1 class="text-[clamp(1.5rem,4vw,2.25rem)] text-white mb-3">{{ event.title }}</h1>
     </section>
 

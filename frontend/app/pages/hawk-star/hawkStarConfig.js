@@ -335,6 +335,14 @@ export const BUILDINGS = {
         production: { energy: 36 },
         staffDrain: 4,
       },
+      {
+        level:      6,
+        cost:       { metal: 250, crystal: 130 },
+        buildTime:  59,
+        effect:     '+40 energy/s · 4 workers',
+        production: { energy: 40 },
+        staffDrain: 4,
+      }
     ],
   },
 

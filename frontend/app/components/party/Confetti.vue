@@ -36,7 +36,7 @@ const createConfetti = () => {
 
 <template>
   <button
-    class="fixed bottom-[30px] right-[30px] z-[999] w-16 h-16 text-[2rem] border-[3px] border-white/80 rounded-full bg-gradient-to-br from-primary to-success cursor-pointer flex items-center justify-center shadow-md animate-pulse-btn transition-transform hover:scale-[1.15] hover:[animation:none]"
+    class="fixed bottom-[30px] right-[30px] z-[999] w-16 h-16 text-[2rem] border-[3px] border-white/80 rounded-full card--highlight cursor-pointer flex items-center justify-center shadow-md animate-pulse-btn transition-transform hover:scale-[1.15] hover:[animation:none]"
     aria-label="Konfetti!"
     @click="createConfetti"
   >🎉</button>

@@ -41,4 +41,14 @@ export default defineNuxtConfig({
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000/api',
     },
   },
+
+  // Im Dev-Modus: /api/* wird an den lokalen PHP-Docker weitergeleitet
+  nitro: {
+    devProxy: {
+      '/api': {
+        target: 'http://localhost:8000/api',
+        changeOrigin: true,
+      },
+    },
+  },
 })
