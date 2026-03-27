@@ -25,9 +25,10 @@ const {
   buildProgressStyle,
   planetType,
   // conversions
-  conversionQueue,
+  conversionQueues,
   conversionTime,
   conversionMaxBatch,
+  isConversionRunning,
   canConvert,
   startConversion,
   remainingConversionSec,
@@ -94,30 +95,35 @@ const {
 const isSpacebaseTile = computed(() => activeTileType.value?.id === 'spacebase')
 const isHightechTile  = computed(() => activeTileType.value?.id === 'hightech')
 
-const hightechBuilding = computed(() => {
-  if (!isHightechTile.value) return null
-  return buildingsForActiveSlot.value.find(b => BUILDINGS[b.id]?.conversions?.length > 0) ?? null
+const hightechBuildings = computed(() => {
+  if (!isHightechTile.value) return []
+  return buildingsForActiveSlot.value.filter(b => BUILDINGS[b.id]?.conversions?.length > 0)
 })
 
-const conversionQueueOutput = computed(() => {
-  if (!conversionQueue.value) return null
-  const recipe = BUILDINGS[conversionQueue.value.buildingId]?.conversions?.[conversionQueue.value.recipeIndex]
+const queueOutputResource = (q) => {
+  const recipe = BUILDINGS[q.buildingId]?.conversions?.[q.recipeIndex]
   if (!recipe) return null
   const resId = Object.keys(recipe.output)[0]
   return RESOURCES[resId] ?? null
+}
+
+// Per-planet queues for all active hightech buildings in this slot
+const activeConversionQueues = computed(() => {
+  const ids = new Set(hightechBuildings.value.map(b => b.id))
+  return conversionQueues.value.filter(q => ids.has(q.buildingId))
 })
 
-const availableConversions = computed(() => {
-  if (!hightechBuilding.value) return []
-  const bId = hightechBuilding.value.id
-  const lvl = getLevel(bId)
-  return (BUILDINGS[bId]?.conversions ?? []).map((recipe, index) => ({
-    ...recipe,
-    index,
-    buildingId: bId,
-    unlocked: !recipe.requiresLevel || lvl >= recipe.requiresLevel,
-  }))
-})
+const availableConversions = computed(() =>
+  hightechBuildings.value.flatMap(b => {
+    const lvl = getLevel(b.id)
+    return (BUILDINGS[b.id]?.conversions ?? []).map((recipe, index) => ({
+      ...recipe,
+      index,
+      buildingId: b.id,
+      unlocked: !recipe.requiresLevel || lvl >= recipe.requiresLevel,
+    }))
+  })
+)
 
 // Per-recipe batch count selection (keyed by "buildingId_recipeIndex")
 const conversionCounts = ref({})
@@ -518,19 +524,21 @@ const getPlanetLabel = (planetId) => {
     </div>
 
     <!-- ── High-Tech conversion section ── -->
-    <div v-if="isHightechTile && hightechBuilding" class="hs-conv-section">
+    <div v-if="isHightechTile && hightechBuildings.length" class="hs-conv-section">
       <div class="hs-conv-section-title">⚗️ Conversions</div>
 
-      <!-- Active conversion queue -->
-      <div v-if="conversionQueue" class="hs-conv-queue-row">
-        <div class="hs-conv-queue-bar" :style="conversionProgressStyle" />
-        <span class="hs-conv-queue-icon">{{ conversionQueueOutput?.icon }}</span>
-        <span class="hs-conv-queue-name">{{ conversionQueueOutput?.name }}</span>
+      <!-- Active conversion queues (one row per running job) -->
+      <div
+        v-for="q in activeConversionQueues"
+        :key="`${q.buildingId}_${q.recipeIndex}`"
+        class="hs-conv-queue-row"
+      >
+        <div class="hs-conv-queue-bar" :style="conversionProgressStyle(q)" />
+        <span class="hs-conv-queue-icon">{{ queueOutputResource(q)?.icon }}</span>
+        <span class="hs-conv-queue-name">{{ queueOutputResource(q)?.name }}</span>
         <span class="hs-conv-queue-label">Converting…</span>
-        <span class="hs-conv-queue-time">{{ formatTime(remainingConversionSec) }}</span>
-        <span v-if="conversionQueue.remaining > 0" class="hs-conv-queue-remaining">
-          +{{ conversionQueue.remaining }} in queue
-        </span>
+        <span class="hs-conv-queue-time">{{ formatTime(remainingConversionSec(q)) }}</span>
+        <span v-if="q.remaining > 0" class="hs-conv-queue-remaining">+{{ q.remaining }} queued</span>
       </div>
 
       <div v-if="availableConversions.length === 0" class="hs-conv-empty">
@@ -575,17 +583,17 @@ const getPlanetLabel = (planetId) => {
               </div>
               <button
                 class="hs-btn-convert"
-                :class="{ 'hs-btn-convert--disabled': !canConvert(recipe.buildingId, recipe.index) }"
-                :disabled="!canConvert(recipe.buildingId, recipe.index)"
+                :class="{ 'hs-btn-convert--disabled': !isConversionRunning(recipe.buildingId, recipe.index) && !canConvert(recipe.buildingId, recipe.index) }"
+                :disabled="!isConversionRunning(recipe.buildingId, recipe.index) && !canConvert(recipe.buildingId, recipe.index)"
                 @click="startConversion(recipe.buildingId, recipe.index, getConversionCount(recipe.buildingId, recipe.index))"
-              >Convert</button>
+              >{{ isConversionRunning(recipe.buildingId, recipe.index) ? '+' + getConversionCount(recipe.buildingId, recipe.index) : 'Convert' }}</button>
             </template>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-else-if="isHightechTile && !hightechBuilding" class="hs-conv-empty">
+    <div v-else-if="isHightechTile && !hightechBuildings.length" class="hs-conv-empty">
       Build a High-Tech facility to unlock conversions
     </div>
 
@@ -1208,15 +1216,8 @@ const getPlanetLabel = (planetId) => {
 .hs-conv-queue-bar {
   position: absolute;
   bottom: 0; left: 0;
-  height: 2px; width: 100%;
+  height: 2px;
   background: rgba(139,92,246,0.6);
-  transform-origin: left;
-  animation: hs-conv-fill linear forwards;
-}
-
-@keyframes hs-conv-fill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
 }
 
 .hs-conv-queue-icon  { font-size: 0.875rem; }

@@ -102,7 +102,10 @@ export const RESOURCES = {
   hardened_steel:{ id: 'hardened_steel',name: 'Hardened Steel',icon: '⚫',  color: '#374151', refined: true },
   lava_gem:      { id: 'lava_gem',      name: 'Lava Gem',      icon: '🔶',  color: '#fb923c', refined: true },
   bio_polymer:   { id: 'bio_polymer',   name: 'Bio Polymer',   icon: '🧫',  color: '#a3e635', refined: true },
-  coral_steel:   { id: 'coral_steel',   name: 'Coral Steel',   icon: '🩵',  color: '#67e8f9', refined: true },
+  coral_steel:     { id: 'coral_steel',     name: 'Coral Steel',     icon: '🩵',  color: '#67e8f9', refined: true },
+  // ── Weapon ordnance (produced in Weapon Lab, equipped on warships) ──────────
+  kinetic_round:   { id: 'kinetic_round',   name: 'Kinetic Round',   icon: '🔹',  color: '#94a3b8', weapon: true },
+  plasma_cell:     { id: 'plasma_cell',     name: 'Plasma Cell',     icon: '🔴',  color: '#f87171', weapon: true },
 }
 
 // ── Tile types ────────────────────────────────────────────────────────────────
@@ -1505,6 +1508,53 @@ export const BUILDINGS = {
         shieldStrength: 95,
         damageReflect: 20,
       },
+    ],
+  },
+
+  // ── Weapon Lab (hightech tile) ─────────────────────────────────────────────
+  // Available on all planet types. Requires Weapons Research Lv 2.
+  // Produces weapon ordnance that will later be equippable on warships.
+
+  weapon_lab: {
+    id:               'weapon_lab',
+    name:             'Weapon Lab',
+    tileType:         'hightech',
+    icon:             '🔬',
+    description:      'Military research facility. Synthesises weapon ordnance that can be equipped on warships. Requires Weapons Research Lv 2.',
+    requiresBuilding: 'weapons_research',
+    requiresLevel:    2,
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 500, crystal: 250, nano_alloy: 8 },
+        buildTime:   50,
+        effect:      'Unlocks Kinetic Round production · uses 8 energy · 4 workers',
+        production:  {},
+        energyDrain: 8,
+        staffDrain:  4,
+      },
+      {
+        level:       2,
+        cost:        { metal: 1200, crystal: 600, nano_alloy: 20, pure_crystal: 10 },
+        buildTime:   70,
+        effect:      '2× throughput · unlocks Plasma Cell production · uses 16 energy · 7 workers',
+        production:  {},
+        energyDrain: 16,
+        staffDrain:  7,
+      },
+      {
+        level:       3,
+        cost:        { metal: 2800, crystal: 1400, quantum_shard: 8, super_alloy: 15 },
+        buildTime:   90,
+        effect:      '4× throughput · unlocks Quantum Warhead production · uses 28 energy · 12 workers',
+        production:  {},
+        energyDrain: 28,
+        staffDrain:  12,
+      },
+    ],
+    conversions: [
+      { input: { metal: 20, nano_alloy:    3 }, output: { kinetic_round:   1 }, durationBase: 30, requiresLevel: 1 },
+      { input: { pure_crystal: 3, crystal: 15 }, output: { plasma_cell:    1 }, durationBase: 45, requiresLevel: 2 },
     ],
   },
 

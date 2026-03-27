@@ -37,8 +37,8 @@ const isFirstRun   = computed(() => playerName.value === '')
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
-const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
-const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0 }
+const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
+const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
 
 const freshDock = () => ({
   reconDroneInventory:    0,
@@ -60,12 +60,13 @@ const freshDock = () => ({
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
   if (allPlanetStates.value[planetId]) return
   allPlanetStates.value[planetId] = {
-    planetType: pType,
-    planetName: pName,
-    resources:  isHome ? { ...HOME_START_RESOURCES } : { ...COLONY_START_RESOURCES },
-    slots:      PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked })),
-    buildings:  Object.fromEntries(Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }])),
-    dock:       freshDock(),
+    planetType:       pType,
+    planetName:       pName,
+    resources:        isHome ? { ...HOME_START_RESOURCES } : { ...COLONY_START_RESOURCES },
+    slots:            PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked })),
+    buildings:        Object.fromEntries(Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }])),
+    dock:             freshDock(),
+    conversionQueues: [],
   }
 }
 
@@ -240,24 +241,24 @@ const spaceTechLevel = computed(() => {
   return state ? effectiveLevel(state) : 0
 })
 const reconDroneLevel = computed(() => {
-  const state = homeBuilding('recon_drone')
-  return state ? effectiveLevel(state) : 0
+  const state = playerBuildings.value['recon_drone']
+  return state?.level ?? 0
 })
 const galaxyProbeLevel = computed(() => {
-  const state = homeBuilding('galaxy_probe')
-  return state ? effectiveLevel(state) : 0
+  const state = playerBuildings.value['galaxy_probe']
+  return state?.level ?? 0
 })
 const colonyShipLevel = computed(() => {
-  const state = homeBuilding('colony_ship')
-  return state ? effectiveLevel(state) : 0
+  const state = playerBuildings.value['colony_ship']
+  return state?.level ?? 0
 })
 const warshipBayLevel = computed(() => {
-  const state = homeBuilding('warship_bay')
-  return state ? effectiveLevel(state) : 0
+  const state = playerBuildings.value['warship_bay']
+  return state?.level ?? 0
 })
 const freighterBayLevel = computed(() => {
-  const state = homeBuilding('freighter_bay')
-  return state ? effectiveLevel(state) : 0
+  const state = playerBuildings.value['freighter_bay']
+  return state?.level ?? 0
 })
 
 const isBuildingLocked = (id) => {
@@ -722,9 +723,14 @@ const freighterBuildProgressStyle = computed(() => {
   return { animationDuration: `${bt}s` }
 })
 
-// ── Conversion Queue (High-Tech / Cryo Refinery) ──────────
-// remaining: how many additional runs are queued after the current one
-const conversionQueue = ref(null)  // { buildingId, recipeIndex, planetId, endsAt, remaining } | null
+// ── Conversion Queues (High-Tech / Refinery) ───────────────
+// Per-planet array of independent running jobs.
+// Each job: { buildingId, recipeIndex, planetId, endsAt, remaining }
+// Different recipes run in parallel; same recipe adds to 'remaining'.
+
+const conversionQueues = computed(() =>
+  allPlanetStates.value[activePlanetId.value]?.conversionQueues ?? []
+)
 
 // Compute conversion time using a specific planet's building level (for tick)
 const conversionTimeForPlanet = (buildingId, recipeIndex, planetId) => {
@@ -746,45 +752,56 @@ const conversionMaxBatch = (buildingId) => {
   return 1
 }
 
+const isConversionRunning = (buildingId, recipeIndex) =>
+  conversionQueues.value.some(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex)
+
+// canConvert: checks level/lock/affordability for starting a new job
 const canConvert = (buildingId, recipeIndex) => {
   const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
   if (!recipe) return false
   const lvl = getLevel(buildingId)
   if (lvl === 0) return false
   if (recipe.requiresLevel && lvl < recipe.requiresLevel) return false
-  if (conversionQueue.value) return false
   return canAfford(recipe.input)
 }
 
-// count: total number of conversions to run (1 = just one, 10 = batch of 10)
+// count: total runs to queue. If recipe already running → adds to remaining.
 const startConversion = (buildingId, recipeIndex, count = 1) => {
+  const planetId = activePlanetId.value
+  const queues   = allPlanetStates.value[planetId]?.conversionQueues
+  if (!queues) return
+
+  const existing = queues.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex)
+  if (existing) {
+    // Already running — just stack more runs (resources deducted lazily in tick)
+    existing.remaining += count
+    return
+  }
+
   if (!canConvert(buildingId, recipeIndex)) return
   const recipe = BUILDINGS[buildingId].conversions[recipeIndex]
-  const res = allPlanetStates.value[activePlanetId.value].resources
+  const res    = allPlanetStates.value[planetId].resources
   for (const [r, amt] of Object.entries(recipe.input)) {
     res[r] -= amt
   }
-  conversionQueue.value = {
+  queues.push({
     buildingId,
     recipeIndex,
-    planetId:  activePlanetId.value,
+    planetId,
     endsAt:    Date.now() + conversionTime(buildingId, recipeIndex) * 1000,
     remaining: Math.max(0, count - 1),
-  }
+  })
 }
 
-const remainingConversionSec = computed(() =>
-  conversionQueue.value
-    ? Math.max(0, Math.ceil((conversionQueue.value.endsAt - now.value) / 1000))
-    : 0
-)
+const remainingConversionSec = (q) =>
+  Math.max(0, Math.ceil((q.endsAt - now.value) / 1000))
 
-const conversionProgressStyle = computed(() => {
-  if (!conversionQueue.value) return {}
-  const { buildingId, recipeIndex } = conversionQueue.value
-  const ct      = conversionTime(buildingId, recipeIndex)
-  return { animationDuration: `${ct}s` }
-})
+const conversionProgressStyle = (q) => {
+  const ct = conversionTimeForPlanet(q.buildingId, q.recipeIndex, q.planetId)
+  const startedAt = q.endsAt - ct * 1000
+  const pct = Math.min(100, Math.max(0, (now.value - startedAt) / (ct * 1000) * 100))
+  return { width: `${pct}%` }
+}
 
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
@@ -800,18 +817,18 @@ const saveGame = () => {
     activePlanetId:        activePlanetId.value,
     allPlanetStates:       Object.fromEntries(
       Object.entries(allPlanetStates.value).map(([pid, ps]) => [pid, {
-        planetType: ps.planetType,
-        planetName: ps.planetName,
-        resources:  ps.resources,
-        slots:      ps.slots.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
-        buildings:  ps.buildings,
-        dock:       ps.dock,
+        planetType:       ps.planetType,
+        planetName:       ps.planetName,
+        resources:        ps.resources,
+        slots:            ps.slots.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
+        buildings:        ps.buildings,
+        dock:             ps.dock,
+        conversionQueues: ps.conversionQueues ?? [],
       }])
     ),
     playerScannedPlanets:   playerScannedPlanets.value,
     playerProbedSystems:    playerProbedSystems.value,
     playerColonizedPlanets: playerColonizedPlanets.value,
-    conversionQueue:        conversionQueue.value,
   }))
 }
 
@@ -854,7 +871,16 @@ const loadGame = () => {
             activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
             activeFreighterMissions: Array.isArray(savedDock.activeFreighterMissions) ? savedDock.activeFreighterMissions : [],
           },
+          conversionQueues: Array.isArray(ps.conversionQueues) ? ps.conversionQueues : [],
         }
+      }
+    }
+    // Backward compat: migrate old global conversionQueue into per-planet array
+    if (data.conversionQueue) {
+      const q  = data.conversionQueue
+      const ps = allPlanetStates.value[q.planetId]
+      if (ps && !ps.conversionQueues.find(x => x.buildingId === q.buildingId && x.recipeIndex === q.recipeIndex)) {
+        ps.conversionQueues.push(q)
       }
     }
     if (data.activePlanetId && allPlanetStates.value[data.activePlanetId]) {
@@ -863,7 +889,6 @@ const loadGame = () => {
     if (Array.isArray(data.playerScannedPlanets))   playerScannedPlanets.value   = data.playerScannedPlanets
     if (Array.isArray(data.playerProbedSystems))     playerProbedSystems.value    = data.playerProbedSystems
     if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
-    if (data.conversionQueue)  conversionQueue.value  = data.conversionQueue
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
   }
@@ -883,37 +908,34 @@ export const completeSetup = (name) => {
 const tick = () => {
   now.value = Date.now()
 
-  // Complete conversion — auto-continue batch if remaining > 0
-  if (conversionQueue.value && conversionQueue.value.endsAt <= now.value) {
-    const { buildingId, recipeIndex, planetId, remaining } = conversionQueue.value
-    const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
-    if (recipe) {
-      const res = allPlanetStates.value[planetId]?.resources
-      if (res) {
-        for (const [r, amt] of Object.entries(recipe.output)) {
-          res[r] = (res[r] ?? 0) + amt
+  // Process all per-planet conversion queues
+  for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
+    const cqs = pstate.conversionQueues
+    if (!cqs?.length) continue
+    for (let i = cqs.length - 1; i >= 0; i--) {
+      const q = cqs[i]
+      if (q.endsAt > now.value) continue
+      const recipe = BUILDINGS[q.buildingId]?.conversions?.[q.recipeIndex]
+      if (!recipe) { cqs.splice(i, 1); continue }
+      const res = pstate.resources
+      for (const [r, amt] of Object.entries(recipe.output)) {
+        res[r] = (res[r] ?? 0) + amt
+      }
+      if (q.remaining > 0) {
+        let affordable = true
+        for (const [r, amt] of Object.entries(recipe.input)) {
+          if ((res[r] ?? 0) < amt) { affordable = false; break }
         }
-        // Auto-start next run if batch has remaining items and resources allow
-        if (remaining > 0) {
-          let affordable = true
-          for (const [r, amt] of Object.entries(recipe.input)) {
-            if ((res[r] ?? 0) < amt) { affordable = false; break }
-          }
-          if (affordable) {
-            for (const [r, amt] of Object.entries(recipe.input)) { res[r] -= amt }
-            const ct = conversionTimeForPlanet(buildingId, recipeIndex, planetId)
-            conversionQueue.value = { buildingId, recipeIndex, planetId, endsAt: now.value + ct * 1000, remaining: remaining - 1 }
-          } else {
-            conversionQueue.value = null
-          }
+        if (affordable) {
+          for (const [r, amt] of Object.entries(recipe.input)) { res[r] -= amt }
+          q.endsAt = now.value + conversionTimeForPlanet(q.buildingId, q.recipeIndex, pid) * 1000
+          q.remaining -= 1
         } else {
-          conversionQueue.value = null
+          cqs.splice(i, 1)
         }
       } else {
-        conversionQueue.value = null
+        cqs.splice(i, 1)
       }
-    } else {
-      conversionQueue.value = null
     }
   }
 
@@ -1214,9 +1236,10 @@ export function useHawkStar() {
     // unit costs (for UI display)
     UNIT_COSTS,
     // conversions
-    conversionQueue,
+    conversionQueues,
     conversionTime,
     conversionMaxBatch,
+    isConversionRunning,
     canConvert,
     startConversion,
     remainingConversionSec,
