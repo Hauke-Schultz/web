@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
-import { startTick, stopTick, completeSetup, useHawkStar } from './useHawkStar.js'
+import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
 import HsResourceBar from './components/HsResourceBar.vue'
 import HsPlanetGrid from './components/HsPlanetGrid.vue'
 import HsTilePanel from './components/HsTilePanel.vue'

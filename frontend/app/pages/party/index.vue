@@ -147,12 +147,14 @@ useHead({ title: () => t('party.event.title') })
       <!-- Intro -->
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.intro.title') }}</h2>
-        <p class="card__text card__text--pre">{{ event.description }}</p>
+        <p class="card__text card__text--pre text-[1.125rem]">{{ event.description }}</p>
       </section>
 
       <!-- Level-Up Klickspiel -->
       <section class="card card--flush card--game">
-        <PartyLevelUp />
+        <ClientOnly>
+          <PartyLevelUp />
+        </ClientOnly>
       </section>
 
       <!-- Programm -->
@@ -185,23 +187,23 @@ useHead({ title: () => t('party.event.title') })
       <!-- Hotel -->
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.hotel.title') }}</h2>
-        <p class="card__text">{{ t('party.cards.hotel.text1') }}</p>
-        <p class="card__text">{{ t('party.cards.hotel.text2') }}</p>
+        <p class="card__text text-[1.125rem]">{{ t('party.cards.hotel.text1') }}</p>
+        <p class="card__text text-[1.125rem]">{{ t('party.cards.hotel.text2') }}</p>
       </section>
 
       <!-- Anreise -->
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.travel.title') }}</h2>
-        <p class="card__text">{{ t('party.cards.travel.parking') }}</p>
-        <p class="card__text">{{ t('party.cards.travel.public') }}</p>
+        <p class="card__text text-[1.125rem]">{{ t('party.cards.travel.parking') }}</p>
+        <p class="card__text text-[1.125rem]">{{ t('party.cards.travel.public') }}</p>
       </section>
 
       <!-- Geschenke -->
       <section class="card card--wide">
         <h2 class="card__title">{{ t('party.cards.gifts.title') }}</h2>
-        <p class="card__text">{{ t('party.cards.gifts.text1') }}</p>
-        <p class="card__text">{{ t('party.cards.gifts.text2') }}</p>
-        <p class="card__text">{{ t('party.cards.gifts.text3') }}</p>
+        <p class="card__text text-[1.125rem]">{{ t('party.cards.gifts.text1') }}</p>
+        <p class="card__text text-[1.125rem]">{{ t('party.cards.gifts.text2') }}</p>
+        <p class="card__text text-[1.125rem]">{{ t('party.cards.gifts.text3') }}</p>
       </section>
 
       <!-- Bilder Slider -->
@@ -212,7 +214,9 @@ useHead({ title: () => t('party.event.title') })
     </main>
 
     <!-- Konfetti -->
-    <PartyConfetti />
+    <ClientOnly>
+      <PartyConfetti />
+    </ClientOnly>
 
   </div>
 </template>

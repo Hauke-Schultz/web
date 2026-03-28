@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, RESOURCES } from '../hawkStarConfig.js'
-import { useHawkStar } from '../useHawkStar.js'
+import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, RESOURCES } from '~/utils/hawkStarConfig.js'
+import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const {
 	playerName,

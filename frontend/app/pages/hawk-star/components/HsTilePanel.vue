@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { RESOURCES, BUILDINGS, UNIT_COSTS, WARSHIP_CLASSES } from '../hawkStarConfig.js'
-import { useHawkStar } from '../useHawkStar.js'
+import { RESOURCES, BUILDINGS, UNIT_COSTS, WARSHIP_CLASSES } from '~/utils/hawkStarConfig.js'
+import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const {
   playerResources,

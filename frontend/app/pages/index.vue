@@ -13,7 +13,14 @@ const projects = [
     description: 'Merge-Spiel im Suika-Stil – kombiniere Früchte zu immer größeren!',
     emoji:       '🍉',
     route:       '/hawk-fruit',
-    tag:         'Spiel',
+    tags:        ['Spiel', 'Beta'],
+  },
+  {
+    title:       'Hawk Star',
+    description: 'Aufbau-Strategiespiel im Weltall – kolonisiere Planeten und baue dein Imperium!',
+    emoji:       '🌌',
+    route:       '/hawk-star',
+    tags:        ['Spiel', 'Beta'],
   },
 ]
 </script>
@@ -26,10 +33,6 @@ const projects = [
         <div class="flex flex-col gap-6 max-w-[720px]">
           <h1 class="text-[clamp(2.25rem,5vw,3.5rem)] leading-[1.15]">{{ t('home.headline') }}</h1>
           <p class="text-[1.2rem] text-muted max-w-[55ch]">{{ t('home.lead') }}</p>
-          <a
-            href="#projekte"
-            class="inline-block px-6 py-2 bg-primary text-white no-underline rounded-lg font-semibold w-fit transition-colors hover:bg-primary-h"
-          >{{ t('home.cta') }}</a>
         </div>
       </div>
     </section>
@@ -48,7 +51,14 @@ const projects = [
           >
             <div class="flex items-start justify-between gap-2">
               <span class="text-4xl leading-none">{{ p.emoji }}</span>
-              <span class="text-[11px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">{{ p.tag }}</span>
+              <div class="flex gap-1 flex-wrap justify-end">
+                <span
+                  v-for="tag in p.tags"
+                  :key="tag"
+                  class="text-[11px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full"
+                  :class="tag === 'Beta' ? 'bg-amber-400/20 text-amber-500' : 'bg-primary/15 text-primary'"
+                >{{ tag }}</span>
+              </div>
             </div>
             <div>
               <h3 class="text-base font-bold text-fg mb-1 group-hover:text-primary transition-colors">{{ p.title }}</h3>

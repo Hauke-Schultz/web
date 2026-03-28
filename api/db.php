@@ -10,7 +10,7 @@ function getDB(): PDO {
     static $pdo = null;
     if ($pdo !== null) return $pdo;
 
-    $configFile = __DIR__ . '/db.config.php';
+    $configFile = __DIR__ . '/db.configg.php';
     if (file_exists($configFile)) {
         require_once $configFile;
     }

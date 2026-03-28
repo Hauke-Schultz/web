@@ -1,5 +1,5 @@
 <script setup>
-import { useHawkStar } from '../useHawkStar.js'
+import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const props = defineProps({
   currentView: { type: String, required: true },

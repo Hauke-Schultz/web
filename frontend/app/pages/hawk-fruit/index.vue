@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
-import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG } from './hawkFruitConfig.js'
+import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG } from '~/utils/hawkFruitConfig.js'
 const { locale } = useI18n()
 
 definePageMeta({ hideHeader: true })

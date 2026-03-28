@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES } from './hawkStarConfig.js'
-import { GALAXY_SYSTEMS } from './hawkStarGalaxyMock.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES } from '~/utils/hawkStarConfig.js'
+import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
 const buildStartPool = () => {

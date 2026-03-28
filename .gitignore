@@ -7,3 +7,4 @@ app.yaml
 .env.local
 api/db.config.php
 api/setup.php
+api/party-backup-*.json

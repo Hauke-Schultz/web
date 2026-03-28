@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useHawkStar } from '../useHawkStar.js'
-import { GALAXY_SYSTEMS, TRADE_ROUTES } from '../hawkStarGalaxyMock.js'
+import { useHawkStar } from '~/composables/useHawkStar.js'
+import { GALAXY_SYSTEMS, TRADE_ROUTES } from '~/utils/hawkStarGalaxyMock.js'
 
 const {
   starMapLevel,

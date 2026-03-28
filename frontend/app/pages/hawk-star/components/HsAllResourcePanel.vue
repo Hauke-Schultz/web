@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { RESOURCES } from '../hawkStarConfig.js'
-import { useHawkStar } from '../useHawkStar.js'
+import { RESOURCES } from '~/utils/hawkStarConfig.js'
+import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const { playerResources, production, maxStorage, planetType } = useHawkStar()
 

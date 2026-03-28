@@ -23,10 +23,6 @@ const hideNav = computed(() => !!route.meta.hideNav)
           :to="localePath('/')"
           class="no-underline text-muted text-sm transition-colors hover:text-primary [&.router-link-active]:text-primary"
         >{{ t('nav.home') }}</NuxtLink>
-        <NuxtLink
-          :to="localePath('/party')"
-          class="no-underline text-muted text-sm transition-colors hover:text-primary [&.router-link-active]:text-primary"
-        >{{ t('nav.party') }}</NuxtLink>
       </nav>
 
       <div class="flex items-center gap-2 ml-auto">
