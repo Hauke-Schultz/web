@@ -1,37 +1,72 @@
 <script setup>
 const STORAGE_KEY = 'party_rsvp'
+const route = useRoute()
 
 const defaultData = () => ({
-  name:           '',
-  status:         '',
-  numberOfGuests: 1,
-  comingByCar:    false,
-  needsParking:   false,
-  needsHotelRoom: false,
-  numberOfRooms:  1,
+  name:            '',
+  status:          '',
+  numberOfGuests:  1,
+  comingByCar:     false,
+  needsParking:    false,
+  needsHotelRoom:  false,
+  numberOfRooms:   1,
   foodPreferences: ['---'],
-  remarks:        '',
-  lastUpdated:    null,
+  remarks:         '',
+  lastUpdated:     null,
 })
 
-const rsvp       = ref(defaultData())
-const isEditing  = ref(false)
-const isSaving   = ref(false)
-const justSaved  = ref(false)
+const rsvp      = ref(defaultData())
+const guestId   = ref(null)
+const isEditing = ref(false)
+const isSaving  = ref(false)
+const justSaved = ref(false)
+const saveError = ref(null)
 
 // ---- localStorage ----
 const ls = {
-  get:     ()  => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) } catch { return null } },
-  set:     (v) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(v)) } catch {} },
+  get: ()  => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) } catch { return null } },
+  set: (v) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(v)) } catch {} },
 }
 
-onMounted(() => {
-  const stored = ls.get()
-  if (stored) rsvp.value = { ...defaultData(), ...stored }
+const generateUUID = () =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+  })
+
+const apiEndpoint = import.meta.env.DEV ? '/api/rsvp' : '/api/rsvp.php'
+
+onMounted(async () => {
+  const stored    = ls.get()
+  const urlGuest  = route.query.guestId
+
+  // GuestId: URL hat Vorrang, dann localStorage, sonst neu generieren
+  guestId.value = urlGuest || stored?.guestId || null
+
+  if (guestId.value) {
+    // Vorhandenes RSVP vom Server laden
+    try {
+      const res  = await fetch(`${apiEndpoint}?guestId=${guestId.value}`)
+      const data = await res.json()
+      if (data && data.guestId) {
+        rsvp.value = { ...defaultData(), ...data }
+        ls.set({ ...rsvp.value, guestId: guestId.value })
+        return
+      }
+    } catch (e) {
+      console.warn('RSVP fetch failed, using localStorage fallback', e)
+    }
+  }
+
+  // Fallback: localStorage
+  if (stored) {
+    rsvp.value    = { ...defaultData(), ...stored }
+    guestId.value = guestId.value || stored.guestId || null
+  }
 })
 
 // foodPreferences Array an Gästezahl anpassen
-watch(() => rsvp.value.numberOfGuests, (n, o) => {
+watch(() => rsvp.value.numberOfGuests, (n) => {
   const prefs = rsvp.value.foodPreferences
   if (n > prefs.length) {
     for (let i = prefs.length; i < n; i++) prefs.push('---')
@@ -66,19 +101,34 @@ const sanitize = (s) =>
 
 const submit = async () => {
   const name = sanitize(rsvp.value.name)
-  if (!name) return
-  if (!rsvp.value.status) return
+  if (!name || !rsvp.value.status) return
 
-  isSaving.value = true
-  rsvp.value.name = name
+  isSaving.value  = true
+  saveError.value = null
+  rsvp.value.name        = name
   rsvp.value.lastUpdated = new Date().toISOString()
-  ls.set(rsvp.value)
 
-  await new Promise(r => setTimeout(r, 400))
-  isSaving.value = false
-  justSaved.value = true
-  isEditing.value = false
-  setTimeout(() => { justSaved.value = false }, 3000)
+  if (!guestId.value) guestId.value = generateUUID()
+
+  const payload = { ...rsvp.value, guestId: guestId.value }
+  ls.set(payload)
+
+  try {
+    const res = await fetch(apiEndpoint, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    justSaved.value = true
+    isEditing.value = false
+    setTimeout(() => { justSaved.value = false }, 3000)
+  } catch (e) {
+    console.error('Error saving RSVP:', e)
+    saveError.value = 'Speichern fehlgeschlagen – bitte erneut versuchen.'
+  } finally {
+    isSaving.value = false
+  }
 }
 
 const statusBtnClass = (s) => rsvp.value.status === s
@@ -190,24 +240,9 @@ const statusBadgeClass = (s) => {
       <div class="flex flex-col gap-2">
         <label class="text-sm font-medium text-white">Kommst du? *</label>
         <div class="flex gap-2 flex-wrap">
-          <button
-            type="button"
-            :class="statusBtnClass('accepted')"
-            :style="statusBtnStyle('accepted')"
-            @click="rsvp.status = 'accepted'"
-          >✅ Dabei!</button>
-          <button
-            type="button"
-            :class="statusBtnClass('pending')"
-            :style="statusBtnStyle('pending')"
-            @click="rsvp.status = 'pending'"
-          >⏳ Vielleicht</button>
-          <button
-            type="button"
-            :class="statusBtnClass('declined')"
-            :style="statusBtnStyle('declined')"
-            @click="rsvp.status = 'declined'"
-          >❌ Leider nicht</button>
+          <button type="button" :class="statusBtnClass('accepted')" :style="statusBtnStyle('accepted')" @click="rsvp.status = 'accepted'">✅ Dabei!</button>
+          <button type="button" :class="statusBtnClass('pending')"  :style="statusBtnStyle('pending')"  @click="rsvp.status = 'pending'">⏳ Vielleicht</button>
+          <button type="button" :class="statusBtnClass('declined')" :style="statusBtnStyle('declined')" @click="rsvp.status = 'declined'">❌ Leider nicht</button>
         </div>
       </div>
 
@@ -219,9 +254,7 @@ const statusBadgeClass = (s) => {
           <input
             id="rsvp-guests"
             v-model.number="rsvp.numberOfGuests"
-            type="number"
-            min="1"
-            max="10"
+            type="number" min="1" max="10"
             class="py-2 px-4 rounded-lg border-[1.5px] border-white/30 bg-white/15 text-white text-sm focus:outline-none focus:border-white/80 focus:bg-white/20 font-sans"
           />
         </div>
@@ -252,9 +285,7 @@ const statusBadgeClass = (s) => {
           <input
             id="rsvp-rooms"
             v-model.number="rsvp.numberOfRooms"
-            type="number"
-            min="1"
-            max="10"
+            type="number" min="1" max="10"
             class="py-2 px-4 rounded-lg border-[1.5px] border-white/30 bg-white/15 text-white text-sm focus:outline-none focus:border-white/80 focus:bg-white/20 font-sans"
           />
           <p class="text-sm opacity-80 max-w-none m-0">
@@ -292,8 +323,7 @@ const statusBadgeClass = (s) => {
             v-model="rsvp.remarks"
             placeholder="z.B. Freue mich schon sehr! :-)"
             class="py-2 px-4 rounded-lg border-[1.5px] border-white/30 bg-white/15 text-white text-sm placeholder:text-white/50 focus:outline-none focus:border-white/80 focus:bg-white/20 font-sans resize-y min-h-[80px] leading-relaxed"
-            maxlength="500"
-            rows="3"
+            maxlength="500" rows="3"
           />
         </div>
       </div>
@@ -305,8 +335,7 @@ const statusBadgeClass = (s) => {
           v-model="rsvp.remarks"
           placeholder="z.B. Ich bin leider im Urlaub :-("
           class="py-2 px-4 rounded-lg border-[1.5px] border-white/30 bg-white/15 text-white text-sm placeholder:text-white/50 focus:outline-none focus:border-white/80 focus:bg-white/20 font-sans resize-y min-h-[80px] leading-relaxed"
-          maxlength="500"
-          rows="3"
+          maxlength="500" rows="3"
         />
       </div>
 
@@ -317,10 +346,14 @@ const statusBadgeClass = (s) => {
           v-model="rsvp.remarks"
           placeholder="z.B. Ich weiß es erst im Januar …"
           class="py-2 px-4 rounded-lg border-[1.5px] border-white/30 bg-white/15 text-white text-sm placeholder:text-white/50 focus:outline-none focus:border-white/80 focus:bg-white/20 font-sans resize-y min-h-[80px] leading-relaxed"
-          maxlength="500"
-          rows="3"
+          maxlength="500" rows="3"
         />
       </div>
+
+      <!-- Fehlermeldung -->
+      <p v-if="saveError" class="text-sm bg-red-500/30 border border-red-400/50 rounded-lg px-3 py-2 m-0">
+        {{ saveError }}
+      </p>
 
       <!-- Submit -->
       <button
@@ -338,6 +371,5 @@ const statusBadgeClass = (s) => {
 </template>
 
 <style scoped>
-/* select option background can't be set with Tailwind */
 select option { background: #764ba2; }
 </style>

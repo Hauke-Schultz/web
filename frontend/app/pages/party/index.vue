@@ -162,9 +162,9 @@ useHead({ title: () => t('party.event.title') })
           <li
             v-for="item in program"
             :key="item.time"
-            class="flex gap-3 items-start border-l-[3px] border-accent pl-3 text-sm"
+            class="flex gap-3 items-start border-l-[3px] border-purple pl-3 text-sm"
           >
-            <span class="font-bold text-accent min-w-[40px] shrink-0">{{ item.time }}</span>
+            <span class="font-bold text-purple min-w-[40px] shrink-0">{{ item.time }}</span>
             <span class="shrink-0">{{ item.icon }}</span>
             <span>{{ item.activity }}</span>
           </li>
@@ -174,8 +174,13 @@ useHead({ title: () => t('party.event.title') })
       <!-- Dresscode -->
       <section class="card">
         <h2 class="card__title">{{ t('party.cards.dresscode.title') }}</h2>
-        <p class="card__text text-[1.25rem] text-accent">{{ event.dresscode }}</p>
+        <p class="card__text text-[1.25rem] text-purple">{{ event.dresscode }}</p>
       </section>
+
+      <!-- RSVP
+      <section class="card">
+        <PartyRsvp />
+      </section>-->
 
       <!-- Hotel -->
       <section class="card">

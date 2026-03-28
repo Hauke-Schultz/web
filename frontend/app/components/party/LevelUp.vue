@@ -1,27 +1,28 @@
 <script setup>
-const STORAGE_LEVEL  = 'party_level'
-const STORAGE_NAME   = 'party_player_name'
-const STORAGE_ID     = 'party_player_id'
-const STORAGE_SCORES = 'party_local_highscores'
+const STORAGE_LEVEL = 'party_level'
+const STORAGE_NAME  = 'party_player_name'
+const STORAGE_ID    = 'party_player_id'
+
+const apiEndpoint = import.meta.env.DEV ? '/api/highscores' : '/api/highscores.php'
 
 // --- State ---
-const currentLevel    = ref(0)
-const clickAnimation  = ref(false)
-const isFlipped       = ref(false)
-const playerName      = ref('')
-const playerId        = ref('')
-const localHighscores = ref([])
-const showAll         = ref(false)
-const comboCount      = ref(0)
-const floatingStatus  = ref(null)
+const currentLevel   = ref(0)
+const clickAnimation = ref(false)
+const isFlipped      = ref(false)
+const playerName     = ref('')
+const playerId       = ref('')
+const highscores     = ref([])
+const hsLoading      = ref(false)
+const isSaving       = ref(false)
+const showAll        = ref(false)
+const comboCount     = ref(0)
+const floatingStatus = ref(null)
 let comboTimer = null
 
 // --- localStorage helpers ---
 const ls = {
-  get:     (k)  => { try { return localStorage.getItem(k) } catch { return null } },
-  set:     (k, v) => { try { localStorage.setItem(k, v) } catch {} },
-  getJSON: (k)  => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } },
-  setJSON: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} },
+  get:  (k)    => { try { return localStorage.getItem(k) } catch { return null } },
+  set:  (k, v) => { try { localStorage.setItem(k, v) } catch {} },
 }
 
 const genId = () =>
@@ -29,6 +30,19 @@ const genId = () =>
     const r = Math.random() * 16 | 0
     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
   })
+
+// --- API ---
+const loadHighscores = async () => {
+  hsLoading.value = true
+  try {
+    const res = await fetch(apiEndpoint)
+    if (res.ok) highscores.value = await res.json()
+  } catch (e) {
+    console.warn('Failed to load highscores:', e)
+  } finally {
+    hsLoading.value = false
+  }
+}
 
 onMounted(() => {
   const stored = ls.get(STORAGE_LEVEL)
@@ -39,66 +53,55 @@ onMounted(() => {
   if (!id) { id = genId(); ls.set(STORAGE_ID, id) }
   playerId.value = id
 
-  localHighscores.value = ls.getJSON(STORAGE_SCORES) || []
+  loadHighscores()
 })
 
 onUnmounted(() => { if (comboTimer) clearTimeout(comboTimer) })
 
 // --- Level Titles ---
 const getLevelTitle = (lvl) => {
-  if (lvl === 0)     return 'Bereit für dein Abenteuer?'
-  if (lvl < 5)       return 'Neuling'
-  if (lvl < 10)      return 'Novize'
-  if (lvl < 25)      return 'Wegfinder'
-  if (lvl < 50)      return 'Abenteurer'
-  if (lvl < 75)      return 'Kämpfer'
-  if (lvl < 100)     return 'Held'
-  if (lvl < 200)     return 'Erweckter 🔥'
-  if (lvl < 400)     return 'Unaufhaltsamer 💪'
-  if (lvl < 800)     return 'Legende 👑'
-  if (lvl < 1200)    return 'Unsterblicher ⚡'
-  if (lvl < 1600)    return 'Mythischer 🦄'
-  if (lvl < 2000)    return 'Göttlicher 🌟'
-  if (lvl < 2400)    return 'Himmelswächter 🌌'
-  if (lvl < 2800)    return 'Erleuchteter ✨'
-  if (lvl < 3200)    return 'Ewiger 🔮'
-  if (lvl < 4000)    return 'Kosmischer Wanderer 🌠'
-  if (lvl < 5000)    return 'Transzendenter 🎆'
-  if (lvl < 6000)    return 'Allmächtiger 💫'
-  if (lvl < 7000)    return 'Ultimativer 🎮'
-  if (lvl < 8000)    return 'Titan der Sagen 🗿'
-  if (lvl < 9000)    return 'Gott der Welten 🌍'
-  if (lvl < 10000)   return 'Meister der Existenz 🌊'
+  if (lvl === 0)   return 'Bereit für dein Abenteuer?'
+  if (lvl < 5)     return 'Neuling'
+  if (lvl < 10)    return 'Novize'
+  if (lvl < 25)    return 'Wegfinder'
+  if (lvl < 50)    return 'Abenteurer'
+  if (lvl < 75)    return 'Kämpfer'
+  if (lvl < 100)   return 'Held'
+  if (lvl < 200)   return 'Erweckter 🔥'
+  if (lvl < 400)   return 'Unaufhaltsamer 💪'
+  if (lvl < 800)   return 'Legende 👑'
+  if (lvl < 1200)  return 'Unsterblicher ⚡'
+  if (lvl < 1600)  return 'Mythischer 🦄'
+  if (lvl < 2000)  return 'Göttlicher 🌟'
+  if (lvl < 2400)  return 'Himmelswächter 🌌'
+  if (lvl < 2800)  return 'Erleuchteter ✨'
+  if (lvl < 3200)  return 'Ewiger 🔮'
+  if (lvl < 4000)  return 'Kosmischer Wanderer 🌠'
+  if (lvl < 5000)  return 'Transzendenter 🎆'
+  if (lvl < 6000)  return 'Allmächtiger 💫'
+  if (lvl < 7000)  return 'Ultimativer 🎮'
+  if (lvl < 8000)  return 'Titan der Sagen 🗿'
+  if (lvl < 9000)  return 'Gott der Welten 🌍'
+  if (lvl < 10000) return 'Meister der Existenz 🌊'
   return 'der Eine ☯️'
 }
 
 // --- Computed ---
 const visibleScores = computed(() =>
-  showAll.value ? localHighscores.value : localHighscores.value.slice(0, 10)
+  showAll.value ? highscores.value : highscores.value.slice(0, 10)
 )
 
 const myEntry = computed(() =>
-  localHighscores.value.find(s => s.id === playerId.value) ?? null
+  highscores.value.find(s => s.playerId === playerId.value) ?? null
 )
 
 const isImprovement = computed(() =>
-  !myEntry.value ? currentLevel.value > 0 : currentLevel.value > myEntry.value.level
+  currentLevel.value > (myEntry.value?.level ?? 0)
 )
 
-const myRank = computed(() => {
-  const list = [...localHighscores.value]
-  if (currentLevel.value > 0 && !myEntry.value) {
-    list.push({ id: playerId.value, level: currentLevel.value })
-  } else if (myEntry.value && currentLevel.value > myEntry.value.level) {
-    const idx = list.findIndex(s => s.id === playerId.value)
-    if (idx !== -1) list[idx] = { ...list[idx], level: currentLevel.value }
-  }
-  list.sort((a, b) => b.level - a.level)
-  const pos = list.findIndex(s => s.id === playerId.value)
-  return pos === -1 ? null : pos + 1
-})
+const myRank = computed(() => myEntry.value?.rank ?? null)
 
-// --- Inline style helpers (dynamic gradients can't use Tailwind classes) ---
+// --- Inline style helpers ---
 const rankBadgeStyle = (rank) => {
   if (rank === 1) return { background: 'linear-gradient(135deg, #ffd700, #ffb900)', borderColor: '#ffd700' }
   if (rank === 2) return { background: 'linear-gradient(135deg, #c0c0c0, #a9a9a9)', borderColor: '#c0c0c0' }
@@ -107,7 +110,7 @@ const rankBadgeStyle = (rank) => {
 }
 
 const entryStyle = (i) => {
-  if (i === 0) return { background: 'linear-gradient(135deg, rgba(255,215,0,0.6), rgba(255,185,0,0.6))',   border: '1.5px solid rgba(255,215,0,0.8)' }
+  if (i === 0) return { background: 'linear-gradient(135deg, rgba(255,215,0,0.6), rgba(255,185,0,0.6))',    border: '1.5px solid rgba(255,215,0,0.8)' }
   if (i === 1) return { background: 'linear-gradient(135deg, rgba(192,192,192,0.5), rgba(169,169,169,0.5))', border: '1.5px solid rgba(192,192,192,0.7)' }
   if (i === 2) return { background: 'linear-gradient(135deg, rgba(205,127,50,0.5), rgba(184,115,51,0.5))',  border: '1.5px solid rgba(205,127,50,0.7)' }
   return {}
@@ -203,22 +206,33 @@ const sanitize = (s) =>
     .substring(0, 20)
     .trim()
 
-const submitScore = () => {
+const submitScore = async () => {
   const name = sanitize(playerName.value)
   if (!name) return
   playerName.value = name
   ls.set(STORAGE_NAME, name)
 
-  const list = localHighscores.value.filter(s => s.id !== playerId.value)
-  list.push({
-    id:    playerId.value,
-    name,
-    level: currentLevel.value,
-    date:  new Date().toISOString().split('T')[0],
-  })
-  list.sort((a, b) => b.level - a.level)
-  localHighscores.value = list
-  ls.setJSON(STORAGE_SCORES, list)
+  isSaving.value = true
+  try {
+    const res = await fetch(apiEndpoint, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        playerId: playerId.value,
+        name,
+        level: currentLevel.value,
+        date:  new Date().toISOString().split('T')[0],
+      }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (Array.isArray(data.highscores)) highscores.value = data.highscores
+    }
+  } catch (e) {
+    console.error('Failed to save highscore:', e)
+  } finally {
+    isSaving.value = false
+  }
 }
 
 const saveNameOnBlur = () => {
@@ -253,7 +267,7 @@ const saveNameOnBlur = () => {
 
       <div class="flex items-center justify-end gap-2 mt-auto">
         <div
-          v-if="myRank && isImprovement && currentLevel > 0"
+          v-if="myRank && currentLevel > 0"
           class="inline-flex items-center justify-center px-[10px] py-1 rounded-lg text-sm font-bold cursor-pointer border-2 border-white/80 shadow-[0_0_14px_rgba(240,147,251,0.6)] animate-pulse-badge bg-gradient-to-br from-[#f093fb] to-[#f5576c]"
           :style="rankBadgeStyle(myRank)"
           @click="isFlipped = true"
@@ -288,6 +302,7 @@ const saveNameOnBlur = () => {
           <p class="text-sm m-0 leading-[1.3] w-full">Neuer Highscore! Trag deinen Namen ein:</p>
           <div class="flex items-center gap-2 flex-wrap w-full">
             <span
+              v-if="myRank"
               class="inline-flex items-center justify-center px-[10px] py-1 rounded-lg text-sm font-bold border-2 border-white/80 shadow-[0_0_14px_rgba(240,147,251,0.6)] animate-pulse-badge bg-gradient-to-br from-[#f093fb] to-[#f5576c]"
               :style="rankBadgeStyle(myRank)"
             >#{{ myRank }}</span>
@@ -302,10 +317,11 @@ const saveNameOnBlur = () => {
             <span class="text-sm font-bold whitespace-nowrap">Lvl {{ currentLevel }}</span>
             <button
               class="py-[6px] px-[14px] text-sm font-bold uppercase tracking-[1px] text-white bg-gradient-to-br from-[#f093fb] to-[#f5576c] border-0 rounded-lg cursor-pointer whitespace-nowrap transition-all hover:-translate-y-px hover:shadow-[0_3px_10px_rgba(0,0,0,0.25)] disabled:opacity-45 disabled:cursor-not-allowed"
-              :disabled="!playerName.trim()"
+              :disabled="!playerName.trim() || isSaving"
               @click="submitScore"
             >
-              Speichern
+              <span v-if="isSaving">Speichert…</span>
+              <span v-else>Speichern</span>
             </button>
           </div>
         </template>
@@ -322,27 +338,31 @@ const saveNameOnBlur = () => {
         <p class="text-sm m-0 text-center w-full">Klicke auf "LEVEL UP!" um zu starten!</p>
       </div>
 
+      <!-- Ladeindikator -->
+      <div v-if="hsLoading" class="text-center text-sm opacity-60 py-2">Lädt…</div>
+
       <!-- Top-Liste -->
-      <ul class="list-none m-0 p-0 flex flex-col gap-1">
+      <ul v-else class="list-none m-0 p-0 flex flex-col gap-1">
         <li
           v-for="(entry, i) in visibleScores"
-          :key="entry.id"
+          :key="entry.playerId"
           class="flex items-center gap-2 px-[10px] py-[6px] rounded text-sm transition-colors hover:bg-white/16"
-          :class="entry.id === playerId ? 'outline outline-[1.5px] outline-white/50' : (i > 2 ? 'bg-white/10' : '')"
+          :class="entry.playerId === playerId ? 'outline outline-[1.5px] outline-white/50' : (i > 2 ? 'bg-white/10' : '')"
           :style="entryStyle(i)"
         >
-          <span class="font-bold min-w-[24px]">{{ i + 1 }}.</span>
+          <span class="font-bold min-w-[24px]">{{ entry.rank }}.</span>
           <span class="flex-1 font-medium">{{ entry.name }}</span>
+          <span v-if="entry.emoji" class="text-base leading-none">{{ entry.emoji }}</span>
           <span class="font-bold">{{ entry.level }}</span>
         </li>
       </ul>
 
       <button
-        v-if="localHighscores.length > 10"
+        v-if="highscores.length > 10"
         class="mt-2 w-full py-2 text-sm font-semibold uppercase tracking-[1px] text-white bg-white/12 border-[1.5px] border-white/25 rounded-lg cursor-pointer transition-colors hover:bg-white/22"
         @click="showAll = !showAll"
       >
-        {{ showAll ? 'Nur Top 10' : 'Alle anzeigen' }}
+        {{ showAll ? 'Nur Top 10' : `Alle ${highscores.length} anzeigen` }}
       </button>
     </div>
 
