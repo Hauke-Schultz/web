@@ -5,3 +5,5 @@ dist/
 app.yaml
 .env
 .env.local
+api/db.config.php
+api/setup.php
