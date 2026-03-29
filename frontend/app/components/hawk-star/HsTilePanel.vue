@@ -204,9 +204,14 @@ const getPlanetLabel = (planetId) => {
 
           <!-- Cost row -->
           <div
-            v-if="nextLevelDef(bDef.id) && !isBuildingInProgress(bDef.id) && (Object.keys(nextLevelDef(bDef.id).cost).length || staffDelta(bDef.id) > 0)"
+            v-if="nextLevelDef(bDef.id) && !isBuildingInProgress(bDef.id) && (Object.keys(nextLevelDef(bDef.id).cost).length || staffDelta(bDef.id) > 0 || nextLevelDef(bDef.id).energyDrain > 0)"
             class="hs-cost-row"
           >
+            <span
+              v-if="nextLevelDef(bDef.id).energyDrain > 0"
+              class="hs-cost-tag"
+              :class="hasEnoughPower(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+            >⚡ -{{ nextLevelDef(bDef.id).energyDrain }}</span>
             <span
               v-if="staffDelta(bDef.id) > 0"
               class="hs-cost-tag"

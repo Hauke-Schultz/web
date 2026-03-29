@@ -111,7 +111,7 @@ export const TILE_TYPES = {
   research:      { id: 'research',      name: 'Research',      icon: '🔬', description: 'Technology development' },
   communication: { id: 'communication', name: 'Communication', icon: '📡', description: 'Intel, navigation & interplanetary trade' },
   spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for probes, colony ships and freighters' },
-  agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Food production and special crop cultivation for advanced research' },
+  agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Reserved — no buildings yet' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
 }
@@ -1555,45 +1555,6 @@ export const BUILDINGS = {
     conversions: [
       { input: { metal: 20, nano_alloy:    3 }, output: { kinetic_round:   1 }, durationBase: 30, requiresLevel: 1 },
       { input: { pure_crystal: 3, crystal: 15 }, output: { plasma_cell:    1 }, durationBase: 45, requiresLevel: 2 },
-    ],
-  },
-
-  // ── Agriculture tile ───────────────────────────────────────────────────────
-
-  farm: {
-    id:          'farm',
-    name:        'Farm',
-    tileType:    'agriculture',
-    icon:        '🌱',
-    description: 'Cultivates the local ecosystem. Enables growing your planet\'s unique trade crop.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 50, crystal: 20 },
-        buildTime:   15,
-        effect:      'Enables crop cultivation · uses 2 energy · 2 workers',
-        production:  {},
-        energyDrain: 2,
-        staffDrain:  2,
-      },
-      {
-        level:       2,
-        cost:        { metal: 150, crystal: 60 },
-        buildTime:   30,
-        effect:      '2× crop growth speed · uses 4 energy · 3 workers',
-        production:  {},
-        energyDrain: 4,
-        staffDrain:  3,
-      },
-      {
-        level:       3,
-        cost:        { metal: 380, crystal: 160 },
-        buildTime:   50,
-        effect:      '3× crop growth speed · uses 6 energy · 4 workers',
-        production:  {},
-        energyDrain: 6,
-        staffDrain:  4,
-      },
     ],
   },
 }

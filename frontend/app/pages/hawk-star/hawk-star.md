@@ -40,7 +40,7 @@ Slots start locked. They are unlocked by completing specific building levels (vi
 | `research` | Technology development, unlocks other tiles |
 | `communication` | Intel, navigation, interplanetary trade |
 | `spacebase` | Launch pad for probes, colony ships, warships, freighters |
-| `agriculture` | Food production and special crop cultivation |
+| `agriculture` | Reserved — no buildings yet (planned for later) |
 | `defense` | Planetary shields and weapons platforms |
 | `hightech` | Advanced material refinement (planet-exclusive) |
 
@@ -113,8 +113,6 @@ The planet type is assigned on colonization and restricts or enables certain bui
 | **Volcanic** | 🌋 | Metal-rich — `magma_forge`, `geothermal_tap`; limited agriculture |
 | **Frozen** | 🧊 | Crystal-rich — `cryo_excavator`, `cryo_lab` |
 | **Ocean** | 🌊 | Population paradise — `tidal_generator`; weak mining |
-
-Each type also has exactly one trade crop (Agriculture tile): `terra_wheat` / `ember_root` / `frost_spore` / `sea_kelp`.
 
 ---
 
