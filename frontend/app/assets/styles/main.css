@@ -74,7 +74,7 @@
   --font-family-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
 
-  /* Custom animations used by party components */
+  /* Custom animations used by party hawk-star */
   --animate-pulse-badge:  pulse-badge  2s ease-in-out infinite;
   --animate-pulse-player: pulse-player 2s ease-in-out infinite;
   --animate-pulse-btn:    pulse-btn    2s ease-in-out infinite;

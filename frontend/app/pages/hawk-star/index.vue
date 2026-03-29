@@ -2,13 +2,13 @@
 import { ref, computed, watchEffect } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
-import HsResourceBar from './components/HsResourceBar.vue'
-import HsPlanetGrid from './components/HsPlanetGrid.vue'
-import HsTilePanel from './components/HsTilePanel.vue'
-import HsNavBar from './components/HsNavBar.vue'
-import HsGalaxyMap from './components/HsGalaxyMap.vue'
-import HsSolarSystem from './components/HsSolarSystem.vue'
-import HsAllResourcePanel from './components/HsAllResourcePanel.vue'
+import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
+import HsPlanetGrid from '~/components/hawk-star/HsPlanetGrid.vue'
+import HsTilePanel from '~/components/hawk-star/HsTilePanel.vue'
+import HsNavBar from '~/components/hawk-star/HsNavBar.vue'
+import HsGalaxyMap from '~/components/hawk-star/HsGalaxyMap.vue'
+import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
+import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 
 definePageMeta({ hideHeader: true })
 

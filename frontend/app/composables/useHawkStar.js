@@ -37,8 +37,8 @@ const isFirstRun   = computed(() => playerName.value === '')
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
-const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
-const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, composite: 0, hardened_steel: 0, lava_gem: 0, bio_polymer: 0, coral_steel: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
+const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
+const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
 
 const freshDock = () => ({
   reconDroneInventory:    0,
@@ -173,7 +173,7 @@ const totalStaffDrain = computed(() => {
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
 
 // ── Storage caps ───────────────────────────────────────────
-const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 50, cryo: 50, obsidian: 50, biomass: 50, pure_crystal: 50, super_alloy: 50, quantum_shard: 50, nano_alloy: 50, composite: 50, hardened_steel: 50, lava_gem: 50, bio_polymer: 50, coral_steel: 50 }
+const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 50, cryo: 50, obsidian: 50, biomass: 50, pure_crystal: 50, super_alloy: 50, quantum_shard: 50, nano_alloy: 50 }
 
 const maxStorage = computed(() => {
   const caps = { ...BASE_STORAGE }
