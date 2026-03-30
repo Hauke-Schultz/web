@@ -137,6 +137,17 @@ const freighterDest = ref(null)
 // ── Dock panel tab ────────────────────────────────────────────────────────────
 const dockTab = ref(null)
 
+const firstAvailableTab = computed(() => {
+  if (reconDroneLevel.value > 0 || galaxyProbeLevel.value > 0 || colonyShipLevel.value > 0) return 'probes'
+  if (freighterInventory.value > 0) return 'freighter'
+  if (warshipBayLevel.value > 0) return 'warship'
+  return null
+})
+
+watch(selectedPlanetId, (id) => {
+  if (id) dockTab.value = firstAvailableTab.value
+})
+
 const doSendFreighter = () => {
   if (!freighterDest.value) return
   const cargo = Object.fromEntries(

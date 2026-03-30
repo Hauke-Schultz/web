@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
 import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
@@ -9,14 +9,14 @@ import HsNavBar from '~/components/hawk-star/HsNavBar.vue'
 import HsGalaxyMap from '~/components/hawk-star/HsGalaxyMap.vue'
 import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
+import HsPlanetHeader from '~/components/hawk-star/HsPlanetHeader.vue'
 
 definePageMeta({ hideHeader: true })
 
 onMounted(startTick)
 onUnmounted(stopTick)
 
-const { starMapLevel, isFirstRun, playerName, planetName, systemName, planetType, PLANET_TYPES } = useHawkStar()
-const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
+const { starMapLevel, isFirstRun } = useHawkStar()
 
 const currentView = ref('planet')
 const setupName   = ref('')
@@ -41,6 +41,7 @@ watchEffect(() => {
 <template>
   <div class="hs-page">
     <div class="hs-top">
+      <HsPlanetHeader />
       <HsNavBar v-model:currentView="currentView" />
       <HsResourceBar />
     </div>
@@ -200,8 +201,9 @@ watchEffect(() => {
   display: flex;
   gap: 0.375rem;
   width: 100%;
-  max-width: calc(28rem + 0.375rem + calc((28rem - 3 * 0.375rem) / 4));
+  max-width: 52rem;
   align-items: stretch;
+	justify-content: center;
   margin-bottom: 1rem;
 
   @media (min-width: 640px) {

@@ -37,8 +37,8 @@ Slots start locked. They are unlocked by completing specific building levels (vi
 | `base` | Colony command center — must be built first |
 | `mining` | Raw resource extraction (Metal, Crystal) |
 | `energy` | Power generation — Energy is a utility, not stockpiled |
-| `research` | Technology development, unlocks other tiles |
-| `communication` | Intel, navigation, interplanetary trade |
+| `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory |
+| `research` | Global research — researched once, applied across all planets |
 | `spacebase` | Launch pad for probes, colony ships, warships, freighters |
 | `agriculture` | Reserved — no buildings yet (planned for later) |
 | `defense` | Planetary shields and weapons platforms |
@@ -93,8 +93,14 @@ Each planet type produces one exclusive raw resource from its High-Tech tile:
 
 ### Refined Resources
 
-Produced in High-Tech buildings, used for advanced construction and trade:
-`pure_crystal`, `super_alloy`, `quantum_shard`, `nano_alloy`
+Each planet type produces exactly **one** refined resource in its High-Tech building. The other three must be acquired via trade or freighter transport.
+
+| Planet Type | High-Tech Building | Produces | Input |
+|-------------|-------------------|----------|-------|
+| Terrestrial | `alloy_refinery` | `super_alloy` | Metal + Alloy |
+| Volcanic | `obsidian_foundry` | `quantum_shard` | Crystal + Obsidian |
+| Frozen | `cryo_refinery` | `pure_crystal` | Crystal + Cryonite |
+| Ocean | `bio_lab` | `nano_alloy` | Metal + Biomass |
 
 ### Weapon Ordnance
 
@@ -109,10 +115,10 @@ The planet type is assigned on colonization and restricts or enables certain bui
 
 | Type | Icon | Traits |
 |------|------|--------|
-| **Terrestrial** | 🌍 | Balanced — all standard buildings, no restrictions |
-| **Volcanic** | 🌋 | Metal-rich — `magma_forge`, `geothermal_tap`; limited agriculture |
-| **Frozen** | 🧊 | Crystal-rich — `cryo_excavator`, `cryo_lab` |
-| **Ocean** | 🌊 | Population paradise — `tidal_generator`; weak mining |
+| **Terrestrial** | 🌍 | Balanced — all standard buildings, no restrictions · `alloy_refinery` (High-Tech) |
+| **Volcanic** | 🌋 | Metal-rich — `geothermal_tap`; limited agriculture · `obsidian_foundry` (High-Tech) |
+| **Frozen** | 🧊 | Crystal-rich — `cryo_extractor`, `cryo_reactor` · `cryo_refinery` (High-Tech) |
+| **Ocean** | 🌊 | Population paradise — `tidal_generator`; weak mining · `bio_lab` (High-Tech) |
 
 ---
 

@@ -227,8 +227,8 @@ const staffDelta = (id) => {
   return next.staffDrain - current
 }
 
-// Command center: active planet (each planet can build independently)
-const commandCenterBuilt = computed(() => playerBuildings.value['command_center']?.level >= 1)
+// research center: active planet (each planet can build independently)
+const researchCenterBuilt = computed(() => playerBuildings.value['command_center']?.level >= 1)
 
 // Space facilities always read from home planet
 const homeBuilding = (id) => allPlanetStates.value[homePlanetId.value]?.buildings[id]
@@ -269,7 +269,6 @@ const isBuildingLocked = (id) => {
 
 const canBuild = (id) =>
   !isBuildingLocked(id) &&
-  (id === 'command_center' || commandCenterBuilt.value) &&
   canAfford(nextLevelDef(id)?.cost ?? {}) &&
   hasEnoughPower(id) &&
   hasEnoughStaff(id)
@@ -292,7 +291,7 @@ const currentLevelDef = (id) => {
 // ── Offline status ─────────────────────────────────────────
 const isOffline = (id) => {
   if (!energyDeficit.value) return false
-  const lvl = playerBuildings.value[id]?.level ?? 0
+  const lvl = getLevel(id)
   if (lvl === 0) return false
   return (BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0) > 0
 }
@@ -805,7 +804,7 @@ const conversionProgressStyle = (q) => {
 
 // ── LocalStorage persistence ───────────────────────────────
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 13
+const SAVE_VERSION = 14
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({

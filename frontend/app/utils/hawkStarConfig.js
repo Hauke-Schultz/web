@@ -108,8 +108,8 @@ export const TILE_TYPES = {
   base:          { id: 'base',          name: 'Base',          icon: '🏛️', description: 'Colony command center' },
   mining:        { id: 'mining',        name: 'Mining',        icon: '⛏️', description: 'Raw resource extraction' },
   energy:        { id: 'energy',        name: 'Energy',        icon: '🔋', description: 'Power generation' },
-  research:      { id: 'research',      name: 'Research',      icon: '🔬', description: 'Technology development' },
-  communication: { id: 'communication', name: 'Communication', icon: '📡', description: 'Intel, navigation & interplanetary trade' },
+  techcenter:    { id: 'techcenter',    name: 'Tech Center',   icon: '🔬', description: 'Tech Center' },
+  research:      { id: 'research',      name: 'Research',       icon: '📡', description: 'Global technologies — researched once, applied across all planets' },
   spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for probes, colony ships and freighters' },
   agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Reserved — no buildings yet' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
@@ -125,9 +125,9 @@ export const PLANET_GRID = [
   { slot: 3, tileType: 'spacebase',    startsUnlocked: false },
   { slot: 4, tileType: 'energy',       startsUnlocked: false },
   { slot: 5, tileType: 'base',         startsUnlocked: true },
-  { slot: 6, tileType: 'communication', startsUnlocked: false },
+  { slot: 6, tileType: 'research', startsUnlocked: false },
   { slot: 7, tileType: 'agriculture',  startsUnlocked: false },
-  { slot: 8, tileType: 'research',     startsUnlocked: false },
+  { slot: 8, tileType: 'techcenter',     startsUnlocked: false },
   { slot: 9, tileType: 'hightech',     startsUnlocked: false },
 ]
 
@@ -172,11 +172,11 @@ export const BUILDINGS = {
         level:       2,
         cost:        { metal: 80, crystal: 30 },
         buildTime:   20,
-        effect:      'Unlocks the Research tile · +5 pop · uses 2 energy · 2 workers',
+        effect:      'Unlocks the Tech Center tile · +5 pop · uses 2 energy · 2 workers',
         production:  {},
         energyDrain: 2,
         staffDrain:  2,
-        unlocks:     [{ slot: 8 }],
+        unlocks:     [{ slot: 6 }, { slot: 8 }],
         popBonus:    5,
       },
       {
@@ -839,9 +839,42 @@ export const BUILDINGS = {
     ],
   },
 
-  // ── Communication tile ─────────────────────────────────────────────────────
-  // Unlocked by Laboratory Lv1. Houses intel, navigation and trade buildings.
-  // All three are stub definitions — full mechanics arrive in Step 3+.
+  recon_drone: {
+    id:          'recon_drone',
+    name:        'Recon Drone',
+    tileType:    'spacebase',
+    icon:        '🛸',
+    description: 'Short-range drone that flies to planets in the home system to reveal their details.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 250, crystal: 100 },
+        buildTime:   35,
+        effect:      'Scout 1 planet at a time · standard flight speed · uses 5 energy · 2 workers',
+        production:  {},
+        energyDrain: 5,
+        staffDrain:  2,
+      },
+      {
+        level:       2,
+        cost:        { metal: 600, crystal: 250 },
+        buildTime:   50,
+        effect:      'Scout 2 planets simultaneously · 2× flight speed · uses 8 energy · 3 workers',
+        production:  {},
+        energyDrain: 8,
+        staffDrain:  3,
+      },
+      {
+        level:       3,
+        cost:        { metal: 1300, crystal: 550 },
+        buildTime:   60,
+        effect:      'Scout 3 planets simultaneously · 3× flight speed · uses 14 energy · 5 workers',
+        production:  {},
+        energyDrain: 14,
+        staffDrain:  5,
+      },
+    ],
+  },
 
   galaxy_probe: {
     id:          'galaxy_probe',
@@ -883,7 +916,7 @@ export const BUILDINGS = {
   star_map: {
     id:          'star_map',
     name:        'Star Map',
-    tileType:    'communication',
+    tileType:    'research',
     icon:        '🗺️',
     description: 'Charts the known galaxy. Required for interplanetary navigation.',
     levels: [
@@ -917,12 +950,10 @@ export const BUILDINGS = {
     ],
   },
 
-  // ── Research tile ──────────────────────────────────────────────────────────
-
-  space_tech: {
-    id:          'space_tech',
+  space_building: {
+    id:          'space_building',
     name:        'Space Technology',
-    tileType:    'research',
+    tileType:    'techcenter',
     icon:        '🚀',
     description: 'Advances propulsion and navigation science. Unlocks the Space Base tile.',
     levels: [
@@ -940,19 +971,10 @@ export const BUILDINGS = {
         level:       2,
         cost:        { metal: 500, crystal: 320 },
         buildTime:   50,
-        effect:      'Faster probe travel speed · improved ship range · uses 10 energy · 5 workers',
+        effect:      'Unlocks Warship Bay · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
         staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1100, crystal: 700 },
-        buildTime:   60,
-        effect:      'Advanced colonization tech · reduced ship build times · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
       },
     ],
   },
@@ -960,7 +982,7 @@ export const BUILDINGS = {
   laboratory: {
     id:          'laboratory',
     name:        'Laboratory',
-    tileType:    'research',
+    tileType:    'techcenter',
     icon:        '🔬',
     description: 'Drives scientific progress. High energy consumer.',
     levels: [
@@ -968,38 +990,28 @@ export const BUILDINGS = {
         level:       1,
         cost:        { metal: 130, crystal: 80 },
         buildTime:   20,
-        effect:      'Unlocks Communication tile · uses 5 energy · 3 workers',
+        effect:      'Unlocks High-Tech tile · uses 5 energy · 3 workers',
         production:  {},
         energyDrain: 5,
         staffDrain:  3,
-        unlocks:     [{ slot: 6 }],
+        unlocks:     [{ slot: 9 }],
       },
       {
         level:       2,
         cost:        { metal: 320, crystal: 180 },
         buildTime:   40,
-        effect:      'Unlocks High-Tech tile · +50% research speed · uses 8 energy · 5 workers',
+        effect:      'Unlocks Alloy Forge · +50% research speed · uses 8 energy · 5 workers',
         production:  {},
         energyDrain: 8,
         staffDrain:  5,
-        unlocks:     [{ slot: 9 }],
-      },
-      {
-        level:       3,
-        cost:        { metal: 800, crystal: 450 },
-        buildTime:   55,
-        effect:      'Unlocks advanced technologies · uses 14 energy · 8 workers',
-        production:  {},
-        energyDrain: 14,
-        staffDrain:  8,
       },
     ],
   },
 
-  weapons_research: {
-    id:          'weapons_research',
-    name:        'Weapons Research',
-    tileType:    'research',
+  weapons_building: {
+    id:          'weapons_building',
+    name:        'Weapon Technology',
+    tileType:    'techcenter',
     icon:        '⚔️',
     description: 'Military science division. Unlocks the planetary Defense tile.',
     levels: [
@@ -1012,64 +1024,6 @@ export const BUILDINGS = {
         energyDrain: 5,
         staffDrain:  3,
         unlocks:     [{ slot: 1 }],
-      },
-      {
-        level:       2,
-        cost:        { metal: 450, crystal: 250 },
-        buildTime:   45,
-        effect:      'Advanced shielding & missile tech · uses 9 energy · 5 workers',
-        production:  {},
-        energyDrain: 9,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1000, crystal: 600 },
-        buildTime:   60,
-        effect:      'Orbital weapons platform blueprints · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
-      },
-    ],
-  },
-
-  // ── Space Base tile ────────────────────────────────────────────────────────
-  // Unlocked by Space Technology Lv1. Houses probes and colony ships.
-
-  recon_drone: {
-    id:          'recon_drone',
-    name:        'Recon Drone',
-    tileType:    'spacebase',
-    icon:        '🛸',
-    description: 'Short-range drone that flies to planets in the home system to reveal their details.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 250, crystal: 100 },
-        buildTime:   35,
-        effect:      'Scout 1 planet at a time · standard flight speed · uses 5 energy · 2 workers',
-        production:  {},
-        energyDrain: 5,
-        staffDrain:  2,
-      },
-      {
-        level:       2,
-        cost:        { metal: 600, crystal: 250 },
-        buildTime:   50,
-        effect:      'Scout 2 planets simultaneously · 2× flight speed · uses 8 energy · 3 workers',
-        production:  {},
-        energyDrain: 8,
-        staffDrain:  3,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1300, crystal: 550 },
-        buildTime:   60,
-        effect:      'Scout 3 planets simultaneously · 3× flight speed · uses 14 energy · 5 workers',
-        production:  {},
-        energyDrain: 14,
-        staffDrain:  5,
       },
     ],
   },
@@ -1117,7 +1071,7 @@ export const BUILDINGS = {
     tileType:         'spacebase',
     icon:             '⚔️',
     description:      'Heavy construction dock for warships. Requires Super Alloy and Pure Crystal. Needs Space Technology Lv 2.',
-    requiresBuilding: 'space_tech',
+    requiresBuilding: 'space_building',
     requiresLevel:    2,
     levels: [
       {
@@ -1156,7 +1110,7 @@ export const BUILDINGS = {
     tileType:         'spacebase',
     icon:             '🚢',
     description:      'Cargo dock for building freighters. Transport resources between your colonies. Needs Space Technology Lv 1.',
-    requiresBuilding: 'space_tech',
+    requiresBuilding: 'space_building',
     requiresLevel:    1,
     levels: [
       {
@@ -1264,64 +1218,22 @@ export const BUILDINGS = {
   },
 
   // ── High-Tech tile ─────────────────────────────────────────────────────────
-  // Planet-exclusive advanced processing. Each planet type gets its own refinery.
+  // One refinery per planet type. Each produces exactly one refined resource.
+  // Players must trade or freight to obtain the other three.
 
-  cryo_refinery: {
-    id:          'cryo_refinery',
-    name:        'Cryo Refinery',
-    tileType:    'hightech',
-    planetTypes: ['frozen'],
-    icon:        '🧬',
-    description: 'Converts raw materials using cryonite into superior refined substances. Frozen planets only.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 300, crystal: 150, cryo: 80 },
-        buildTime:   40,
-        effect:      'Unlocks Crystal→Pure Crystal & Alloy→Super Alloy conversion · uses 6 energy · 3 workers',
-        production:  {},
-        energyDrain: 6,
-        staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 700, crystal: 350, cryo: 200 },
-        buildTime:   60,
-        effect:      '2× conversion throughput · uses 10 energy · 5 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1600, crystal: 800, cryo: 500 },
-        buildTime:   80,
-        effect:      '4× throughput · unlocks Pure Crystal→Quantum Shard · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
-      },
-    ],
-    conversions: [
-      { input: { crystal: 10, cryo: 5  }, output: { pure_crystal: 1  }, durationBase: 20 },
-      { input: { alloy:   10, cryo: 5  }, output: { super_alloy:  1  }, durationBase: 20 },
-      { input: { pure_crystal: 5, cryo: 10 }, output: { quantum_shard: 1 }, durationBase: 60, requiresLevel: 3 },
-    ],
-  },
-
-  nano_forge: {
-    id:          'nano_forge',
-    name:        'Nano Forge',
+  alloy_refinery: {
+    id:          'alloy_refinery',
+    name:        'Alloy Refinery',
     tileType:    'hightech',
     planetTypes: ['terrestrial'],
-    icon:        '🔧',
-    description: 'Reshapes alloy at the molecular level into high-performance nano materials. Terrestrial planets only.',
+    icon:        '🧱',
+    description: 'Fuses metal and alloy into Super Alloy. Terrestrial planets only.',
     levels: [
       {
         level:       1,
         cost:        { metal: 300, crystal: 150, alloy: 80 },
         buildTime:   40,
-        effect:      'Unlocks Nano Alloy conversion · uses 6 energy · 3 workers',
+        effect:      'Unlocks Super Alloy production · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
@@ -1330,7 +1242,7 @@ export const BUILDINGS = {
         level:       2,
         cost:        { metal: 700, crystal: 350, alloy: 200 },
         buildTime:   60,
-        effect:      '2× conversion throughput · uses 10 energy · 5 workers',
+        effect:      '2× throughput · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
         staffDrain:  5,
@@ -1346,7 +1258,7 @@ export const BUILDINGS = {
       },
     ],
     conversions: [
-      { input: { alloy: 10, metal: 20 }, output: { nano_alloy: 1 }, durationBase: 20 },
+      { input: { metal: 15, alloy: 8 }, output: { super_alloy: 1 }, durationBase: 22 },
     ],
   },
 
@@ -1356,13 +1268,13 @@ export const BUILDINGS = {
     tileType:    'hightech',
     planetTypes: ['volcanic'],
     icon:        '🌋',
-    description: 'Smelts obsidian under extreme volcanic pressure into industrial-grade materials. Volcanic planets only.',
+    description: 'Superheats obsidian and crystal under volcanic pressure into Quantum Shards. Volcanic planets only.',
     levels: [
       {
         level:       1,
         cost:        { metal: 300, crystal: 150, obsidian: 80 },
         buildTime:   40,
-        effect:      'Processes obsidian into refined materials · uses 6 energy · 3 workers',
+        effect:      'Unlocks Quantum Shard production · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
@@ -1371,7 +1283,7 @@ export const BUILDINGS = {
         level:       2,
         cost:        { metal: 700, crystal: 350, obsidian: 200 },
         buildTime:   60,
-        effect:      '2× conversion throughput · uses 10 energy · 5 workers',
+        effect:      '2× throughput · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
         staffDrain:  5,
@@ -1386,7 +1298,50 @@ export const BUILDINGS = {
         staffDrain:  8,
       },
     ],
-    conversions: [],
+    conversions: [
+      { input: { crystal: 8, obsidian: 8 }, output: { quantum_shard: 1 }, durationBase: 30 },
+    ],
+  },
+
+  cryo_refinery: {
+    id:          'cryo_refinery',
+    name:        'Cryo Refinery',
+    tileType:    'hightech',
+    planetTypes: ['frozen'],
+    icon:        '🧬',
+    description: 'Purifies crystal using cryonite into Pure Crystal. Frozen planets only.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 300, crystal: 150, cryo: 80 },
+        buildTime:   40,
+        effect:      'Unlocks Pure Crystal production · uses 6 energy · 3 workers',
+        production:  {},
+        energyDrain: 6,
+        staffDrain:  3,
+      },
+      {
+        level:       2,
+        cost:        { metal: 700, crystal: 350, cryo: 200 },
+        buildTime:   60,
+        effect:      '2× throughput · uses 10 energy · 5 workers',
+        production:  {},
+        energyDrain: 10,
+        staffDrain:  5,
+      },
+      {
+        level:       3,
+        cost:        { metal: 1600, crystal: 800, cryo: 500 },
+        buildTime:   80,
+        effect:      '4× throughput · uses 16 energy · 8 workers',
+        production:  {},
+        energyDrain: 16,
+        staffDrain:  8,
+      },
+    ],
+    conversions: [
+      { input: { crystal: 10, cryo: 5 }, output: { pure_crystal: 1 }, durationBase: 20 },
+    ],
   },
 
   bio_lab: {
@@ -1395,13 +1350,13 @@ export const BUILDINGS = {
     tileType:    'hightech',
     planetTypes: ['ocean'],
     icon:        '🧫',
-    description: 'Synthesizes ocean biomass into advanced organic compounds. Ocean planets only.',
+    description: 'Synthesizes biomass and metal into Nano Alloy. Ocean planets only.',
     levels: [
       {
         level:       1,
         cost:        { metal: 300, crystal: 150, biomass: 80 },
         buildTime:   40,
-        effect:      'Processes biomass into refined materials · uses 6 energy · 3 workers',
+        effect:      'Unlocks Nano Alloy production · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
@@ -1410,7 +1365,7 @@ export const BUILDINGS = {
         level:       2,
         cost:        { metal: 700, crystal: 350, biomass: 200 },
         buildTime:   60,
-        effect:      '2× conversion throughput · uses 10 energy · 5 workers',
+        effect:      '2× throughput · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
         staffDrain:  5,
@@ -1425,11 +1380,12 @@ export const BUILDINGS = {
         staffDrain:  8,
       },
     ],
-    conversions: [],
+    conversions: [
+      { input: { metal: 12, biomass: 4 }, output: { nano_alloy: 1 }, durationBase: 18 },
+    ],
   },
 
   // ── Defense tile ───────────────────────────────────────────────────────────
-  // Unlocked by Weapons Research Lv1. Houses shields, weapons and radar.
 
   shield_generator: {
     id:          'shield_generator',
@@ -1473,8 +1429,8 @@ export const BUILDINGS = {
     name:             'Crystal Deflector Matrix',
     tileType:         'defense',
     icon:             '🔷',
-    description:      'Pure Crystal lattice that bends incoming energy away from the planet. Far superior to conventional shields. Requires Weapons Research Lv 2 and Pure Crystal.',
-    requiresBuilding: 'weapons_research',
+    description:      'Pure Crystal lattice that bends incoming energy away from the planet. Far superior to conventional shields.',
+    requiresBuilding: 'weapons_building',
     requiresLevel:    2,
     levels: [
       {
@@ -1512,21 +1468,17 @@ export const BUILDINGS = {
   },
 
   // ── Weapon Lab (hightech tile) ─────────────────────────────────────────────
-  // Available on all planet types. Requires Weapons Research Lv 2.
-  // Produces weapon ordnance that will later be equippable on warships.
 
   weapon_lab: {
     id:               'weapon_lab',
     name:             'Weapon Lab',
     tileType:         'hightech',
     icon:             '🔬',
-    description:      'Military research facility. Synthesises weapon ordnance that can be equipped on warships. Requires Weapons Research Lv 2.',
-    requiresBuilding: 'weapons_research',
-    requiresLevel:    2,
+    description:      'Military research facility. Synthesises weapon ordnance that can be equipped on warships.',
     levels: [
       {
         level:       1,
-        cost:        { metal: 500, crystal: 250, nano_alloy: 8 },
+        cost:        { metal: 500, crystal: 250, alloy: 250 },
         buildTime:   50,
         effect:      'Unlocks Kinetic Round production · uses 8 energy · 4 workers',
         production:  {},
@@ -1535,26 +1487,17 @@ export const BUILDINGS = {
       },
       {
         level:       2,
-        cost:        { metal: 1200, crystal: 600, nano_alloy: 20, pure_crystal: 10 },
+        cost:        { metal: 1200, crystal: 600, alloy: 600 },
         buildTime:   70,
         effect:      '2× throughput · unlocks Plasma Cell production · uses 16 energy · 7 workers',
         production:  {},
         energyDrain: 16,
         staffDrain:  7,
       },
-      {
-        level:       3,
-        cost:        { metal: 2800, crystal: 1400, quantum_shard: 8, super_alloy: 15 },
-        buildTime:   90,
-        effect:      '4× throughput · unlocks Quantum Warhead production · uses 28 energy · 12 workers',
-        production:  {},
-        energyDrain: 28,
-        staffDrain:  12,
-      },
     ],
     conversions: [
-      { input: { metal: 20, nano_alloy:    3 }, output: { kinetic_round:   1 }, durationBase: 30, requiresLevel: 1 },
-      { input: { pure_crystal: 3, crystal: 15 }, output: { plasma_cell:    1 }, durationBase: 45, requiresLevel: 2 },
+      { input: { metal: 20, pure_crystal: 3 }, output: { kinetic_round:  1 }, durationBase: 30, requiresLevel: 1 },
+      { input: { metal: 20, obsidian: 20, pure_crystal: 3 }, output: { plasma_cell:    1 }, durationBase: 45, requiresLevel: 2 },
     ],
   },
 }
