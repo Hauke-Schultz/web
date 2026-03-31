@@ -45,6 +45,7 @@ const allResources = computed(() =>
   border: 1px solid var(--hs-line-md);
   border-radius: var(--hs-r-md);
   padding: 0.5rem 0.75rem;
+	max-width: 320px;
 }
 
 .hs-res-panel__row {
