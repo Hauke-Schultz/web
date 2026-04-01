@@ -39,8 +39,9 @@ export const WARSHIP_CLASSES = {
     hull:        150,
     shield:      30,
     speed:       8,
+    driveSlots:  1,
     weaponSlots: 2,
-    description: 'Light combat vessel. Fast and agile with 2 weapon slots.',
+    description: 'Light combat vessel. Fast and agile with 1 drive + 2 weapon slots.',
   },
 }
 
@@ -98,9 +99,10 @@ export const RESOURCES = {
   super_alloy:   { id: 'super_alloy',   name: 'Super Alloy',   icon: '🔩',  color: '#e2e8f0', refined: true },
   quantum_shard: { id: 'quantum_shard', name: 'Quantum Shard', icon: '💠',  color: '#818cf8', refined: true },
   nano_alloy:    { id: 'nano_alloy',    name: 'Nano Alloy',    icon: '🔧',  color: '#93c5fd', refined: true },
-  // ── Weapon ordnance (produced in Weapon Lab, equipped on warships) ──────────
+  // ── Weapon ordnance & ship modules (equipped on warships) ───────────────────
   kinetic_round:   { id: 'kinetic_round',   name: 'Kinetic Round',   icon: '🔹',  color: '#94a3b8', weapon: true },
   plasma_cell:     { id: 'plasma_cell',     name: 'Plasma Cell',     icon: '🔴',  color: '#f87171', weapon: true },
+  power_cell:      { id: 'power_cell',      name: 'Power Cell',      icon: '🔋',  color: '#fbbf24', drive: true },
 }
 
 // ── Tile types ────────────────────────────────────────────────────────────────
@@ -1382,6 +1384,48 @@ export const BUILDINGS = {
     ],
     conversions: [
       { input: { metal: 12, biomass: 4 }, output: { nano_alloy: 1 }, durationBase: 18 },
+    ],
+  },
+
+  // ── Power Cell Lab (universal — all planet types) ─────────────────────────
+
+  power_cell_lab: {
+    id:          'power_cell_lab',
+    name:        'Power Cell Lab',
+    tileType:    'hightech',
+    icon:        '🔋',
+    description: 'Manufactures universal power cells for starships. Available on every planet type.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 200, crystal: 100 },
+        buildTime:   30,
+        effect:      'Produce Power Cells · 5 energy · 3 workers',
+        production:  {},
+        energyDrain: 5,
+        staffDrain:  3,
+      },
+      {
+        level:       2,
+        cost:        { metal: 500, crystal: 250 },
+        buildTime:   50,
+        effect:      'Faster production · 8 energy · 4 workers',
+        production:  {},
+        energyDrain: 8,
+        staffDrain:  4,
+      },
+      {
+        level:       3,
+        cost:        { metal: 1200, crystal: 600 },
+        buildTime:   80,
+        effect:      'Maximum output · 12 energy · 6 workers',
+        production:  {},
+        energyDrain: 12,
+        staffDrain:  6,
+      },
+    ],
+    conversions: [
+      { input: { metal: 20, crystal: 10 }, output: { power_cell: 1 }, durationBase: 30 },
     ],
   },
 

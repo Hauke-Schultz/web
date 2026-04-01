@@ -25,6 +25,11 @@ const {
   // warships
   warshipBayLevel,
   warshipInventory,
+  warships,
+  fleetInOrbit,
+  shipHasPowerCell,
+  deployToOrbit,
+  recallFromOrbit,
   // galaxy probes
   galaxyProbeLevel,
   galaxyProbeInventory,
@@ -367,7 +372,7 @@ const doSendFreighter = () => {
           @click="dockTab = dockTab === 'warship' ? null : 'warship'"
         >
           <span class="hs-dock-slot__icon">⚔️</span>
-          <span class="hs-dock-slot__count">{{ warshipInventory }}</span>
+          <span class="hs-dock-slot__count">{{ warshipInventory }}<span v-if="fleetInOrbit.length" class="hs-dock-slot__orbit"> +{{ fleetInOrbit.length }}🛰</span></span>
           <span class="hs-dock-slot__name">Warship</span>
         </button>
       </div>
@@ -496,8 +501,9 @@ const doSendFreighter = () => {
         </div>
       </div>
 
-      <!-- Warship build -->
+      <!-- Warship build + hangar + orbit -->
       <div v-if="dockTab === 'warship'" class="hs-dock-expand">
+        <!-- Build row -->
         <div class="hs-dock-row hs-dock-row--warship">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">⚔️</span>
@@ -517,6 +523,38 @@ const doSendFreighter = () => {
           <div class="hs-dock-action">
             <span v-if="warshipBuild" class="hs-status-building">Building…</span>
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
+          </div>
+        </div>
+        <!-- Hangar -->
+        <div v-if="warships.length" class="hs-warship-section">
+          <span class="hs-warship-section-label">🔧 Hangar</span>
+          <div v-for="ship in warships" :key="ship.id" class="hs-warship-card-mini">
+            <span class="hs-warship-card-mini__icon">{{ ship.icon }}</span>
+            <span class="hs-warship-card-mini__name">{{ ship.name }}</span>
+            <span class="hs-warship-card-mini__slots">
+              <span class="hs-warship-card-mini__slot hs-warship-card-mini__slot--drive" :class="ship.drive?.[0] ? 'hs-warship-card-mini__slot--filled' : ''">{{ ship.drive?.[0]?.icon ?? '🔋' }}</span>
+              <span v-for="(w, idx) in ship.weapons" :key="idx" class="hs-warship-card-mini__slot" :class="w ? 'hs-warship-card-mini__slot--filled' : ''">{{ w ? w.icon : '·' }}</span>
+            </span>
+            <button
+              class="hs-orbit-btn"
+              :class="{ 'hs-orbit-btn--disabled': !shipHasPowerCell(ship) }"
+              :disabled="!shipHasPowerCell(ship)"
+              :title="shipHasPowerCell(ship) ? 'In Orbit schicken' : 'Power Cell benötigt'"
+              @click.stop="deployToOrbit(ship.id)"
+            >↑ Orbit</button>
+          </div>
+        </div>
+        <!-- Orbit -->
+        <div v-if="fleetInOrbit.length" class="hs-warship-section hs-warship-section--orbit">
+          <span class="hs-warship-section-label">🛰 Orbit</span>
+          <div v-for="ship in fleetInOrbit" :key="ship.id" class="hs-warship-card-mini hs-warship-card-mini--orbit">
+            <span class="hs-warship-card-mini__icon">{{ ship.icon }}</span>
+            <span class="hs-warship-card-mini__name">{{ ship.name }}</span>
+            <span class="hs-warship-card-mini__slots">
+              <span class="hs-warship-card-mini__slot hs-warship-card-mini__slot--drive" :class="ship.drive?.[0] ? 'hs-warship-card-mini__slot--filled' : ''">{{ ship.drive?.[0]?.icon ?? '🔋' }}</span>
+              <span v-for="(w, idx) in ship.weapons" :key="idx" class="hs-warship-card-mini__slot" :class="w ? 'hs-warship-card-mini__slot--filled' : ''">{{ w ? w.icon : '·' }}</span>
+            </span>
+            <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">↓ Hangar</button>
           </div>
         </div>
       </div>
@@ -1305,5 +1343,134 @@ const doSendFreighter = () => {
 }
 
 .hs-status-building { font-size: 0.65rem; font-weight: 600; color: var(--hs-warn); white-space: nowrap; }
+
+// ── Dock slot orbit badge ─────────────────────────────────────────────────────
+.hs-dock-slot__orbit {
+  font-size: 0.6rem;
+  color: rgba(167,139,250,0.85);
+  font-weight: 700;
+}
+
+// ── Warship hangar / orbit sections ─────────────────────────────────────────
+.hs-warship-section {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &--orbit { margin-top: 0.35rem; }
+}
+
+.hs-warship-section-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.3);
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.hs-warship-card-mini {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem;
+  background: rgba(248,113,113,0.06);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: var(--hs-r-sm);
+
+  &--orbit {
+    background: rgba(167,139,250,0.06);
+    border-color: rgba(167,139,250,0.25);
+  }
+}
+
+.hs-warship-card-mini__icon { font-size: 0.9rem; line-height: 1; flex-shrink: 0; }
+
+.hs-warship-card-mini__name {
+  flex: 1;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hs-warship-card-mini__slots {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.hs-warship-card-mini__slot {
+  width: 1.2rem;
+  height: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.25);
+
+  &--filled {
+    background: rgba(248,113,113,0.12);
+    border-color: rgba(248,113,113,0.35);
+    color: rgba(248,113,113,0.9);
+  }
+
+  &--drive {
+    border-color: rgba(251,191,36,0.2);
+    opacity: 0.45;
+
+    &.hs-warship-card-mini__slot--filled {
+      background: rgba(251,191,36,0.12);
+      border-color: rgba(251,191,36,0.45);
+      color: rgba(251,191,36,0.9);
+      opacity: 1;
+    }
+  }
+}
+
+// ── Orbit / Recall buttons ────────────────────────────────────────────────────
+.hs-orbit-btn {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.55rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(167,139,250,0.35);
+  background: rgba(167,139,250,0.08);
+  color: rgba(167,139,250,0.9);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) { background: rgba(167,139,250,0.18); border-color: rgba(167,139,250,0.6); }
+
+  &--disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.hs-recall-btn {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.55rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(248,113,113,0.3);
+  background: rgba(248,113,113,0.07);
+  color: rgba(248,113,113,0.85);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+
+  &:hover { background: rgba(248,113,113,0.16); border-color: rgba(248,113,113,0.55); }
+}
 
 </style>

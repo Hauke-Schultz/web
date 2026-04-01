@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
@@ -37,8 +37,8 @@ const isFirstRun   = computed(() => playerName.value === '')
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
-const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
-const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, quantum_warhead: 0 }
+const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, power_cell: 0, quantum_warhead: 0 }
+const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, power_cell: 0, quantum_warhead: 0 }
 
 const freshDock = () => ({
   reconDroneInventory:    0,
@@ -50,7 +50,8 @@ const freshDock = () => ({
   colonyShipInventory:    0,
   colonyShipBuild:        null,
   activeColonyMissions:   [],
-  warships:               [],   // array of warship objects { id, classId, hull, hullMax, shield, shieldMax, weapons[] }
+  warships:               [],   // ships in hangar (built, not deployed)
+  fleet:                  [],   // ships in orbit (deployed, ready to fly)
   warshipBuild:           null,
   freighterInventory:     0,
   freighterBuild:         null,
@@ -609,6 +610,90 @@ const buildWarship = () => {
   dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000, classId: cls.id }
 }
 
+const equipDrive = (shipId, resId) => {
+  const resDef = RESOURCES[resId]
+  if (!resDef?.drive) return
+  const ps = allPlanetStates.value[activePlanetId.value]
+  if (!ps) return
+  if ((ps.resources[resId] ?? 0) < 1) return
+  const ship = ps.dock?.warships?.find(s => s.id === shipId)
+  if (!ship) return
+  if (!ship.drive) ship.drive = [null]
+  const old = ship.drive[0]
+  if (old?.resourceId) {
+    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
+  }
+  ps.resources[resId] -= 1
+  ship.drive[0] = { resourceId: resId, icon: resDef.icon, name: resDef.name }
+}
+
+const unequipDrive = (shipId) => {
+  const ps = allPlanetStates.value[activePlanetId.value]
+  if (!ps) return
+  const ship = ps.dock?.warships?.find(s => s.id === shipId)
+  if (!ship?.drive?.[0]) return
+  const old = ship.drive[0]
+  if (old?.resourceId) {
+    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
+  }
+  ship.drive[0] = null
+}
+
+const equipWeapon = (shipId, slotIndex, weaponResId) => {
+  const resDef = RESOURCES[weaponResId]
+  if (!resDef?.weapon || resDef.drive) return
+  const ps = allPlanetStates.value[activePlanetId.value]
+  if (!ps) return
+  if ((ps.resources[weaponResId] ?? 0) < 1) return
+  const ship = ps.dock?.warships?.find(s => s.id === shipId)
+  if (!ship || slotIndex < 0 || slotIndex >= ship.weapons.length) return
+  const old = ship.weapons[slotIndex]
+  if (old?.resourceId) {
+    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
+  }
+  ps.resources[weaponResId] -= 1
+  ship.weapons[slotIndex] = { resourceId: weaponResId, icon: resDef.icon, name: resDef.name }
+}
+
+const unequipWeapon = (shipId, slotIndex) => {
+  const ps = allPlanetStates.value[activePlanetId.value]
+  if (!ps) return
+  const ship = ps.dock?.warships?.find(s => s.id === shipId)
+  if (!ship || slotIndex < 0 || slotIndex >= ship.weapons.length) return
+  const old = ship.weapons[slotIndex]
+  if (!old) return
+  if (old.resourceId) {
+    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
+  }
+  ship.weapons[slotIndex] = null
+}
+
+const fleetInOrbit = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.fleet ?? [])
+
+const shipHasPowerCell = (ship) => ship.drive?.[0]?.resourceId === 'power_cell'
+
+const deployToOrbit = (shipId) => {
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return
+  const idx = dock.warships.findIndex(s => s.id === shipId)
+  if (idx === -1) return
+  const ship = dock.warships[idx]
+  if (!shipHasPowerCell(ship)) return
+  dock.warships.splice(idx, 1)
+  if (!dock.fleet) dock.fleet = []
+  dock.fleet.push(ship)
+}
+
+const recallFromOrbit = (shipId) => {
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock?.fleet) return
+  const idx = dock.fleet.findIndex(s => s.id === shipId)
+  if (idx === -1) return
+  const ship = dock.fleet.splice(idx, 1)[0]
+  if (!dock.warships) dock.warships = []
+  dock.warships.push(ship)
+}
+
 const warshipBuildProgressStyle = computed(() => {
   if (!warshipBuild.value) return {}
   const bt      = warshipBuildTime.value
@@ -872,6 +957,21 @@ const loadGame = () => {
             activeGalaxyProbes:     Array.isArray(savedDock.activeGalaxyProbes)     ? savedDock.activeGalaxyProbes     : [],
             activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
             activeFreighterMissions: Array.isArray(savedDock.activeFreighterMissions) ? savedDock.activeFreighterMissions : [],
+            fleet: (Array.isArray(savedDock.fleet) ? savedDock.fleet : []).map(s => {
+              if (Array.isArray(s.drive)) return s
+              const driveItem = (s.weapons ?? []).find(w => w?.resourceId === 'power_cell') ?? null
+              const cleanWeapons = (s.weapons ?? []).filter(w => w?.resourceId !== 'power_cell')
+              while (cleanWeapons.length < 2) cleanWeapons.push(null)
+              return { ...s, drive: [driveItem], weapons: cleanWeapons.slice(0, 2) }
+            }),
+            warships: (Array.isArray(savedDock.warships) ? savedDock.warships : []).map(s => {
+              if (Array.isArray(s.drive)) return s
+              // migrate old saves: move power_cell from weapons → drive
+              const driveItem = (s.weapons ?? []).find(w => w?.resourceId === 'power_cell') ?? null
+              const cleanWeapons = (s.weapons ?? []).filter(w => w?.resourceId !== 'power_cell')
+              while (cleanWeapons.length < 2) cleanWeapons.push(null)
+              return { ...s, drive: [driveItem], weapons: cleanWeapons.slice(0, 2) }
+            }),
           },
           conversionQueues: Array.isArray(ps.conversionQueues) ? ps.conversionQueues : [],
         }
@@ -1006,6 +1106,7 @@ const tick = () => {
           shield:    cls.shield,
           shieldMax: cls.shield,
           speed:     cls.speed,
+          drive:     Array(cls.driveSlots ?? 1).fill(null),
           weapons:   Array(cls.weaponSlots).fill(null),
         })
         dock.warshipBuild = null
@@ -1212,6 +1313,14 @@ export function useHawkStar() {
     canBuildWarship,
     buildWarship,
     warshipBuildProgressStyle,
+    equipDrive,
+    unequipDrive,
+    equipWeapon,
+    unequipWeapon,
+    fleetInOrbit,
+    shipHasPowerCell,
+    deployToOrbit,
+    recallFromOrbit,
     // freighters
     freighterBayLevel,
     freighterInventory,

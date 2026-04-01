@@ -66,6 +66,14 @@ const {
   canBuildWarship,
   buildWarship,
   warshipBuildProgressStyle,
+  equipDrive,
+  unequipDrive,
+  equipWeapon,
+  unequipWeapon,
+  fleetInOrbit,
+  shipHasPowerCell,
+  deployToOrbit,
+  recallFromOrbit,
   // freighters
   freighterBayLevel,
   freighterInventory,
@@ -164,6 +172,14 @@ const getPlanetLabel = (planetId) => {
   const p = homeSystem.value?.planets.find(pl => pl.id === planetId)
   return p?.name ?? getPlanetName(planetId) ?? planetId
 }
+
+const availableOrdnance = computed(() =>
+  Object.values(RESOURCES).filter(r => r.weapon && !r.drive && (playerResources.value[r.id] ?? 0) > 0)
+)
+
+const availableDriveCells = computed(() =>
+  Object.values(RESOURCES).filter(r => r.drive && (playerResources.value[r.id] ?? 0) > 0)
+)
 </script>
 
 <template>
@@ -325,7 +341,7 @@ const getPlanetLabel = (planetId) => {
           @click.stop="dockTab = dockTab === 'warship' ? null : 'warship'"
         >
           <span class="hs-dock-slot__icon">⚔️</span>
-          <span class="hs-dock-slot__count">{{ warshipInventory }}</span>
+          <span class="hs-dock-slot__count">{{ warshipInventory }}<span v-if="fleetInOrbit.length" class="hs-dock-slot__orbit"> +{{ fleetInOrbit.length }}🛰</span></span>
           <span class="hs-dock-slot__name">Warship</span>
         </button>
       </div>
@@ -484,29 +500,132 @@ const getPlanetLabel = (planetId) => {
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
           </div>
         </div>
-        <div v-if="warships.length" class="hs-warship-fleet">
-          <div v-for="ship in warships" :key="ship.id" class="hs-warship-card">
-            <div class="hs-warship-card-header">
-              <span class="hs-warship-card-icon">{{ ship.icon }}</span>
-              <span class="hs-warship-card-name">{{ ship.name }}</span>
-              <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+        <!-- Hangar -->
+        <div v-if="warships.length" class="hs-warship-section">
+          <span class="hs-warship-section-label">🔧 Hangar</span>
+          <div class="hs-warship-fleet">
+            <div v-for="ship in warships" :key="ship.id" class="hs-warship-card">
+              <div class="hs-warship-card-header">
+                <span class="hs-warship-card-icon">{{ ship.icon }}</span>
+                <span class="hs-warship-card-name">{{ ship.name }}</span>
+                <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+                <button
+                  class="hs-orbit-btn"
+                  :class="{ 'hs-orbit-btn--disabled': !shipHasPowerCell(ship) }"
+                  :disabled="!shipHasPowerCell(ship)"
+                  :title="shipHasPowerCell(ship) ? 'In Orbit schicken' : 'Power Cell benötigt'"
+                  @click.stop="deployToOrbit(ship.id)"
+                >↑ Orbit</button>
+              </div>
+              <div class="hs-warship-card-stats">
+                <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
+                <span class="hs-warship-stat" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
+                <span class="hs-warship-stat" title="Speed">⚡ {{ ship.speed }}</span>
+              </div>
+              <!-- Drive slot -->
+              <div class="hs-warship-weapons">
+                <span class="hs-warship-weapons-label">🔋 Drive</span>
+                <div class="hs-warship-weapon-slots">
+                  <div
+                    class="hs-warship-weapon-slot hs-warship-weapon-slot--drive"
+                    :class="ship.drive?.[0] ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
+                  >
+                    <template v-if="ship.drive?.[0]">
+                      <span class="hs-warship-slot-item">{{ ship.drive[0].icon }} {{ ship.drive[0].name }}</span>
+                      <button class="hs-warship-unequip-btn" @click.stop="unequipDrive(ship.id)">✕</button>
+                    </template>
+                    <template v-else>
+                      <span class="hs-warship-weapon-slot-empty-label">— no drive —</span>
+                      <div v-if="availableDriveCells.length" class="hs-warship-equip-row">
+                        <button
+                          v-for="cell in availableDriveCells"
+                          :key="cell.id"
+                          class="hs-warship-equip-btn hs-warship-equip-btn--drive"
+                          @click.stop="equipDrive(ship.id, cell.id)"
+                        >{{ cell.icon }} {{ cell.name }} <span class="hs-warship-equip-count">({{ Math.floor(playerResources[cell.id] ?? 0) }})</span></button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+              <!-- Weapon slots -->
+              <div class="hs-warship-weapons">
+                <span class="hs-warship-weapons-label">⚔️ Weapons</span>
+                <div class="hs-warship-weapon-slots">
+                  <div
+                    v-for="(weapon, idx) in ship.weapons"
+                    :key="idx"
+                    class="hs-warship-weapon-slot"
+                    :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
+                  >
+                    <template v-if="weapon">
+                      <span class="hs-warship-slot-item">{{ weapon.icon }} {{ weapon.name }}</span>
+                      <button class="hs-warship-unequip-btn" @click.stop="unequipWeapon(ship.id, idx)">✕</button>
+                    </template>
+                    <template v-else>
+                      <span class="hs-warship-weapon-slot-empty-label">— empty —</span>
+                      <div v-if="availableOrdnance.length" class="hs-warship-equip-row">
+                        <button
+                          v-for="ord in availableOrdnance"
+                          :key="ord.id"
+                          class="hs-warship-equip-btn"
+                          @click.stop="equipWeapon(ship.id, idx, ord.id)"
+                        >{{ ord.icon }} {{ ord.name }} <span class="hs-warship-equip-count">({{ Math.floor(playerResources[ord.id] ?? 0) }})</span></button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="hs-warship-card-stats">
-              <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
-              <span class="hs-warship-stat" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
-              <span class="hs-warship-stat" title="Speed">⚡ {{ ship.speed }}</span>
-            </div>
-            <div class="hs-warship-weapons">
-              <span class="hs-warship-weapons-label">Weapons</span>
-              <div class="hs-warship-weapon-slots">
-                <div
-                  v-for="(weapon, idx) in ship.weapons"
-                  :key="idx"
-                  class="hs-warship-weapon-slot"
-                  :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
-                >
-                  <span v-if="weapon">{{ weapon.icon }} {{ weapon.name }}</span>
-                  <span v-else class="hs-warship-weapon-slot-empty-label">— empty —</span>
+          </div>
+        </div>
+
+        <!-- Orbit -->
+        <div v-if="fleetInOrbit.length" class="hs-warship-section hs-warship-section--orbit">
+          <span class="hs-warship-section-label">🛰 Orbit</span>
+          <div class="hs-warship-fleet">
+            <div v-for="ship in fleetInOrbit" :key="ship.id" class="hs-warship-card hs-warship-card--orbit">
+              <div class="hs-warship-card-header">
+                <span class="hs-warship-card-icon">{{ ship.icon }}</span>
+                <span class="hs-warship-card-name">{{ ship.name }}</span>
+                <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+                <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">↓ Hangar</button>
+              </div>
+              <div class="hs-warship-card-stats">
+                <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
+                <span class="hs-warship-stat" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
+                <span class="hs-warship-stat" title="Speed">⚡ {{ ship.speed }}</span>
+              </div>
+              <!-- Drive slot (read-only in orbit) -->
+              <div class="hs-warship-weapons">
+                <span class="hs-warship-weapons-label">🔋 Drive</span>
+                <div class="hs-warship-weapon-slots">
+                  <div
+                    class="hs-warship-weapon-slot hs-warship-weapon-slot--drive"
+                    :class="ship.drive?.[0] ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
+                  >
+                    <span v-if="ship.drive?.[0]" class="hs-warship-slot-item">{{ ship.drive[0].icon }} {{ ship.drive[0].name }}</span>
+                    <span v-else class="hs-warship-weapon-slot-empty-label">— no drive —</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Weapon slots (read-only in orbit) -->
+              <div class="hs-warship-weapons">
+                <span class="hs-warship-weapons-label">⚔️ Weapons</span>
+                <div class="hs-warship-weapon-slots">
+                  <div
+                    v-for="(weapon, idx) in ship.weapons"
+                    :key="idx"
+                    class="hs-warship-weapon-slot"
+                    :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
+                  >
+                    <template v-if="weapon">
+                      <span class="hs-warship-slot-item">{{ weapon.icon }} {{ weapon.name }}</span>
+                    </template>
+                    <template v-else>
+                      <span class="hs-warship-weapon-slot-empty-label">— empty —</span>
+                    </template>
+                  </div>
                 </div>
               </div>
             </div>
@@ -855,6 +974,7 @@ const getPlanetLabel = (planetId) => {
 .hs-dock-slot__icon  { font-size: 1.1rem; line-height: 1; }
 .hs-dock-slot__count { font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
 .hs-dock-slot__name  { font-size: 0.46rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.55; }
+.hs-dock-slot__orbit { font-size: 0.6rem; color: rgba(52,211,153,0.85); margin-left: 2px; }
 
 .hs-dock-expand {
   border-top: 1px solid rgba(255,255,255,0.07);
@@ -978,11 +1098,58 @@ const getPlanetLabel = (planetId) => {
 .hs-progress-fill--freighter { background: #34d399; }
 
 // ── Warship fleet ─────────────────────────────────────────────────────────────
+.hs-warship-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+
+  &--orbit .hs-warship-card { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.04); }
+}
+
+.hs-warship-section-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255,255,255,0.3);
+}
+
 .hs-warship-fleet {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  margin-top: 0.4rem;
+}
+
+.hs-orbit-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(52,211,153,0.35);
+  background: rgba(52,211,153,0.08);
+  color: rgba(52,211,153,0.9);
+  font-size: 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  &:hover:not(:disabled) { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.6); }
+  &--disabled { opacity: 0.3; cursor: not-allowed; }
+}
+
+.hs-recall-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.45);
+  font-size: 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  &:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); }
 }
 
 .hs-warship-fleet-title {
@@ -1059,10 +1226,14 @@ const getPlanetLabel = (planetId) => {
 }
 
 .hs-warship-weapon-slot {
-  padding: 3px 6px;
+  padding: 4px 6px;
   border-radius: 4px;
   font-size: 0.55rem;
   font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
 
   &--empty {
     border: 1px dashed rgba(255,255,255,0.12);
@@ -1072,13 +1243,85 @@ const getPlanetLabel = (planetId) => {
   &--equipped {
     border: 1px solid rgba(248,113,113,0.35);
     background: rgba(248,113,113,0.08);
-    color: rgba(248,113,113,0.9);
+    flex-direction: row;
+    align-items: center;
+  }
+
+  &--drive {
+    &.hs-warship-weapon-slot--equipped {
+      border-color: rgba(251,191,36,0.4);
+      background: rgba(251,191,36,0.08);
+    }
+    &.hs-warship-weapon-slot--empty {
+      border-color: rgba(251,191,36,0.2);
+    }
   }
 }
 
 .hs-warship-weapon-slot-empty-label {
   color: rgba(255,255,255,0.18);
   font-style: italic;
+}
+
+.hs-warship-slot-item {
+  flex: 1;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(248,113,113,0.9);
+
+  .hs-warship-weapon-slot--drive & {
+    color: rgba(251,191,36,0.9);
+  }
+}
+
+.hs-warship-unequip-btn {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.3);
+  font-size: 0.55rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  &:hover { background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.4); color: #f87171; }
+}
+
+.hs-warship-equip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+
+.hs-warship-equip-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(52,211,153,0.3);
+  background: rgba(52,211,153,0.07);
+  color: rgba(52,211,153,0.85);
+  font-size: 0.58rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  &:hover { background: rgba(52,211,153,0.18); border-color: rgba(52,211,153,0.55); }
+
+  &--drive {
+    border-color: rgba(251,191,36,0.35);
+    background: rgba(251,191,36,0.07);
+    color: rgba(251,191,36,0.85);
+    &:hover { background: rgba(251,191,36,0.17); border-color: rgba(251,191,36,0.6); }
+  }
+}
+
+.hs-warship-equip-count {
+  font-size: 0.52rem;
+  opacity: 0.6;
+  font-weight: 400;
 }
 
 // ── Active missions ────────────────────────────────────────────────────────────
