@@ -134,7 +134,7 @@ const setConversionCount = (bId, idx, val) => {
 }
 
 // ── Dock tabs ──────────────────────────────────────────────────────────────────
-const dockTab = ref('dock')
+const dockTab = ref(null)
 
 // ── Dock panel ─────────────────────────────────────────────────────────────────
 const CARGO_EXCLUDED = ['population', 'energy']
@@ -274,31 +274,117 @@ const getPlanetLabel = (planetId) => {
     </div>
 
     <!-- ── Dock (Space Base tile only) ── -->
-    <div v-if="isSpacebaseTile" class="hs-dock-section">
+    <div v-if="isSpacebaseTile" class="hs-dock-panel">
 
-      <!-- Tab bar -->
-      <div class="hs-dock-tabs">
-        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'dock' }" @click.stop="dockTab = 'dock'">
-          ⚓ Dock
+      <!-- Hangar row: all ships visible at once -->
+      <div class="hs-dock-hangar">
+        <button
+          v-if="reconDroneLevel > 0"
+          class="hs-dock-slot hs-dock-slot--clickable"
+          :class="{ 'hs-dock-slot--active': dockTab === 'drone' }"
+          @click.stop="dockTab = dockTab === 'drone' ? null : 'drone'"
+        >
+          <span class="hs-dock-slot__icon">🛸</span>
+          <span class="hs-dock-slot__count">{{ reconDroneInventory }}</span>
+          <span class="hs-dock-slot__name">Recon Drone</span>
         </button>
-        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'fleet' }" @click.stop="dockTab = 'fleet'">
-          ⚔️ Flotte
-          <span v-if="warships.length" class="hs-dock-tab-badge">{{ warships.length }}</span>
+        <button
+          v-if="galaxyProbeLevel > 0"
+          class="hs-dock-slot hs-dock-slot--clickable"
+          :class="{ 'hs-dock-slot--active': dockTab === 'probe' }"
+          @click.stop="dockTab = dockTab === 'probe' ? null : 'probe'"
+        >
+          <span class="hs-dock-slot__icon">🔭</span>
+          <span class="hs-dock-slot__count">{{ galaxyProbeInventory }}</span>
+          <span class="hs-dock-slot__name">Galaxy Probe</span>
         </button>
-        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'cargo' }" @click.stop="dockTab = 'cargo'">
-          🚢 Fracht
-          <span v-if="activeFreighterMissions.length" class="hs-dock-tab-badge hs-dock-tab-badge--active">{{ activeFreighterMissions.length }}</span>
+        <button
+          v-if="colonyShipLevel > 0"
+          class="hs-dock-slot hs-dock-slot--clickable"
+          :class="{ 'hs-dock-slot--active': dockTab === 'colony' }"
+          @click.stop="dockTab = dockTab === 'colony' ? null : 'colony'"
+        >
+          <span class="hs-dock-slot__icon">🚀</span>
+          <span class="hs-dock-slot__count">{{ colonyShipInventory }}</span>
+          <span class="hs-dock-slot__name">Colony Ship</span>
         </button>
-        <button class="hs-dock-tab" :class="{ 'hs-dock-tab--active': dockTab === 'missions' }" @click.stop="dockTab = 'missions'">
-          🗺️ Missionen
-          <span v-if="activeDroneMissions.length + activeGalaxyProbes.length + activeColonyMissions.length + activeFreighterMissions.length > 0" class="hs-dock-tab-badge hs-dock-tab-badge--active">{{ activeDroneMissions.length + activeGalaxyProbes.length + activeColonyMissions.length + activeFreighterMissions.length }}</span>
+        <button
+          v-if="freighterBayLevel > 0"
+          class="hs-dock-slot hs-dock-slot--clickable"
+          :class="{ 'hs-dock-slot--active': dockTab === 'freighter' }"
+          @click.stop="dockTab = dockTab === 'freighter' ? null : 'freighter'"
+        >
+          <span class="hs-dock-slot__icon">🚢</span>
+          <span class="hs-dock-slot__count">{{ freighterInventory }}</span>
+          <span class="hs-dock-slot__name">Freighter</span>
+        </button>
+        <button
+          v-if="warshipBayLevel > 0"
+          class="hs-dock-slot hs-dock-slot--clickable"
+          :class="{ 'hs-dock-slot--active': dockTab === 'warship' }"
+          @click.stop="dockTab = dockTab === 'warship' ? null : 'warship'"
+        >
+          <span class="hs-dock-slot__icon">⚔️</span>
+          <span class="hs-dock-slot__count">{{ warshipInventory }}</span>
+          <span class="hs-dock-slot__name">Warship</span>
         </button>
       </div>
 
-      <!-- ── Tab: Dock (unit construction) ── -->
-      <template v-if="dockTab === 'dock'">
-        <!-- Recon Drone -->
-        <div v-if="reconDroneLevel > 0" class="hs-dock-row">
+      <!-- Active missions (always visible) -->
+      <div
+        v-if="activeDroneMissions.length || activeGalaxyProbes.length || activeColonyMissions.length || activeFreighterMissions.length"
+        class="hs-dock-missions"
+      >
+        <div v-for="m in activeDroneMissions" :key="m.planetId" class="hs-dock-mission-row">
+          <span class="hs-dock-mission-icon">🛸</span>
+          <div class="hs-dock-mission-info">
+            <span class="hs-dock-mission-label">Recon → {{ getPlanetLabel(m.planetId) }}</span>
+            <div class="hs-progress-row">
+              <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--unit" :key="m.endsAt" :style="droneProgressStyle(m.planetId)" /></div>
+              <span class="hs-progress-time">{{ formatTime(remainingDroneSec(m.planetId)) }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-for="p in activeGalaxyProbes" :key="p.systemId" class="hs-dock-mission-row">
+          <span class="hs-dock-mission-icon">🔭</span>
+          <div class="hs-dock-mission-info">
+            <span class="hs-dock-mission-label">Probe → {{ p.systemId }}</span>
+            <div class="hs-progress-row">
+              <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--unit" :key="p.endsAt" :style="probeProgressStyle(p.systemId)" /></div>
+              <span class="hs-progress-time">{{ formatTime(remainingProbeSec(p.systemId)) }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-for="m in activeColonyMissions" :key="m.planetId" class="hs-dock-mission-row">
+          <span class="hs-dock-mission-icon">🚀</span>
+          <div class="hs-dock-mission-info">
+            <span class="hs-dock-mission-label">Colonize → {{ getPlanetLabel(m.planetId) }}</span>
+            <div class="hs-progress-row">
+              <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--colony" :key="m.endsAt" :style="colonyProgressStyle(m.planetId)" /></div>
+              <span class="hs-progress-time">{{ formatTime(remainingColonySec(m.planetId)) }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-for="m in activeFreighterMissions" :key="m.id" class="hs-dock-mission-row">
+          <span class="hs-dock-mission-icon">🚢</span>
+          <div class="hs-dock-mission-info">
+            <span class="hs-dock-mission-label">{{ getPlanetLabel(m.fromPlanetId) }} → {{ getPlanetLabel(m.toPlanetId) }}</span>
+            <div class="hs-dock-mission-cargo">
+              <template v-for="(amt, resId) in m.cargo" :key="resId">
+                <span v-if="amt > 0" class="hs-dock-cargo-tag">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              </template>
+            </div>
+            <div class="hs-progress-row">
+              <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--freighter" :key="m.endsAt" :style="freighterProgressStyle(m.id)" /></div>
+              <span class="hs-progress-time">{{ formatTime(remainingFreighterSec(m.id)) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expand: Recon Drone -->
+      <div v-if="dockTab === 'drone'" class="hs-dock-expand">
+        <div class="hs-dock-row">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">🛸</span>
             <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
@@ -320,9 +406,11 @@ const getPlanetLabel = (planetId) => {
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">Build</button>
           </div>
         </div>
+      </div>
 
-        <!-- Galaxy Probe -->
-        <div v-if="galaxyProbeLevel > 0" class="hs-dock-row">
+      <!-- Expand: Galaxy Probe -->
+      <div v-if="dockTab === 'probe'" class="hs-dock-expand">
+        <div class="hs-dock-row">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">🔭</span>
             <span v-if="galaxyProbeInventory > 0" class="hs-dock-badge">{{ galaxyProbeInventory }}</span>
@@ -344,9 +432,11 @@ const getPlanetLabel = (planetId) => {
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">Build</button>
           </div>
         </div>
+      </div>
 
-        <!-- Colony Ship -->
-        <div v-if="colonyShipLevel > 0" class="hs-dock-row">
+      <!-- Expand: Colony Ship -->
+      <div v-if="dockTab === 'colony'" class="hs-dock-expand">
+        <div class="hs-dock-row">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">🚀</span>
             <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
@@ -368,9 +458,11 @@ const getPlanetLabel = (planetId) => {
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">Build</button>
           </div>
         </div>
+      </div>
 
-        <!-- Warship -->
-        <div v-if="warshipBayLevel > 0" class="hs-dock-row hs-dock-row--warship">
+      <!-- Expand: Warship (build + fleet) -->
+      <div v-if="dockTab === 'warship'" class="hs-dock-expand">
+        <div class="hs-dock-row hs-dock-row--warship">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">⚔️</span>
             <span v-if="warshipInventory > 0" class="hs-dock-badge hs-dock-badge--warship">{{ warshipInventory }}</span>
@@ -392,9 +484,39 @@ const getPlanetLabel = (planetId) => {
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
           </div>
         </div>
+        <div v-if="warships.length" class="hs-warship-fleet">
+          <div v-for="ship in warships" :key="ship.id" class="hs-warship-card">
+            <div class="hs-warship-card-header">
+              <span class="hs-warship-card-icon">{{ ship.icon }}</span>
+              <span class="hs-warship-card-name">{{ ship.name }}</span>
+              <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+            </div>
+            <div class="hs-warship-card-stats">
+              <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
+              <span class="hs-warship-stat" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
+              <span class="hs-warship-stat" title="Speed">⚡ {{ ship.speed }}</span>
+            </div>
+            <div class="hs-warship-weapons">
+              <span class="hs-warship-weapons-label">Weapons</span>
+              <div class="hs-warship-weapon-slots">
+                <div
+                  v-for="(weapon, idx) in ship.weapons"
+                  :key="idx"
+                  class="hs-warship-weapon-slot"
+                  :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
+                >
+                  <span v-if="weapon">{{ weapon.icon }} {{ weapon.name }}</span>
+                  <span v-else class="hs-warship-weapon-slot-empty-label">— empty —</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <!-- Freighter (build only) -->
-        <div v-if="freighterBayLevel > 0" class="hs-dock-row hs-dock-row--freighter">
+      <!-- Expand: Freighter (build + cargo) -->
+      <div v-if="dockTab === 'freighter'" class="hs-dock-expand">
+        <div class="hs-dock-row hs-dock-row--freighter">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">🚢</span>
             <span v-if="freighterInventory > 0" class="hs-dock-badge hs-dock-badge--freighter">{{ freighterInventory }}</span>
@@ -416,53 +538,7 @@ const getPlanetLabel = (planetId) => {
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">Build</button>
           </div>
         </div>
-
-        <div v-if="reconDroneLevel === 0 && galaxyProbeLevel === 0 && colonyShipLevel === 0 && warshipBayLevel === 0 && freighterBayLevel === 0" class="hs-dock-empty">
-          Build Space Base facilities to produce units
-        </div>
-      </template>
-
-      <!-- ── Tab: Fleet ── -->
-      <template v-else-if="dockTab === 'fleet'">
-        <div v-if="warships.length === 0" class="hs-dock-empty">Keine Kriegsschiffe gebaut</div>
-        <div v-else class="hs-warship-fleet">
-          <div
-            v-for="ship in warships"
-            :key="ship.id"
-            class="hs-warship-card"
-          >
-            <div class="hs-warship-card-header">
-              <span class="hs-warship-card-icon">{{ ship.icon }}</span>
-              <span class="hs-warship-card-name">{{ ship.name }}</span>
-              <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
-            </div>
-            <div class="hs-warship-card-stats">
-              <span class="hs-warship-stat hs-warship-stat--hull" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
-              <span class="hs-warship-stat hs-warship-stat--shield" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
-              <span class="hs-warship-stat hs-warship-stat--speed" title="Speed">⚡ {{ ship.speed }}</span>
-            </div>
-            <div class="hs-warship-weapons">
-              <span class="hs-warship-weapons-label">Weapons</span>
-              <div class="hs-warship-weapon-slots">
-                <div
-                  v-for="(weapon, idx) in ship.weapons"
-                  :key="idx"
-                  class="hs-warship-weapon-slot"
-                  :class="weapon ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
-                >
-                  <span v-if="weapon">{{ weapon.icon }} {{ weapon.name }}</span>
-                  <span v-else class="hs-warship-weapon-slot-empty-label">— empty —</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- ── Tab: Fracht ── -->
-      <template v-else-if="dockTab === 'cargo'">
-        <div v-if="freighterInventory === 0" class="hs-dock-empty">Kein Frachter verfügbar</div>
-        <div v-else class="hs-freighter-cargo-panel">
+        <div v-if="freighterInventory > 0" class="hs-freighter-cargo-panel">
           <div class="hs-freighter-cargo-header">
             <span class="hs-freighter-cargo-title">🚢 Frachter beladen</span>
             <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
@@ -483,61 +559,7 @@ const getPlanetLabel = (planetId) => {
             </div>
           </div>
         </div>
-      </template>
-
-      <!-- ── Tab: Missionen ── -->
-      <template v-else-if="dockTab === 'missions'">
-        <div v-if="!activeDroneMissions.length && !activeGalaxyProbes.length && !activeColonyMissions.length && !activeFreighterMissions.length" class="hs-dock-empty">
-          Keine aktiven Missionen
-        </div>
-        <div v-else class="hs-dock-missions">
-          <div v-for="m in activeDroneMissions" :key="m.planetId" class="hs-dock-mission-row">
-            <span class="hs-dock-mission-icon">🛸</span>
-            <div class="hs-dock-mission-info">
-              <span class="hs-dock-mission-label">Recon → {{ getPlanetLabel(m.planetId) }}</span>
-              <div class="hs-progress-row">
-                <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--unit" :key="m.endsAt" :style="droneProgressStyle(m.planetId)" /></div>
-                <span class="hs-progress-time">{{ formatTime(remainingDroneSec(m.planetId)) }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-for="p in activeGalaxyProbes" :key="p.systemId" class="hs-dock-mission-row">
-            <span class="hs-dock-mission-icon">🔭</span>
-            <div class="hs-dock-mission-info">
-              <span class="hs-dock-mission-label">Probe → {{ p.systemId }}</span>
-              <div class="hs-progress-row">
-                <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--unit" :key="p.endsAt" :style="probeProgressStyle(p.systemId)" /></div>
-                <span class="hs-progress-time">{{ formatTime(remainingProbeSec(p.systemId)) }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-for="m in activeColonyMissions" :key="m.planetId" class="hs-dock-mission-row">
-            <span class="hs-dock-mission-icon">🚀</span>
-            <div class="hs-dock-mission-info">
-              <span class="hs-dock-mission-label">Colonize → {{ getPlanetLabel(m.planetId) }}</span>
-              <div class="hs-progress-row">
-                <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--colony" :key="m.endsAt" :style="colonyProgressStyle(m.planetId)" /></div>
-                <span class="hs-progress-time">{{ formatTime(remainingColonySec(m.planetId)) }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-for="m in activeFreighterMissions" :key="m.id" class="hs-dock-mission-row">
-            <span class="hs-dock-mission-icon">🚢</span>
-            <div class="hs-dock-mission-info">
-              <span class="hs-dock-mission-label">{{ getPlanetLabel(m.fromPlanetId) }} → {{ getPlanetLabel(m.toPlanetId) }}</span>
-              <div class="hs-dock-mission-cargo">
-                <template v-for="(amt, resId) in m.cargo" :key="resId">
-                  <span v-if="amt > 0" class="hs-dock-cargo-tag">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                </template>
-              </div>
-              <div class="hs-progress-row">
-                <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--freighter" :key="m.endsAt" :style="freighterProgressStyle(m.id)" /></div>
-                <span class="hs-progress-time">{{ formatTime(remainingFreighterSec(m.id)) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
+      </div>
 
     </div>
 
@@ -780,76 +802,74 @@ const getPlanetLabel = (planetId) => {
 
 .hs-empty { text-align: center; padding: 1.5rem; opacity: 0.25; font-size: 0.875rem; }
 
-// ── Dock section ──────────────────────────────────────────────────────────────
-.hs-dock-section {
+// ── Dock panel ────────────────────────────────────────────────────────────────
+.hs-dock-panel {
   order: -1;
   margin-bottom: 0.875rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--hs-line-sm);
+  background: var(--hs-glass-sm);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--hs-r-md);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
-.hs-dock-tabs {
+.hs-dock-hangar {
   display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.hs-dock-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 2px;
-  background: var(--hs-glass-sm);
-  border: 1px solid var(--hs-line-sm);
-  border-radius: var(--hs-r-md);
-  padding: 3px;
+  padding: 0.5rem 0.7rem;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
+
+  &:last-child { border-right: none; }
+
+  &--clickable {
+    cursor: pointer;
+    background: transparent;
+    border-top: none;
+    border-bottom: none;
+    transition: background 0.15s, color 0.15s;
+    &:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.8); }
+  }
+
+  &--active {
+    background: rgba(52,211,153,0.07);
+    color: rgba(52,211,153,0.95);
+    border-bottom: 2px solid rgba(52,211,153,0.4) !important;
+  }
 }
 
-.hs-dock-tab {
-  flex: 1;
+.hs-dock-slot__icon  { font-size: 1.1rem; line-height: 1; }
+.hs-dock-slot__count { font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.hs-dock-slot__name  { font-size: 0.46rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.55; }
+
+.hs-dock-expand {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding: 0.5rem 0.6rem;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--hs-r-sm);
-  border: none;
-  background: transparent;
-  color: rgba(255,255,255,0.4);
-  font-size: 0.62rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
-
-  &:hover { color: rgba(255,255,255,0.7); background: var(--hs-glass-lg); }
-
-  &--active {
-    background: var(--hs-glass-2xl);
-    color: rgba(255,255,255,0.9);
-  }
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.hs-dock-tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  border-radius: 9999px;
-  background: rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.6);
-  font-size: 0.55rem;
-  font-weight: 700;
-
-  &--active {
-    background: rgba(251,191,36,0.25);
-    color: rgba(251,191,36,0.95);
-  }
-}
-
-.hs-dock-section-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.55);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.hs-dock-expand__empty {
+  font-size: 0.58rem;
+  opacity: 0.3;
+  font-style: italic;
+  text-align: center;
+  padding: 0.2rem 0;
 }
 
 // ── Dock unit rows ─────────────────────────────────────────────────────────────
@@ -962,7 +982,7 @@ const getPlanetLabel = (planetId) => {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  margin-top: 0.25rem;
+  margin-top: 0.4rem;
 }
 
 .hs-warship-fleet-title {
@@ -1062,16 +1082,13 @@ const getPlanetLabel = (planetId) => {
 }
 
 // ── Active missions ────────────────────────────────────────────────────────────
-.hs-dock-missions-title {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-top: 0.25rem;
+.hs-dock-missions {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 0.35rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
-
-.hs-dock-missions { display: flex; flex-direction: column; gap: 0.375rem; }
 
 .hs-dock-mission-row {
   display: flex;
@@ -1112,12 +1129,13 @@ const getPlanetLabel = (planetId) => {
 
 .hs-freighter-cargo-panel {
   background: var(--hs-glass-sm);
-  border: 1px solid rgba(52,211,153,0.2);
+  border: 1px solid rgba(52,211,153,0.15);
   border-radius: var(--hs-r-md);
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  margin-top: 0.25rem;
 }
 
 .hs-freighter-cargo-header {

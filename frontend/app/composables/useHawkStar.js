@@ -345,7 +345,8 @@ const playerScannedPlanets = ref([homePlanetId.value])
 // Per-planet dock aliases (computed from active planet's dock)
 const reconDroneInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.reconDroneInventory ?? 0)
 const reconDroneBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.reconDroneBuild ?? null)
-const activeDroneMissions = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeDroneMissions ?? [])
+const activeDroneMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeDroneMissions ?? [])
+const allActiveDroneMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeDroneMissions ?? []))
 
 const droneBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.recon_drone.buildTimeBase / Math.max(1, reconDroneLevel.value))
@@ -397,12 +398,12 @@ const sendReconDrone = (planetId, fromPlanetId) => {
 }
 
 const remainingDroneSec = (planetId) => {
-  const m = activeDroneMissions.value.find(m => m.planetId === planetId)
+  const m = allActiveDroneMissions.value.find(m => m.planetId === planetId)
   return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
 }
 
 const droneProgressStyle = (planetId) => {
-  const m = activeDroneMissions.value.find(m => m.planetId === planetId)
+  const m = allActiveDroneMissions.value.find(m => m.planetId === planetId)
   if (!m) return {}
   const ft = droneFlightTime(planetId)
   return { animationDuration: `${ft}s` }
@@ -501,7 +502,8 @@ const playerColonizedPlanets = ref([homePlanetId.value])
 // Per-planet dock aliases
 const colonyShipInventory  = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipInventory ?? 0)
 const colonyShipBuild      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipBuild ?? null)
-const activeColonyMissions = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeColonyMissions ?? [])
+const activeColonyMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeColonyMissions ?? [])
+const allActiveColonyMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeColonyMissions ?? []))
 
 const colonyShipBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.colony_ship.buildTimeBase / Math.max(1, colonyShipLevel.value))
@@ -561,12 +563,12 @@ const sendColonyShip = (planetId, fromPlanetId) => {
 }
 
 const remainingColonySec = (planetId) => {
-  const m = activeColonyMissions.value.find(m => m.planetId === planetId)
+  const m = allActiveColonyMissions.value.find(m => m.planetId === planetId)
   return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
 }
 
 const colonyProgressStyle = (planetId) => {
-  const m = activeColonyMissions.value.find(m => m.planetId === planetId)
+  const m = allActiveColonyMissions.value.find(m => m.planetId === planetId)
   if (!m) return {}
   const ft      = colonyFlightTime(planetId)
   return { animationDuration: `${ft}s` }
@@ -617,7 +619,8 @@ const warshipBuildProgressStyle = computed(() => {
 // Per-planet dock aliases
 const freighterInventory      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighterInventory ?? 0)
 const freighterBuild          = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighterBuild ?? null)
-const activeFreighterMissions = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeFreighterMissions ?? [])
+const activeFreighterMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeFreighterMissions ?? [])
+const allActiveFreighterMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeFreighterMissions ?? []))
 
 const freighterBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.freighter.buildTimeBase / Math.max(1, freighterBayLevel.value))
@@ -706,12 +709,12 @@ const sendFreighter = (fromPlanetId, toPlanetId, cargo) => {
 }
 
 const remainingFreighterSec = (missionId) => {
-  const m = activeFreighterMissions.value.find(m => m.id === missionId)
+  const m = allActiveFreighterMissions.value.find(m => m.id === missionId)
   return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
 }
 
 const freighterProgressStyle = (missionId) => {
-  const m = activeFreighterMissions.value.find(m => m.id === missionId)
+  const m = allActiveFreighterMissions.value.find(m => m.id === missionId)
   if (!m) return {}
   return { animationDuration: `${m.flightTime}s` }
 }
@@ -1160,6 +1163,7 @@ export function useHawkStar() {
     reconDroneInventory,
     reconDroneBuild,
     activeDroneMissions,
+    allActiveDroneMissions,
     droneBuildTime,
     canBuildDrone,
     buildReconDrone,
@@ -1189,6 +1193,7 @@ export function useHawkStar() {
     colonyShipInventory,
     colonyShipBuild,
     activeColonyMissions,
+    allActiveColonyMissions,
     colonyShipBuildTime,
     canBuildColonyShip,
     buildColonyShip,
@@ -1212,6 +1217,7 @@ export function useHawkStar() {
     freighterInventory,
     freighterBuild,
     activeFreighterMissions,
+    allActiveFreighterMissions,
     freighterBuildTime,
     freighterCargoCapacity,
     canBuildFreighter,
