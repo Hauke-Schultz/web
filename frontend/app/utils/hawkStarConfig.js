@@ -45,6 +45,35 @@ export const WARSHIP_CLASSES = {
   },
 }
 
+// ── Ship components ───────────────────────────────────────────────────────────
+// Stats that a component provides when equipped in a ship slot.
+// Drive components boost the ship's base shield and speed.
+// Weapon components define combat output per shot.
+export const SHIP_COMPONENTS = {
+  // ── Drive slot ───────────────────────────────────────────────────────────────
+  power_cell: {
+    id:           'power_cell',
+    type:         'drive',
+    shield:       20,   // added on top of the ship's base shield
+    speed:        4,    // added on top of the ship's base speed
+  },
+  // ── Weapon slots ─────────────────────────────────────────────────────────────
+  kinetic_round: {
+    id:           'kinetic_round',
+    type:         'weapon',
+    damage:       25,   // raw damage per shot before armor/shield reduction
+    accuracy:     0.85, // hit chance 0–1
+    armorPiercing: 5,   // flat reduction applied to target shield before damage
+  },
+  plasma_cell: {
+    id:           'plasma_cell',
+    type:         'weapon',
+    damage:       40,
+    accuracy:     0.70,
+    armorPiercing: 15,
+  },
+}
+
 // ── Planet types ──────────────────────────────────────────────────────────────
 // Maps from mock planet.type (rock/gas/lava/ice/ocean) to game type.
 // Each type unlocks or restricts certain buildings.
@@ -1522,7 +1551,7 @@ export const BUILDINGS = {
     levels: [
       {
         level:       1,
-        cost:        { metal: 500, crystal: 250, alloy: 250 },
+        cost:        { metal: 500, crystal: 250 },
         buildTime:   50,
         effect:      'Unlocks Kinetic Round production · uses 8 energy · 4 workers',
         production:  {},
@@ -1531,7 +1560,7 @@ export const BUILDINGS = {
       },
       {
         level:       2,
-        cost:        { metal: 1200, crystal: 600, alloy: 600 },
+        cost:        { metal: 1200, crystal: 600 },
         buildTime:   70,
         effect:      '2× throughput · unlocks Plasma Cell production · uses 16 energy · 7 workers',
         production:  {},
@@ -1540,8 +1569,8 @@ export const BUILDINGS = {
       },
     ],
     conversions: [
-      { input: { metal: 20, pure_crystal: 3 }, output: { kinetic_round:  1 }, durationBase: 30, requiresLevel: 1 },
-      { input: { metal: 20, obsidian: 20, pure_crystal: 3 }, output: { plasma_cell:    1 }, durationBase: 45, requiresLevel: 2 },
+      { input: { metal: 20, pure_crystal: 3 }, output: { kinetic_round: 1 }, durationBase: 30, requiresLevel: 1 },
+      { input: { metal: 20, quantum_shard: 3 }, output: { plasma_cell: 1 }, durationBase: 30, requiresLevel: 1 },
     ],
   },
 }

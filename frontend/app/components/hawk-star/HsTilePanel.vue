@@ -519,8 +519,9 @@ const availableDriveCells = computed(() =>
               </div>
               <div class="hs-warship-card-stats">
                 <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
-                <span class="hs-warship-stat" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
-                <span class="hs-warship-stat" title="Speed">⚡ {{ ship.speed }}</span>
+                <span class="hs-warship-stat" :class="ship.drive?.[0]?.shield ? 'hs-warship-stat--boosted' : ''" title="Shield">🔵 {{ ship.shield + (ship.drive?.[0]?.shield ?? 0) }}/{{ ship.shieldMax + (ship.drive?.[0]?.shield ?? 0) }}</span>
+                <span class="hs-warship-stat" :class="ship.drive?.[0]?.speed ? 'hs-warship-stat--boosted' : ''" title="Speed">⚡ {{ ship.speed + (ship.drive?.[0]?.speed ?? 0) }}</span>
+                <span v-if="ship.weapons.some(w => w)" class="hs-warship-stat hs-warship-stat--atk" title="Gesamtschaden (alle Waffen)">⚔ {{ ship.weapons.reduce((s, w) => s + (w?.damage ?? 0), 0) }}</span>
               </div>
               <!-- Drive slot -->
               <div class="hs-warship-weapons">
@@ -532,6 +533,7 @@ const availableDriveCells = computed(() =>
                   >
                     <template v-if="ship.drive?.[0]">
                       <span class="hs-warship-slot-item">{{ ship.drive[0].icon }} {{ ship.drive[0].name }}</span>
+                      <span class="hs-warship-slot-stats">+{{ ship.drive[0].shield }}🔵 +{{ ship.drive[0].speed }}⚡</span>
                       <button class="hs-warship-unequip-btn" @click.stop="unequipDrive(ship.id)">✕</button>
                     </template>
                     <template v-else>
@@ -560,6 +562,7 @@ const availableDriveCells = computed(() =>
                   >
                     <template v-if="weapon">
                       <span class="hs-warship-slot-item">{{ weapon.icon }} {{ weapon.name }}</span>
+                      <span class="hs-warship-slot-stats">⚔ {{ weapon.damage }} | {{ Math.round(weapon.accuracy * 100) }}% | AP{{ weapon.armorPiercing }}</span>
                       <button class="hs-warship-unequip-btn" @click.stop="unequipWeapon(ship.id, idx)">✕</button>
                     </template>
                     <template v-else>
@@ -593,8 +596,9 @@ const availableDriveCells = computed(() =>
               </div>
               <div class="hs-warship-card-stats">
                 <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
-                <span class="hs-warship-stat" title="Shield">🔵 {{ ship.shield }}/{{ ship.shieldMax }}</span>
-                <span class="hs-warship-stat" title="Speed">⚡ {{ ship.speed }}</span>
+                <span class="hs-warship-stat" :class="ship.drive?.[0]?.shield ? 'hs-warship-stat--boosted' : ''" title="Shield">🔵 {{ ship.shield + (ship.drive?.[0]?.shield ?? 0) }}/{{ ship.shieldMax + (ship.drive?.[0]?.shield ?? 0) }}</span>
+                <span class="hs-warship-stat" :class="ship.drive?.[0]?.speed ? 'hs-warship-stat--boosted' : ''" title="Speed">⚡ {{ ship.speed + (ship.drive?.[0]?.speed ?? 0) }}</span>
+                <span v-if="ship.weapons.some(w => w)" class="hs-warship-stat hs-warship-stat--atk" title="Gesamtschaden (alle Waffen)">⚔ {{ ship.weapons.reduce((s, w) => s + (w?.damage ?? 0), 0) }}</span>
               </div>
               <!-- Drive slot (read-only in orbit) -->
               <div class="hs-warship-weapons">
@@ -604,7 +608,10 @@ const availableDriveCells = computed(() =>
                     class="hs-warship-weapon-slot hs-warship-weapon-slot--drive"
                     :class="ship.drive?.[0] ? 'hs-warship-weapon-slot--equipped' : 'hs-warship-weapon-slot--empty'"
                   >
-                    <span v-if="ship.drive?.[0]" class="hs-warship-slot-item">{{ ship.drive[0].icon }} {{ ship.drive[0].name }}</span>
+                    <template v-if="ship.drive?.[0]">
+                      <span class="hs-warship-slot-item">{{ ship.drive[0].icon }} {{ ship.drive[0].name }}</span>
+                      <span class="hs-warship-slot-stats">+{{ ship.drive[0].shield }}🔵 +{{ ship.drive[0].speed }}⚡</span>
+                    </template>
                     <span v-else class="hs-warship-weapon-slot-empty-label">— no drive —</span>
                   </div>
                 </div>
@@ -621,6 +628,7 @@ const availableDriveCells = computed(() =>
                   >
                     <template v-if="weapon">
                       <span class="hs-warship-slot-item">{{ weapon.icon }} {{ weapon.name }}</span>
+                      <span class="hs-warship-slot-stats">⚔ {{ weapon.damage }} | {{ Math.round(weapon.accuracy * 100) }}% | AP{{ weapon.armorPiercing }}</span>
                     </template>
                     <template v-else>
                       <span class="hs-warship-weapon-slot-empty-label">— empty —</span>
@@ -1204,6 +1212,17 @@ const availableDriveCells = computed(() =>
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: rgba(255,255,255,0.55);
+
+  &--boosted { color: #34d399; }
+  &--atk     { color: #f87171; }
+}
+
+.hs-warship-slot-stats {
+  font-size: 0.5rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.35);
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .hs-warship-weapons {

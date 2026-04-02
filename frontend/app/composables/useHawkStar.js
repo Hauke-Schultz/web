@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES, SHIP_COMPONENTS } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
@@ -624,7 +624,8 @@ const equipDrive = (shipId, resId) => {
     ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
   }
   ps.resources[resId] -= 1
-  ship.drive[0] = { resourceId: resId, icon: resDef.icon, name: resDef.name }
+  const comp = SHIP_COMPONENTS[resId]
+  ship.drive[0] = { resourceId: resId, icon: resDef.icon, name: resDef.name, shield: comp?.shield ?? 0, speed: comp?.speed ?? 0 }
 }
 
 const unequipDrive = (shipId) => {
@@ -652,7 +653,8 @@ const equipWeapon = (shipId, slotIndex, weaponResId) => {
     ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
   }
   ps.resources[weaponResId] -= 1
-  ship.weapons[slotIndex] = { resourceId: weaponResId, icon: resDef.icon, name: resDef.name }
+  const comp = SHIP_COMPONENTS[weaponResId]
+  ship.weapons[slotIndex] = { resourceId: weaponResId, icon: resDef.icon, name: resDef.name, damage: comp?.damage ?? 0, accuracy: comp?.accuracy ?? 0, armorPiercing: comp?.armorPiercing ?? 0 }
 }
 
 const unequipWeapon = (shipId, slotIndex) => {
