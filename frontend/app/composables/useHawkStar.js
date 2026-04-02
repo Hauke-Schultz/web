@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES, SHIP_COMPONENTS } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES, SHIP_COMPONENTS } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
@@ -13,7 +13,7 @@ const buildStartPool = () => {
           systemId:   sys.id,
           planet:     planet.name,
           planetId:   planet.id,
-          planetType: MOCK_TYPE_TO_PLANET_TYPE[planet.type] ?? 'terrestrial',
+          planetType: planet.type,
         })
       }
     }
@@ -1087,7 +1087,7 @@ const tick = () => {
             playerColonizedPlanets.value.push(m.planetId)
             const planet = homeSystem.value?.planets.find(p => p.id === m.planetId)
             if (planet) {
-              const pType = MOCK_TYPE_TO_PLANET_TYPE[planet.type] ?? 'terrestrial'
+              const pType = planet.type
               initializePlanetState(m.planetId, pType, planet.name)
             }
           }

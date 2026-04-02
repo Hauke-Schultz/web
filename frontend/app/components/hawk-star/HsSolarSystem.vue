@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { PLANET_TYPES, MOCK_TYPE_TO_PLANET_TYPE, RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
+import { PLANET_TYPES, RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
@@ -93,10 +93,7 @@ const colonyTime = (targetPlanetId) =>
     ? colonyFlightTimeBetween(selectedPlanetId.value, targetPlanetId)
     : 0
 
-const planetTypeIcon = (mockType) => {
-  const key = MOCK_TYPE_TO_PLANET_TYPE[mockType]
-  return PLANET_TYPES[key]?.icon ?? '🪐'
-}
+const planetTypeIcon = (type) => PLANET_TYPES[type]?.icon ?? '🪐'
 const STAR_CLASS_LABEL = { G: 'Yellow Dwarf', K: 'Orange Dwarf', M: 'Red Dwarf', F: 'White Star' }
 
 const STATE_COLOR = {

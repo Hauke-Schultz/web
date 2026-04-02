@@ -75,43 +75,33 @@ export const SHIP_COMPONENTS = {
 }
 
 // ── Planet types ──────────────────────────────────────────────────────────────
-// Maps from mock planet.type (rock/gas/lava/ice/ocean) to game type.
 // Each type unlocks or restricts certain buildings.
 export const PLANET_TYPES = {
   terrestrial: {
     id:          'terrestrial',
     name:        'Terrestrial',
     icon:        '🌍',
-    mockTypes:   ['rock', 'gas'],
     description: 'Balanced planet. All standard buildings available, no special bonuses.',
   },
   volcanic: {
     id:          'volcanic',
     name:        'Volcanic',
     icon:        '🌋',
-    mockTypes:   ['lava'],
     description: 'Rich in metal. Special mining & energy buildings, limited agriculture.',
   },
   frozen: {
     id:          'frozen',
     name:        'Frozen',
     icon:        '🧊',
-    mockTypes:   ['ice'],
     description: 'Crystal-rich permafrost. Special excavators and cryo research.',
   },
   ocean: {
     id:          'ocean',
     name:        'Ocean',
     icon:        '🌊',
-    mockTypes:   ['ocean'],
     description: 'Farming paradise. Enormous population potential, weak mining.',
   },
 }
-
-// Maps mock planet.type → PLANET_TYPES key
-export const MOCK_TYPE_TO_PLANET_TYPE = Object.fromEntries(
-  Object.values(PLANET_TYPES).flatMap(pt => pt.mockTypes.map(t => [t, pt.id]))
-)
 
 // ── Resources ─────────────────────────────────────────────────────────────────
 export const RESOURCES = {

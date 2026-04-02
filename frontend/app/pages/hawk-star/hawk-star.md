@@ -102,10 +102,22 @@ Each planet type produces exactly **one** refined resource in its High-Tech buil
 | Frozen | `cryo_refinery` | `pure_crystal` | Crystal + Cryonite |
 | Ocean | `bio_lab` | `nano_alloy` | Metal + Biomass |
 
-### Weapon Ordnance
+### Ship Components
 
-Produced in the Weapon Lab, equipped on warships:
-`kinetic_round`, `plasma_cell`
+Components are produced in specialized labs and equipped on warships before deployment.
+
+**Drive slot** (1 per ship) — boosts base stats:
+
+| Component | Produced in | Effect |
+|-----------|-------------|--------|
+| `power_cell` | Power Cell Lab | +20 Shield · +4 Speed |
+
+**Weapon slots** (2 per ship) — define combat output:
+
+| Component | Produced in | Damage | Accuracy | Armor Piercing |
+|-----------|-------------|--------|----------|----------------|
+| `kinetic_round` | Weapon Lab | 25 | 85% | 5 |
+| `plasma_cell` | Weapon Lab | 40 | 70% | 15 |
 
 ---
 
@@ -131,8 +143,30 @@ Units are built at the Space Base tile and consumed on missions. Build time scal
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
 | **Galaxy Probe** | 100 Metal · 50 Crystal | Reveals planet count in a remote star system |
 | **Colony Ship** | 300 Metal · 150 Crystal | Colonizes a scanned uncolonized planet |
-| **Warship** | 600 Metal · 300 Crystal | Combat vessel (Hawk Frigate class: 2 weapon slots) |
+| **Warship** | 600 Metal · 300 Crystal | Combat vessel — see Warship Classes below |
 | **Freighter** | 400 Metal · 200 Crystal | Inter-system resource transport |
+
+### Warship Classes
+
+Defined in `WARSHIP_CLASSES`. Each built warship gets a snapshot of its class stats plus empty slots that the player fills with components before deployment.
+
+| Class | Hull | Shield | Speed | Drive Slots | Weapon Slots |
+|-------|------|--------|-------|-------------|--------------|
+| **Hawk Frigate** | 150 | 30 | 8 | 1 | 2 |
+
+A `power_cell` in the drive slot adds +20 shield and +4 speed on top of the base stats.
+
+---
+
+## Game Loop
+
+A rough progression arc for a single player:
+
+1. **Colony Phase** — Build up the home planet: unlock slots, raise Metal/Crystal income, balance Energy.
+2. **Expansion** — Unlock the Star Map, scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
+3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four refined resources (`super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`).
+4. **Military** — Research the Weapons Building, produce ship components (`power_cell`, `kinetic_round`, `plasma_cell`), assemble and equip Hawk Frigates.
+5. **Diplomacy & Conflict** — Encounter allied and enemy factions across the galaxy. Trade via Freighters or push into contested systems with a war fleet.
 
 ---
 
@@ -140,22 +174,25 @@ Units are built at the Space Base tile and consumed on missions. Build time scal
 
 The galaxy (`hawkStarGalaxyMock.js`) contains 9 star systems arranged at percentage-based x/y coordinates on a canvas. Each system has:
 
-- `starClass` (cosmetic), `state` (`own`/`uncolonized`/`enemy`/`ally`), 4–8 planets
-- `minLevel` — Star Map level required to reveal the system in the galaxy view
+- `starClass` (cosmetic), 4–8 planets
+- `minLevel` — data field, not yet used for visibility in the current UI
 
-### Visibility Rules
+### Visibility Rules (current)
 
-- System visible in Galaxy Map → `starMapLevel >= system.minLevel`
-- System detail visible → `reconDroneLevel >= system.minLevel` OR it's the home system
+- All 9 systems are always visible in the Galaxy Map — no fog of war active yet
 - Solar System view shows the home system at Star Map Lv1
 
-### Planet States
+### Star vs Planet States
 
-`own` · `uncolonized` · `enemy` · `ally` · `unknown`
+**Stars** are displayed neutrally. 
+
+**Planets** carry individual states: `own` · `uncolonized` · `enemy` · `ally`
+
+The displayed planet state is derived at runtime: if `playerColonizedPlanets` (from `useHawkStar`) contains the planet ID, the state is shown as `own` regardless of the mock value.
 
 ### Trade Routes
 
-Defined in `TRADE_ROUTES` — rendered as dashed SVG lines between systems at Star Map Lv2+.
+`TRADE_ROUTES` is defined in the mock file but not rendered in the current Galaxy Map view.
 
 ---
 

@@ -1,91 +1,38 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
+import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
-import { GALAXY_SYSTEMS, TRADE_ROUTES } from '~/utils/hawkStarGalaxyMock.js'
 
-const {
-  starMapLevel,
-  galaxyProbeLevel, galaxyProbeInventory, galaxyProbeBuild,
-  activeGalaxyProbes, probeBuildTime,
-  canBuildProbe, buildGalaxyProbe,
-  canSendProbe, sendGalaxyProbe,
-  playerProbedSystems,
-  remainingProbeSec, probeProgressStyle, probeBuildProgressStyle,
-  probeFlightTimeBetween,
-  homeSystemId,
-  formatTime, UNIT_COSTS,
-} = useHawkStar()
+const { playerColonizedPlanets, homeSystemId } = useHawkStar()
 
-// ── Visibility helpers ──────────────────────────────────────────────────────
-const isVisible  = (sys) => sys.minLevel <= starMapLevel.value
-const isProbed   = (sys) => sys.id === homeSystemId.value || playerProbedSystems.value.includes(sys.id)
-const isProbing  = (sys) => !!activeGalaxyProbes.value.find(p => p.systemId === sys.id)
-
-const effectiveState = (sys) => {
-  if (sys.id === homeSystemId.value) return 'own'
-  return isProbed(sys) ? sys.state : 'unknown'
-}
-
-// ── Derived collections ─────────────────────────────────────────────────────
-const visibleSystems = computed(() => GALAXY_SYSTEMS.filter(isVisible))
-
-const visibleRoutes = computed(() => {
-  if (starMapLevel.value < 2) return []
-  const ids = new Set(visibleSystems.value.map(s => s.id))
-  return TRADE_ROUTES
-    .filter(([a, b]) => ids.has(a) && ids.has(b))
-    .map(([a, b]) => ({
-      a: GALAXY_SYSTEMS.find(s => s.id === a),
-      b: GALAXY_SYSTEMS.find(s => s.id === b),
-    }))
-})
-
-const nextUnlock = computed(() => {
-  const next = starMapLevel.value + 1
-  if (next > 3) return null
-  const count = GALAXY_SYSTEMS.filter(s => s.minLevel === next).length
-  return count > 0 ? { level: next, count } : null
-})
+// ── Effective planet state ───────────────────────────────────────────────────
+const planetState = (planet) =>
+  playerColonizedPlanets.value.includes(planet.id) ? 'own' : planet.state
 
 // ── Selection ───────────────────────────────────────────────────────────────
-// Pre-select the home system
 const selected = ref(GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value) ?? null)
-
-// Base system: the currently selected own system (probes launch from here)
-const selectedBase = computed(() =>
-  selected.value && effectiveState(selected.value) === 'own' ? selected.value : null
-)
 
 const selectSystem = (sys) => {
   selected.value = selected.value?.id === sys.id ? null : sys
 }
 
-watch(visibleSystems, (systems) => {
-  if (selected.value && !systems.find(s => s.id === selected.value.id)) {
-    selected.value = null
-  }
-})
-
-// ── Label maps ──────────────────────────────────────────────────────────────
-const STATE_LABEL = {
-  own:         'Your Colony',
-  uncolonized: 'Uncolonized',
-  enemy:       'Enemy Territory',
-  ally:        'Allied',
-  unknown:     'Unknown',
-}
-
-const STATE_ICON = {
-  own:         '🌍',
-  uncolonized: '🪐',
-  enemy:       '⚠️',
-  ally:        '🤝',
-  unknown:     '❓',
-}
-
+// ── Constants ────────────────────────────────────────────────────────────────
 const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd' }
 
-const probeCost = UNIT_COSTS.galaxy_probe.cost
+const PLANET_STATE_LABEL = {
+  own:         'Your Colony',
+  uncolonized: 'Uncolonized',
+  enemy:       'Enemy',
+  ally:        'Allied',
+}
+
+const PLANET_TYPE_ICON = {
+  rock:  '🪨',
+  gas:   '🌫️',
+  ice:   '🧊',
+  lava:  '🌋',
+  ocean: '🌊',
+}
 </script>
 
 <template>
@@ -94,25 +41,13 @@ const probeCost = UNIT_COSTS.galaxy_probe.cost
     <!-- Map canvas -->
     <div class="hs-galaxy-map" @click.self="selected = null">
 
-      <!-- Trade route SVG overlay (lv2+) -->
-      <svg v-if="visibleRoutes.length" class="hs-galaxy-svg" aria-hidden="true">
-        <line
-          v-for="route in visibleRoutes"
-          :key="`${route.a.id}-${route.b.id}`"
-          :x1="`${route.a.x}%`" :y1="`${route.a.y}%`"
-          :x2="`${route.b.x}%`" :y2="`${route.b.y}%`"
-          class="hs-route-line"
-        />
-      </svg>
-
       <!-- System nodes -->
       <div
-        v-for="sys in visibleSystems"
+        v-for="sys in GALAXY_SYSTEMS"
         :key="sys.id"
         class="hs-system"
         :class="[
-          `hs-system--${effectiveState(sys)}`,
-          { 'hs-system--home': sys.id === homeSystemId, 'hs-system--selected': selected?.id === sys.id },
+          { 'hs-system--home': sys.home, 'hs-system--selected': selected?.id === sys.id },
         ]"
         :style="{ left: `${sys.x}%`, top: `${sys.y}%` }"
         @click.stop="selectSystem(sys)"
@@ -123,114 +58,33 @@ const probeCost = UNIT_COSTS.galaxy_probe.cost
         />
         <span class="hs-system-dot" />
         <span class="hs-system-name">{{ sys.name }}</span>
-        <!-- Probe count on own selected system -->
-        <span
-          v-if="selected?.id === sys.id && effectiveState(sys) === 'own' && galaxyProbeLevel > 0"
-          class="hs-system-probe-count"
-        >🔭 {{ galaxyProbeInventory }}</span>
-        <!-- Send button + flight time for unprobed targets when a base is selected -->
-        <template v-else-if="selectedBase && sys.id !== selectedBase.id && !isProbed(sys) && !isProbing(sys)">
-          <span class="hs-system-flight-time">{{ formatTime(probeFlightTimeBetween(selectedBase.id, sys.id)) }}</span>
-          <button
-            v-if="canSendProbe(sys.id)"
-            class="hs-system-send-btn"
-            @click.stop="sendGalaxyProbe(sys.id, selectedBase.id)"
-          >Send</button>
-        </template>
       </div>
 
-      <!-- Fog of war upgrade hint -->
-      <div v-if="nextUnlock" class="hs-fog-hint">
-        🔭 Star Map Lv{{ nextUnlock.level }} reveals {{ nextUnlock.count }} more
-        system{{ nextUnlock.count > 1 ? 's' : '' }}
-      </div>
-    </div>
-
-    <!-- Legend -->
-    <div class="hs-galaxy-legend">
-      <span class="hs-legend-item hs-legend--own">● Your Colony</span>
-      <span class="hs-legend-item hs-legend--ally">● Allied</span>
-      <span class="hs-legend-item hs-legend--uncolonized">● Uncolonized</span>
-      <span class="hs-legend-item hs-legend--enemy">● Enemy</span>
-      <span class="hs-legend-item hs-legend--unknown">● Unknown</span>
-      <span v-if="starMapLevel >= 2" class="hs-legend-item hs-legend--route">── Trade Route</span>
-    </div>
-
-    <!-- Probe inventory bar -->
-    <div class="hs-probe-bar">
-      <div
-        class="hs-probe-bar-item"
-        :class="galaxyProbeLevel > 0 ? 'hs-probe-bar-item--active' : 'hs-probe-bar-item--locked'"
-      >
-        <span>🔭 Probes</span>
-        <span class="hs-probe-bar-sub">
-          <template v-if="galaxyProbeLevel === 0">Galaxy Probe building needed</template>
-          <template v-else>{{ galaxyProbeInventory }} ready · {{ activeGalaxyProbes.length }} in flight</template>
-        </span>
-
-        <!-- Build probe button -->
-        <button
-          v-if="galaxyProbeLevel > 0 && !galaxyProbeBuild"
-          class="hs-probe-build-btn"
-          :class="{ 'hs-probe-build-btn--disabled': !canBuildProbe }"
-          :disabled="!canBuildProbe"
-          @click="buildGalaxyProbe"
-        >
-          Build ({{ probeCost.metal }}⚙️ {{ probeCost.crystal }}💎 · {{ formatTime(probeBuildTime) }})
-        </button>
-
-        <!-- Build in progress -->
-        <span v-else-if="galaxyProbeBuild" class="hs-probe-building">
-          <span class="hs-probe-build-bar" :style="probeBuildProgressStyle" />
-          Building probe…
-        </span>
-      </div>
     </div>
 
     <!-- System detail card -->
     <Transition name="hs-slide">
       <div v-if="selected" class="hs-system-card">
         <div class="hs-card-header">
-          <span class="hs-card-icon">{{ STATE_ICON[effectiveState(selected)] }}</span>
           <div class="hs-card-title">
             <span class="hs-card-name">{{ selected.name }}</span>
-            <span class="hs-card-meta">
-              {{ selected.starClass }}-class star
-              · <span v-if="isProbed(selected)">{{ selected.planets.length }} planet{{ selected.planets.length > 1 ? 's' : '' }}</span>
-                <span v-else class="hs-card-unknown-count">? planets</span>
-            </span>
-            <span class="hs-card-state" :class="`hs-card-state--${effectiveState(selected)}`">
-              {{ STATE_LABEL[effectiveState(selected)] }}
-            </span>
+            <span class="hs-card-meta">{{ selected.starClass }}-class star · {{ selected.planets.length }} planets</span>
           </div>
           <button class="hs-card-close" @click="selected = null">✕</button>
         </div>
 
-        <!-- Probe in flight -->
-        <div v-if="isProbing(selected)" class="hs-card-probing">
-          <div class="hs-card-probe-bar" :style="probeProgressStyle(selected.id)" />
-          <span class="hs-card-probing-icon">🔭</span>
-          <span>Probe en route · {{ formatTime(remainingProbeSec(selected.id)) }}</span>
-        </div>
-
-        <!-- Not probed, not probing -->
-        <div v-else-if="!isProbed(selected)" class="hs-card-unprobed">
-          <span class="hs-card-unprobed-text">System not yet surveyed</span>
-          <template v-if="selectedBase">
-            <button
-              v-if="canSendProbe(selected.id)"
-              class="hs-card-probe-btn"
-              @click="sendGalaxyProbe(selected.id, selectedBase.id)"
-            >
-              🔭 Send Probe
-              <span class="hs-card-probe-time">{{ formatTime(probeFlightTimeBetween(selectedBase.id, selected.id)) }}</span>
-            </button>
-            <span v-else-if="galaxyProbeLevel === 0" class="hs-card-probe-hint">Build Galaxy Probe facility first</span>
-            <span v-else-if="galaxyProbeInventory === 0" class="hs-card-probe-hint">No probes — build one in the probe bar</span>
-            <span v-else class="hs-card-probe-hint">All probes busy ({{ activeGalaxyProbes.length }}/{{ galaxyProbeLevel }})</span>
-          </template>
-          <span v-else class="hs-card-probe-hint">Select your home system first to dispatch</span>
-        </div>
+        <ul class="hs-planet-list">
+          <li
+            v-for="planet in selected.planets"
+            :key="planet.id"
+            class="hs-planet-item"
+            :class="`hs-planet--${planetState(planet)}`"
+          >
+            <span class="hs-planet-icon">{{ PLANET_TYPE_ICON[planet.type] ?? '🪐' }}</span>
+            <span class="hs-planet-name">{{ planet.name }}</span>
+            <span class="hs-planet-state">{{ PLANET_STATE_LABEL[planetState(planet)] ?? planetState(planet) }}</span>
+          </li>
+        </ul>
       </div>
     </Transition>
 
@@ -242,7 +96,6 @@ $c-own:         #60a5fa;
 $c-ally:        #34d399;
 $c-enemy:       #f87171;
 $c-uncolonized: #6b7280;
-$c-unknown:     #374151;
 
 .hs-galaxy {
   flex: 1;
@@ -301,22 +154,6 @@ $c-unknown:     #374151;
   }
 }
 
-// ── SVG trade routes ──────────────────────────────────────────────────────────
-.hs-galaxy-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.hs-route-line {
-  stroke: rgba(96,165,250,0.18);
-  stroke-width: 1;
-  stroke-dasharray: 4 6;
-}
-
 // ── System nodes ──────────────────────────────────────────────────────────────
 .hs-system {
   position: absolute;
@@ -331,6 +168,7 @@ $c-unknown:     #374151;
   cursor: pointer;
   padding: 6px;
   user-select: none;
+  color: rgba(255,255,255,0.6);
 
   &:hover .hs-system-dot  { transform: scale(1.5); }
   &:hover .hs-system-star { opacity: 0.8; transform: scale(1.6); }
@@ -341,14 +179,10 @@ $c-unknown:     #374151;
   &--home .hs-system-dot {
     width: 13px;
     height: 13px;
+    background: $c-own;
+    box-shadow: 0 0 4px $c-own;
     animation: hs-pulse-home 2.5s ease-in-out infinite;
   }
-
-  &--own         { color: $c-own; }
-  &--ally        { color: $c-ally; }
-  &--enemy       { color: $c-enemy; }
-  &--uncolonized { color: $c-uncolonized; }
-  &--unknown     { color: $c-unknown; }
 }
 
 .hs-system-star {
@@ -382,153 +216,9 @@ $c-unknown:     #374151;
   letter-spacing: 0.02em;
 }
 
-.hs-system-probe-count {
-  font-size: 0.48rem;
-  color: rgba(96,165,250,0.85);
-  font-weight: 700;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
-  pointer-events: none;
-}
-
-.hs-system-flight-time {
-  font-size: 0.44rem;
-  color: rgba(251,191,36,0.65);
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
-  pointer-events: none;
-}
-
-.hs-system-send-btn {
-  margin-top: 1px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  border: 1px solid rgba(251,191,36,0.4);
-  background: rgba(251,191,36,0.1);
-  color: rgba(251,191,36,0.9);
-  font-size: 0.42rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-  pointer-events: all;
-
-  &:hover {
-    background: rgba(251,191,36,0.22);
-    border-color: rgba(251,191,36,0.65);
-  }
-}
-
 @keyframes hs-pulse-home {
   0%, 100% { box-shadow: 0 0 4px $c-own, 0 0 0 0 rgba(96,165,250,0.5); }
   50%       { box-shadow: 0 0 8px $c-own, 0 0 0 7px rgba(96,165,250,0); }
-}
-
-// ── Fog of war hint ───────────────────────────────────────────────────────────
-.hs-fog-hint {
-  position: absolute;
-  bottom: 0.625rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
-  font-size: 0.58rem;
-  color: rgba(255,255,255,0.28);
-  background: rgba(0,0,0,0.45);
-  padding: 3px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-  pointer-events: none;
-  backdrop-filter: blur(4px);
-}
-
-// ── Legend ────────────────────────────────────────────────────────────────────
-.hs-galaxy-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.625rem 1rem;
-  padding: 0 0.25rem;
-}
-
-.hs-legend-item     { font-size: 0.6rem; color: rgba(255,255,255,0.4); }
-.hs-legend--own         { color: $c-own; }
-.hs-legend--ally        { color: $c-ally; }
-.hs-legend--enemy       { color: $c-enemy; }
-.hs-legend--uncolonized { color: $c-uncolonized; }
-.hs-legend--unknown     { color: $c-unknown; }
-.hs-legend--route       { color: rgba(96,165,250,0.4); }
-
-// ── Probe inventory bar ───────────────────────────────────────────────────────
-.hs-probe-bar {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.hs-probe-bar-item {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  padding: 0.3rem 0.625rem;
-  border-radius: var(--hs-r-md);
-  border: 1px solid var(--hs-line-lg);
-  background: var(--hs-glass-sm);
-  font-size: 0.62rem;
-  font-weight: 600;
-
-  &--active { border-color: rgba(96,165,250,0.3); color: rgba(255,255,255,0.8); }
-  &--locked { color: rgba(255,255,255,0.25); font-style: italic; }
-}
-
-.hs-probe-bar-sub {
-  font-size: 0.55rem;
-  font-weight: 400;
-  opacity: 0.6;
-}
-
-.hs-probe-build-btn {
-  padding: 2px 8px;
-  border-radius: var(--hs-r-sm);
-  border: 1px solid rgba(251,191,36,0.35);
-  background: rgba(251,191,36,0.08);
-  color: rgba(251,191,36,0.85);
-  font-size: 0.52rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-
-  &:hover:not(:disabled) {
-    background: rgba(251,191,36,0.18);
-    border-color: rgba(251,191,36,0.6);
-  }
-
-  &--disabled, &:disabled { opacity: 0.35; cursor: not-allowed; }
-}
-
-.hs-probe-building {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 2px 8px;
-  border-radius: var(--hs-r-sm);
-  border: 1px solid rgba(251,191,36,0.25);
-  background: rgba(251,191,36,0.05);
-  font-size: 0.52rem;
-  color: rgba(251,191,36,0.7);
-  font-style: italic;
-}
-
-.hs-probe-build-bar {
-  position: absolute;
-  bottom: 0; left: 0;
-  height: 2px; width: 100%;
-  background: rgba(251,191,36,0.5);
-  transform-origin: left;
-  animation: hs-probe-fill linear forwards;
-}
-
-@keyframes hs-probe-fill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
 }
 
 // ── System detail card ────────────────────────────────────────────────────────
@@ -546,19 +236,9 @@ $c-unknown:     #374151;
   margin-bottom: 0.625rem;
 }
 
-.hs-card-icon  { font-size: 1.4rem; flex-shrink: 0; line-height: 1.2; }
 .hs-card-title { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .hs-card-name  { font-size: 0.875rem; font-weight: 700; color: #fff; }
 .hs-card-meta  { font-size: 0.6rem; color: rgba(255,255,255,0.35); }
-.hs-card-state {
-  font-size: 0.62rem;
-  font-weight: 600;
-  &--own         { color: $c-own; }
-  &--ally        { color: $c-ally; }
-  &--enemy       { color: $c-enemy; }
-  &--uncolonized { color: $c-uncolonized; }
-  &--unknown     { color: rgba(255,255,255,0.3); }
-}
 
 .hs-card-close {
   flex-shrink: 0;
@@ -571,81 +251,34 @@ $c-unknown:     #374151;
   &:hover { color: rgba(255,255,255,0.65); }
 }
 
-.hs-card-unknown-count { color: rgba(255,255,255,0.25); font-style: italic; }
-
-// ── Probe in flight ───────────────────────────────────────────────────────────
-.hs-card-probing {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.625rem;
-  border-radius: var(--hs-r-md);
-  border: 1px solid rgba(251,191,36,0.25);
-  background: rgba(251,191,36,0.05);
-  font-size: 0.65rem;
-  color: rgba(251,191,36,0.85);
-}
-
-.hs-card-probe-bar {
-  position: absolute;
-  bottom: 0; left: 0;
-  height: 2px; width: 100%;
-  background: rgba(251,191,36,0.5);
-  transform-origin: left;
-  animation: hs-probe-fill linear forwards;
-}
-
-.hs-card-probing-icon { font-size: 0.875rem; flex-shrink: 0; }
-
-// ── Not probed ────────────────────────────────────────────────────────────────
-.hs-card-unprobed {
+// ── Planet list ───────────────────────────────────────────────────────────────
+.hs-planet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem 0.25rem;
+  gap: 3px;
 }
 
-.hs-card-unprobed-text {
-  font-size: 0.62rem;
-  color: rgba(255,255,255,0.28);
-  font-style: italic;
-}
-
-.hs-card-probe-btn {
-  align-self: flex-start;
+.hs-planet-item {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--hs-r-md);
-  border: 1px solid rgba(251,191,36,0.35);
-  background: rgba(251,191,36,0.08);
-  color: rgba(251,191,36,0.9);
-  font-size: 0.65rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-
-  &:hover {
-    background: rgba(251,191,36,0.18);
-    border-color: rgba(251,191,36,0.6);
-  }
+  gap: 0.5rem;
+  padding: 0.25rem 0.375rem;
+  border-radius: var(--hs-r-sm);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
-.hs-card-probe-time {
-  font-size: 0.55rem;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-  font-weight: 400;
-}
+.hs-planet-icon  { font-size: 0.75rem; flex-shrink: 0; }
+.hs-planet-name  { flex: 1; font-size: 0.65rem; color: rgba(255,255,255,0.75); }
+.hs-planet-state { font-size: 0.55rem; font-weight: 600; }
 
-.hs-card-probe-hint {
-  font-size: 0.58rem;
-  color: rgba(255,255,255,0.2);
-  font-style: italic;
-}
+.hs-planet--own         .hs-planet-state { color: $c-own; }
+.hs-planet--ally        .hs-planet-state { color: $c-ally; }
+.hs-planet--enemy       .hs-planet-state { color: $c-enemy; }
+.hs-planet--uncolonized .hs-planet-state { color: $c-uncolonized; }
 
 // ── Slide transition ──────────────────────────────────────────────────────────
 .hs-slide-enter-active,
