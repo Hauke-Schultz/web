@@ -12,7 +12,7 @@ The game has three nested views, each unlocked progressively via the Star Map bu
 |------|-----------------|-------|
 | **Planet** | Always available | The active planet's 3×3 building grid |
 | **Solar System** | Star Map Lv1 | All planets in the home system |
-| **Galaxy Map** | Star Map Lv1+ | Star systems on a canvas, fog of war by Star Map level |
+| **Galaxy Map** | Star Map Lv1+ | Star systems on a canvas — all systems always visible |
 
 The NavBar (`HsNavBar.vue`) handles view switching and gate checks.
 
@@ -175,12 +175,10 @@ A rough progression arc for a single player:
 The galaxy (`hawkStarGalaxyMock.js`) contains 9 star systems arranged at percentage-based x/y coordinates on a canvas. Each system has:
 
 - `starClass` (cosmetic), 4–8 planets
-- `minLevel` — data field, not yet used for visibility in the current UI
 
-### Visibility Rules (current)
+### Visibility
 
-- All 9 systems are always visible in the Galaxy Map — no fog of war active yet
-- Solar System view shows the home system at Star Map Lv1
+All 9 systems are always visible in the Galaxy Map. Solar System view shows the home system.
 
 ### Star vs Planet States
 
@@ -269,6 +267,12 @@ Player state (resources, slot unlock status, building progress) is currently per
 | Freighter transport | ✅ Done |
 | Galaxy Map (simplified, all systems visible) | ✅ Done |
 | Solar System view | ✅ Done |
-| Combat system | ⬜ Planned |
-| Fog of war / Star Map level gating | ⬜ Planned |
-| Multiplayer / Backend API | ⬜ Planned |
+| Backend — User login & registration | ⬜ Planned |
+| Backend — Bauen & Besiedeln (Phase 1) | ⬜ Planned |
+| Backend — Handel & Kommunikation (Phase 2) | ⬜ Planned |
+| Backend — Ausspionieren (Phase 3) | ⬜ Planned |
+| Backend — Kampf (Phase 4) | ⬜ Planned |
+
+See `hawk-star-backend.md` for the full backend & multiplayer concept.
+
+---

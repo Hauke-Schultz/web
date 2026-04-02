@@ -10,7 +10,6 @@
  *   x, y        – position on the galaxy map (0–100 %)
  *   starClass   – spectral class (cosmetic)
  *   home        – true only for the player's starting system
- *   minLevel    – star map level required to reveal this system (future use)
  *   planets     – array of planet objects (see below)
  *
  * Planet fields:
@@ -29,7 +28,7 @@ export const GALAXY_SYSTEMS = [
 
   {
     id: 'kepler', name: 'Kepler System', x: 50, y: 49,
-    starClass: 'G', home: true, minLevel: 0,
+    starClass: 'G', home: true,
     planets: [
       { id: 'kepler_prime', name: 'Kepler Prime', type: 'terrestrial', state: 'ally',        owner: 'Asha', isHome: true,  slots: 9 },
       { id: 'kepler_ii',   name: 'Kepler II',    type: 'terrestrial', state: 'uncolonized', owner: null,     isHome: false, slots: null },
@@ -40,11 +39,10 @@ export const GALAXY_SYSTEMS = [
     ],
   },
 
-  // ── minLevel 1 — near range ──────────────────────────────────────────────────
 
   {
     id: 'vega9', name: 'Vega-9', x: 37, y: 30,
-    starClass: 'K', home: false, minLevel: 1,
+    starClass: 'K', home: false,
     planets: [
       { id: 'vega_i',   name: 'Vega I',   type: 'terrestrial', state: 'uncolonized', owner: null, isHome: false, slots: null },
       { id: 'vega_ii',  name: 'Vega II',  type: 'volcanic',    state: 'ally',        owner: 'Asha', isHome: false, slots: null },
@@ -56,7 +54,7 @@ export const GALAXY_SYSTEMS = [
 
   {
     id: 'arix', name: 'Arix System', x: 64, y: 27,
-    starClass: 'M', home: false, minLevel: 1,
+    starClass: 'M', home: false,
     planets: [
       { id: 'arix_i',   name: 'Arix I',   type: 'volcanic',    state: 'enemy',       owner: 'Zarkon', isHome: false, slots: null },
       { id: 'arix_ii',  name: 'Arix II',  type: 'terrestrial', state: 'enemy',       owner: 'Zarkon', isHome: false, slots: null },
@@ -69,7 +67,7 @@ export const GALAXY_SYSTEMS = [
 
   {
     id: 'nebula3', name: 'Nebula-3', x: 68, y: 58,
-    starClass: 'F', home: false, minLevel: 1,
+    starClass: 'F', home: false,
     planets: [
       { id: 'nebula3_i',   name: 'Nebula-3 I',   type: 'terrestrial', state: 'uncolonized', owner: null, isHome: false, slots: null },
       { id: 'nebula3_ii',  name: 'Nebula-3 II',  type: 'terrestrial', state: 'uncolonized', owner: null, isHome: false, slots: null },
@@ -81,11 +79,10 @@ export const GALAXY_SYSTEMS = [
     ],
   },
 
-  // ── minLevel 2 — mid range ───────────────────────────────────────────────────
 
   {
     id: 'tartus', name: 'Tartus', x: 29, y: 62,
-    starClass: 'K', home: false, minLevel: 2,
+    starClass: 'K', home: false,
     planets: [
       { id: 'tartus_i',   name: 'Tartus I',   type: 'terrestrial', state: 'uncolonized', owner: null, isHome: false, slots: null },
       { id: 'tartus_ii',  name: 'Tartus II',  type: 'terrestrial', state: 'ally',        owner: 'Asha', isHome: false, slots: null },
@@ -98,7 +95,7 @@ export const GALAXY_SYSTEMS = [
 
   {
     id: 'kronos', name: 'Kronos System', x: 79, y: 36,
-    starClass: 'K', home: false, minLevel: 2,
+    starClass: 'K', home: false,
     planets: [
       { id: 'kronos_i',   name: 'Kronos I',   type: 'volcanic',    state: 'enemy',       owner: 'Vexar', isHome: false, slots: null },
       { id: 'kronos_ii',  name: 'Kronos II',  type: 'terrestrial', state: 'ally',        owner: 'Asha', isHome: false, slots: null },
@@ -111,7 +108,7 @@ export const GALAXY_SYSTEMS = [
 
   {
     id: 'helix7', name: 'Helix-7', x: 56, y: 79,
-    starClass: 'F', home: false, minLevel: 2,
+    starClass: 'F', home: false,
     planets: [
       { id: 'helix7_i',    name: 'Helix-7 I',    type: 'ocean',       state: 'ally',        owner: 'Asha', isHome: false, slots: null },
       { id: 'helix7_ii',   name: 'Helix-7 II',   type: 'terrestrial', state: 'ally',        owner: 'Asha', isHome: false, slots: null },
@@ -124,11 +121,10 @@ export const GALAXY_SYSTEMS = [
     ],
   },
 
-  // ── minLevel 3 — far range ───────────────────────────────────────────────────
 
   {
     id: 'nova', name: 'Nova Cluster', x: 88, y: 20,
-    starClass: 'G', home: false, minLevel: 3,
+    starClass: 'G', home: false,
     planets: [
       { id: 'nova_i',   name: 'Nova I',   type: 'terrestrial', state: 'uncolonized', owner: null, isHome: false, slots: null },
       { id: 'nova_ii',  name: 'Nova II',  type: 'terrestrial', state: 'uncolonized', owner: null, isHome: false, slots: null },
@@ -141,7 +137,7 @@ export const GALAXY_SYSTEMS = [
 
   {
     id: 'zerath', name: 'Zerath', x: 21, y: 18,
-    starClass: 'K', home: false, minLevel: 3,
+    starClass: 'K', home: false,
     planets: [
       { id: 'zerath_i',   name: 'Zerath I',   type: 'volcanic',    state: 'enemy',       owner: 'Zarkon', isHome: false, slots: null },
       { id: 'zerath_ii',  name: 'Zerath II',  type: 'terrestrial', state: 'ally',        owner: 'Asha', isHome: false, slots: null },
