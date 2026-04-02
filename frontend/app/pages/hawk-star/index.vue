@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watchEffect } from 'vue'
+import {computed, ref, watchEffect} from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
 import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
@@ -10,6 +10,7 @@ import HsGalaxyMap from '~/components/hawk-star/HsGalaxyMap.vue'
 import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPlanetHeader from '~/components/hawk-star/HsPlanetHeader.vue'
+import HsDockPanel from "~/components/hawk-star/HsDockPanel.vue";
 
 definePageMeta({ hideHeader: true })
 
@@ -48,8 +49,14 @@ watchEffect(() => {
 
     <div class="hs-main">
       <template v-if="currentView === 'planet'">
-        <HsPlanetGrid />
-        <HsTilePanel />
+        <HsPlanetGrid /><!-- ── Dock (Space Base tile only) ── -->
+
+	      <div class="hs-grid-right">
+		      <HsDockPanel />
+		      <HsTilePanel />
+		    </div>
+
+
       </template>
       <HsSolarSystem v-else-if="currentView === 'solar-system'" />
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
@@ -178,6 +185,10 @@ watchEffect(() => {
     opacity: 0.3;
     cursor: not-allowed;
   }
+}
+
+.hs-grid-right {
+	width: 100%;
 }
 </style>
 

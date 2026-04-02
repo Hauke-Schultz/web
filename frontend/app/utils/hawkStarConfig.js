@@ -939,6 +939,7 @@ export const BUILDINGS = {
     name:        'Star Map',
     tileType:    'research',
     icon:        '🗺️',
+    global:      true,
     description: 'Charts the known galaxy. Required for interplanetary navigation.',
     levels: [
       {

@@ -217,3 +217,58 @@ Player state (resources, slot unlock status, building progress) is currently per
 - **Vue 3 + Nuxt** (existing project structure)
 - **Scoped CSS** for all game UI (no Tailwind dependency within the game)
 - **Canvas** for the Galaxy Map star field (`HsGalaxyMap.vue`)
+
+---
+
+## Architecture
+
+### File Locations
+
+| File | Role |
+|------|------|
+| `pages/hawk-star/index.vue` | Page root — layout, view switching |
+| `pages/hawk-star/hawk-star.md` | This file — game concept & technical reference |
+| `composables/useHawkStar.js` | Central singleton state — all game logic & player data |
+| `utils/hawkStarConfig.js` | Static game data: `PLANET_TYPES`, `BUILDINGS`, `RESOURCES`, `WARSHIP_CLASSES`, `SHIP_COMPONENTS`, `UNIT_COSTS` |
+| `utils/hawkStarGalaxyMock.js` | Galaxy data: `GALAXY_SYSTEMS`, `TRADE_ROUTES` |
+
+### Components
+
+| Component | Role |
+|-----------|------|
+| `HsNavBar` | View switching (Planet / Solar System / Galaxy Map) + gate checks |
+| `HsResourceBar` | Resource bar shown at top of all views |
+| `HsPlanetGrid` | 3×3 slot grid for the active planet |
+| `HsTilePanel` | Buildings & High-Tech conversions for the selected slot |
+| `HsDockPanel` | Space Base tab — build & manage all ship types |
+| `HsSolarSystem` | Home system view — all planets, drone & colony actions |
+| `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
+| `HsPlanetHeader` | Planet name + type header |
+| `HsAllResourcePanel` | Full resource breakdown panel |
+
+### State & Persistence
+
+- **`useHawkStar.js`** is a singleton composable — all components read from and write to it directly, no props/emits for game state.
+- Player state is saved to **LocalStorage** under the key `hawkStarSave`. Includes: resources, slot unlocks, building levels & progress, ship inventory, missions.
+- A version guard discards outdated saves automatically.
+- `allPlanetStates` is the core state object — keyed by `planetId`, each entry holds resources, buildings, dock, and conversion queues for that planet.
+
+### Implementation Status
+
+| Feature | Status |
+|---------|--------|
+| Planet grid, slot unlocks | ✅ Done |
+| Buildings (all types) | ✅ Done |
+| Energy & staff system | ✅ Done |
+| Resources + storage caps | ✅ Done |
+| High-Tech conversions | ✅ Done |
+| Recon Drones | ✅ Done |
+| Galaxy Probes | ✅ Done |
+| Colony Ships | ✅ Done |
+| Warships (Hawk Frigate, Drive + Weapon slots) | ✅ Done |
+| Freighter transport | ✅ Done |
+| Galaxy Map (simplified, all systems visible) | ✅ Done |
+| Solar System view | ✅ Done |
+| Combat system | ⬜ Planned |
+| Fog of war / Star Map level gating | ⬜ Planned |
+| Multiplayer / Backend API | ⬜ Planned |

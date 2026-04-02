@@ -186,9 +186,6 @@ const setConversionCount = (bId, idx, val) => {
       </div>
     </div>
 
-    <!-- ── Dock (Space Base tile only) ── -->
-    <HsDockPanel v-if="isSpacebaseTile" />
-
 
     <div v-if="buildingsForActiveSlot.length === 0 && !isSpacebaseTile" class="hs-empty">
       Select an unlocked tile to manage buildings
