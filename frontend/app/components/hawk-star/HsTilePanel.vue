@@ -34,6 +34,7 @@ const {
   startConversion,
   remainingConversionSec,
   conversionProgressStyle,
+  buildTimeFactor,
 } = useHawkStar()
 
 const isSpacebaseTile = computed(() => activeTileType.value?.id === 'spacebase')
@@ -177,7 +178,7 @@ const setConversionCount = (bId, idx, val) => {
                 :disabled="!canBuild(bDef.id)"
                 @click.stop="startBuild(bDef.id)"
               >{{ getLevel(bDef.id) === 0 ? 'Build' : 'Upgrade' }}</button>
-              <span class="hs-build-time">⏱ {{ formatTime(nextLevelDef(bDef.id).buildTime) }}</span>
+              <span class="hs-build-time">⏱ {{ formatTime(Math.ceil(nextLevelDef(bDef.id).buildTime * buildTimeFactor)) }}</span>
               <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">⚡ Need power</span>
               <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">👥 Need staff</span>
             </div>

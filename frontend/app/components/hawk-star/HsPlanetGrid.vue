@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { TILE_TYPES } from '~/utils/hawkStarConfig.js'
-import {resetGame, useHawkStar} from '~/composables/useHawkStar.js'
+import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsAllResourcePanel from "~/components/hawk-star/HsAllResourcePanel.vue";
 
 const {
@@ -62,9 +62,6 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
   </div>
 	  <HsAllResourcePanel />
 
-	  <button class="hs-nav-reset" title="Reset game (clears save)" @click="resetGame">
-		  ↺ Reset Game
-	  </button>
   </div>
 </template>
 
@@ -164,19 +161,4 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
   50%       { opacity: 0.3; }
 }
 
-.hs-nav-reset {
-	padding: 0.25rem 0.15rem;
-	border-radius: var(--hs-r-md);
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	background: none;
-	color: rgba(255, 255, 255, 0.2);
-	font-size: 0.65rem;
-	cursor: pointer;
-	transition: color 0.15s, border-color 0.15s;
-
-	&:hover {
-		color: var(--hs-danger);
-		border-color: var(--hs-danger-border);
-	}
-}
 </style>

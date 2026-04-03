@@ -251,28 +251,31 @@ Player state (resources, slot unlock status, building progress) is currently per
 - A version guard discards outdated saves automatically.
 - `allPlanetStates` is the core state object — keyed by `planetId`, each entry holds resources, buildings, dock, and conversion queues for that planet.
 
+### Dev Mode
+
+A persistent dev panel at the bottom of the game page exposes two tuning controls: **Tick Rate (ms)** adjusts how often the game tick fires, and **Build Time Factor** scales all build durations globally (buildings, ships, conversions). Values are saved to `hawk-star-dev` in localStorage independently of the game save. The goal is to find balanced build times where level 1 buildings feel fast and higher levels scale up noticeably.
+
 ### Implementation Status
 
-| Feature | Status |
-|---------|--------|
-| Planet grid, slot unlocks | ✅ Done |
-| Buildings (all types) | ✅ Done |
-| Energy & staff system | ✅ Done |
-| Resources + storage caps | ✅ Done |
-| High-Tech conversions | ✅ Done |
-| Recon Drones | ✅ Done |
-| Galaxy Probes | ✅ Done |
-| Colony Ships | ✅ Done |
+| Feature                                     | Status |
+|---------------------------------------------|--------|
+| Planet grid, slot unlocks                   | ✅ Done |
+| Buildings (all types)                       | ✅ Done |
+| Energy & staff system                       | ✅ Done |
+| Resources + storage caps                    | ✅ Done |
+| High-Tech conversions                       | ✅ Done |
+| Recon Drones                                | ✅ Done |
+| Galaxy Probes                               | ✅ Done |
+| Colony Ships                                | ✅ Done |
 | Warships (Hawk Frigate, Drive + Weapon slots) | ✅ Done |
-| Freighter transport | ✅ Done |
+| Freighter transport                         | ✅ Done |
 | Galaxy Map (simplified, all systems visible) | ✅ Done |
-| Solar System view | ✅ Done |
-| Backend — User login & registration | ⬜ Planned |
-| Backend — Bauen & Besiedeln (Phase 1) | ⬜ Planned |
-| Backend — Handel & Kommunikation (Phase 2) | ⬜ Planned |
-| Backend — Ausspionieren (Phase 3) | ⬜ Planned |
-| Backend — Kampf (Phase 4) | ⬜ Planned |
+| Solar System view                           | ✅ Done |
+| Dev mode — tick rate & build time factor    | ✅ Done |
+| Backend — User login & registration         | ⬜ Planned |
+| Backend — Bauen & Besiedeln (Phase 1)       | ⬜ Planned |
+| Backend — Handel & Kommunikation (Phase 2)  | ⬜ Planned |
+| Backend — Ausspionieren (Phase 3)           | ⬜ Planned |
+| Backend — Kampf (Phase 4)                   | ⬜ Planned |
 
 See `hawk-star-backend.md` for the full backend & multiplayer concept.
-
----

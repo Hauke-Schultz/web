@@ -34,6 +34,10 @@ const homeSystemId = ref(homeConfig.value.systemId)
 const homePlanetId = ref(homeConfig.value.planetId)
 const isFirstRun   = computed(() => playerName.value === '')
 
+// ── Dev tuning ─────────────────────────────────────────────
+const tickRateMs      = ref(1000)
+const buildTimeFactor = ref(1)
+
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
@@ -281,7 +285,7 @@ const startBuild = (id) => {
   for (const [r, amt] of Object.entries(next.cost)) {
     res[r] -= amt
   }
-  allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt = Date.now() + next.buildTime * 1000
+  allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt = Date.now() + next.buildTime * buildTimeFactor.value * 1000
 }
 
 const currentLevelDef = (id) => {
@@ -334,7 +338,7 @@ const buildProgressStyle = (id) => {
   const state = playerBuildings.value[id]
   if (!state?.buildEndsAt) return {}
   const buildTime = BUILDINGS[id]?.levels[getLevel(id)]?.buildTime ?? 1
-  const pct = Math.min(100, Math.max(0, (1 - (state.buildEndsAt - now.value) / (buildTime * 1000)) * 100))
+  const pct = Math.min(100, Math.max(0, (1 - (state.buildEndsAt - now.value) / (buildTime * buildTimeFactor.value * 1000)) * 100))
   return { width: `${pct}%` }
 }
 
@@ -350,7 +354,7 @@ const activeDroneMissions    = computed(() => allPlanetStates.value[activePlanet
 const allActiveDroneMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeDroneMissions ?? []))
 
 const droneBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.recon_drone.buildTimeBase / Math.max(1, reconDroneLevel.value))
+  Math.ceil(UNIT_COSTS.recon_drone.buildTimeBase / Math.max(1, reconDroneLevel.value) * buildTimeFactor.value)
 )
 
 const droneFlightTime = (planetId) => {
@@ -426,7 +430,7 @@ const galaxyProbeBuild     = computed(() => allPlanetStates.value[activePlanetId
 const activeGalaxyProbes   = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeGalaxyProbes ?? [])
 
 const probeBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.galaxy_probe.buildTimeBase / Math.max(1, galaxyProbeLevel.value))
+  Math.ceil(UNIT_COSTS.galaxy_probe.buildTimeBase / Math.max(1, galaxyProbeLevel.value) * buildTimeFactor.value)
 )
 
 const probeFlightTime = (systemId) => {
@@ -507,7 +511,7 @@ const activeColonyMissions    = computed(() => allPlanetStates.value[activePlane
 const allActiveColonyMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeColonyMissions ?? []))
 
 const colonyShipBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.colony_ship.buildTimeBase / Math.max(1, colonyShipLevel.value))
+  Math.ceil(UNIT_COSTS.colony_ship.buildTimeBase / Math.max(1, colonyShipLevel.value) * buildTimeFactor.value)
 )
 
 const colonyFlightTime = (planetId) => {
@@ -588,7 +592,7 @@ const warshipInventory = computed(() => warships.value.length)
 const warshipBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipBuild ?? null)
 
 const warshipBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.warship.buildTimeBase / Math.max(1, warshipBayLevel.value))
+  Math.ceil(UNIT_COSTS.warship.buildTimeBase / Math.max(1, warshipBayLevel.value) * buildTimeFactor.value)
 )
 
 const canBuildWarship = computed(() =>
@@ -710,7 +714,7 @@ const activeFreighterMissions    = computed(() => allPlanetStates.value[activePl
 const allActiveFreighterMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeFreighterMissions ?? []))
 
 const freighterBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.freighter.buildTimeBase / Math.max(1, freighterBayLevel.value))
+  Math.ceil(UNIT_COSTS.freighter.buildTimeBase / Math.max(1, freighterBayLevel.value) * buildTimeFactor.value)
 )
 
 const freighterCargoCapacity = computed(() =>
@@ -827,7 +831,7 @@ const conversionTimeForPlanet = (buildingId, recipeIndex, planetId) => {
   if (!recipe) return 0
   const lvl = allPlanetStates.value[planetId]?.buildings[buildingId]?.level ?? 0
   const throughput = Math.pow(2, lvl - 1) // lv1→1×, lv2→2×, lv3→4×
-  return Math.ceil(recipe.durationBase / Math.max(1, throughput))
+  return Math.ceil(recipe.durationBase / Math.max(1, throughput) * buildTimeFactor.value)
 }
 
 const conversionTime = (buildingId, recipeIndex) =>
@@ -893,6 +897,27 @@ const conversionProgressStyle = (q) => {
 }
 
 // ── LocalStorage persistence ───────────────────────────────
+const DEV_KEY = 'hawk-star-dev'
+
+const saveDevSettings = () => {
+  localStorage.setItem(DEV_KEY, JSON.stringify({
+    tickRateMs:      tickRateMs.value,
+    buildTimeFactor: buildTimeFactor.value,
+  }))
+}
+
+const loadDevSettings = () => {
+  try {
+    const raw = localStorage.getItem(DEV_KEY)
+    if (!raw) return
+    const data = JSON.parse(raw)
+    if (data.tickRateMs)      tickRateMs.value      = data.tickRateMs
+    if (data.buildTimeFactor) buildTimeFactor.value = data.buildTimeFactor
+  } catch { /* ignore */ }
+}
+
+loadDevSettings()
+
 const SAVE_KEY     = 'hawk-star-save'
 const SAVE_VERSION = 14
 
@@ -1198,12 +1223,17 @@ const tick = () => {
 export const startTick = () => {
   if (tickInterval) return
   loadGame()
-  tickInterval = setInterval(tick, 1000)
+  tickInterval = setInterval(tick, tickRateMs.value)
 }
 
 export const stopTick = () => {
   clearInterval(tickInterval)
   tickInterval = null
+}
+
+export const restartTick = () => {
+  clearInterval(tickInterval)
+  tickInterval = setInterval(tick, tickRateMs.value)
 }
 
 // ── Composable export ──────────────────────────────────────
@@ -1360,5 +1390,9 @@ export function useHawkStar() {
     startConversion,
     remainingConversionSec,
     conversionProgressStyle,
+    // dev tuning
+    tickRateMs,
+    buildTimeFactor,
+    saveDevSettings,
   }
 }
