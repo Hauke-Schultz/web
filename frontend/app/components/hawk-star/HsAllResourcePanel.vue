@@ -27,7 +27,7 @@ const allResources = computed(() =>
           <span
             v-if="production[res.id]"
             class="hs-res-panel__rate"
-          >+{{ production[res.id] }}/s</span>
+          >+{{ production[res.id] }}/t</span>
           <span
             v-if="maxStorage[res.id]"
             class="hs-res-panel__cap"

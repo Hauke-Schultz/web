@@ -1,8 +1,8 @@
 <script setup>
 const images = [
   '/party/img/party-01.png',
-  '/party/img/party-02.png',
-  '/party/img/party-03.png',
+  // '/party/img/party-02.png',
+  // '/party/img/party-03.png',
   '/party/img/party-04.png',
   '/party/img/party-05.png',
   '/party/img/party-06.png',

@@ -60,7 +60,7 @@ const visibleResources = computed(() =>
         class="hs-res-prod"
         :class="production[res.id] > 0 ? 'hs-res-prod--pos' : ''"
       >
-        {{ production[res.id] ? `+${production[res.id]}/s` : '' }}
+        {{ production[res.id] ? `+${production[res.id]}/t` : '' }}
         <template v-if="maxStorage[res.id]"> · /{{ maxStorage[res.id] }}</template>
       </span>
     </div>

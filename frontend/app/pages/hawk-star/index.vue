@@ -1,7 +1,7 @@
 <script setup>
 import {computed, ref, watchEffect} from 'vue'
 import { onMounted, onUnmounted } from 'vue'
-import { startTick, stopTick, restartTick, completeSetup, resetGame, useHawkStar } from '~/composables/useHawkStar.js'
+import { startTick, stopTick, completeSetup, resetGame, useHawkStar } from '~/composables/useHawkStar.js'
 import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
 import HsPlanetGrid from '~/components/hawk-star/HsPlanetGrid.vue'
 import HsTilePanel from '~/components/hawk-star/HsTilePanel.vue'
@@ -19,7 +19,6 @@ onUnmounted(stopTick)
 
 const { starMapLevel, isFirstRun, tickRateMs, buildTimeFactor, saveDevSettings } = useHawkStar()
 
-const onTickRateChange = () => restartTick()
 const onSaveDev = () => saveDevSettings()
 
 const currentView = ref('planet')
@@ -69,8 +68,8 @@ watchEffect(() => {
     <div class="hs-dev-panel">
       <span class="hs-dev-label">DEV</span>
       <label class="hs-dev-field">
-        <span>Tick (ms)</span>
-        <input v-model.number="tickRateMs" type="number" min="100" max="10000" step="100" class="hs-dev-input" @change="onTickRateChange" />
+        <span>Prod tick (ms)</span>
+        <input v-model.number="tickRateMs" type="number" min="1000" max="60000" step="1000" class="hs-dev-input" />
       </label>
       <label class="hs-dev-field">
         <span>Build factor</span>

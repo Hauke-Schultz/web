@@ -102,6 +102,7 @@ const homeResources   = computed(() => allPlanetStates.value[homePlanetId.value]
 const activeSlot = ref(5)
 const now = ref(Date.now())
 let tickInterval = null
+let lastProdAt   = 0
 
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
@@ -1036,6 +1037,8 @@ export const completeSetup = (name) => {
 // ── Tick ───────────────────────────────────────────────────
 const tick = () => {
   now.value = Date.now()
+  const doProd = (now.value - lastProdAt) >= tickRateMs.value
+  if (doProd) lastProdAt = now.value
 
   // Process all per-planet conversion queues
   for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
@@ -1183,37 +1186,39 @@ const tick = () => {
       }
     }
 
-    // Production: gross output
-    const prod = {}
-    for (const [id, state] of Object.entries(pb)) {
-      if (state.level === 0) continue
-      const levelDef = BUILDINGS[id]?.levels[state.level - 1]
-      for (const [res, amt] of Object.entries(levelDef?.production ?? {})) {
-        prod[res] = (prod[res] ?? 0) + amt
+    if (doProd) {
+      // Production: gross output
+      const prod = {}
+      for (const [id, state] of Object.entries(pb)) {
+        if (state.level === 0) continue
+        const levelDef = BUILDINGS[id]?.levels[state.level - 1]
+        for (const [res, amt] of Object.entries(levelDef?.production ?? {})) {
+          prod[res] = (prod[res] ?? 0) + amt
+        }
       }
-    }
-    // Energy drain
-    let energyDrain = 0
-    for (const [id, state] of Object.entries(pb)) {
-      const lvl = effectiveLevel(state)
-      if (lvl === 0) continue
-      energyDrain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
-    }
-    // Storage caps
-    const caps = { ...BASE_STORAGE }
-    for (const [id, state] of Object.entries(pb)) {
-      if (state.level === 0) continue
-      const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
-      for (const [res, cap] of Object.entries(storage)) {
-        caps[res] = (caps[res] ?? 0) + cap
+      // Energy drain
+      let energyDrain = 0
+      for (const [id, state] of Object.entries(pb)) {
+        const lvl = effectiveLevel(state)
+        if (lvl === 0) continue
+        energyDrain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
       }
-    }
-    // Apply net production
-    const net = { ...prod, energy: (prod.energy ?? 0) - energyDrain }
-    for (const [res, amt] of Object.entries(net)) {
-      const cap = caps[res]
-      const newVal = Math.max(0, (pr[res] ?? 0) + amt)
-      pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
+      // Storage caps
+      const caps = { ...BASE_STORAGE }
+      for (const [id, state] of Object.entries(pb)) {
+        if (state.level === 0) continue
+        const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
+        for (const [res, cap] of Object.entries(storage)) {
+          caps[res] = (caps[res] ?? 0) + cap
+        }
+      }
+      // Apply net production
+      const net = { ...prod, energy: (prod.energy ?? 0) - energyDrain }
+      for (const [res, amt] of Object.entries(net)) {
+        const cap = caps[res]
+        const newVal = Math.max(0, (pr[res] ?? 0) + amt)
+        pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
+      }
     }
   }
 
@@ -1223,17 +1228,12 @@ const tick = () => {
 export const startTick = () => {
   if (tickInterval) return
   loadGame()
-  tickInterval = setInterval(tick, tickRateMs.value)
+  tickInterval = setInterval(tick, 1000)
 }
 
 export const stopTick = () => {
   clearInterval(tickInterval)
   tickInterval = null
-}
-
-export const restartTick = () => {
-  clearInterval(tickInterval)
-  tickInterval = setInterval(tick, tickRateMs.value)
 }
 
 // ── Composable export ──────────────────────────────────────
