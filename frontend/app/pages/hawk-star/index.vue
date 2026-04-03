@@ -12,7 +12,7 @@ import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPlanetHeader from '~/components/hawk-star/HsPlanetHeader.vue'
 import HsDockPanel from "~/components/hawk-star/HsDockPanel.vue";
 
-definePageMeta({ hideHeader: true })
+definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
 onMounted(startTick)
 onUnmounted(stopTick)

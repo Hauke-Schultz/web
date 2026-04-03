@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ hideNav: true })
+definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
 const router = useRouter()
 

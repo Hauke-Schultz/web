@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ hideHeader: true })
+definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
 const { t, tm, rt } = useI18n()
 

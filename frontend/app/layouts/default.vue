@@ -1,7 +1,11 @@
 <script setup lang="ts">
-const { init } = useTheme()
+const { init, applyTheme } = useTheme()
 const route = useRoute()
-onMounted(init)
+onMounted(() => {
+  init()
+  const forced = route.meta.forceTheme as string | undefined
+  if (forced === 'dark' || forced === 'light') applyTheme(forced)
+})
 
 const hideHeader = computed(() => !!route.meta.hideHeader)
 </script>

@@ -26,5 +26,5 @@ export function useTheme() {
     applyTheme(stored ?? systemTheme)
   }
 
-  return { theme, toggle, init }
+  return { theme, toggle, init, applyTheme }
 }
