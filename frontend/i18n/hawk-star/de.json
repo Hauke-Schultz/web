@@ -1,0 +1,127 @@
+{
+  "hawkStar": {
+    "notifications": {
+      "header": "Aktivitäten",
+      "badgeActive": "aktiv",
+      "badgeDone": "fertig",
+      "empty": "Keine aktiven Operationen",
+      "dismiss": "Schließen",
+
+      "buildComplete": "{name} Lv{level} fertig",
+      "droneReady": "Recon Drone bereit",
+      "probeReady": "Galaxy Probe bereit",
+      "colonyReady": "Colony Ship bereit",
+      "warshipReady": "{name} bereit",
+      "freighterReady": "Frachter bereit",
+
+      "droneReturned": "Recon Drone zurückgekehrt",
+      "probeReturned": "Galaxy Probe zurückgekehrt",
+      "colonyLanded": "Colony Ship gelandet",
+      "freighterArrived": "Frachter angekommen",
+
+      "buildingTitle": "{name} Lv{level}",
+      "droneBuilding": "Recon Drone wird gebaut",
+      "probeBuilding": "Galaxy Probe wird gebaut",
+      "colonyBuilding": "Colony Ship wird gebaut",
+      "warshipBuilding": "Hawk Frigate wird gebaut",
+      "freighterBuilding": "Frachter wird gebaut",
+
+      "missionFrom": "von {planet}",
+      "shipDock": "{planet} · Dock",
+      "conversionRemaining": "×{n} verbleibend"
+    },
+
+    "nav": {
+      "planet": "Planet",
+      "system": "System",
+      "galaxy": "Galaxie",
+      "unlockStarMap1": "Star Map Lv1 bauen zum Freischalten",
+      "unlockStarMap2": "Star Map Lv2 bauen zum Freischalten"
+    },
+
+    "tile": {
+      "selectTile": "Wähle ein freigeschaltetes Feld",
+      "statusBuilding": "Baut…",
+      "statusOffline": "⚠ Offline",
+      "statusMax": "MAX",
+      "btnBuild": "Bauen",
+      "btnUpgrade": "Upgraden",
+      "maxLevel": "Maximale Stufe erreicht",
+      "needPower": "⚡ Energie fehlt",
+      "needStaff": "👥 Personal fehlt",
+      "lockedRequires": "🔒 {name} Lv{level}",
+      "lockedGeneric": "🔒 Gesperrt",
+      "convTitle": "⚗️ Umwandlungen",
+      "convConverting": "Wandelt um…",
+      "btnConvert": "Umwandeln",
+      "convQueued": "+{n} in Warteschlange",
+      "convEmptyNoRefinery": "Bau die Raffinerie um Umwandlungen freizuschalten",
+      "convEmptyNoFacility": "Bau eine Hightech-Anlage um Umwandlungen freizuschalten"
+    },
+
+    "dock": {
+      "statusBuilding": "Baut…",
+      "btnBuild": "Bauen",
+      "reconDrone": "Recon Drone",
+      "galaxyProbe": "Galaxy Probe",
+      "colonyShip": "Colony Ship",
+      "warship": "Kriegsschiff",
+      "freighter": "Frachter",
+      "reconDroneDesc": "Erkunde Planeten in deinem Heimatsystem",
+      "galaxyProbeDesc": "Erkunde entfernte Sternensysteme",
+      "colonyShipDesc": "Kolonisiere unbewohnte Planeten",
+      "warshipDesc": "Schweres Kampfschiff. Benötigt Super-Legierung & Reinkristall.",
+      "freighterDesc": "Transportiert Ressourcen zwischen Kolonien · {capacity} Fracht",
+      "drive": "Antrieb",
+      "noDrive": "— kein Antrieb —",
+      "weapons": "Waffen",
+      "emptySlot": "— leer —",
+      "toOrbit": "↑ Orbit",
+      "needPowerCell": "Power Cell erforderlich",
+      "totalDamage": "Gesamtschaden (alle Waffen)",
+      "sectionHangar": "Hangar",
+      "hangar": "↓ Hangar",
+      "loadFreighter": "Frachter beladen",
+      "noResources": "Keine Ressourcen verfügbar",
+      "dispatch": "Abschicken →"
+    },
+
+    "solar": {
+      "stateOwn": "Kolonie",
+      "stateFree": "Frei",
+      "stateEnemy": "Feind",
+      "stateAllied": "Verbündet",
+      "colonizing": "Kolonisierung…",
+      "buildColonyShip": "Colony Ship bauen",
+      "droneEnRoute": "Drohne unterwegs…",
+      "unknown": "Unbekannt",
+      "sendDrone": "Drohne schicken",
+      "colonize": "Kolonisieren",
+      "dest": "Ziel",
+      "destConfirmed": "✓ Ziel",
+      "noResources": "Keine Ressourcen verfügbar",
+      "toOrbit": "↑ Orbit",
+      "needPowerCell": "Power Cell erforderlich",
+      "hangar": "↓ Hangar",
+      "active": "aktiv",
+      "slots": "Felder",
+      "loadFreighter": "Frachter beladen",
+      "dispatch": "Abschicken →"
+    },
+
+    "galaxy": {
+      "stateColony": "Deine Kolonie",
+      "stateUncolonized": "Unkolonisiert",
+      "stateEnemy": "Feind",
+      "stateAllied": "Verbündet",
+      "starMeta": "{cls}-Klasse Stern · {n} Planeten"
+    },
+
+    "starClass": {
+      "G": "Gelber Zwerg",
+      "K": "Orangener Zwerg",
+      "M": "Roter Zwerg",
+      "F": "Weißer Stern"
+    }
+  }
+}

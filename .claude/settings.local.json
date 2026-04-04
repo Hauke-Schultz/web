@@ -10,7 +10,8 @@
       "Bash(1:*)",
       "Bash(find C:UsershaukeWebstormProjectsweb -iname *dock* -o -iname *freighter* -o -iname *warship*)",
       "Bash(find /mnt/c/Users/hauke/WebstormProjects/web/frontend -name *.vue)",
-      "Bash(grep -E \"\\\\.\\(js|ts|vue\\)$\")"
+      "Bash(grep -E \"\\\\.\\(js|ts|vue\\)$\")",
+      "Read(//tmp/**)"
     ]
   }
 }

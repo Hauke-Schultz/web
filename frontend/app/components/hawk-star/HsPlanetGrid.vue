@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { TILE_TYPES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsAllResourcePanel from "~/components/hawk-star/HsAllResourcePanel.vue";
+import HsNotificationPanel from "~/components/hawk-star/HsNotificationPanel.vue";
 
 const {
   playerName,

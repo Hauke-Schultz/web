@@ -244,6 +244,7 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `HsPlanetHeader` | Planet name + type header |
 | `HsAllResourcePanel` | Full resource breakdown panel |
 | `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
+| `HsLangSwitcher` | In-game EN/DE language toggle — uses `setLocale()`, embedded in HsNavBar |
 
 ### State & Persistence
 
@@ -274,6 +275,7 @@ A persistent dev panel at the bottom of the game page exposes two tuning control
 | Solar System view                             | ✅ Done |
 | Dev mode — tick rate & build time factor      | ✅ Done |
 | Notification Panel                            | ✅ Done |
+| Localisation (i18n) — all components           | ✅ Done |
 | Backend — User login & registration           | ⬜ Planned |
 | Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
 | Backend — Handel & Kommunikation (Phase 2)    | ⬜ Planned |
@@ -286,64 +288,31 @@ See `hawk-star-backend.md` for the full backend & multiplayer concept.
 
 ## Localisation (i18n)
 
-All user-facing strings are currently hardcoded in English. The plan is to extract them into a dedicated file so the game can support multiple languages without touching component or composable code.
-
-### Strings to extract
-
-| Location | Examples |
-|----------|---------|
-| `HsNotificationPanel.vue` | `"Activity"`, `"active"`, `"done"`, `"No active operations"`, ship build labels, mission subtitle (`"from …"`, `"remaining"`) |
-| `useHawkStar.js` — notification labels | `"Recon Drone ready"`, `"Colony Ship landed"`, `"… complete"`, etc. |
-| `hawkStarConfig.js` — `BUILDINGS[id].name` | `"Mining Station"`, `"Star Map"`, etc. |
-| `hawkStarConfig.js` — `RESOURCES[id].name` | `"Metal"`, `"Crystal"`, `"Population"`, etc. |
-| `hawkStarConfig.js` — `TILE_TYPES[id].label` | `"Base"`, `"Mining"`, `"Space Base"`, etc. |
-| All other components (`HsTilePanel`, `HsDockPanel`, …) | Button labels, status text, tooltips |
-
-### Target file structure
+Uses **`@nuxtjs/i18n`** with `defaultLocale: 'de'` and `strategy: 'prefix_except_default'`. Translation files:
 
 ```
-utils/
-  hawkStarI18n.js      ← single source of truth for all UI strings
+i18n/
+  en.json / de.json          ← general site strings (empty)
+  hawk-star/en.json          ← all Hawk-Star strings (English, complete)
+  hawk-star/de.json          ← all Hawk-Star strings (German, complete)
 ```
 
-```js
-// hawkStarI18n.js
-export const HS_STRINGS = {
-  // Notification panel
-  notif: {
-    header:        'Activity',
-    badgeActive:   'active',
-    badgeDone:     'done',
-    empty:         'No active operations',
-    dismiss:       'Dismiss',
-    buildComplete: (name, level) => `${name} Lv${level} complete`,
-    unitReady:     (label) => `${label} ready`,
-    // missions
-    droneReturned:   'Recon Drone returned',
-    probeReturned:   'Galaxy Probe returned',
-    colonyLanded:    'Colony Ship landed',
-    freighterArrived:'Freighter arrived',
-    // in-progress subtitles
-    from:      (planet) => `from ${planet}`,
-    remaining: (n) => `×${n} remaining`,
-    building:  (label) => `${label} building`,
-    dock:      (planet) => `${planet} · Dock`,
-  },
-  // ... other sections (buildings, resources, UI) added per component
-}
-```
+All Hawk-Star keys live under `hawkStar.*`:
 
-### Migration approach
+| Namespace | Covers |
+|-----------|--------|
+| `hawkStar.notifications.*` | HsNotificationPanel — activity feed |
+| `hawkStar.nav.*` | HsNavBar — view tabs, lock tooltips |
+| `hawkStar.tile.*` | HsTilePanel — build buttons, status, conversions |
+| `hawkStar.dock.*` | HsDockPanel — ship names, build buttons, slots |
+| `hawkStar.solar.*` | HsSolarSystem — planet states, mission actions |
+| `hawkStar.galaxy.*` | HsGalaxyMap — planet states, star meta |
+| `hawkStar.starClass.*` | Star class labels (G/K/M/F) |
 
-1. Create `utils/hawkStarI18n.js` with the `HS_STRINGS` object.
-2. Replace hardcoded strings in each file with `HS_STRINGS.notif.*` etc., one file at a time.
-3. When backend is connected: building and resource names will come from the DB — `HS_STRINGS` then only needs to cover pure UI strings (buttons, status text, placeholders).
-4. If multi-language support becomes a requirement, swap `HS_STRINGS` for a proper i18n library (e.g. `vue-i18n`) — the call sites stay the same.
+**In components:** `const { t } = useI18n()` → `t('hawkStar.nav.planet')`.
 
-### Implementation Status
+**In `useHawkStar.js`:** Cannot call `useI18n()` at module scope. Notification objects store `labelKey` + `labelParams`; the component resolves them with `t(n.labelKey, n.labelParams ?? {})`.
 
-| Task | Status |
-|------|--------|
-| All notification strings in English | ✅ Done |
-| Extract strings to `hawkStarI18n.js` | ⬜ Planned |
-| Apply i18n to all components | ⬜ Planned |
+**Language switcher:** `HsLangSwitcher.vue` uses `setLocale()` (no page reload), embedded in `HsNavBar`.
+
+**Not yet translated:** Building/resource names in `hawkStarConfig.js` — planned after backend (names will come from DB).

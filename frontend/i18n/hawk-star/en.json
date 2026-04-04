@@ -1,0 +1,127 @@
+{
+  "hawkStar": {
+    "notifications": {
+      "header": "Activity",
+      "badgeActive": "active",
+      "badgeDone": "done",
+      "empty": "No active operations",
+      "dismiss": "Dismiss",
+
+      "buildComplete": "{name} Lv{level} complete",
+      "droneReady": "Recon Drone ready",
+      "probeReady": "Galaxy Probe ready",
+      "colonyReady": "Colony Ship ready",
+      "warshipReady": "{name} ready",
+      "freighterReady": "Freighter ready",
+
+      "droneReturned": "Recon Drone returned",
+      "probeReturned": "Galaxy Probe returned",
+      "colonyLanded": "Colony Ship landed",
+      "freighterArrived": "Freighter arrived",
+
+      "buildingTitle": "{name} Lv{level}",
+      "droneBuilding": "Recon Drone building",
+      "probeBuilding": "Galaxy Probe building",
+      "colonyBuilding": "Colony Ship building",
+      "warshipBuilding": "Hawk Frigate building",
+      "freighterBuilding": "Freighter building",
+
+      "missionFrom": "from {planet}",
+      "shipDock": "{planet} · Dock",
+      "conversionRemaining": "×{n} remaining"
+    },
+
+    "nav": {
+      "planet": "Planet",
+      "system": "System",
+      "galaxy": "Galaxy",
+      "unlockStarMap1": "Build Star Map Lv1 to unlock",
+      "unlockStarMap2": "Build Star Map Lv2 to unlock"
+    },
+
+    "tile": {
+      "selectTile": "Select an unlocked tile to manage buildings",
+      "statusBuilding": "Building…",
+      "statusOffline": "⚠ Offline",
+      "statusMax": "MAX",
+      "btnBuild": "Build",
+      "btnUpgrade": "Upgrade",
+      "maxLevel": "Max level reached",
+      "needPower": "⚡ Need power",
+      "needStaff": "👥 Need staff",
+      "lockedRequires": "🔒 {name} Lv{level}",
+      "lockedGeneric": "🔒 Locked",
+      "convTitle": "⚗️ Conversions",
+      "convConverting": "Converting…",
+      "btnConvert": "Convert",
+      "convQueued": "+{n} queued",
+      "convEmptyNoRefinery": "Build the refinery to unlock conversions",
+      "convEmptyNoFacility": "Build a High-Tech facility to unlock conversions"
+    },
+
+    "dock": {
+      "statusBuilding": "Building…",
+      "btnBuild": "Build",
+      "reconDrone": "Recon Drone",
+      "galaxyProbe": "Galaxy Probe",
+      "colonyShip": "Colony Ship",
+      "warship": "Warship",
+      "freighter": "Freighter",
+      "reconDroneDesc": "Scout planets in your home system",
+      "galaxyProbeDesc": "Scout distant star systems",
+      "colonyShipDesc": "Colonize unoccupied planets",
+      "warshipDesc": "Heavy combat vessel. Requires Super Alloy & Pure Crystal.",
+      "freighterDesc": "Transport resources between colonies · {capacity} cargo",
+      "drive": "Drive",
+      "noDrive": "— no drive —",
+      "weapons": "Weapons",
+      "emptySlot": "— empty —",
+      "toOrbit": "↑ Orbit",
+      "needPowerCell": "Power Cell required",
+      "totalDamage": "Total damage (all weapons)",
+      "sectionHangar": "Hangar",
+      "hangar": "↓ Hangar",
+      "loadFreighter": "Load Freighter",
+      "noResources": "No resources available",
+      "dispatch": "Dispatch →"
+    },
+
+    "solar": {
+      "stateOwn": "Colony",
+      "stateFree": "Free",
+      "stateEnemy": "Enemy",
+      "stateAllied": "Allied",
+      "colonizing": "Colonizing…",
+      "buildColonyShip": "build colony ship",
+      "droneEnRoute": "Drone en route…",
+      "unknown": "Unknown",
+      "sendDrone": "Send Drone",
+      "colonize": "Colonize",
+      "dest": "Dest",
+      "destConfirmed": "✓ Dest",
+      "noResources": "No resources available",
+      "toOrbit": "↑ Orbit",
+      "needPowerCell": "Power Cell required",
+      "hangar": "↓ Hangar",
+      "active": "active",
+      "slots": "slots",
+      "loadFreighter": "Load Freighter",
+      "dispatch": "Dispatch →"
+    },
+
+    "galaxy": {
+      "stateColony": "Your Colony",
+      "stateUncolonized": "Uncolonized",
+      "stateEnemy": "Enemy",
+      "stateAllied": "Allied",
+      "starMeta": "{cls}-class star · {n} planets"
+    },
+
+    "starClass": {
+      "G": "Yellow Dwarf",
+      "K": "Orange Dwarf",
+      "M": "Red Dwarf",
+      "F": "White Star"
+    }
+  }
+}

@@ -1,11 +1,14 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
+import HsLangSwitcher from '~/components/hawk-star/HsLangSwitcher.vue'
 
 const props = defineProps({
   currentView: { type: String, required: true },
 })
 const emit = defineEmits(['update:currentView'])
 
+const { t } = useI18n()
 const { starMapLevel } = useHawkStar()
 </script>
 
@@ -17,7 +20,7 @@ const { starMapLevel } = useHawkStar()
       @click="emit('update:currentView', 'planet')"
     >
       <span class="hs-nav-icon">🌍</span>
-      <span>Planet</span>
+      <span>{{ t('hawkStar.nav.planet') }}</span>
     </button>
 
     <button
@@ -27,11 +30,11 @@ const { starMapLevel } = useHawkStar()
         'hs-nav-tab--locked': starMapLevel < 1,
       }"
       :disabled="starMapLevel < 1"
-      :title="starMapLevel < 1 ? 'Build Star Map Lv1 to unlock' : 'Solar System'"
+      :title="starMapLevel < 1 ? t('hawkStar.nav.unlockStarMap1') : t('hawkStar.nav.system')"
       @click="emit('update:currentView', 'solar-system')"
     >
       <span class="hs-nav-icon">☀️</span>
-      <span>System</span>
+      <span>{{ t('hawkStar.nav.system') }}</span>
       <span v-if="starMapLevel < 1" class="hs-nav-lock">🔒</span>
     </button>
 
@@ -42,13 +45,15 @@ const { starMapLevel } = useHawkStar()
         'hs-nav-tab--locked': starMapLevel < 2,
       }"
       :disabled="starMapLevel < 2"
-      :title="starMapLevel < 2 ? 'Build Star Map Lv2 to unlock' : 'Galaxy Map'"
+      :title="starMapLevel < 2 ? t('hawkStar.nav.unlockStarMap2') : t('hawkStar.nav.galaxy')"
       @click="emit('update:currentView', 'galaxy')"
     >
       <span class="hs-nav-icon">🗺️</span>
-      <span>Galaxy</span>
+      <span>{{ t('hawkStar.nav.galaxy') }}</span>
       <span v-if="starMapLevel < 2" class="hs-nav-lock">🔒</span>
     </button>
+
+    <HsLangSwitcher />
   </nav>
 </template>
 

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RESOURCES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
@@ -36,6 +37,8 @@ const {
   conversionProgressStyle,
   buildTimeFactor,
 } = useHawkStar()
+
+const { t } = useI18n()
 
 const isSpacebaseTile = computed(() => activeTileType.value?.id === 'spacebase')
 const isHightechTile  = computed(() => activeTileType.value?.id === 'hightech')
@@ -113,7 +116,7 @@ const setConversionCount = (bId, idx, val) => {
             <template v-if="nextLevelDef(bDef.id)">
               {{ getLevel(bDef.id) === 0 ? '' : '→ ' }}{{ nextLevelDef(bDef.id).effect }}
             </template>
-            <template v-else>Max level reached</template>
+            <template v-else>{{ t('hawkStar.tile.maxLevel') }}</template>
           </div>
 
           <!-- Cost row -->
@@ -157,17 +160,17 @@ const setConversionCount = (bId, idx, val) => {
         <!-- Action button -->
         <div class="hs-building-action">
           <template v-if="isBuildingInProgress(bDef.id)">
-            <span class="hs-status-building">Building…</span>
+            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
           </template>
           <template v-else-if="isOffline(bDef.id)">
-            <span class="hs-status-offline">⚠ Offline</span>
+            <span class="hs-status-offline">{{ t('hawkStar.tile.statusOffline') }}</span>
           </template>
           <template v-else-if="!nextLevelDef(bDef.id)">
-            <span class="hs-status-max">MAX</span>
+            <span class="hs-status-max">{{ t('hawkStar.tile.statusMax') }}</span>
           </template>
           <template v-else-if="isBuildingLocked(bDef.id)">
             <span class="hs-status-locked">
-              {{ BUILDINGS[bDef.id].requiresBuilding ? `🔒 ${BUILDINGS[BUILDINGS[bDef.id].requiresBuilding]?.name ?? ''} Lv${BUILDINGS[bDef.id].requiresLevel}` : '🔒 Locked' }}
+              {{ BUILDINGS[bDef.id].requiresBuilding ? t('hawkStar.tile.lockedRequires', { name: BUILDINGS[BUILDINGS[bDef.id].requiresBuilding]?.name ?? '', level: BUILDINGS[bDef.id].requiresLevel }) : t('hawkStar.tile.lockedGeneric') }}
             </span>
           </template>
           <template v-else>
@@ -177,10 +180,10 @@ const setConversionCount = (bId, idx, val) => {
                 :class="{ 'hs-btn-build--disabled': !canBuild(bDef.id) }"
                 :disabled="!canBuild(bDef.id)"
                 @click.stop="startBuild(bDef.id)"
-              >{{ getLevel(bDef.id) === 0 ? 'Build' : 'Upgrade' }}</button>
+              >{{ getLevel(bDef.id) === 0 ? t('hawkStar.tile.btnBuild') : t('hawkStar.tile.btnUpgrade') }}</button>
               <span class="hs-build-time">⏱ {{ formatTime(Math.ceil(nextLevelDef(bDef.id).buildTime * buildTimeFactor)) }}</span>
-              <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">⚡ Need power</span>
-              <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">👥 Need staff</span>
+              <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">{{ t('hawkStar.tile.needPower') }}</span>
+              <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">{{ t('hawkStar.tile.needStaff') }}</span>
             </div>
           </template>
         </div>
@@ -189,12 +192,12 @@ const setConversionCount = (bId, idx, val) => {
 
 
     <div v-if="buildingsForActiveSlot.length === 0 && !isSpacebaseTile" class="hs-empty">
-      Select an unlocked tile to manage buildings
+      {{ t('hawkStar.tile.selectTile') }}
     </div>
 
     <!-- ── High-Tech conversion section ── -->
     <div v-if="isHightechTile && hightechBuildings.length" class="hs-conv-section">
-      <div class="hs-conv-section-title">⚗️ Conversions</div>
+      <div class="hs-conv-section-title">{{ t('hawkStar.tile.convTitle') }}</div>
 
       <!-- Active conversion queues (one row per running job) -->
       <div
@@ -205,13 +208,13 @@ const setConversionCount = (bId, idx, val) => {
         <div class="hs-conv-queue-bar" :style="conversionProgressStyle(q)" />
         <span class="hs-conv-queue-icon">{{ queueOutputResource(q)?.icon }}</span>
         <span class="hs-conv-queue-name">{{ queueOutputResource(q)?.name }}</span>
-        <span class="hs-conv-queue-label">Converting…</span>
+        <span class="hs-conv-queue-label">{{ t('hawkStar.tile.convConverting') }}</span>
         <span class="hs-conv-queue-time">{{ formatTime(remainingConversionSec(q)) }}</span>
-        <span v-if="q.remaining > 0" class="hs-conv-queue-remaining">+{{ q.remaining }} queued</span>
+        <span v-if="q.remaining > 0" class="hs-conv-queue-remaining">{{ t('hawkStar.tile.convQueued', { n: q.remaining }) }}</span>
       </div>
 
       <div v-if="availableConversions.length === 0" class="hs-conv-empty">
-        Build the refinery to unlock conversions
+        {{ t('hawkStar.tile.convEmptyNoRefinery') }}
       </div>
 
       <div class="hs-conv-list">
@@ -255,7 +258,7 @@ const setConversionCount = (bId, idx, val) => {
                 :class="{ 'hs-btn-convert--disabled': !isConversionRunning(recipe.buildingId, recipe.index) && !canConvert(recipe.buildingId, recipe.index) }"
                 :disabled="!isConversionRunning(recipe.buildingId, recipe.index) && !canConvert(recipe.buildingId, recipe.index)"
                 @click="startConversion(recipe.buildingId, recipe.index, getConversionCount(recipe.buildingId, recipe.index))"
-              >{{ isConversionRunning(recipe.buildingId, recipe.index) ? '+' + getConversionCount(recipe.buildingId, recipe.index) : 'Convert' }}</button>
+              >{{ isConversionRunning(recipe.buildingId, recipe.index) ? '+' + getConversionCount(recipe.buildingId, recipe.index) : t('hawkStar.tile.btnConvert') }}</button>
             </template>
           </div>
         </div>
@@ -263,7 +266,7 @@ const setConversionCount = (bId, idx, val) => {
     </div>
 
     <div v-else-if="isHightechTile && !hightechBuildings.length" class="hs-conv-empty">
-      Build a High-Tech facility to unlock conversions
+      {{ t('hawkStar.tile.convEmptyNoFacility') }}
     </div>
 
   </div>

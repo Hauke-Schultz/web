@@ -28,8 +28,8 @@ export default defineNuxtConfig({
 
   i18n: {
     locales: [
-      { code: 'de', language: 'de-DE', name: 'Deutsch', file: 'de.json' },
-      { code: 'en', language: 'en-US', name: 'English', file: 'en.json' },
+      { code: 'de', language: 'de-DE', name: 'Deutsch', files: ['de.json', 'hawk-star/de.json'] },
+      { code: 'en', language: 'en-US', name: 'English', files: ['en.json', 'hawk-star/en.json'] },
     ],
     defaultLocale: 'de',
     langDir: './',

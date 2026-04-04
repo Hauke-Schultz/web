@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { PLANET_TYPES, RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
@@ -52,6 +53,8 @@ const {
   freighterBayLevel, freighterBuild, freighterBuildTime, canBuildFreighter, buildFreighter, freighterBuildProgressStyle,
 } = useHawkStar()
 
+const { t } = useI18n()
+
 const planets = computed(() => homeSystem.value?.planets ?? [])
 
 const isScanned      = (id) => playerScannedPlanets.value.includes(id)
@@ -94,14 +97,17 @@ const colonyTime = (targetPlanetId) =>
     : 0
 
 const planetTypeIcon = (type) => PLANET_TYPES[type]?.icon ?? '🪐'
-const STAR_CLASS_LABEL = { G: 'Yellow Dwarf', K: 'Orange Dwarf', M: 'Red Dwarf', F: 'White Star' }
+const starClassLabel = (cls) => t(`hawkStar.starClass.${cls}`, cls)
 
 const STATE_COLOR = {
   own: '#60a5fa', uncolonized: '#6b7280', enemy: '#f87171', ally: '#34d399',
 }
-const STATE_LABEL = {
-  own: 'Colony', uncolonized: 'Free', enemy: 'Enemy', ally: 'Allied',
-}
+const stateLabel = (state) => ({
+  own:         t('hawkStar.solar.stateOwn'),
+  uncolonized: t('hawkStar.solar.stateFree'),
+  enemy:       t('hawkStar.solar.stateEnemy'),
+  ally:        t('hawkStar.solar.stateAllied'),
+})[state] ?? state
 
 const planetIcon = (planet) => {
   const state = effectivePlanetState(planet)
@@ -179,7 +185,7 @@ const doSendFreighter = () => {
       <div class="hs-solar-tile hs-solar-tile--sun">
         <span class="hs-solar-tile-icon">☀️</span>
         <span class="hs-solar-tile-name">{{ homeSystem?.name }}</span>
-        <span class="hs-solar-tile-sub">{{ STAR_CLASS_LABEL[homeSystem?.starClass] ?? homeSystem?.starClass }}</span>
+        <span class="hs-solar-tile-sub">{{ starClassLabel(homeSystem?.starClass) }}</span>
       </div>
 
       <!-- Orbit connector (desktop only) -->
@@ -226,8 +232,8 @@ const doSendFreighter = () => {
           <span class="hs-solar-tile-state" :style="{ color: STATE_COLOR.own }">
             {{ playerName }}
           </span>
-	        <span v-if="planet.id === activePlanetId" class="hs-solar-active-tag">active</span>
-          <span v-if="planet.slots !== null" class="hs-solar-tile-slots">{{ planet.slots }} slots</span>
+	        <span v-if="planet.id === activePlanetId" class="hs-solar-active-tag">{{ t('hawkStar.solar.active') }}</span>
+          <span v-if="planet.slots !== null" class="hs-solar-tile-slots">{{ planet.slots }} {{ t('hawkStar.solar.slots') }}</span>
           <!-- Unit counts when selected -->
           <div v-if="selectedPlanetId === planet.id" class="hs-solar-tile-units">
             <span v-if="reconDroneLevel > 0">🛸 {{ reconDroneInventory }}</span>
@@ -252,7 +258,7 @@ const doSendFreighter = () => {
               class="hs-freighter-dest-btn"
               :class="{ 'hs-freighter-dest-btn--active': freighterDest === planet.id }"
               @click.stop="freighterDest = freighterDest === planet.id ? null : planet.id"
-            >{{ freighterDest === planet.id ? '✓ Dest' : 'Dest' }}</button>
+            >{{ freighterDest === planet.id ? t('hawkStar.solar.destConfirmed') : t('hawkStar.solar.dest') }}</button>
             <button
               v-if="freighterDest === planet.id"
               class="hs-freighter-send-btn hs-freighter-send-btn--tile"
@@ -263,14 +269,14 @@ const doSendFreighter = () => {
 
         <!-- Colony ship en route -->
         <template v-else-if="isColonizing(planet.id)">
-          <span class="hs-solar-tile-scanning-label" style="color: rgba(96,165,250,0.8)">Colonizing…</span>
+          <span class="hs-solar-tile-scanning-label" style="color: rgba(96,165,250,0.8)">{{ t('hawkStar.solar.colonizing') }}</span>
           <span class="hs-solar-tile-timer">{{ formatTime(remainingColonySec(planet.id)) }}</span>
         </template>
 
         <!-- Scanned but not (yet) own -->
         <template v-else-if="isScanned(planet.id)">
           <span class="hs-solar-tile-state" :style="{ color: STATE_COLOR[planet.state] }">
-            {{ STATE_LABEL[planet.state] }}
+            {{ stateLabel(planet.state) }}
           </span>
           <span v-if="planet.owner" class="hs-solar-tile-owner">{{ planet.owner }}</span>
           <!-- Colonize button: only visible when a base is selected -->
@@ -278,29 +284,29 @@ const doSendFreighter = () => {
             <button
               class="hs-solar-action-btn hs-solar-action-btn--colony"
               @click.stop="sendColonyShip(planet.id, selectedPlanetId)"
-            >🚀 Colonize</button>
+            >🚀 {{ t('hawkStar.solar.colonize') }}</button>
             <span class="hs-solar-tile-flight-time">{{ formatTime(colonyTime(planet.id)) }}</span>
           </template>
           <span
             v-else-if="selectedIsOwn && planet.state === 'uncolonized' && colonyShipLevel > 0 && colonyShipInventory === 0"
             class="hs-solar-tile-hint"
-          >build colony ship</span>
+          >{{ t('hawkStar.solar.buildColonyShip') }}</span>
         </template>
 
         <!-- Drone en route -->
         <template v-else-if="isDroneEnRoute(planet.id)">
-          <span class="hs-solar-tile-scanning-label">Drone en route…</span>
+          <span class="hs-solar-tile-scanning-label">{{ t('hawkStar.solar.droneEnRoute') }}</span>
           <span class="hs-solar-tile-timer">{{ formatTime(remainingDroneSec(planet.id)) }}</span>
         </template>
 
         <!-- Unknown: send drone button only visible when a base is selected -->
         <template v-else>
-          <span class="hs-solar-tile-unknown-label">Unknown</span>
+          <span class="hs-solar-tile-unknown-label">{{ t('hawkStar.solar.unknown') }}</span>
           <template v-if="selectedIsOwn && canSendDrone(planet.id)">
             <button
               class="hs-solar-action-btn hs-solar-action-btn--drone"
               @click.stop="sendReconDrone(planet.id, selectedPlanetId)"
-            >🛸 Send Drone</button>
+            >🛸 {{ t('hawkStar.solar.sendDrone') }}</button>
             <span class="hs-solar-tile-flight-time">{{ formatTime(flightTime(planet.id)) }}</span>
           </template>
         </template>
@@ -330,7 +336,7 @@ const doSendFreighter = () => {
         >
           <span class="hs-dock-slot__icon">🛸</span>
           <span class="hs-dock-slot__count">{{ reconDroneInventory }}</span>
-          <span class="hs-dock-slot__name">Recon Drone</span>
+          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.reconDrone') }}</span>
         </button>
         <button
           v-if="galaxyProbeLevel > 0"
@@ -340,7 +346,7 @@ const doSendFreighter = () => {
         >
           <span class="hs-dock-slot__icon">🔭</span>
           <span class="hs-dock-slot__count">{{ galaxyProbeInventory }}</span>
-          <span class="hs-dock-slot__name">Galaxy Probe</span>
+          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.galaxyProbe') }}</span>
         </button>
         <button
           v-if="colonyShipLevel > 0"
@@ -350,7 +356,7 @@ const doSendFreighter = () => {
         >
           <span class="hs-dock-slot__icon">🚀</span>
           <span class="hs-dock-slot__count">{{ colonyShipInventory }}</span>
-          <span class="hs-dock-slot__name">Colony Ship</span>
+          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.colonyShip') }}</span>
         </button>
         <button
           v-if="freighterBayLevel > 0"
@@ -360,7 +366,7 @@ const doSendFreighter = () => {
         >
           <span class="hs-dock-slot__icon">🚢</span>
           <span class="hs-dock-slot__count">{{ freighterInventory }}</span>
-          <span class="hs-dock-slot__name">Freighter</span>
+          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.freighter') }}</span>
         </button>
         <button
           v-if="warshipBayLevel > 0"
@@ -370,7 +376,7 @@ const doSendFreighter = () => {
         >
           <span class="hs-dock-slot__icon">⚔️</span>
           <span class="hs-dock-slot__count">{{ warshipInventory }}<span v-if="fleetInOrbit.length" class="hs-dock-slot__orbit"> +{{ fleetInOrbit.length }}🛰</span></span>
-          <span class="hs-dock-slot__name">Warship</span>
+          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.warship') }}</span>
         </button>
       </div>
 
@@ -409,7 +415,7 @@ const doSendFreighter = () => {
             <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
           </div>
           <div class="hs-dock-info">
-            <div class="hs-dock-name">Recon Drone</div>
+            <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
             <div class="hs-dock-cost-row">
               <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
               <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
@@ -420,8 +426,8 @@ const doSendFreighter = () => {
             </div>
           </div>
           <div class="hs-dock-action">
-            <span v-if="reconDroneBuild" class="hs-status-building">Building…</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">Build</button>
+            <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
           </div>
         </div>
         <div v-if="droneDests.length > 0" class="hs-dock-dest-grid" style="margin-top: 0.4rem">
@@ -445,7 +451,7 @@ const doSendFreighter = () => {
             <span v-if="galaxyProbeInventory > 0" class="hs-dock-badge">{{ galaxyProbeInventory }}</span>
           </div>
           <div class="hs-dock-info">
-            <div class="hs-dock-name">Galaxy Probe</div>
+            <div class="hs-dock-name">{{ t('hawkStar.dock.galaxyProbe') }}</div>
             <div class="hs-dock-cost-row">
               <span v-for="(amt, resId) in UNIT_COSTS.galaxy_probe.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
               <span class="hs-unit-time-tag">⏱ {{ formatTime(probeBuildTime) }}</span>
@@ -456,8 +462,8 @@ const doSendFreighter = () => {
             </div>
           </div>
           <div class="hs-dock-action">
-            <span v-if="galaxyProbeBuild" class="hs-status-building">Building…</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">Build</button>
+            <span v-if="galaxyProbeBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">{{ t('hawkStar.dock.btnBuild') }}</button>
           </div>
         </div>
       </div>
@@ -470,7 +476,7 @@ const doSendFreighter = () => {
             <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
           </div>
           <div class="hs-dock-info">
-            <div class="hs-dock-name">Colony Ship</div>
+            <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
             <div class="hs-dock-cost-row">
               <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
               <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
@@ -481,8 +487,8 @@ const doSendFreighter = () => {
             </div>
           </div>
           <div class="hs-dock-action">
-            <span v-if="colonyShipBuild" class="hs-status-building">Building…</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">Build</button>
+            <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
           </div>
         </div>
         <div v-if="colonyDests.length > 0" class="hs-dock-dest-grid" style="margin-top: 0.4rem">
@@ -518,13 +524,13 @@ const doSendFreighter = () => {
             </div>
           </div>
           <div class="hs-dock-action">
-            <span v-if="warshipBuild" class="hs-status-building">Building…</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
+            <span v-if="warshipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">{{ t('hawkStar.dock.btnBuild') }}</button>
           </div>
         </div>
         <!-- Hangar -->
         <div v-if="warships.length" class="hs-warship-section">
-          <span class="hs-warship-section-label">🔧 Hangar</span>
+          <span class="hs-warship-section-label">🔧 {{ t('hawkStar.dock.sectionHangar') }}</span>
           <div v-for="ship in warships" :key="ship.id" class="hs-warship-card-mini">
             <span class="hs-warship-card-mini__icon">{{ ship.icon }}</span>
             <span class="hs-warship-card-mini__name">{{ ship.name }}</span>
@@ -536,9 +542,9 @@ const doSendFreighter = () => {
               class="hs-orbit-btn"
               :class="{ 'hs-orbit-btn--disabled': !shipHasPowerCell(ship) }"
               :disabled="!shipHasPowerCell(ship)"
-              :title="shipHasPowerCell(ship) ? 'In Orbit schicken' : 'Power Cell benötigt'"
+              :title="shipHasPowerCell(ship) ? t('hawkStar.solar.toOrbit') : t('hawkStar.solar.needPowerCell')"
               @click.stop="deployToOrbit(ship.id)"
-            >↑ Orbit</button>
+            >{{ t('hawkStar.solar.toOrbit') }}</button>
           </div>
         </div>
         <!-- Orbit -->
@@ -551,7 +557,7 @@ const doSendFreighter = () => {
               <span class="hs-warship-card-mini__slot hs-warship-card-mini__slot--drive" :class="ship.drive?.[0] ? 'hs-warship-card-mini__slot--filled' : ''">{{ ship.drive?.[0]?.icon ?? '🔋' }}</span>
               <span v-for="(w, idx) in ship.weapons" :key="idx" class="hs-warship-card-mini__slot" :class="w ? 'hs-warship-card-mini__slot--filled' : ''">{{ w ? w.icon : '·' }}</span>
             </span>
-            <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">↓ Hangar</button>
+            <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">{{ t('hawkStar.solar.hangar') }}</button>
           </div>
         </div>
       </div>
@@ -564,7 +570,7 @@ const doSendFreighter = () => {
             <span v-if="freighterInventory > 0" class="hs-dock-badge hs-dock-badge--freighter">{{ freighterInventory }}</span>
           </div>
           <div class="hs-dock-info">
-            <div class="hs-dock-name">Freighter</div>
+            <div class="hs-dock-name">{{ t('hawkStar.dock.freighter') }}</div>
             <div class="hs-dock-cost-row">
               <span v-for="(amt, resId) in UNIT_COSTS.freighter.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
               <span class="hs-unit-time-tag">⏱ {{ formatTime(freighterBuildTime) }}</span>
@@ -575,17 +581,17 @@ const doSendFreighter = () => {
             </div>
           </div>
           <div class="hs-dock-action">
-            <span v-if="freighterBuild" class="hs-status-building">Building…</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">Build</button>
+            <span v-if="freighterBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">{{ t('hawkStar.dock.btnBuild') }}</button>
           </div>
         </div>
       </div>
       <div v-if="dockTab === 'freighter' && freighterInventory > 0" class="hs-dock-cargo">
         <div class="hs-freighter-cargo-header">
-          <span class="hs-freighter-cargo-title">🚢 Load Freighter</span>
+          <span class="hs-freighter-cargo-title">🚢 {{ t('hawkStar.solar.loadFreighter') }}</span>
           <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
         </div>
-        <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">No resources available</div>
+        <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">{{ t('hawkStar.solar.noResources') }}</div>
         <div class="hs-freighter-cargo-grid">
           <div v-for="res in loadableResources" :key="res.id" class="hs-freighter-cargo-tile" :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[res.id] ?? 0) > 0 }">
             <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
@@ -610,7 +616,7 @@ const doSendFreighter = () => {
           >{{ p.name }}</button>
         </div>
         <button v-if="freighterDest" class="hs-freighter-send-btn" @click="doSendFreighter">
-          🚀 Dispatch → {{ ownedPlanets.find(p => p.id === freighterDest)?.name }}
+          🚀 {{ t('hawkStar.solar.dispatch') }} {{ ownedPlanets.find(p => p.id === freighterDest)?.name }}
           ({{ formatTime(freighterFlightTimeBetween(activePlanetId, freighterDest)) }})
         </button>
       </div>

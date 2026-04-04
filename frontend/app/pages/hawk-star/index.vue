@@ -53,34 +53,29 @@ watchEffect(() => {
     <div class="hs-main">
       <template v-if="currentView === 'planet'">
         <HsPlanetGrid /><!-- ── Dock (Space Base tile only) ── -->
-
 	      <div class="hs-grid-right">
+		      <HsNotificationPanel />
 		      <HsDockPanel />
 		      <HsTilePanel />
+
+		      <!-- ── Dev tuning panel ── -->
+		      <div class="hs-dev-panel">
+			      <span class="hs-dev-label">DEV</span>
+			      <label class="hs-dev-field">
+				      <span>Prod tick (ms)</span>
+				      <input v-model.number="tickRateMs" type="number" min="1000" max="60000" step="1000" class="hs-dev-input" />
+			      </label>
+			      <label class="hs-dev-field">
+				      <span>Build factor</span>
+				      <input v-model.number="buildTimeFactor" type="number" min="0.01" max="10" step="0.1" class="hs-dev-input" />
+			      </label>
+			      <button class="hs-dev-save" @click="onSaveDev">Save</button>
+			      <button class="hs-dev-reset" title="Reset game (clears save)" @click="resetGame">↺ Reset</button>
+		      </div>
 		    </div>
-
-
       </template>
       <HsSolarSystem v-else-if="currentView === 'solar-system'" />
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
-    </div>
-
-    <!-- ── Notification panel ── -->
-    <HsNotificationPanel style="margin-top: 1rem;" />
-
-    <!-- ── Dev tuning panel ── -->
-    <div class="hs-dev-panel">
-      <span class="hs-dev-label">DEV</span>
-      <label class="hs-dev-field">
-        <span>Prod tick (ms)</span>
-        <input v-model.number="tickRateMs" type="number" min="1000" max="60000" step="1000" class="hs-dev-input" />
-      </label>
-      <label class="hs-dev-field">
-        <span>Build factor</span>
-        <input v-model.number="buildTimeFactor" type="number" min="0.01" max="10" step="0.1" class="hs-dev-input" />
-      </label>
-      <button class="hs-dev-save" @click="onSaveDev">Save</button>
-      <button class="hs-dev-reset" title="Reset game (clears save)" @click="resetGame">↺ Reset</button>
     </div>
 
     <!-- ── Setup overlay (first run only) ── -->

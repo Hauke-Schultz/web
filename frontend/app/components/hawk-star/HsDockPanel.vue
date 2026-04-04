@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RESOURCES, UNIT_COSTS, WARSHIP_CLASSES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
@@ -73,6 +74,8 @@ const {
   colonyProgressStyle,
 } = useHawkStar()
 
+const { t } = useI18n()
+
 // ── Dock tab ──────────────────────────────────────────────────────────────────
 const dockTab = ref(null)
 
@@ -127,7 +130,7 @@ const availableDriveCells = computed(() =>
       >
         <span class="hs-dock-slot__icon">🛸</span>
         <span class="hs-dock-slot__count">{{ reconDroneInventory }}</span>
-        <span class="hs-dock-slot__name">Recon Drone</span>
+        <span class="hs-dock-slot__name">{{ t('hawkStar.dock.reconDrone') }}</span>
       </button>
       <button
         v-if="galaxyProbeLevel > 0"
@@ -137,7 +140,7 @@ const availableDriveCells = computed(() =>
       >
         <span class="hs-dock-slot__icon">🔭</span>
         <span class="hs-dock-slot__count">{{ galaxyProbeInventory }}</span>
-        <span class="hs-dock-slot__name">Galaxy Probe</span>
+        <span class="hs-dock-slot__name">{{ t('hawkStar.dock.galaxyProbe') }}</span>
       </button>
       <button
         v-if="colonyShipLevel > 0"
@@ -147,7 +150,7 @@ const availableDriveCells = computed(() =>
       >
         <span class="hs-dock-slot__icon">🚀</span>
         <span class="hs-dock-slot__count">{{ colonyShipInventory }}</span>
-        <span class="hs-dock-slot__name">Colony Ship</span>
+        <span class="hs-dock-slot__name">{{ t('hawkStar.dock.colonyShip') }}</span>
       </button>
       <button
         v-if="freighterBayLevel > 0"
@@ -157,7 +160,7 @@ const availableDriveCells = computed(() =>
       >
         <span class="hs-dock-slot__icon">🚢</span>
         <span class="hs-dock-slot__count">{{ freighterInventory }}</span>
-        <span class="hs-dock-slot__name">Freighter</span>
+        <span class="hs-dock-slot__name">{{ t('hawkStar.dock.freighter') }}</span>
       </button>
       <button
         v-if="warshipBayLevel > 0"
@@ -167,7 +170,7 @@ const availableDriveCells = computed(() =>
       >
         <span class="hs-dock-slot__icon">⚔️</span>
         <span class="hs-dock-slot__count">{{ warshipInventory }}<span v-if="fleetInOrbit.length" class="hs-dock-slot__orbit"> +{{ fleetInOrbit.length }}🛰</span></span>
-        <span class="hs-dock-slot__name">Warship</span>
+        <span class="hs-dock-slot__name">{{ t('hawkStar.dock.warship') }}</span>
       </button>
     </div>
 
@@ -231,8 +234,8 @@ const availableDriveCells = computed(() =>
           <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
         </div>
         <div class="hs-dock-info">
-          <div class="hs-dock-name">Recon Drone</div>
-          <div class="hs-dock-desc">Scout planets in your home system</div>
+          <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
+          <div class="hs-dock-desc">{{ t('hawkStar.dock.reconDroneDesc') }}</div>
           <div class="hs-dock-cost-row">
             <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
@@ -243,8 +246,8 @@ const availableDriveCells = computed(() =>
           </div>
         </div>
         <div class="hs-dock-action">
-          <span v-if="reconDroneBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">Build</button>
+          <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
         </div>
       </div>
     </div>
@@ -257,8 +260,8 @@ const availableDriveCells = computed(() =>
           <span v-if="galaxyProbeInventory > 0" class="hs-dock-badge">{{ galaxyProbeInventory }}</span>
         </div>
         <div class="hs-dock-info">
-          <div class="hs-dock-name">Galaxy Probe</div>
-          <div class="hs-dock-desc">Scout distant star systems</div>
+          <div class="hs-dock-name">{{ t('hawkStar.dock.galaxyProbe') }}</div>
+          <div class="hs-dock-desc">{{ t('hawkStar.dock.galaxyProbeDesc') }}</div>
           <div class="hs-dock-cost-row">
             <span v-for="(amt, resId) in UNIT_COSTS.galaxy_probe.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             <span class="hs-unit-time-tag">⏱ {{ formatTime(probeBuildTime) }}</span>
@@ -269,8 +272,8 @@ const availableDriveCells = computed(() =>
           </div>
         </div>
         <div class="hs-dock-action">
-          <span v-if="galaxyProbeBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">Build</button>
+          <span v-if="galaxyProbeBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">{{ t('hawkStar.dock.btnBuild') }}</button>
         </div>
       </div>
     </div>
@@ -283,8 +286,8 @@ const availableDriveCells = computed(() =>
           <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
         </div>
         <div class="hs-dock-info">
-          <div class="hs-dock-name">Colony Ship</div>
-          <div class="hs-dock-desc">Colonize unoccupied planets</div>
+          <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
+          <div class="hs-dock-desc">{{ t('hawkStar.dock.colonyShipDesc') }}</div>
           <div class="hs-dock-cost-row">
             <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
@@ -295,8 +298,8 @@ const availableDriveCells = computed(() =>
           </div>
         </div>
         <div class="hs-dock-action">
-          <span v-if="colonyShipBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">Build</button>
+          <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
         </div>
       </div>
     </div>
@@ -310,7 +313,7 @@ const availableDriveCells = computed(() =>
         </div>
         <div class="hs-dock-info">
           <div class="hs-dock-name">Warship <span class="hs-dock-count">× {{ warshipInventory }} / {{ warshipBayLevel }}</span></div>
-          <div class="hs-dock-desc">Heavy combat vessel. Requires Super Alloy &amp; Pure Crystal.</div>
+          <div class="hs-dock-desc">{{ t('hawkStar.dock.warshipDesc') }}</div>
           <div class="hs-dock-cost-row">
             <span v-for="(amt, resId) in UNIT_COSTS.warship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
@@ -321,14 +324,14 @@ const availableDriveCells = computed(() =>
           </div>
         </div>
         <div class="hs-dock-action">
-          <span v-if="warshipBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">Build</button>
+          <span v-if="warshipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">{{ t('hawkStar.dock.btnBuild') }}</button>
         </div>
       </div>
 
       <!-- Hangar -->
       <div v-if="warships.length" class="hs-warship-section">
-        <span class="hs-warship-section-label">🔧 Hangar</span>
+        <span class="hs-warship-section-label">🔧 {{ t('hawkStar.dock.sectionHangar') }}</span>
         <div class="hs-warship-fleet">
           <div v-for="ship in warships" :key="ship.id" class="hs-warship-card">
             <div class="hs-warship-card-header">
@@ -339,19 +342,19 @@ const availableDriveCells = computed(() =>
                 class="hs-orbit-btn"
                 :class="{ 'hs-orbit-btn--disabled': !shipHasPowerCell(ship) }"
                 :disabled="!shipHasPowerCell(ship)"
-                :title="shipHasPowerCell(ship) ? 'In Orbit schicken' : 'Power Cell benötigt'"
+                :title="shipHasPowerCell(ship) ? t('hawkStar.dock.toOrbit') : t('hawkStar.dock.needPowerCell')"
                 @click.stop="deployToOrbit(ship.id)"
-              >↑ Orbit</button>
+              >{{ t('hawkStar.dock.toOrbit') }}</button>
             </div>
             <div class="hs-warship-card-stats">
               <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
               <span class="hs-warship-stat" :class="ship.drive?.[0]?.shield ? 'hs-warship-stat--boosted' : ''" title="Shield">🔵 {{ ship.shield + (ship.drive?.[0]?.shield ?? 0) }}/{{ ship.shieldMax + (ship.drive?.[0]?.shield ?? 0) }}</span>
               <span class="hs-warship-stat" :class="ship.drive?.[0]?.speed ? 'hs-warship-stat--boosted' : ''" title="Speed">⚡ {{ ship.speed + (ship.drive?.[0]?.speed ?? 0) }}</span>
-              <span v-if="ship.weapons.some(w => w)" class="hs-warship-stat hs-warship-stat--atk" title="Gesamtschaden (alle Waffen)">⚔ {{ ship.weapons.reduce((s, w) => s + (w?.damage ?? 0), 0) }}</span>
+              <span v-if="ship.weapons.some(w => w)" class="hs-warship-stat hs-warship-stat--atk" :title="t('hawkStar.dock.totalDamage')">⚔ {{ ship.weapons.reduce((s, w) => s + (w?.damage ?? 0), 0) }}</span>
             </div>
             <!-- Drive slot -->
             <div class="hs-warship-weapons">
-              <span class="hs-warship-weapons-label">🔋 Drive</span>
+              <span class="hs-warship-weapons-label">🔋 {{ t('hawkStar.dock.drive') }}</span>
               <div class="hs-warship-weapon-slots">
                 <div
                   class="hs-warship-weapon-slot hs-warship-weapon-slot--drive"
@@ -363,7 +366,7 @@ const availableDriveCells = computed(() =>
                     <button class="hs-warship-unequip-btn" @click.stop="unequipDrive(ship.id)">✕</button>
                   </template>
                   <template v-else>
-                    <span class="hs-warship-weapon-slot-empty-label">— no drive —</span>
+                    <span class="hs-warship-weapon-slot-empty-label">{{ t('hawkStar.dock.noDrive') }}</span>
                     <div v-if="availableDriveCells.length" class="hs-warship-equip-row">
                       <button
                         v-for="cell in availableDriveCells"
@@ -378,7 +381,7 @@ const availableDriveCells = computed(() =>
             </div>
             <!-- Weapon slots -->
             <div class="hs-warship-weapons">
-              <span class="hs-warship-weapons-label">⚔️ Weapons</span>
+              <span class="hs-warship-weapons-label">⚔️ {{ t('hawkStar.dock.weapons') }}</span>
               <div class="hs-warship-weapon-slots">
                 <div
                   v-for="(weapon, idx) in ship.weapons"
@@ -392,7 +395,7 @@ const availableDriveCells = computed(() =>
                     <button class="hs-warship-unequip-btn" @click.stop="unequipWeapon(ship.id, idx)">✕</button>
                   </template>
                   <template v-else>
-                    <span class="hs-warship-weapon-slot-empty-label">— empty —</span>
+                    <span class="hs-warship-weapon-slot-empty-label">{{ t('hawkStar.dock.emptySlot') }}</span>
                     <div v-if="availableOrdnance.length" class="hs-warship-equip-row">
                       <button
                         v-for="ord in availableOrdnance"
@@ -418,7 +421,7 @@ const availableDriveCells = computed(() =>
               <span class="hs-warship-card-icon">{{ ship.icon }}</span>
               <span class="hs-warship-card-name">{{ ship.name }}</span>
               <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
-              <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">↓ Hangar</button>
+              <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">{{ t('hawkStar.dock.hangar') }}</button>
             </div>
             <div class="hs-warship-card-stats">
               <span class="hs-warship-stat" title="Hull">🛡 {{ ship.hull }}/{{ ship.hullMax }}</span>
@@ -428,7 +431,7 @@ const availableDriveCells = computed(() =>
             </div>
             <!-- Drive (read-only) -->
             <div class="hs-warship-weapons">
-              <span class="hs-warship-weapons-label">🔋 Drive</span>
+              <span class="hs-warship-weapons-label">🔋 {{ t('hawkStar.dock.drive') }}</span>
               <div class="hs-warship-weapon-slots">
                 <div
                   class="hs-warship-weapon-slot hs-warship-weapon-slot--drive"
@@ -444,7 +447,7 @@ const availableDriveCells = computed(() =>
             </div>
             <!-- Weapons (read-only) -->
             <div class="hs-warship-weapons">
-              <span class="hs-warship-weapons-label">⚔️ Weapons</span>
+              <span class="hs-warship-weapons-label">⚔️ {{ t('hawkStar.dock.weapons') }}</span>
               <div class="hs-warship-weapon-slots">
                 <div
                   v-for="(weapon, idx) in ship.weapons"
@@ -473,8 +476,8 @@ const availableDriveCells = computed(() =>
           <span v-if="freighterInventory > 0" class="hs-dock-badge hs-dock-badge--freighter">{{ freighterInventory }}</span>
         </div>
         <div class="hs-dock-info">
-          <div class="hs-dock-name">Freighter</div>
-          <div class="hs-dock-desc">Transport resources between colonies · {{ freighterCargoCapacity }} cargo</div>
+          <div class="hs-dock-name">{{ t('hawkStar.dock.freighter') }}</div>
+          <div class="hs-dock-desc">{{ t('hawkStar.dock.freighterDesc', { capacity: freighterCargoCapacity }) }}</div>
           <div class="hs-dock-cost-row">
             <span v-for="(amt, resId) in UNIT_COSTS.freighter.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             <span class="hs-unit-time-tag">⏱ {{ formatTime(freighterBuildTime) }}</span>
@@ -485,16 +488,16 @@ const availableDriveCells = computed(() =>
           </div>
         </div>
         <div class="hs-dock-action">
-          <span v-if="freighterBuild" class="hs-status-building">Building…</span>
-          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">Build</button>
+          <span v-if="freighterBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">{{ t('hawkStar.dock.btnBuild') }}</button>
         </div>
       </div>
       <div v-if="freighterInventory > 0" class="hs-freighter-cargo-panel">
         <div class="hs-freighter-cargo-header">
-          <span class="hs-freighter-cargo-title">🚢 Frachter beladen</span>
+          <span class="hs-freighter-cargo-title">🚢 {{ t('hawkStar.dock.loadFreighter') }}</span>
           <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
         </div>
-        <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">Keine Ressourcen verfügbar</div>
+        <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">{{ t('hawkStar.dock.noResources') }}</div>
         <div class="hs-freighter-cargo-grid">
           <div v-for="res in loadableResources" :key="res.id" class="hs-freighter-cargo-tile" :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[res.id] ?? 0) > 0 }">
             <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>

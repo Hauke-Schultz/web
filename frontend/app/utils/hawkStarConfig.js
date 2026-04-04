@@ -203,7 +203,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 300, crystal: 100 },
-        buildTime:   40,
+        buildTime:   140,
         effect:      '+10 pop · uses 3 energy · 3 workers',
         production:  {},
         energyDrain: 3,
@@ -233,7 +233,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 100, crystal: 30 },
-        buildTime:   20,
+        buildTime:   30,
         effect:      '+6 max pop · uses 2 energy · 1 worker',
         production:  {},
         energyDrain: 2,
@@ -243,7 +243,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 260, crystal: 80 },
-        buildTime:   30,
+        buildTime:   60,
         effect:      '+12 max pop · uses 3 energy · 2 workers',
         production:  {},
         energyDrain: 3,
@@ -253,7 +253,7 @@ export const BUILDINGS = {
       {
         level:       4,
         cost:        { metal: 550, crystal: 180 },
-        buildTime:   40,
+        buildTime:   140,
         effect:      '+20 max pop · uses 5 energy · 3 workers',
         production:  {},
         energyDrain: 4,
@@ -263,7 +263,7 @@ export const BUILDINGS = {
       {
         level:       5,
         cost:        { metal: 1000, crystal: 350 },
-        buildTime:   50,
+        buildTime:   250,
         effect:      '+32 max pop · uses 7 energy · 4 workers',
         production:  {},
         energyDrain: 5,
@@ -272,8 +272,8 @@ export const BUILDINGS = {
       },
       {
         level:       6,
-        cost:        { metal: 1800, crystal: 650 },
-        buildTime:   55,
+        cost:        { metal: 1300, crystal: 650 },
+        buildTime:   355,
         effect:      '+50 max pop · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 6,
@@ -282,8 +282,8 @@ export const BUILDINGS = {
       },
       {
         level:       7,
-        cost:        { metal: 3200, crystal: 1200 },
-        buildTime:   58,
+        cost:        { metal: 1800, crystal: 1200 },
+        buildTime:   458,
         effect:      '+75 max pop · uses 14 energy · 7 workers',
         production:  {},
         energyDrain: 10,
@@ -292,8 +292,8 @@ export const BUILDINGS = {
       },
       {
         level:       8,
-        cost:        { metal: 5500, crystal: 2200 },
-        buildTime:   60,
+        cost:        { metal: 2000, crystal: 2200 },
+        buildTime:   360,
         effect:      '+110 max pop · uses 20 energy · 10 workers',
         production:  {},
         energyDrain: 12,
@@ -322,7 +322,7 @@ export const BUILDINGS = {
       {
         level:      2,
         cost:       { metal: 70, crystal: 35 },
-        buildTime:  25,
+        buildTime:  45,
         effect:     '+12 energy · 2 workers',
         production: { energy: 12 },
         staffDrain: 2,
@@ -330,7 +330,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 180, crystal: 90 },
-        buildTime:  45,
+        buildTime:  145,
         effect:     '+25 energy · 3 workers',
         production: { energy: 25 },
         staffDrain: 3,
@@ -338,7 +338,7 @@ export const BUILDINGS = {
       {
         level:      4,
         cost:       { metal: 200, crystal: 100 },
-        buildTime:  55,
+        buildTime:  155,
         effect:     '+32 energy · 3 workers',
         production: { energy: 32 },
         staffDrain: 3,
@@ -346,7 +346,7 @@ export const BUILDINGS = {
       {
         level:      5,
         cost:       { metal: 210, crystal: 110 },
-        buildTime:  59,
+        buildTime:  259,
         effect:     '+36 energy · 4 workers',
         production: { energy: 36 },
         staffDrain: 4,
@@ -354,7 +354,7 @@ export const BUILDINGS = {
       {
         level:      6,
         cost:       { metal: 250, crystal: 130 },
-        buildTime:  59,
+        buildTime:  259,
         effect:     '+40 energy · 4 workers',
         production: { energy: 40 },
         staffDrain: 4,
@@ -384,7 +384,7 @@ export const BUILDINGS = {
       {
         level:           2,
         cost:            { metal: 80, crystal: 20 },
-        buildTime:       25,
+        buildTime:       40,
         effect:          '+5 metal/s · 700 storage · uses 5 energy · 4 workers',
         production:      { metal: 5 },
         energyDrain:     5,
@@ -394,7 +394,7 @@ export const BUILDINGS = {
       {
         level:           3,
         cost:            { metal: 220, crystal: 60 },
-        buildTime:       45,
+        buildTime:       80,
         effect:          '+12 metal/s · 1500 storage · uses 9 energy · 6 workers',
         production:      { metal: 12 },
         energyDrain:     9,
@@ -404,13 +404,33 @@ export const BUILDINGS = {
       {
         level:           4,
         cost:            { metal: 240, crystal: 80 },
-        buildTime:       50,
+        buildTime:       120,
         effect:          '+16 metal/s · 1900 storage · uses 9 energy · 6 workers',
         production:      { metal: 16 },
         energyDrain:     9,
         staffDrain:      6,
-        storageCapacity: { metal: 1900 },
+        storageCapacity: { metal: 2000 },
       },
+      {
+        level:           5,
+        cost:            { metal: 340, crystal: 100 },
+        buildTime:       150,
+        effect:          '+22 metal/s · 1900 storage · uses 9 energy · 6 workers',
+        production:      { metal: 22 },
+        energyDrain:     9,
+        staffDrain:      6,
+        storageCapacity: { metal: 2500 },
+      },
+      {
+        level:           6,
+        cost:            { metal: 440, crystal: 130 },
+        buildTime:       160,
+        effect:          '+28 metal/s · 1900 storage · uses 9 energy · 6 workers',
+        production:      { metal: 28 },
+        energyDrain:     9,
+        staffDrain:      6,
+        storageCapacity: { metal: 3000 },
+      }
     ],
   },
 
@@ -434,7 +454,7 @@ export const BUILDINGS = {
       {
         level:           2,
         cost:            { metal: 110, crystal: 30 },
-        buildTime:       30,
+        buildTime:       40,
         effect:          '+3 crystal/s · 500 storage · uses 4 energy · 3 workers',
         production:      { crystal: 3 },
         energyDrain:     4,
@@ -444,7 +464,7 @@ export const BUILDINGS = {
       {
         level:           3,
         cost:            { metal: 280, crystal: 80 },
-        buildTime:       50,
+        buildTime:       80,
         effect:          '+7 crystal/s · 1000 storage · uses 7 energy · 5 workers',
         production:      { crystal: 7 },
         energyDrain:     7,
@@ -454,12 +474,42 @@ export const BUILDINGS = {
       {
         level:           4,
         cost:            { metal: 300, crystal: 100 },
-        buildTime:       55,
+        buildTime:       120,
         effect:          '+10 crystal/s · 1300 storage · uses 7 energy · 5 workers',
         production:      { crystal: 10 },
         energyDrain:     7,
         staffDrain:      5,
         storageCapacity: { crystal: 1300 },
+      },
+      {
+        level:           5,
+        cost:            { metal: 400, crystal: 130 },
+        buildTime:       130,
+        effect:          '+15 crystal/s · 1700 storage · uses 7 energy · 5 workers',
+        production:      { crystal: 15 },
+        energyDrain:     7,
+        staffDrain:      5,
+        storageCapacity: { crystal: 1700 },
+      },
+      {
+        level:           5,
+        cost:            { metal: 420, crystal: 160 },
+        buildTime:       120,
+        effect:          '+18 crystal/s · 2000 storage · uses 7 energy · 5 workers',
+        production:      { crystal: 18 },
+        energyDrain:     7,
+        staffDrain:      5,
+        storageCapacity: { crystal: 2000 },
+      },
+      {
+        level:           6,
+        cost:            { metal: 480, crystal: 200 },
+        buildTime:       220,
+        effect:          '+25 crystal/s · 2500 storage · uses 7 energy · 5 workers',
+        production:      { crystal: 25 },
+        energyDrain:     7,
+        staffDrain:      5,
+        storageCapacity: { crystal: 2500 },
       },
     ],
   },
@@ -488,7 +538,7 @@ export const BUILDINGS = {
       {
         level:           2,
         cost:            { metal: 200, crystal: 80, alloy: 20 },
-        buildTime:       35,
+        buildTime:       50,
         effect:          '+3 alloy/s · 400 storage · uses 7 energy · 5 workers',
         production:      { alloy: 3 },
         energyDrain:     7,
@@ -498,7 +548,7 @@ export const BUILDINGS = {
       {
         level:           3,
         cost:            { metal: 500, crystal: 200, alloy: 80 },
-        buildTime:       50,
+        buildTime:       120,
         effect:          '+7 alloy/s · 900 storage · uses 12 energy · 8 workers',
         production:      { alloy: 7 },
         energyDrain:     12,
@@ -508,7 +558,7 @@ export const BUILDINGS = {
       {
         level:           4,
         cost:            { metal: 1100, crystal: 450, alloy: 200 },
-        buildTime:       60,
+        buildTime:       160,
         effect:          '+15 alloy/s · 2000 storage · uses 20 energy · 12 workers',
         production:      { alloy: 15 },
         energyDrain:     20,
@@ -542,7 +592,7 @@ export const BUILDINGS = {
       {
         level:           2,
         cost:            { metal: 200, crystal: 80, biomass: 20 },
-        buildTime:       35,
+        buildTime:       50,
         effect:          '+3 biomass/s · 400 storage · uses 7 energy · 5 workers',
         production:      { biomass: 3 },
         energyDrain:     7,
@@ -552,7 +602,7 @@ export const BUILDINGS = {
       {
         level:           3,
         cost:            { metal: 500, crystal: 200, biomass: 80 },
-        buildTime:       50,
+        buildTime:       120,
         effect:          '+7 biomass/s · 900 storage · uses 12 energy · 8 workers',
         production:      { biomass: 7 },
         energyDrain:     12,
@@ -562,7 +612,7 @@ export const BUILDINGS = {
       {
         level:           4,
         cost:            { metal: 1100, crystal: 450, biomass: 200 },
-        buildTime:       60,
+        buildTime:       180,
         effect:          '+15 biomass/s · 2000 storage · uses 20 energy · 12 workers',
         production:      { biomass: 15 },
         energyDrain:     20,
@@ -596,7 +646,7 @@ export const BUILDINGS = {
       {
         level:           2,
         cost:            { metal: 200, crystal: 80, obsidian: 20 },
-        buildTime:       35,
+        buildTime:       50,
         effect:          '+3 obsidian/s · 400 storage · uses 7 energy · 5 workers',
         production:      { obsidian: 3 },
         energyDrain:     7,
@@ -606,7 +656,7 @@ export const BUILDINGS = {
       {
         level:           3,
         cost:            { metal: 500, crystal: 200, obsidian: 80 },
-        buildTime:       50,
+        buildTime:       120,
         effect:          '+7 obsidian/s · 900 storage · uses 12 energy · 8 workers',
         production:      { obsidian: 7 },
         energyDrain:     12,
@@ -616,7 +666,7 @@ export const BUILDINGS = {
       {
         level:           4,
         cost:            { metal: 1100, crystal: 450, obsidian: 200 },
-        buildTime:       60,
+        buildTime:       180,
         effect:          '+15 obsidian/s · 2000 storage · uses 20 energy · 12 workers',
         production:      { obsidian: 15 },
         energyDrain:     20,
@@ -650,7 +700,7 @@ export const BUILDINGS = {
       {
         level:           2,
         cost:            { metal: 200, crystal: 80, cryo: 20 },
-        buildTime:       35,
+        buildTime:       50,
         effect:          '+3 cryo/s · 400 storage · uses 7 energy · 5 workers',
         production:      { cryo: 3 },
         energyDrain:     7,
@@ -660,7 +710,7 @@ export const BUILDINGS = {
       {
         level:           3,
         cost:            { metal: 500, crystal: 200, cryo: 80 },
-        buildTime:       50,
+        buildTime:       120,
         effect:          '+7 cryo/s · 900 storage · uses 12 energy · 8 workers',
         production:      { cryo: 7 },
         energyDrain:     12,
@@ -670,7 +720,7 @@ export const BUILDINGS = {
       {
         level:           4,
         cost:            { metal: 1100, crystal: 450, cryo: 200 },
-        buildTime:       60,
+        buildTime:       160,
         effect:          '+15 cryo/s · 2000 storage · uses 20 energy · 12 workers',
         production:      { cryo: 15 },
         energyDrain:     20,
@@ -702,7 +752,7 @@ export const BUILDINGS = {
       {
         level:      2,
         cost:       { metal: 130, crystal: 65 },
-        buildTime:  35,
+        buildTime:  40,
         effect:     '+18 energy · 2 workers',
         production: { energy: 18 },
         staffDrain: 2,
@@ -710,7 +760,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 320, crystal: 160 },
-        buildTime:  55,
+        buildTime:  155,
         effect:     '+38 energy · 3 workers',
         production: { energy: 38 },
         staffDrain: 3,
@@ -747,7 +797,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 1200, crystal: 500, cryo: 300 },
-        buildTime:  60,
+        buildTime:  160,
         effect:     '+180 energy · 7 workers',
         production: { energy: 180 },
         staffDrain: 7,
@@ -782,7 +832,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 1200, crystal: 500, alloy: 300 },
-        buildTime:  60,
+        buildTime:  160,
         effect:     '+180 energy · 7 workers',
         production: { energy: 180 },
         staffDrain: 7,
@@ -817,7 +867,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 1200, crystal: 500, obsidian: 300 },
-        buildTime:  60,
+        buildTime:  160,
         effect:     '+200 energy · 7 workers',
         production: { energy: 200 },
         staffDrain: 7,
@@ -852,7 +902,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 1200, crystal: 500, biomass: 300 },
-        buildTime:  60,
+        buildTime:  160,
         effect:     '+160 energy · 7 workers',
         production: { energy: 160 },
         staffDrain: 7,
@@ -879,7 +929,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 600, crystal: 250 },
-        buildTime:   50,
+        buildTime:   150,
         effect:      'Scout 2 planets simultaneously · 2× flight speed · uses 8 energy · 3 workers',
         production:  {},
         energyDrain: 8,
@@ -888,7 +938,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 1300, crystal: 550 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      'Scout 3 planets simultaneously · 3× flight speed · uses 14 energy · 5 workers',
         production:  {},
         energyDrain: 14,
@@ -925,7 +975,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 900, crystal: 600 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      'Send 3 probes simultaneously · 3× travel speed · uses 12 energy · 5 workers',
         production:  {},
         energyDrain: 12,
@@ -954,7 +1004,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 200, crystal: 250 },
-        buildTime:   45,
+        buildTime:   145,
         effect:      'Unlocks Galaxy view — nearby star systems & trade routes visible · uses 5 energy · 3 workers',
         production:  {},
         energyDrain: 5,
@@ -963,7 +1013,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 500, crystal: 600 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      'Full galaxy scan — all systems & owner flags visible · uses 9 energy · 5 workers',
         production:  {},
         energyDrain: 9,
@@ -992,7 +1042,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 500, crystal: 320 },
-        buildTime:   50,
+        buildTime:   150,
         effect:      'Unlocks Warship Bay · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
@@ -1021,7 +1071,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 320, crystal: 180 },
-        buildTime:   40,
+        buildTime:   100,
         effect:      'Unlocks Alloy Forge · +50% research speed · uses 8 energy · 5 workers',
         production:  {},
         energyDrain: 8,
@@ -1069,7 +1119,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 900, crystal: 450 },
-        buildTime:   55,
+        buildTime:   155,
         effect:      'Colonize planets in adjacent star systems · uses 14 energy · 7 workers',
         production:  {},
         energyDrain: 14,
@@ -1078,7 +1128,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 2000, crystal: 1000 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      'Mass colonization fleet · reach distant star systems · uses 24 energy · 12 workers',
         production:  {},
         energyDrain: 24,
@@ -1108,7 +1158,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 1800, crystal: 900, nano_alloy: 50, pure_crystal: 25 },
-        buildTime:   80,
+        buildTime:   180,
         effect:      '2× build speed · 2 warship slots · firepower +50% · uses 20 energy · 8 workers',
         production:  {},
         energyDrain: 20,
@@ -1117,7 +1167,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 4000, crystal: 2000, nano_alloy: 120, pure_crystal: 60 },
-        buildTime:   100,
+        buildTime:   200,
         effect:      '4× build speed · 3 warship slots · firepower +120% · uses 35 energy · 14 workers',
         production:  {},
         energyDrain: 35,
@@ -1147,7 +1197,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 1200, crystal: 600 },
-        buildTime:   80,
+        buildTime:   180,
         effect:      '500 cargo capacity · 2× build speed · uses 16 energy · 8 workers',
         production:  {},
         energyDrain: 16,
@@ -1156,7 +1206,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 2800, crystal: 1400 },
-        buildTime:   100,
+        buildTime:   200,
         effect:      '1000 cargo capacity · 4× build speed · uses 28 energy · 14 workers',
         production:  {},
         energyDrain: 28,
@@ -1186,7 +1236,7 @@ export const BUILDINGS = {
       {
         level:      2,
         cost:       { metal: 80, crystal: 25 },
-        buildTime:  25,
+        buildTime:  50,
         effect:     '+24 energy · 2 workers',
         production: { energy: 24 },
         staffDrain: 2,
@@ -1194,7 +1244,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 200, crystal: 60 },
-        buildTime:  45,
+        buildTime:  145,
         effect:     '+50 energy · 3 workers',
         production: { energy: 50 },
         staffDrain: 3,
@@ -1223,7 +1273,7 @@ export const BUILDINGS = {
       {
         level:      2,
         cost:       { metal: 90, crystal: 40 },
-        buildTime:  28,
+        buildTime:  128,
         effect:     '+20 energy · 2 workers',
         production: { energy: 20 },
         staffDrain: 2,
@@ -1231,7 +1281,7 @@ export const BUILDINGS = {
       {
         level:      3,
         cost:       { metal: 220, crystal: 100 },
-        buildTime:  50,
+        buildTime:  150,
         effect:     '+42 energy · 3 workers',
         production: { energy: 42 },
         staffDrain: 3,
@@ -1263,7 +1313,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 700, crystal: 350, alloy: 200 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      '2× throughput · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
@@ -1272,7 +1322,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 1600, crystal: 800, alloy: 500 },
-        buildTime:   80,
+        buildTime:   280,
         effect:      '4× throughput · uses 16 energy · 8 workers',
         production:  {},
         energyDrain: 16,
@@ -1304,7 +1354,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 700, crystal: 350, obsidian: 200 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      '2× throughput · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
@@ -1313,7 +1363,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 1600, crystal: 800, obsidian: 500 },
-        buildTime:   80,
+        buildTime:   280,
         effect:      '4× throughput · uses 16 energy · 8 workers',
         production:  {},
         energyDrain: 16,
@@ -1345,7 +1395,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 700, crystal: 350, cryo: 200 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      '2× throughput · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
@@ -1354,7 +1404,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 1600, crystal: 800, cryo: 500 },
-        buildTime:   80,
+        buildTime:   280,
         effect:      '4× throughput · uses 16 energy · 8 workers',
         production:  {},
         energyDrain: 16,
@@ -1386,7 +1436,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 700, crystal: 350, biomass: 200 },
-        buildTime:   60,
+        buildTime:   160,
         effect:      '2× throughput · uses 10 energy · 5 workers',
         production:  {},
         energyDrain: 10,
@@ -1395,7 +1445,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 1600, crystal: 800, biomass: 500 },
-        buildTime:   80,
+        buildTime:   280,
         effect:      '4× throughput · uses 16 energy · 8 workers',
         production:  {},
         energyDrain: 16,
@@ -1428,7 +1478,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 500, crystal: 250 },
-        buildTime:   50,
+        buildTime:   150,
         effect:      'Faster production · 8 energy · 4 workers',
         production:  {},
         energyDrain: 8,
@@ -1437,7 +1487,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 1200, crystal: 600 },
-        buildTime:   80,
+        buildTime:   280,
         effect:      'Maximum output · 12 energy · 6 workers',
         production:  {},
         energyDrain: 12,
@@ -1470,7 +1520,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 700, crystal: 350 },
-        buildTime:   50,
+        buildTime:   150,
         effect:      'Enhanced shield — absorbs 40% incoming damage · uses 15 energy · 5 workers',
         production:  {},
         energyDrain: 15,
@@ -1479,7 +1529,7 @@ export const BUILDINGS = {
       {
         level:       3,
         cost:        { metal: 1500, crystal: 750 },
-        buildTime:   60,
+        buildTime:   260,
         effect:      'Fortress shield — absorbs 60% incoming damage · uses 25 energy · 8 workers',
         production:  {},
         energyDrain: 25,
@@ -1510,7 +1560,7 @@ export const BUILDINGS = {
       {
         level:        2,
         cost:         { metal: 1200, crystal: 600, pure_crystal: 20 },
-        buildTime:    70,
+        buildTime:    170,
         effect:       'Resonant shield — absorbs 85% incoming damage · uses 30 energy · 6 workers',
         production:   {},
         energyDrain:  30,
@@ -1520,7 +1570,7 @@ export const BUILDINGS = {
       {
         level:        3,
         cost:         { metal: 2800, crystal: 1200, pure_crystal: 50 },
-        buildTime:    90,
+        buildTime:    290,
         effect:       'Phase matrix — absorbs 95% damage · reflects 20% back at attacker · uses 50 energy · 10 workers',
         production:   {},
         energyDrain:  50,
@@ -1552,7 +1602,7 @@ export const BUILDINGS = {
       {
         level:       2,
         cost:        { metal: 1200, crystal: 600 },
-        buildTime:   70,
+        buildTime:   170,
         effect:      '2× throughput · unlocks Plasma Cell production · uses 16 energy · 7 workers',
         production:  {},
         energyDrain: 16,

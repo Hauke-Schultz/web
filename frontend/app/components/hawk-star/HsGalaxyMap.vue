@@ -1,9 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const { playerColonizedPlanets, homeSystemId } = useHawkStar()
+
+const { t } = useI18n()
 
 // ── Effective planet state ───────────────────────────────────────────────────
 const planetState = (planet) =>
@@ -19,12 +22,12 @@ const selectSystem = (sys) => {
 // ── Constants ────────────────────────────────────────────────────────────────
 const STAR_CLASS_COLOR = { G: '#fde68a', K: '#fdba74', M: '#f87171', F: '#93c5fd' }
 
-const PLANET_STATE_LABEL = {
-  own:         'Your Colony',
-  uncolonized: 'Uncolonized',
-  enemy:       'Enemy',
-  ally:        'Allied',
-}
+const planetStateLabel = (state) => ({
+  own:         t('hawkStar.galaxy.stateColony'),
+  uncolonized: t('hawkStar.galaxy.stateUncolonized'),
+  enemy:       t('hawkStar.galaxy.stateEnemy'),
+  ally:        t('hawkStar.galaxy.stateAllied'),
+})[state] ?? state
 
 const PLANET_TYPE_ICON = {
   rock:  '🪨',
@@ -68,7 +71,7 @@ const PLANET_TYPE_ICON = {
         <div class="hs-card-header">
           <div class="hs-card-title">
             <span class="hs-card-name">{{ selected.name }}</span>
-            <span class="hs-card-meta">{{ selected.starClass }}-class star · {{ selected.planets.length }} planets</span>
+            <span class="hs-card-meta">{{ t('hawkStar.galaxy.starMeta', { cls: selected.starClass, n: selected.planets.length }) }}</span>
           </div>
           <button class="hs-card-close" @click="selected = null">✕</button>
         </div>
@@ -82,7 +85,7 @@ const PLANET_TYPE_ICON = {
           >
             <span class="hs-planet-icon">{{ PLANET_TYPE_ICON[planet.type] ?? '🪐' }}</span>
             <span class="hs-planet-name">{{ planet.name }}</span>
-            <span class="hs-planet-state">{{ PLANET_STATE_LABEL[planetState(planet)] ?? planetState(planet) }}</span>
+            <span class="hs-planet-state">{{ planetStateLabel(planetState(planet)) }}</span>
           </li>
         </ul>
       </div>

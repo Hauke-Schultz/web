@@ -1093,7 +1093,7 @@ const tick = () => {
       if (dock.reconDroneBuild && dock.reconDroneBuild.endsAt <= now.value) {
         dock.reconDroneInventory += 1
         dock.reconDroneBuild = null
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_drone`, type: 'unit_done', icon: '🛸', planetId: pid, planetName: pstate.planetName, label: 'Recon Drone ready', timestamp: Date.now() })
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_drone`, type: 'unit_done', icon: '🛸', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.droneReady', timestamp: Date.now() })
       }
       // Recon drone missions → reveal planet
       for (let i = dock.activeDroneMissions.length - 1; i >= 0; i--) {
@@ -1101,7 +1101,7 @@ const tick = () => {
         if (m.endsAt <= now.value) {
           if (!playerScannedPlanets.value.includes(m.planetId)) playerScannedPlanets.value.push(m.planetId)
           const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
-          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_drone_${m.planetId}`, type: 'mission_done', icon: '🛸', planetId: pid, planetName: pstate.planetName, label: 'Recon Drone returned', details: `→ ${tgt}`, timestamp: Date.now() })
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_drone_${m.planetId}`, type: 'mission_done', icon: '🛸', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.droneReturned', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeDroneMissions.splice(i, 1)
         }
       }
@@ -1109,7 +1109,7 @@ const tick = () => {
       if (dock.galaxyProbeBuild && dock.galaxyProbeBuild.endsAt <= now.value) {
         dock.galaxyProbeInventory += 1
         dock.galaxyProbeBuild = null
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_probe`, type: 'unit_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, label: 'Galaxy Probe ready', timestamp: Date.now() })
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_probe`, type: 'unit_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.probeReady', timestamp: Date.now() })
       }
       // Galaxy probes → reveal system
       for (let i = dock.activeGalaxyProbes.length - 1; i >= 0; i--) {
@@ -1117,7 +1117,7 @@ const tick = () => {
         if (probe.endsAt <= now.value) {
           if (!playerProbedSystems.value.includes(probe.systemId)) playerProbedSystems.value.push(probe.systemId)
           const tgt = GALAXY_SYSTEMS.find(s => s.id === probe.systemId)?.name ?? probe.systemId
-          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_probe_${probe.systemId}`, type: 'mission_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, label: 'Galaxy Probe returned', details: `→ ${tgt}`, timestamp: Date.now() })
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_probe_${probe.systemId}`, type: 'mission_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.probeReturned', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeGalaxyProbes.splice(i, 1)
         }
       }
@@ -1125,7 +1125,7 @@ const tick = () => {
       if (dock.colonyShipBuild && dock.colonyShipBuild.endsAt <= now.value) {
         dock.colonyShipInventory += 1
         dock.colonyShipBuild = null
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_colony`, type: 'unit_done', icon: '🚀', planetId: pid, planetName: pstate.planetName, label: 'Colony Ship ready', timestamp: Date.now() })
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_colony`, type: 'unit_done', icon: '🚀', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.colonyReady', timestamp: Date.now() })
       }
       // Colony missions → colonize planet
       for (let i = dock.activeColonyMissions.length - 1; i >= 0; i--) {
@@ -1140,7 +1140,7 @@ const tick = () => {
             }
           }
           const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
-          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_colony_${m.planetId}`, type: 'mission_done', icon: '🌍', planetId: pid, planetName: pstate.planetName, label: 'Colony Ship landed', details: `→ ${tgt}`, timestamp: Date.now() })
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_colony_${m.planetId}`, type: 'mission_done', icon: '🌍', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.colonyLanded', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeColonyMissions.splice(i, 1)
         }
       }
@@ -1161,14 +1161,14 @@ const tick = () => {
           drive:     Array(cls.driveSlots ?? 1).fill(null),
           weapons:   Array(cls.weaponSlots).fill(null),
         })
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_warship`, type: 'unit_done', icon: '⚔️', planetId: pid, planetName: pstate.planetName, label: `${cls.name} ready`, timestamp: Date.now() })
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_warship`, type: 'unit_done', icon: '⚔️', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.warshipReady', labelParams: { name: cls.name }, timestamp: Date.now() })
         dock.warshipBuild = null
       }
       // Freighter build
       if (dock.freighterBuild && dock.freighterBuild.endsAt <= now.value) {
         dock.freighterInventory += 1
         dock.freighterBuild = null
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_freighter`, type: 'unit_done', icon: '📦', planetId: pid, planetName: pstate.planetName, label: 'Freighter ready', timestamp: Date.now() })
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_freighter`, type: 'unit_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterReady', timestamp: Date.now() })
       }
       // Freighter missions → deliver cargo
       for (let i = dock.activeFreighterMissions.length - 1; i >= 0; i--) {
@@ -1187,7 +1187,7 @@ const tick = () => {
             toPlanetState.dock.freighterInventory += 1
           }
           const toName = allPlanetStates.value[m.toPlanetId]?.planetName ?? m.toPlanetId
-          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_freight_${m.id}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, label: 'Freighter arrived', details: `→ ${toName}`, timestamp: Date.now() })
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_freight_${m.id}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterArrived', details: `→ ${toName}`, timestamp: Date.now() })
           dock.activeFreighterMissions.splice(i, 1)
         }
       }
@@ -1219,7 +1219,8 @@ const tick = () => {
         planetName: pstate.planetName,
         buildingId: id,
         level:      state.level,
-        label:      `${BUILDINGS[id]?.name ?? id} Lv${state.level} complete`,
+        labelKey:    'hawkStar.notifications.buildComplete',
+        labelParams: { name: BUILDINGS[id]?.name ?? id, level: state.level },
         timestamp:  Date.now(),
       })
     }
