@@ -8,3 +8,5 @@ app.yaml
 api/db.config.php
 api/setup.php
 api/party-backup-*.json
+/api/highscores.json
+/api/rsvp.json

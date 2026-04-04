@@ -11,6 +11,7 @@ import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPlanetHeader from '~/components/hawk-star/HsPlanetHeader.vue'
 import HsDockPanel from "~/components/hawk-star/HsDockPanel.vue";
+import HsNotificationPanel from "~/components/hawk-star/HsNotificationPanel.vue";
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
@@ -63,6 +64,9 @@ watchEffect(() => {
       <HsSolarSystem v-else-if="currentView === 'solar-system'" />
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
     </div>
+
+    <!-- ── Notification panel ── -->
+    <HsNotificationPanel style="margin-top: 1rem;" />
 
     <!-- ── Dev tuning panel ── -->
     <div class="hs-dev-panel">

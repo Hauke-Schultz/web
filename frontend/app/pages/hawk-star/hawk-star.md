@@ -243,6 +243,7 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type header |
 | `HsAllResourcePanel` | Full resource breakdown panel |
+| `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
 
 ### State & Persistence
 
@@ -257,25 +258,92 @@ A persistent dev panel at the bottom of the game page exposes two tuning control
 
 ### Implementation Status
 
-| Feature                                     | Status |
-|---------------------------------------------|--------|
-| Planet grid, slot unlocks                   | ✅ Done |
-| Buildings (all types)                       | ✅ Done |
-| Energy & staff system                       | ✅ Done |
-| Resources + storage caps                    | ✅ Done |
-| High-Tech conversions                       | ✅ Done |
-| Recon Drones                                | ✅ Done |
-| Galaxy Probes                               | ✅ Done |
-| Colony Ships                                | ✅ Done |
+| Feature                                       | Status |
+|-----------------------------------------------|--------|
+| Planet grid, slot unlocks                     | ✅ Done |
+| Buildings (all types)                         | ✅ Done |
+| Energy & staff system                         | ✅ Done |
+| Resources + storage caps                      | ✅ Done |
+| High-Tech conversions                         | ✅ Done |
+| Recon Drones                                  | ✅ Done |
+| Galaxy Probes                                 | ✅ Done |
+| Colony Ships                                  | ✅ Done |
 | Warships (Hawk Frigate, Drive + Weapon slots) | ✅ Done |
-| Freighter transport                         | ✅ Done |
-| Galaxy Map (simplified, all systems visible) | ✅ Done |
-| Solar System view                           | ✅ Done |
-| Dev mode — tick rate & build time factor    | ✅ Done |
-| Backend — User login & registration         | ⬜ Planned |
-| Backend — Bauen & Besiedeln (Phase 1)       | ⬜ Planned |
-| Backend — Handel & Kommunikation (Phase 2)  | ⬜ Planned |
-| Backend — Ausspionieren (Phase 3)           | ⬜ Planned |
-| Backend — Kampf (Phase 4)                   | ⬜ Planned |
+| Freighter transport                           | ✅ Done |
+| Galaxy Map (simplified, all systems visible)  | ✅ Done |
+| Solar System view                             | ✅ Done |
+| Dev mode — tick rate & build time factor      | ✅ Done |
+| Notification Panel                            | ✅ Done |
+| Backend — User login & registration           | ⬜ Planned |
+| Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
+| Backend — Handel & Kommunikation (Phase 2)    | ⬜ Planned |
+| Backend — Ausspionieren (Phase 3)             | ⬜ Planned |
+| Backend — Kampf (Phase 4)                     | ⬜ Planned |
 
 See `hawk-star-backend.md` for the full backend & multiplayer concept.
+
+---
+
+## Localisation (i18n)
+
+All user-facing strings are currently hardcoded in English. The plan is to extract them into a dedicated file so the game can support multiple languages without touching component or composable code.
+
+### Strings to extract
+
+| Location | Examples |
+|----------|---------|
+| `HsNotificationPanel.vue` | `"Activity"`, `"active"`, `"done"`, `"No active operations"`, ship build labels, mission subtitle (`"from …"`, `"remaining"`) |
+| `useHawkStar.js` — notification labels | `"Recon Drone ready"`, `"Colony Ship landed"`, `"… complete"`, etc. |
+| `hawkStarConfig.js` — `BUILDINGS[id].name` | `"Mining Station"`, `"Star Map"`, etc. |
+| `hawkStarConfig.js` — `RESOURCES[id].name` | `"Metal"`, `"Crystal"`, `"Population"`, etc. |
+| `hawkStarConfig.js` — `TILE_TYPES[id].label` | `"Base"`, `"Mining"`, `"Space Base"`, etc. |
+| All other components (`HsTilePanel`, `HsDockPanel`, …) | Button labels, status text, tooltips |
+
+### Target file structure
+
+```
+utils/
+  hawkStarI18n.js      ← single source of truth for all UI strings
+```
+
+```js
+// hawkStarI18n.js
+export const HS_STRINGS = {
+  // Notification panel
+  notif: {
+    header:        'Activity',
+    badgeActive:   'active',
+    badgeDone:     'done',
+    empty:         'No active operations',
+    dismiss:       'Dismiss',
+    buildComplete: (name, level) => `${name} Lv${level} complete`,
+    unitReady:     (label) => `${label} ready`,
+    // missions
+    droneReturned:   'Recon Drone returned',
+    probeReturned:   'Galaxy Probe returned',
+    colonyLanded:    'Colony Ship landed',
+    freighterArrived:'Freighter arrived',
+    // in-progress subtitles
+    from:      (planet) => `from ${planet}`,
+    remaining: (n) => `×${n} remaining`,
+    building:  (label) => `${label} building`,
+    dock:      (planet) => `${planet} · Dock`,
+  },
+  // ... other sections (buildings, resources, UI) added per component
+}
+```
+
+### Migration approach
+
+1. Create `utils/hawkStarI18n.js` with the `HS_STRINGS` object.
+2. Replace hardcoded strings in each file with `HS_STRINGS.notif.*` etc., one file at a time.
+3. When backend is connected: building and resource names will come from the DB — `HS_STRINGS` then only needs to cover pure UI strings (buttons, status text, placeholders).
+4. If multi-language support becomes a requirement, swap `HS_STRINGS` for a proper i18n library (e.g. `vue-i18n`) — the call sites stay the same.
+
+### Implementation Status
+
+| Task | Status |
+|------|--------|
+| All notification strings in English | ✅ Done |
+| Extract strings to `hawkStarI18n.js` | ⬜ Planned |
+| Apply i18n to all components | ⬜ Planned |

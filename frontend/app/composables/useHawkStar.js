@@ -41,6 +41,14 @@ const buildTimeFactor = ref(1)
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
+// ── Notifications (persistent done-events) ────────────────
+const notifications = ref([])
+
+const dismissNotification = (id) => {
+  const idx = notifications.value.findIndex(n => n.id === id)
+  if (idx !== -1) notifications.value.splice(idx, 1)
+}
+
 const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, power_cell: 0, quantum_warhead: 0 }
 const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, power_cell: 0, quantum_warhead: 0 }
 
@@ -286,7 +294,9 @@ const startBuild = (id) => {
   for (const [r, amt] of Object.entries(next.cost)) {
     res[r] -= amt
   }
-  allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt = Date.now() + next.buildTime * buildTimeFactor.value * 1000
+  const _buildMs = next.buildTime * buildTimeFactor.value * 1000
+  allPlanetStates.value[activePlanetId.value].buildings[id].buildStartedAt = Date.now()
+  allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt = Date.now() + _buildMs
 }
 
 const currentLevelDef = (id) => {
@@ -385,7 +395,7 @@ const buildReconDrone = () => {
   for (const [r, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
     res[r] -= amt
   }
-  dock.reconDroneBuild = { endsAt: Date.now() + droneBuildTime.value * 1000 }
+  dock.reconDroneBuild = { endsAt: Date.now() + droneBuildTime.value * 1000, startedAt: Date.now() }
 }
 
 const canSendDrone = (planetId) =>
@@ -400,7 +410,7 @@ const sendReconDrone = (planetId, fromPlanetId) => {
   if (!dock) return
   dock.reconDroneInventory -= 1
   const ft = fromPlanetId ? droneFlightTimeBetween(fromPlanetId, planetId) : droneFlightTime(planetId)
-  dock.activeDroneMissions.push({ planetId, endsAt: Date.now() + ft * 1000 })
+  dock.activeDroneMissions.push({ planetId, endsAt: Date.now() + ft * 1000, startedAt: Date.now() })
 }
 
 const remainingDroneSec = (planetId) => {
@@ -467,7 +477,7 @@ const buildGalaxyProbe = () => {
   for (const [r, amt] of Object.entries(UNIT_COSTS.galaxy_probe.cost)) {
     res[r] -= amt
   }
-  dock.galaxyProbeBuild = { endsAt: Date.now() + probeBuildTime.value * 1000 }
+  dock.galaxyProbeBuild = { endsAt: Date.now() + probeBuildTime.value * 1000, startedAt: Date.now() }
 }
 
 const canSendProbe = (systemId) =>
@@ -482,7 +492,7 @@ const sendGalaxyProbe = (systemId, fromSystemId) => {
   if (!dock) return
   dock.galaxyProbeInventory -= 1
   const ft = fromSystemId ? probeFlightTimeBetween(fromSystemId, systemId) : probeFlightTime(systemId)
-  dock.activeGalaxyProbes.push({ systemId, endsAt: Date.now() + ft * 1000 })
+  dock.activeGalaxyProbes.push({ systemId, endsAt: Date.now() + ft * 1000, startedAt: Date.now() })
 }
 
 const remainingProbeSec = (systemId) => {
@@ -542,7 +552,7 @@ const buildColonyShip = () => {
   for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
     res[r] -= amt
   }
-  dock.colonyShipBuild = { endsAt: Date.now() + colonyShipBuildTime.value * 1000 }
+  dock.colonyShipBuild = { endsAt: Date.now() + colonyShipBuildTime.value * 1000, startedAt: Date.now() }
 }
 
 const canSendColonyShip = (planetId) => {
@@ -565,7 +575,7 @@ const sendColonyShip = (planetId, fromPlanetId) => {
   if (!dock) return
   dock.colonyShipInventory -= 1
   const ft = fromPlanetId ? colonyFlightTimeBetween(fromPlanetId, planetId) : colonyFlightTime(planetId)
-  dock.activeColonyMissions.push({ planetId, endsAt: Date.now() + ft * 1000 })
+  dock.activeColonyMissions.push({ planetId, endsAt: Date.now() + ft * 1000, startedAt: Date.now() })
 }
 
 const remainingColonySec = (planetId) => {
@@ -612,7 +622,7 @@ const buildWarship = () => {
     res[r] -= amt
   }
   const cls = WARSHIP_CLASSES.frigate
-  dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000, classId: cls.id }
+  dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000, classId: cls.id, startedAt: Date.now() }
 }
 
 const equipDrive = (shipId, resId) => {
@@ -736,7 +746,7 @@ const buildFreighter = () => {
   for (const [r, amt] of Object.entries(UNIT_COSTS.freighter.cost)) {
     res[r] -= amt
   }
-  dock.freighterBuild = { endsAt: Date.now() + freighterBuildTime.value * 1000 }
+  dock.freighterBuild = { endsAt: Date.now() + freighterBuildTime.value * 1000, startedAt: Date.now() }
 }
 
 const freighterFlightTimeBetween = (fromId, toId) => {
@@ -797,6 +807,7 @@ const sendFreighter = (fromPlanetId, toPlanetId, cargo) => {
     cargo:        { ...cargo },
     endsAt:       Date.now() + ft * 1000,
     flightTime:   ft,
+    startedAt:    Date.now(),
   })
 }
 
@@ -944,6 +955,7 @@ const saveGame = () => {
     playerScannedPlanets:   playerScannedPlanets.value,
     playerProbedSystems:    playerProbedSystems.value,
     playerColonizedPlanets: playerColonizedPlanets.value,
+    notifications:          notifications.value,
   }))
 }
 
@@ -1019,6 +1031,7 @@ const loadGame = () => {
     if (Array.isArray(data.playerScannedPlanets))   playerScannedPlanets.value   = data.playerScannedPlanets
     if (Array.isArray(data.playerProbedSystems))     playerProbedSystems.value    = data.playerProbedSystems
     if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
+    if (Array.isArray(data.notifications))           notifications.value          = data.notifications
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
   }
@@ -1072,7 +1085,7 @@ const tick = () => {
   }
 
   // Complete building upgrades + resource production + dock for ALL planets
-  for (const [, pstate] of Object.entries(allPlanetStates.value)) {
+  for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
     // ── Dock processing ───────────────────────────────────
     const dock = pstate.dock
     if (dock) {
@@ -1080,12 +1093,15 @@ const tick = () => {
       if (dock.reconDroneBuild && dock.reconDroneBuild.endsAt <= now.value) {
         dock.reconDroneInventory += 1
         dock.reconDroneBuild = null
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_drone`, type: 'unit_done', icon: '🛸', planetId: pid, planetName: pstate.planetName, label: 'Recon Drone ready', timestamp: Date.now() })
       }
       // Recon drone missions → reveal planet
       for (let i = dock.activeDroneMissions.length - 1; i >= 0; i--) {
         const m = dock.activeDroneMissions[i]
         if (m.endsAt <= now.value) {
           if (!playerScannedPlanets.value.includes(m.planetId)) playerScannedPlanets.value.push(m.planetId)
+          const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_drone_${m.planetId}`, type: 'mission_done', icon: '🛸', planetId: pid, planetName: pstate.planetName, label: 'Recon Drone returned', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeDroneMissions.splice(i, 1)
         }
       }
@@ -1093,12 +1109,15 @@ const tick = () => {
       if (dock.galaxyProbeBuild && dock.galaxyProbeBuild.endsAt <= now.value) {
         dock.galaxyProbeInventory += 1
         dock.galaxyProbeBuild = null
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_probe`, type: 'unit_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, label: 'Galaxy Probe ready', timestamp: Date.now() })
       }
       // Galaxy probes → reveal system
       for (let i = dock.activeGalaxyProbes.length - 1; i >= 0; i--) {
         const probe = dock.activeGalaxyProbes[i]
         if (probe.endsAt <= now.value) {
           if (!playerProbedSystems.value.includes(probe.systemId)) playerProbedSystems.value.push(probe.systemId)
+          const tgt = GALAXY_SYSTEMS.find(s => s.id === probe.systemId)?.name ?? probe.systemId
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_probe_${probe.systemId}`, type: 'mission_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, label: 'Galaxy Probe returned', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeGalaxyProbes.splice(i, 1)
         }
       }
@@ -1106,6 +1125,7 @@ const tick = () => {
       if (dock.colonyShipBuild && dock.colonyShipBuild.endsAt <= now.value) {
         dock.colonyShipInventory += 1
         dock.colonyShipBuild = null
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_colony`, type: 'unit_done', icon: '🚀', planetId: pid, planetName: pstate.planetName, label: 'Colony Ship ready', timestamp: Date.now() })
       }
       // Colony missions → colonize planet
       for (let i = dock.activeColonyMissions.length - 1; i >= 0; i--) {
@@ -1119,6 +1139,8 @@ const tick = () => {
               initializePlanetState(m.planetId, pType, planet.name)
             }
           }
+          const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_colony_${m.planetId}`, type: 'mission_done', icon: '🌍', planetId: pid, planetName: pstate.planetName, label: 'Colony Ship landed', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeColonyMissions.splice(i, 1)
         }
       }
@@ -1139,12 +1161,14 @@ const tick = () => {
           drive:     Array(cls.driveSlots ?? 1).fill(null),
           weapons:   Array(cls.weaponSlots).fill(null),
         })
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_warship`, type: 'unit_done', icon: '⚔️', planetId: pid, planetName: pstate.planetName, label: `${cls.name} ready`, timestamp: Date.now() })
         dock.warshipBuild = null
       }
       // Freighter build
       if (dock.freighterBuild && dock.freighterBuild.endsAt <= now.value) {
         dock.freighterInventory += 1
         dock.freighterBuild = null
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_freighter`, type: 'unit_done', icon: '📦', planetId: pid, planetName: pstate.planetName, label: 'Freighter ready', timestamp: Date.now() })
       }
       // Freighter missions → deliver cargo
       for (let i = dock.activeFreighterMissions.length - 1; i >= 0; i--) {
@@ -1162,6 +1186,8 @@ const tick = () => {
             }
             toPlanetState.dock.freighterInventory += 1
           }
+          const toName = allPlanetStates.value[m.toPlanetId]?.planetName ?? m.toPlanetId
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_freight_${m.id}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, label: 'Freighter arrived', details: `→ ${toName}`, timestamp: Date.now() })
           dock.activeFreighterMissions.splice(i, 1)
         }
       }
@@ -1174,6 +1200,7 @@ const tick = () => {
       if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
       state.level += 1
       state.buildEndsAt = null
+      state.buildStartedAt = null
       const levelDef = BUILDINGS[id]?.levels[state.level - 1]
       if (levelDef?.unlocks) {
         for (const { slot } of levelDef.unlocks) {
@@ -1184,6 +1211,17 @@ const tick = () => {
       if (levelDef?.popBonus) {
         pr.population += levelDef.popBonus
       }
+      notifications.value.push({
+        id:         `notif_${Date.now()}_bld_${pid}_${id}`,
+        type:       'building_done',
+        icon:       '🏛️',
+        planetId:   pid,
+        planetName: pstate.planetName,
+        buildingId: id,
+        level:      state.level,
+        label:      `${BUILDINGS[id]?.name ?? id} Lv${state.level} complete`,
+        timestamp:  Date.now(),
+      })
     }
 
     if (doProd) {
@@ -1390,6 +1428,10 @@ export function useHawkStar() {
     startConversion,
     remainingConversionSec,
     conversionProgressStyle,
+    // notifications
+    allPlanetStates,
+    notifications,
+    dismissNotification,
     // dev tuning
     tickRateMs,
     buildTimeFactor,
