@@ -1,9 +1,12 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const { planetName, systemName, planetType, PLANET_TYPES, homePlanetId, activePlanetId, playerName } = useHawkStar()
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -16,8 +19,8 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 		  v-if="currentPlanetType"
 		  class="hs-planet-type-badge"
 		  :class="`hs-planet-type-badge--${planetType}`"
-		  :title="currentPlanetType.description"
-	  >{{ currentPlanetType.icon }} {{ currentPlanetType.name }}</span>
+		  :title="t('hawkStar.planetTypes.' + planetType + '.desc')"
+	  >{{ currentPlanetType.icon }} {{ t('hawkStar.planetTypes.' + planetType + '.name') }}</span>
   </div>
 </template>
 

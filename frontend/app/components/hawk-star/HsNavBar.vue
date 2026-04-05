@@ -1,7 +1,6 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
-import HsLangSwitcher from '~/components/hawk-star/HsLangSwitcher.vue'
 
 const props = defineProps({
   currentView: { type: String, required: true },
@@ -53,7 +52,6 @@ const { starMapLevel } = useHawkStar()
       <span v-if="starMapLevel < 2" class="hs-nav-lock">🔒</span>
     </button>
 
-    <HsLangSwitcher />
   </nav>
 </template>
 

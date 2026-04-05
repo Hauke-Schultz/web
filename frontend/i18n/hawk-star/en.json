@@ -6,26 +6,22 @@
       "badgeDone": "done",
       "empty": "No active operations",
       "dismiss": "Dismiss",
-
       "buildComplete": "{name} Lv{level} complete",
       "droneReady": "Recon Drone ready",
       "probeReady": "Galaxy Probe ready",
       "colonyReady": "Colony Ship ready",
       "warshipReady": "{name} ready",
       "freighterReady": "Freighter ready",
-
       "droneReturned": "Recon Drone returned",
       "probeReturned": "Galaxy Probe returned",
       "colonyLanded": "Colony Ship landed",
       "freighterArrived": "Freighter arrived",
-
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone building",
       "probeBuilding": "Galaxy Probe building",
       "colonyBuilding": "Colony Ship building",
       "warshipBuilding": "Hawk Frigate building",
       "freighterBuilding": "Freighter building",
-
       "missionFrom": "from {planet}",
       "shipDock": "{planet} · Dock",
       "conversionRemaining": "×{n} remaining"
@@ -117,11 +113,307 @@
       "starMeta": "{cls}-class star · {n} planets"
     },
 
+    "panel": {
+      "tabActivity": "Activity",
+      "tabSettings": "Settings"
+    },
+
     "starClass": {
       "G": "Yellow Dwarf",
       "K": "Orange Dwarf",
       "M": "Red Dwarf",
       "F": "White Star"
+    },
+
+    "res": {
+      "population": "Population",
+      "metal": "Metal",
+      "crystal": "Crystal",
+      "alloy": "Alloy",
+      "cryo": "Cryonite",
+      "obsidian": "Obsidian",
+      "biomass": "Biomass",
+      "energy": "Energy",
+      "pure_crystal": "Pure Crystal",
+      "super_alloy": "Super Alloy",
+      "quantum_shard": "Quantum Shard",
+      "nano_alloy": "Nano Alloy",
+      "kinetic_round": "Kinetic Round",
+      "plasma_cell": "Plasma Cell",
+      "power_cell": "Power Cell"
+    },
+
+    "tiles": {
+      "base":        { "name": "Base",        "desc": "Colony command center" },
+      "mining":      { "name": "Mining",      "desc": "Raw resource extraction" },
+      "energy":      { "name": "Energy",      "desc": "Power generation" },
+      "techcenter":  { "name": "Tech Center", "desc": "Technology research" },
+      "research":    { "name": "Research",    "desc": "Global technologies — researched once, applied across all planets" },
+      "spacebase":   { "name": "Space Base",  "desc": "Launch pad for probes, colony ships and freighters" },
+      "agriculture": { "name": "Agriculture", "desc": "Reserved — no buildings yet" },
+      "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
+      "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" }
+    },
+
+    "planetTypes": {
+      "terrestrial": { "name": "Terrestrial", "desc": "Balanced planet. All standard buildings available, no special bonuses." },
+      "volcanic":    { "name": "Volcanic",    "desc": "Rich in metal. Special mining & energy buildings, limited agriculture." },
+      "frozen":      { "name": "Frozen",      "desc": "Crystal-rich permafrost. Special excavators and cryo research." },
+      "ocean":       { "name": "Ocean",       "desc": "Farming paradise. Enormous population potential, weak mining." }
+    },
+
+    "warships": {
+      "frigate": {
+        "name": "Hawk Frigate",
+        "desc": "Light combat vessel. Fast and agile with 1 drive + 2 weapon slots."
+      }
+    },
+
+    "buildings": {
+      "command_center": {
+        "name": "Command Center",
+        "desc": "The heart of your colony. Must be built before anything else.",
+        "lv1": "First Building · 1 worker",
+        "lv2": "Unlocks the Tech Center tile · +5 pop · uses 2 energy · 2 workers",
+        "lv3": "+10 pop · uses 3 energy · 3 workers"
+      },
+      "quarters": {
+        "name": "Quarters",
+        "desc": "Housing for your growing workforce.",
+        "lv1": "+4 max pop · uses 1 energy · 1 worker",
+        "lv2": "+6 max pop · uses 2 energy · 1 worker",
+        "lv3": "+12 max pop · uses 3 energy · 2 workers",
+        "lv4": "+20 max pop · uses 5 energy · 3 workers",
+        "lv5": "+32 max pop · uses 7 energy · 4 workers",
+        "lv6": "+50 max pop · uses 10 energy · 5 workers",
+        "lv7": "+75 max pop · uses 14 energy · 7 workers",
+        "lv8": "+110 max pop · uses 20 energy · 10 workers"
+      },
+      "power_plant": {
+        "name": "Power Plant",
+        "desc": "Powers the colony. Build and upgrade to support more buildings.",
+        "lv1": "+5 energy · 1 worker",
+        "lv2": "+12 energy · 2 workers",
+        "lv3": "+25 energy · 3 workers",
+        "lv4": "+32 energy · 3 workers",
+        "lv5": "+36 energy · 4 workers",
+        "lv6": "+40 energy · 4 workers"
+      },
+      "metal_mine": {
+        "name": "Metal Mine",
+        "desc": "Extracts metal ore from the surface.",
+        "lv1": "+2 metal/s · 300 storage · uses 3 energy · 2 workers",
+        "lv2": "+5 metal/s · 700 storage · uses 5 energy · 4 workers",
+        "lv3": "+12 metal/s · 1500 storage · uses 9 energy · 6 workers",
+        "lv4": "+16 metal/s · 1900 storage · uses 9 energy · 6 workers",
+        "lv5": "+22 metal/s · 2500 storage · uses 9 energy · 6 workers",
+        "lv6": "+28 metal/s · 3000 storage · uses 9 energy · 6 workers"
+      },
+      "crystal_drill": {
+        "name": "Crystal Drill",
+        "desc": "Bores deep into crystal veins.",
+        "lv1": "+1 crystal/s · 200 storage · uses 2 energy · 2 workers",
+        "lv2": "+3 crystal/s · 500 storage · uses 4 energy · 3 workers",
+        "lv3": "+7 crystal/s · 1000 storage · uses 7 energy · 5 workers",
+        "lv4": "+10 crystal/s · 1300 storage · uses 7 energy · 5 workers",
+        "lv5": "+15 crystal/s · 1700 storage · uses 7 energy · 5 workers",
+        "lv6": "+25 crystal/s · 2500 storage · uses 7 energy · 5 workers"
+      },
+      "alloy_forge": {
+        "name": "Alloy Forge",
+        "desc": "Smelts metal into refined alloy. Requires Laboratory Lv 2.",
+        "lv1": "+1 alloy/s · 150 storage · uses 4 energy · 3 workers",
+        "lv2": "+3 alloy/s · 400 storage · uses 7 energy · 5 workers",
+        "lv3": "+7 alloy/s · 900 storage · uses 12 energy · 8 workers",
+        "lv4": "+15 alloy/s · 2000 storage · uses 20 energy · 12 workers"
+      },
+      "biomass_collector": {
+        "name": "Biomass Collector",
+        "desc": "Harvests organic biomass from ocean floors. Requires Laboratory Lv 2.",
+        "lv1": "+1 biomass/s · 150 storage · uses 4 energy · 3 workers",
+        "lv2": "+3 biomass/s · 400 storage · uses 7 energy · 5 workers",
+        "lv3": "+7 biomass/s · 900 storage · uses 12 energy · 8 workers",
+        "lv4": "+15 biomass/s · 2000 storage · uses 20 energy · 12 workers"
+      },
+      "obsidian_quarry": {
+        "name": "Obsidian Quarry",
+        "desc": "Excavates volcanic obsidian from lava fields. Requires Laboratory Lv 2.",
+        "lv1": "+1 obsidian/s · 150 storage · uses 4 energy · 3 workers",
+        "lv2": "+3 obsidian/s · 400 storage · uses 7 energy · 5 workers",
+        "lv3": "+7 obsidian/s · 900 storage · uses 12 energy · 8 workers",
+        "lv4": "+15 obsidian/s · 2000 storage · uses 20 energy · 12 workers"
+      },
+      "cryo_extractor": {
+        "name": "Cryo Extractor",
+        "desc": "Harvests cryonite from frozen veins. Requires Laboratory Lv 2.",
+        "lv1": "+1 cryo/s · 150 storage · uses 4 energy · 3 workers",
+        "lv2": "+3 cryo/s · 400 storage · uses 7 energy · 5 workers",
+        "lv3": "+7 cryo/s · 900 storage · uses 12 energy · 8 workers",
+        "lv4": "+15 cryo/s · 2000 storage · uses 20 energy · 12 workers"
+      },
+      "solar_array": {
+        "name": "Solar Array",
+        "desc": "Harvests solar energy. No energy drain.",
+        "lv1": "+8 energy · 1 worker",
+        "lv2": "+18 energy · 2 workers",
+        "lv3": "+38 energy · 3 workers"
+      },
+      "cryo_reactor": {
+        "name": "Cryo Reactor",
+        "desc": "Harnesses extreme cold for high-yield energy. Frozen planets only.",
+        "lv1": "+40 energy · 2 workers",
+        "lv2": "+90 energy · 4 workers",
+        "lv3": "+180 energy · 7 workers"
+      },
+      "alloy_fusion_reactor": {
+        "name": "Alloy Fusion Reactor",
+        "desc": "Fuses refined alloy for high-yield energy. Terrestrial planets only.",
+        "lv1": "+40 energy · 2 workers",
+        "lv2": "+90 energy · 4 workers",
+        "lv3": "+180 energy · 7 workers"
+      },
+      "obsidian_plasma_core": {
+        "name": "Obsidian Plasma Core",
+        "desc": "Superheats obsidian into plasma for massive energy output. Volcanic planets only.",
+        "lv1": "+45 energy · 2 workers",
+        "lv2": "+100 energy · 4 workers",
+        "lv3": "+200 energy · 7 workers"
+      },
+      "biomass_reactor": {
+        "name": "Biomass Reactor",
+        "desc": "Converts biomass into clean sustained energy. Ocean planets only.",
+        "lv1": "+35 energy · 2 workers",
+        "lv2": "+80 energy · 4 workers",
+        "lv3": "+160 energy · 7 workers"
+      },
+      "recon_drone": {
+        "name": "Recon Drone",
+        "desc": "Short-range drone that reveals planet details in the home system.",
+        "lv1": "Scout 1 planet at a time · standard speed · uses 5 energy · 2 workers",
+        "lv2": "Scout 2 planets simultaneously · 2× speed · uses 8 energy · 3 workers",
+        "lv3": "Scout 3 planets simultaneously · 3× speed · uses 14 energy · 5 workers"
+      },
+      "galaxy_probe": {
+        "name": "Galaxy Probe",
+        "desc": "Launches long-range probes to distant star systems.",
+        "lv1": "Send 1 probe at a time · reveals planet count · uses 4 energy · 2 workers",
+        "lv2": "Send 2 probes simultaneously · 2× travel speed · uses 7 energy · 3 workers",
+        "lv3": "Send 3 probes simultaneously · 3× travel speed · uses 12 energy · 5 workers"
+      },
+      "star_map": {
+        "name": "Star Map",
+        "desc": "Charts the known galaxy. Required for interplanetary navigation.",
+        "lv1": "Unlocks Solar System view · uses 3 energy · 2 workers",
+        "lv2": "Unlocks Galaxy view · nearby systems visible · uses 5 energy · 3 workers",
+        "lv3": "Full galaxy scan — all systems visible · uses 9 energy · 5 workers"
+      },
+      "space_building": {
+        "name": "Space Technology",
+        "desc": "Advances propulsion and navigation science. Unlocks the Space Base tile.",
+        "lv1": "Unlocks Space Base tile · uses 6 energy · 3 workers",
+        "lv2": "Unlocks Warship Bay · uses 10 energy · 5 workers"
+      },
+      "laboratory": {
+        "name": "Laboratory",
+        "desc": "Drives scientific progress. High energy consumer.",
+        "lv1": "Unlocks High-Tech tile · uses 5 energy · 3 workers",
+        "lv2": "Unlocks Alloy Forge · +50% research speed · uses 8 energy · 5 workers"
+      },
+      "weapons_building": {
+        "name": "Weapon Technology",
+        "desc": "Military science division. Unlocks the planetary Defense tile.",
+        "lv1": "Unlocks Defense tile · basic weapon blueprints · uses 5 energy · 3 workers"
+      },
+      "colony_ship": {
+        "name": "Colony Ship",
+        "desc": "Transports colonists to unoccupied planets in the solar system.",
+        "lv1": "Colonize 1 uncolonized planet in home system · uses 8 energy · 4 workers",
+        "lv2": "Colonize planets in adjacent star systems · uses 14 energy · 7 workers",
+        "lv3": "Mass colonization fleet · reach distant systems · uses 24 energy · 12 workers"
+      },
+      "warship_bay": {
+        "name": "Warship Bay",
+        "desc": "Heavy construction dock for warships. Requires Super Alloy and Pure Crystal.",
+        "lv1": "Enables warship construction · 1 warship slot · uses 12 energy · 5 workers",
+        "lv2": "2× build speed · 2 warship slots · firepower +50% · uses 20 energy · 8 workers",
+        "lv3": "4× build speed · 3 warship slots · firepower +120% · uses 35 energy · 14 workers"
+      },
+      "freighter_bay": {
+        "name": "Freighter Bay",
+        "desc": "Cargo dock for building freighters. Needs Space Technology Lv 1.",
+        "lv1": "Build freighters · 200 cargo capacity · uses 10 energy · 5 workers",
+        "lv2": "500 cargo capacity · 2× build speed · uses 16 energy · 8 workers",
+        "lv3": "1000 cargo capacity · 4× build speed · uses 28 energy · 14 workers"
+      },
+      "geothermal_tap": {
+        "name": "Geothermal Tap",
+        "desc": "Harnesses volcanic heat for cheap, reliable energy output.",
+        "lv1": "+10 energy · 1 worker",
+        "lv2": "+24 energy · 2 workers",
+        "lv3": "+50 energy · 3 workers"
+      },
+      "tidal_generator": {
+        "name": "Tidal Generator",
+        "desc": "Harvests kinetic energy from ocean tides. Cheap and reliable.",
+        "lv1": "+9 energy · 1 worker",
+        "lv2": "+20 energy · 2 workers",
+        "lv3": "+42 energy · 3 workers"
+      },
+      "alloy_refinery": {
+        "name": "Alloy Refinery",
+        "desc": "Fuses metal and alloy into Super Alloy. Terrestrial planets only.",
+        "lv1": "Unlocks Super Alloy production · uses 6 energy · 3 workers",
+        "lv2": "2× throughput · uses 10 energy · 5 workers",
+        "lv3": "4× throughput · uses 16 energy · 8 workers"
+      },
+      "obsidian_foundry": {
+        "name": "Obsidian Foundry",
+        "desc": "Superheats obsidian and crystal into Quantum Shards. Volcanic planets only.",
+        "lv1": "Unlocks Quantum Shard production · uses 6 energy · 3 workers",
+        "lv2": "2× throughput · uses 10 energy · 5 workers",
+        "lv3": "4× throughput · uses 16 energy · 8 workers"
+      },
+      "cryo_refinery": {
+        "name": "Cryo Refinery",
+        "desc": "Purifies crystal using cryonite into Pure Crystal. Frozen planets only.",
+        "lv1": "Unlocks Pure Crystal production · uses 6 energy · 3 workers",
+        "lv2": "2× throughput · uses 10 energy · 5 workers",
+        "lv3": "4× throughput · uses 16 energy · 8 workers"
+      },
+      "bio_lab": {
+        "name": "Bio Lab",
+        "desc": "Synthesizes biomass and metal into Nano Alloy. Ocean planets only.",
+        "lv1": "Unlocks Nano Alloy production · uses 6 energy · 3 workers",
+        "lv2": "2× throughput · uses 10 energy · 5 workers",
+        "lv3": "4× throughput · uses 16 energy · 8 workers"
+      },
+      "power_cell_lab": {
+        "name": "Power Cell Lab",
+        "desc": "Manufactures universal power cells for starships.",
+        "lv1": "Produce Power Cells · uses 5 energy · 3 workers",
+        "lv2": "Faster production · uses 8 energy · 4 workers",
+        "lv3": "Maximum output · uses 12 energy · 6 workers"
+      },
+      "shield_generator": {
+        "name": "Shield Generator",
+        "desc": "Projects an energy barrier around the planet.",
+        "lv1": "Basic shield — absorbs 20% incoming damage · uses 8 energy · 3 workers",
+        "lv2": "Enhanced shield — absorbs 40% incoming damage · uses 15 energy · 5 workers",
+        "lv3": "Fortress shield — absorbs 60% incoming damage · uses 25 energy · 8 workers"
+      },
+      "crystal_deflector": {
+        "name": "Crystal Deflector Matrix",
+        "desc": "Pure Crystal lattice that bends incoming energy away from the planet.",
+        "lv1": "Crystal shield — absorbs 70% incoming damage · uses 18 energy · 4 workers",
+        "lv2": "Resonant shield — absorbs 85% incoming damage · uses 30 energy · 6 workers",
+        "lv3": "Phase matrix — absorbs 95% · reflects 20% back · uses 50 energy · 10 workers"
+      },
+      "weapon_lab": {
+        "name": "Weapon Lab",
+        "desc": "Military research facility. Synthesises weapon ordnance for warships.",
+        "lv1": "Unlocks Kinetic Round production · uses 8 energy · 4 workers",
+        "lv2": "2× throughput · unlocks Plasma Cell production · uses 16 energy · 7 workers"
+      }
     }
   }
 }

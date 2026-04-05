@@ -337,7 +337,7 @@ const availableDriveCells = computed(() =>
             <div class="hs-warship-card-header">
               <span class="hs-warship-card-icon">{{ ship.icon }}</span>
               <span class="hs-warship-card-name">{{ ship.name }}</span>
-              <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+              <span class="hs-warship-card-class">{{ t('hawkStar.warships.' + ship.classId + '.desc') }}</span>
               <button
                 class="hs-orbit-btn"
                 :class="{ 'hs-orbit-btn--disabled': !shipHasPowerCell(ship) }"
@@ -420,7 +420,7 @@ const availableDriveCells = computed(() =>
             <div class="hs-warship-card-header">
               <span class="hs-warship-card-icon">{{ ship.icon }}</span>
               <span class="hs-warship-card-name">{{ ship.name }}</span>
-              <span class="hs-warship-card-class">{{ WARSHIP_CLASSES[ship.classId]?.description ?? '' }}</span>
+              <span class="hs-warship-card-class">{{ t('hawkStar.warships.' + ship.classId + '.desc') }}</span>
               <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">{{ t('hawkStar.dock.hangar') }}</button>
             </div>
             <div class="hs-warship-card-stats">

@@ -87,8 +87,8 @@ const setConversionCount = (bId, idx, val) => {
   <div class="hs-panel">
     <div class="hs-panel-header">
       <span class="hs-panel-icon">{{ activeTileType?.icon ?? '?' }}</span>
-      <h2 class="hs-panel-title">{{ activeTileType?.name ?? 'Select a tile' }}</h2>
-      <span class="hs-panel-desc">{{ activeTileType?.description ?? '' }}</span>
+      <h2 class="hs-panel-title">{{ activeTileType ? t('hawkStar.tiles.' + activeTileType.id + '.name') : t('hawkStar.tile.selectTile') }}</h2>
+      <span class="hs-panel-desc">{{ activeTileType ? t('hawkStar.tiles.' + activeTileType.id + '.desc') : '' }}</span>
     </div>
 
     <div class="hs-building-list">
@@ -106,7 +106,7 @@ const setConversionCount = (bId, idx, val) => {
 
         <!-- Info block -->
         <div class="hs-building-info">
-          <div class="hs-building-name">{{ bDef.name }}</div>
+          <div class="hs-building-name">{{ t('hawkStar.buildings.' + bDef.id + '.name') }}</div>
           <div v-if="currentLevelDef(bDef.id)" class="hs-building-stats">
             <span v-for="(amt, resId) in currentLevelDef(bDef.id).production" :key="resId">{{ RESOURCES[resId]?.icon }} +{{ amt }}/s</span>
             <span v-if="currentLevelDef(bDef.id).energyDrain">⚡ -{{ currentLevelDef(bDef.id).energyDrain }}</span>
@@ -114,7 +114,7 @@ const setConversionCount = (bId, idx, val) => {
           </div>
           <div class="hs-building-effect">
             <template v-if="nextLevelDef(bDef.id)">
-              {{ getLevel(bDef.id) === 0 ? '' : '→ ' }}{{ nextLevelDef(bDef.id).effect }}
+              {{ getLevel(bDef.id) === 0 ? '' : '→ ' }}{{ t('hawkStar.buildings.' + bDef.id + '.lv' + nextLevelDef(bDef.id).level) }}
             </template>
             <template v-else>{{ t('hawkStar.tile.maxLevel') }}</template>
           </div>
@@ -170,7 +170,7 @@ const setConversionCount = (bId, idx, val) => {
           </template>
           <template v-else-if="isBuildingLocked(bDef.id)">
             <span class="hs-status-locked">
-              {{ BUILDINGS[bDef.id].requiresBuilding ? t('hawkStar.tile.lockedRequires', { name: BUILDINGS[BUILDINGS[bDef.id].requiresBuilding]?.name ?? '', level: BUILDINGS[bDef.id].requiresLevel }) : t('hawkStar.tile.lockedGeneric') }}
+              {{ BUILDINGS[bDef.id].requiresBuilding ? t('hawkStar.tile.lockedRequires', { name: t('hawkStar.buildings.' + BUILDINGS[bDef.id].requiresBuilding + '.name'), level: BUILDINGS[bDef.id].requiresLevel }) : t('hawkStar.tile.lockedGeneric') }}
             </span>
           </template>
           <template v-else>
@@ -207,7 +207,7 @@ const setConversionCount = (bId, idx, val) => {
       >
         <div class="hs-conv-queue-bar" :style="conversionProgressStyle(q)" />
         <span class="hs-conv-queue-icon">{{ queueOutputResource(q)?.icon }}</span>
-        <span class="hs-conv-queue-name">{{ queueOutputResource(q)?.name }}</span>
+        <span class="hs-conv-queue-name">{{ queueOutputResource(q) ? t('hawkStar.res.' + queueOutputResource(q).id) : '' }}</span>
         <span class="hs-conv-queue-label">{{ t('hawkStar.tile.convConverting') }}</span>
         <span class="hs-conv-queue-time">{{ formatTime(remainingConversionSec(q)) }}</span>
         <span v-if="q.remaining > 0" class="hs-conv-queue-remaining">{{ t('hawkStar.tile.convQueued', { n: q.remaining }) }}</span>
@@ -237,7 +237,7 @@ const setConversionCount = (bId, idx, val) => {
               v-for="(amt, resId) in recipe.output"
               :key="resId"
               class="hs-conv-res hs-conv-res--out"
-            >{{ RESOURCES[resId]?.icon }} {{ RESOURCES[resId]?.name }}</span>
+            >{{ RESOURCES[resId]?.icon }} {{ t('hawkStar.res.' + resId) }}</span>
           </div>
 
           <!-- Duration + action -->

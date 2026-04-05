@@ -16,7 +16,7 @@ const {
   homeSystem,
 } = useHawkStar()
 
-const collapsed = ref(false)
+const collapsed = ref(true)
 
 // ── Helpers ────────────────────────────────────────────────
 const planetName = (planetId) =>
@@ -239,6 +239,7 @@ const totalCount    = computed(() => doneCount.value + progressCount.value)
   border: 1px solid rgba(100, 130, 220, 0.15);
   background: rgba(255, 255, 255, 0.03);
   overflow: hidden;
+	margin-bottom: 0.875rem;
 
   &--empty {
     border-color: rgba(100, 130, 220, 0.08);

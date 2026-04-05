@@ -1,9 +1,11 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RESOURCES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const { playerResources, production, maxStorage, planetType } = useHawkStar()
+const { t } = useI18n()
 
 const EXCLUDED_IDS = ['population', 'energy']
 
@@ -22,7 +24,7 @@ const allResources = computed(() =>
       >
         <span class="hs-res-panel__icon">{{ res.icon }}</span>
         <div class="hs-res-panel__info">
-          <span class="hs-res-panel__name">{{ res.name }}</span>
+          <span class="hs-res-panel__name">{{ t('hawkStar.res.' + res.id) }}</span>
           <span class="hs-res-panel__amount">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
           <span
             v-if="production[res.id]"

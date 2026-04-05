@@ -117,11 +117,307 @@
       "starMeta": "{cls}-Klasse Stern · {n} Planeten"
     },
 
+    "panel": {
+      "tabActivity": "Aktivitäten",
+      "tabSettings": "Einstellungen"
+    },
+
     "starClass": {
       "G": "Gelber Zwerg",
       "K": "Orangener Zwerg",
       "M": "Roter Zwerg",
       "F": "Weißer Stern"
+    },
+
+    "res": {
+      "population": "Bevölkerung",
+      "metal": "Metall",
+      "crystal": "Kristall",
+      "alloy": "Legierung",
+      "cryo": "Kryonit",
+      "obsidian": "Obsidian",
+      "biomass": "Biomasse",
+      "energy": "Energie",
+      "pure_crystal": "Reinkristall",
+      "super_alloy": "Super-Legierung",
+      "quantum_shard": "Quantumsplitter",
+      "nano_alloy": "Nano-Legierung",
+      "kinetic_round": "Kinetikgeschoss",
+      "plasma_cell": "Plasmakammer",
+      "power_cell": "Power Cell"
+    },
+
+    "tiles": {
+      "base":        { "name": "Basis",          "desc": "Kommandozentrale der Kolonie" },
+      "mining":      { "name": "Abbau",           "desc": "Rohstoffgewinnung" },
+      "energy":      { "name": "Energie",         "desc": "Stromerzeugung" },
+      "techcenter":  { "name": "Techzentrum",     "desc": "Technologieforschung" },
+      "research":    { "name": "Forschung",       "desc": "Globale Technologien — einmal erforscht, auf allen Planeten aktiv" },
+      "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Sonden, Kolonisierungsschiffe und Frachter" },
+      "agriculture": { "name": "Landwirtschaft",  "desc": "Reserviert — noch keine Gebäude" },
+      "defense":     { "name": "Verteidigung",    "desc": "Planetarische Schilde, Waffenplattformen und Frühwarnsysteme" },
+      "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" }
+    },
+
+    "planetTypes": {
+      "terrestrial": { "name": "Terrestrisch", "desc": "Ausgewogener Planet. Alle Standardgebäude verfügbar, keine Spezialvorteile." },
+      "volcanic":    { "name": "Vulkanisch",   "desc": "Metallreich. Spezielle Abbau- & Energiegebäude, eingeschränkte Landwirtschaft." },
+      "frozen":      { "name": "Gefroren",     "desc": "Kristallreicher Permafrost. Spezielle Ausgräber und Kryoforschung." },
+      "ocean":       { "name": "Ozean",        "desc": "Landwirtschaftsparadies. Enormes Bevölkerungspotenzial, schwacher Bergbau." }
+    },
+
+    "warships": {
+      "frigate": {
+        "name": "Hawk-Fregatte",
+        "desc": "Leichtes Kampfschiff. Schnell und wendig mit 1 Antrieb- und 2 Waffenslots."
+      }
+    },
+
+    "buildings": {
+      "command_center": {
+        "name": "Kommandozentrale",
+        "desc": "Das Herz deiner Kolonie. Muss zuerst gebaut werden.",
+        "lv1": "Erstes Gebäude · 1 Arbeiter",
+        "lv2": "Schaltet Techzentrum-Feld frei · +5 Bev. · 2 Energie · 2 Arbeiter",
+        "lv3": "+10 Bev. · 3 Energie · 3 Arbeiter"
+      },
+      "quarters": {
+        "name": "Quartiere",
+        "desc": "Unterkunft für deine wachsende Belegschaft.",
+        "lv1": "+4 max. Bev. · 1 Energie · 1 Arbeiter",
+        "lv2": "+6 max. Bev. · 2 Energie · 1 Arbeiter",
+        "lv3": "+12 max. Bev. · 3 Energie · 2 Arbeiter",
+        "lv4": "+20 max. Bev. · 5 Energie · 3 Arbeiter",
+        "lv5": "+32 max. Bev. · 7 Energie · 4 Arbeiter",
+        "lv6": "+50 max. Bev. · 10 Energie · 5 Arbeiter",
+        "lv7": "+75 max. Bev. · 14 Energie · 7 Arbeiter",
+        "lv8": "+110 max. Bev. · 20 Energie · 10 Arbeiter"
+      },
+      "power_plant": {
+        "name": "Kraftwerk",
+        "desc": "Versorgt die Kolonie mit Energie. Ausbauen, um mehr Gebäude zu unterstützen.",
+        "lv1": "+5 Energie · 1 Arbeiter",
+        "lv2": "+12 Energie · 2 Arbeiter",
+        "lv3": "+25 Energie · 3 Arbeiter",
+        "lv4": "+32 Energie · 3 Arbeiter",
+        "lv5": "+36 Energie · 4 Arbeiter",
+        "lv6": "+40 Energie · 4 Arbeiter"
+      },
+      "metal_mine": {
+        "name": "Metallmine",
+        "desc": "Fördert Metallerz von der Oberfläche.",
+        "lv1": "+2 Metall/s · 300 Lager · 3 Energie · 2 Arbeiter",
+        "lv2": "+5 Metall/s · 700 Lager · 5 Energie · 4 Arbeiter",
+        "lv3": "+12 Metall/s · 1500 Lager · 9 Energie · 6 Arbeiter",
+        "lv4": "+16 Metall/s · 1900 Lager · 9 Energie · 6 Arbeiter",
+        "lv5": "+22 Metall/s · 2500 Lager · 9 Energie · 6 Arbeiter",
+        "lv6": "+28 Metall/s · 3000 Lager · 9 Energie · 6 Arbeiter"
+      },
+      "crystal_drill": {
+        "name": "Kristallbohrer",
+        "desc": "Bohrt tief in Kristalladern.",
+        "lv1": "+1 Kristall/s · 200 Lager · 2 Energie · 2 Arbeiter",
+        "lv2": "+3 Kristall/s · 500 Lager · 4 Energie · 3 Arbeiter",
+        "lv3": "+7 Kristall/s · 1000 Lager · 7 Energie · 5 Arbeiter",
+        "lv4": "+10 Kristall/s · 1300 Lager · 7 Energie · 5 Arbeiter",
+        "lv5": "+15 Kristall/s · 1700 Lager · 7 Energie · 5 Arbeiter",
+        "lv6": "+25 Kristall/s · 2500 Lager · 7 Energie · 5 Arbeiter"
+      },
+      "alloy_forge": {
+        "name": "Legierungsschmiede",
+        "desc": "Verhüttet Metall zu veredelter Legierung. Benötigt Labor Lv 2.",
+        "lv1": "+1 Legierung/s · 150 Lager · 4 Energie · 3 Arbeiter",
+        "lv2": "+3 Legierung/s · 400 Lager · 7 Energie · 5 Arbeiter",
+        "lv3": "+7 Legierung/s · 900 Lager · 12 Energie · 8 Arbeiter",
+        "lv4": "+15 Legierung/s · 2000 Lager · 20 Energie · 12 Arbeiter"
+      },
+      "biomass_collector": {
+        "name": "Biomassesammler",
+        "desc": "Erntet organische Biomasse vom Meeresgrund. Benötigt Labor Lv 2.",
+        "lv1": "+1 Biomasse/s · 150 Lager · 4 Energie · 3 Arbeiter",
+        "lv2": "+3 Biomasse/s · 400 Lager · 7 Energie · 5 Arbeiter",
+        "lv3": "+7 Biomasse/s · 900 Lager · 12 Energie · 8 Arbeiter",
+        "lv4": "+15 Biomasse/s · 2000 Lager · 20 Energie · 12 Arbeiter"
+      },
+      "obsidian_quarry": {
+        "name": "Obsidianbruch",
+        "desc": "Fördert vulkanischen Obsidian aus Lavafeldern. Benötigt Labor Lv 2.",
+        "lv1": "+1 Obsidian/s · 150 Lager · 4 Energie · 3 Arbeiter",
+        "lv2": "+3 Obsidian/s · 400 Lager · 7 Energie · 5 Arbeiter",
+        "lv3": "+7 Obsidian/s · 900 Lager · 12 Energie · 8 Arbeiter",
+        "lv4": "+15 Obsidian/s · 2000 Lager · 20 Energie · 12 Arbeiter"
+      },
+      "cryo_extractor": {
+        "name": "Kryoextraktor",
+        "desc": "Gewinnt Kryonit aus gefrorenen Adern. Benötigt Labor Lv 2.",
+        "lv1": "+1 Kryonit/s · 150 Lager · 4 Energie · 3 Arbeiter",
+        "lv2": "+3 Kryonit/s · 400 Lager · 7 Energie · 5 Arbeiter",
+        "lv3": "+7 Kryonit/s · 900 Lager · 12 Energie · 8 Arbeiter",
+        "lv4": "+15 Kryonit/s · 2000 Lager · 20 Energie · 12 Arbeiter"
+      },
+      "solar_array": {
+        "name": "Solaranlage",
+        "desc": "Gewinnt Solarenergie. Kein Energieverbrauch.",
+        "lv1": "+8 Energie · 1 Arbeiter",
+        "lv2": "+18 Energie · 2 Arbeiter",
+        "lv3": "+38 Energie · 3 Arbeiter"
+      },
+      "cryo_reactor": {
+        "name": "Kryoreaktor",
+        "desc": "Nutzt extreme Kälte für hocheffiziente Energiegewinnung. Nur auf gefrorenen Planeten.",
+        "lv1": "+40 Energie · 2 Arbeiter",
+        "lv2": "+90 Energie · 4 Arbeiter",
+        "lv3": "+180 Energie · 7 Arbeiter"
+      },
+      "alloy_fusion_reactor": {
+        "name": "Legierungs-Fusionsreaktor",
+        "desc": "Fusioniert veredelte Legierung für hocheffiziente Energie. Nur auf terrestrischen Planeten.",
+        "lv1": "+40 Energie · 2 Arbeiter",
+        "lv2": "+90 Energie · 4 Arbeiter",
+        "lv3": "+180 Energie · 7 Arbeiter"
+      },
+      "obsidian_plasma_core": {
+        "name": "Obsidian-Plasmakern",
+        "desc": "Erhitzt Obsidian zu Plasma für massiven Energieausstoß. Nur auf vulkanischen Planeten.",
+        "lv1": "+45 Energie · 2 Arbeiter",
+        "lv2": "+100 Energie · 4 Arbeiter",
+        "lv3": "+200 Energie · 7 Arbeiter"
+      },
+      "biomass_reactor": {
+        "name": "Biomassereaktor",
+        "desc": "Wandelt Biomasse in saubere Dauerenergie um. Nur auf Ozeanplaneten.",
+        "lv1": "+35 Energie · 2 Arbeiter",
+        "lv2": "+80 Energie · 4 Arbeiter",
+        "lv3": "+160 Energie · 7 Arbeiter"
+      },
+      "recon_drone": {
+        "name": "Recon Drone",
+        "desc": "Kurzstreckendrohne, die Planetendetails im Heimatsystem aufdeckt.",
+        "lv1": "1 Planet gleichzeitig erkunden · Standardgeschwindigkeit · 5 Energie · 2 Arbeiter",
+        "lv2": "2 Planeten gleichzeitig · 2× Geschwindigkeit · 8 Energie · 3 Arbeiter",
+        "lv3": "3 Planeten gleichzeitig · 3× Geschwindigkeit · 14 Energie · 5 Arbeiter"
+      },
+      "galaxy_probe": {
+        "name": "Galaxy Probe",
+        "desc": "Startet Langstreckensonden zu entfernten Sternensystemen.",
+        "lv1": "1 Sonde gleichzeitig · zeigt Planetenanzahl · 4 Energie · 2 Arbeiter",
+        "lv2": "2 Sonden gleichzeitig · 2× Reisegeschwindigkeit · 7 Energie · 3 Arbeiter",
+        "lv3": "3 Sonden gleichzeitig · 3× Reisegeschwindigkeit · 12 Energie · 5 Arbeiter"
+      },
+      "star_map": {
+        "name": "Sternenkarte",
+        "desc": "Kartografiert die bekannte Galaxie. Erforderlich für interplanetare Navigation.",
+        "lv1": "Schaltet Sonnensystemansicht frei · 3 Energie · 2 Arbeiter",
+        "lv2": "Schaltet Galaxieansicht frei · nahe Systeme sichtbar · 5 Energie · 3 Arbeiter",
+        "lv3": "Vollständiger Galaxiescan — alle Systeme sichtbar · 9 Energie · 5 Arbeiter"
+      },
+      "space_building": {
+        "name": "Raumfahrttechnologie",
+        "desc": "Fördert Antrieb- und Navigationswissenschaft. Schaltet das Raumhafen-Feld frei.",
+        "lv1": "Schaltet Raumhafen-Feld frei · 6 Energie · 3 Arbeiter",
+        "lv2": "Schaltet Kriegsschiffwerft frei · 10 Energie · 5 Arbeiter"
+      },
+      "laboratory": {
+        "name": "Labor",
+        "desc": "Treibt den wissenschaftlichen Fortschritt voran. Hoher Energieverbrauch.",
+        "lv1": "Schaltet Hightech-Feld frei · 5 Energie · 3 Arbeiter",
+        "lv2": "Schaltet Legierungsschmiede frei · +50% Forschungsgeschwindigkeit · 8 Energie · 5 Arbeiter"
+      },
+      "weapons_building": {
+        "name": "Waffentechnologie",
+        "desc": "Militärische Forschungsabteilung. Schaltet das Verteidigungs-Feld frei.",
+        "lv1": "Schaltet Verteidigungs-Feld frei · grundlegende Waffenbauanleitungen · 5 Energie · 3 Arbeiter"
+      },
+      "colony_ship": {
+        "name": "Kolonisierungsschiff",
+        "desc": "Transportiert Kolonisten zu unbewohnten Planeten im Sonnensystem.",
+        "lv1": "Kolonisiere 1 unbesiedelten Planeten im Heimatsystem · 8 Energie · 4 Arbeiter",
+        "lv2": "Kolonisiere Planeten in angrenzenden Sternensystemen · 14 Energie · 7 Arbeiter",
+        "lv3": "Massenkolonisierungsflotte · erreiche entfernte Systeme · 24 Energie · 12 Arbeiter"
+      },
+      "warship_bay": {
+        "name": "Kriegsschiffwerft",
+        "desc": "Schwere Baudock für Kriegsschiffe. Benötigt Super-Legierung und Reinkristall.",
+        "lv1": "Ermöglicht Kriegsschiffbau · 1 Kriegsschiffslot · 12 Energie · 5 Arbeiter",
+        "lv2": "2× Baugeschwindigkeit · 2 Slots · Feuerkraft +50% · 20 Energie · 8 Arbeiter",
+        "lv3": "4× Baugeschwindigkeit · 3 Slots · Feuerkraft +120% · 35 Energie · 14 Arbeiter"
+      },
+      "freighter_bay": {
+        "name": "Frachterdock",
+        "desc": "Frachterdock zum Bau von Transportschiffen. Benötigt Raumfahrttechnologie Lv 1.",
+        "lv1": "Frachter bauen · 200 Frachtraum · 10 Energie · 5 Arbeiter",
+        "lv2": "500 Frachtraum · 2× Baugeschwindigkeit · 16 Energie · 8 Arbeiter",
+        "lv3": "1000 Frachtraum · 4× Baugeschwindigkeit · 28 Energie · 14 Arbeiter"
+      },
+      "geothermal_tap": {
+        "name": "Geothermiezapfstelle",
+        "desc": "Nutzt vulkanische Wärme für günstige, zuverlässige Energiegewinnung.",
+        "lv1": "+10 Energie · 1 Arbeiter",
+        "lv2": "+24 Energie · 2 Arbeiter",
+        "lv3": "+50 Energie · 3 Arbeiter"
+      },
+      "tidal_generator": {
+        "name": "Gezeitengenerator",
+        "desc": "Gewinnt kinetische Energie aus Meeresgezeiten. Günstig und zuverlässig.",
+        "lv1": "+9 Energie · 1 Arbeiter",
+        "lv2": "+20 Energie · 2 Arbeiter",
+        "lv3": "+42 Energie · 3 Arbeiter"
+      },
+      "alloy_refinery": {
+        "name": "Legierungsraffinerie",
+        "desc": "Fusioniert Metall und Legierung zu Super-Legierung. Nur auf terrestrischen Planeten.",
+        "lv1": "Schaltet Super-Legierungsproduktion frei · 6 Energie · 3 Arbeiter",
+        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
+        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+      },
+      "obsidian_foundry": {
+        "name": "Obsidianschmelze",
+        "desc": "Erhitzt Obsidian und Kristall zu Quantumsplittern. Nur auf vulkanischen Planeten.",
+        "lv1": "Schaltet Quantumsplitter-Produktion frei · 6 Energie · 3 Arbeiter",
+        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
+        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+      },
+      "cryo_refinery": {
+        "name": "Kryoraffinerie",
+        "desc": "Reinigt Kristall mithilfe von Kryonit zu Reinkristall. Nur auf gefrorenen Planeten.",
+        "lv1": "Schaltet Reinkristall-Produktion frei · 6 Energie · 3 Arbeiter",
+        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
+        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+      },
+      "bio_lab": {
+        "name": "Biolabor",
+        "desc": "Synthetisiert Biomasse und Metall zu Nano-Legierung. Nur auf Ozeanplaneten.",
+        "lv1": "Schaltet Nano-Legierungsproduktion frei · 6 Energie · 3 Arbeiter",
+        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
+        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+      },
+      "power_cell_lab": {
+        "name": "Power-Cell-Labor",
+        "desc": "Produziert universelle Energiezellen für Raumschiffe.",
+        "lv1": "Power Cells produzieren · 5 Energie · 3 Arbeiter",
+        "lv2": "Schnellere Produktion · 8 Energie · 4 Arbeiter",
+        "lv3": "Maximale Ausgabe · 12 Energie · 6 Arbeiter"
+      },
+      "shield_generator": {
+        "name": "Schildgenerator",
+        "desc": "Projiziert eine Energiebarriere um den Planeten.",
+        "lv1": "Basisschild — absorbiert 20% eingehenden Schaden · 8 Energie · 3 Arbeiter",
+        "lv2": "Verstärkter Schild — absorbiert 40% eingehenden Schaden · 15 Energie · 5 Arbeiter",
+        "lv3": "Festungsschild — absorbiert 60% eingehenden Schaden · 25 Energie · 8 Arbeiter"
+      },
+      "crystal_deflector": {
+        "name": "Kristall-Deflektormatrix",
+        "desc": "Reinkristall-Gitter, das eingehende Energie vom Planeten ablenkt.",
+        "lv1": "Kristallschild — absorbiert 70% eingehenden Schaden · 18 Energie · 4 Arbeiter",
+        "lv2": "Resonanzschild — absorbiert 85% eingehenden Schaden · 30 Energie · 6 Arbeiter",
+        "lv3": "Phasenmatrix — absorbiert 95% · reflektiert 20% zurück · 50 Energie · 10 Arbeiter"
+      },
+      "weapon_lab": {
+        "name": "Waffenlabor",
+        "desc": "Militärische Forschungsanlage. Synthetisiert Waffenmunition für Kriegsschiffe.",
+        "lv1": "Schaltet Kinetikgeschoss-Produktion frei · 8 Energie · 4 Arbeiter",
+        "lv2": "2× Durchsatz · schaltet Plasmakammer-Produktion frei · 16 Energie · 7 Arbeiter"
+      }
     }
   }
 }
