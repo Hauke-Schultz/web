@@ -348,7 +348,7 @@ const totalCount    = computed(() => doneCount.value + progressCount.value)
 
 .hs-notif-item-text {
   display: flex;
-	gap: 1rem;
+	gap: 0 1rem;
 	min-width: 0;
 	justify-content: space-between;
 	align-items: flex-end;

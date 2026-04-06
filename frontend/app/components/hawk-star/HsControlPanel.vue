@@ -70,7 +70,6 @@ const activeTab = ref('activity')
 }
 
 .hs-cp-tab {
-  flex: 1;
   padding: 0.45rem 0.75rem;
   background: none;
   border: none;
@@ -83,6 +82,8 @@ const activeTab = ref('activity')
   text-transform: uppercase;
   transition: color 0.15s, border-color 0.15s;
   margin-bottom: -1px;
+	display: flex;
+	gap: 0.5rem;
 
   &:hover { color: rgba(255, 255, 255, 0.7); }
 
