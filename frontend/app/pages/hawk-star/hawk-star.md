@@ -263,36 +263,7 @@ When the game is closed and reopened, the engine calculates how many production 
 
 The settings panel (`HsSettingsPanel`) exposes two tuning controls: **Tick Rate (ms)** adjusts how often the game tick fires, and **Build Time Factor** scales all build durations globally (buildings, ships, conversions). Values are saved to `hawk-star-dev` in localStorage independently of the game save. The goal is to find balanced build times where level 1 buildings feel fast and higher levels scale up noticeably.
 
-### Implementation Status
-
-| Feature                                       | Status |
-|-----------------------------------------------|--------|
-| Planet grid, slot unlocks                     | ✅ Done |
-| Buildings (all types)                         | ✅ Done |
-| Energy & staff system                         | ✅ Done |
-| Resources + storage caps                      | ✅ Done |
-| High-Tech conversions                         | ✅ Done |
-| Recon Drones                                  | ✅ Done |
-| Galaxy Probes                                 | ✅ Done |
-| Colony Ships                                  | ✅ Done |
-| Warships (Hawk Frigate, Drive + Weapon slots) | ✅ Done |
-| Freighter transport                           | ✅ Done |
-| Galaxy Map (simplified, all systems visible)  | ✅ Done |
-| Solar System view                             | ✅ Done |
-| Dev mode — tick rate & build time factor      | ✅ Done |
-| Notification Panel                            | ✅ Done |
-| Localisation (i18n) — all components           | ✅ Done |
-| Backend — User login & registration           | ⬜ Planned |
-| Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
-| Backend — Handel & Kommunikation (Phase 2)    | ⬜ Planned |
-| Backend — Ausspionieren (Phase 3)             | ⬜ Planned |
-| Backend — Kampf (Phase 4)                     | ⬜ Planned |
-
-See `hawk-star-backend.md` for the full backend & multiplayer concept.
-
----
-
-## Localisation (i18n)
+### Localisation (i18n)
 
 Uses **`@nuxtjs/i18n`** with `defaultLocale: 'de'` and `strategy: 'prefix_except_default'`. Translation files:
 
@@ -322,3 +293,65 @@ All Hawk-Star keys live under `hawkStar.*`:
 **Language switcher:** `HsLangSwitcher.vue` uses `setLocale()` (no page reload), embedded in `HsNavBar`.
 
 **Not yet translated:** Building/resource names in `hawkStarConfig.js` — planned after backend (names will come from DB).
+
+### Implementation Status
+
+| Feature                                       | Status |
+|-----------------------------------------------|--------|
+| Planet grid, slot unlocks                     | ✅ Done |
+| Buildings (all types)                         | ✅ Done |
+| Energy & staff system                         | ✅ Done |
+| Resources + storage caps                      | ✅ Done |
+| High-Tech conversions                         | ✅ Done |
+| Recon Drones                                  | ✅ Done |
+| Galaxy Probes                                 | ✅ Done |
+| Colony Ships                                  | ✅ Done |
+| Warships (Hawk Frigate, Drive + Weapon slots) | ✅ Done |
+| Freighter transport                           | ✅ Done |
+| Galaxy Map (simplified, all systems visible)  | ✅ Done |
+| Solar System view                             | ✅ Done |
+| Dev mode — tick rate & build time factor      | ✅ Done |
+| Notification Panel                            | ✅ Done |
+| Localisation (i18n) — all components           | ✅ Done |
+| Backend — User login & registration           | ⬜ Planned |
+| Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
+| Backend — Handel & Kommunikation (Phase 2)    | ⬜ Planned |
+| Backend — Ausspionieren (Phase 3)             | ⬜ Planned |
+| Backend — Kampf (Phase 4)                     | ⬜ Planned |
+
+See `hawk-star-backend.md` for the full backend & multiplayer concept.
+
+### Notes
+
+# Agriculture-Gebäude
+
+Das Agriculture-Tile existiert, ist freigeschaltet (slot 7), aber hat null Gebäude. Ocean-Planeten sind als "Farming paradise, enormous population potential" beschrieben — das
+wäre der Ort für Bevölkerungs-/Food-Gebäude.
+
+# Research-Gebäude-Effekte implementieren
+
+star_map, command_center und andere Research-Gebäude haben effect-Felder wie "+50% research speed", aber diese Werte fließen nirgendwo ein — sie sind nur Text. Entweder die
+Effekte tatsächlich implementieren oder die irreführenden effect-Strings entfernen/korrigieren.
+
+# Balancing-Pass
+
+Bevor Backend kommt, sollten die Zahlen stimmen: Bauzeiten, Kosten, Produktionsraten, Storage-Caps. Am besten einmal durchspielen und alle Dev-Einstellungen aufschreiben, die
+sich "richtig" anfühlen — sonst baut das Backend auf unbalancierten Daten auf.
+
+# Fog of War / Sichtbarkeit
+
+Galaxy Map zeigt aktuell alle 9 Systeme immer vollständig. Das Konzept sieht eigentlich vor, dass man Systeme erst sondieren muss. Das könnte lokal vollständig umgesetzt werden,
+bevor der Backend-State das übernimmt.
+
+# Einfaches lokales Kampfsystem
+
+Warships werden gebaut, ausgerüstet — aber es passiert nichts mit ihnen. Zumindest ein simpulierter PvE-Kampf (Angriff auf Mock-Enemy-Planeten) würde den Gameplay-Loop schließen
+und das Kampfsystem vor dem Backend definieren.
+
+# Colony Projects (Queue kleiner Aufgaben)                                                                                                                                      
+
+Eine kurze Warteschlange mit 30s–3min-Aufgaben: "Recrute Kolonisten" (+1 Pop), "Vorräte aufbauen" (+30 Metal), "Reparaturtrupp" (reduziert Bauzeit des nächsten Gebäudes). Jedes
+
+# Schwarzmarkt / Barter
+Konvertiere überschüssige Ressourcen schnell zu anderen — aber zu schlechtem Kurs (3:1 oder 4:1). Metal → Crystal, Crystal → Alloy etc. Kein langer Build, nur ein Klick + kurze
+
