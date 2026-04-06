@@ -931,11 +931,12 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 14
+const SAVE_VERSION = 15
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
     version:               SAVE_VERSION,
+    savedAt:               Date.now(),
     playerName:            playerName.value,
     systemName:            systemName.value,
     homeSystemId:          homeSystemId.value,
@@ -1032,6 +1033,15 @@ const loadGame = () => {
     if (Array.isArray(data.playerProbedSystems))     playerProbedSystems.value    = data.playerProbedSystems
     if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
     if (Array.isArray(data.notifications))           notifications.value          = data.notifications
+
+    // Offline production — apply missed ticks since last save
+    if (data.savedAt) {
+      const offlineMs    = Math.min(Date.now() - data.savedAt, MAX_OFFLINE_MS)
+      const offlineTicks = Math.floor(offlineMs / tickRateMs.value)
+      applyOfflineProduction(offlineTicks)
+    }
+    // Prevent first live tick from double-firing production
+    lastProdAt = Date.now()
   } catch (e) {
     console.warn('[hawk-star] Failed to load save:', e)
   }
@@ -1045,6 +1055,56 @@ export const resetGame = () => {
 export const completeSetup = (name) => {
   playerName.value = name.trim()
   saveGame()
+}
+
+// ── Offline production ─────────────────────────────────────
+const MAX_OFFLINE_MS = 24 * 60 * 60 * 1000
+
+const applyOfflineProduction = (ticks) => {
+  if (ticks <= 0) return
+
+  for (const [, pstate] of Object.entries(allPlanetStates.value)) {
+    const pb = pstate.buildings
+    const pr = pstate.resources
+
+    // Gross production per tick
+    const prod = {}
+    for (const [id, state] of Object.entries(pb)) {
+      if (state.level === 0) continue
+      const levelDef = BUILDINGS[id]?.levels[state.level - 1]
+      for (const [res, amt] of Object.entries(levelDef?.production ?? {})) {
+        prod[res] = (prod[res] ?? 0) + amt
+      }
+    }
+
+    // Energy drain
+    let energyDrain = 0
+    for (const [id, state] of Object.entries(pb)) {
+      const lvl = effectiveLevel(state)
+      if (lvl === 0) continue
+      energyDrain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
+    }
+
+    // Storage caps
+    const caps = { ...BASE_STORAGE }
+    for (const [id, state] of Object.entries(pb)) {
+      if (state.level === 0) continue
+      const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
+      for (const [res, cap] of Object.entries(storage)) {
+        caps[res] = (caps[res] ?? 0) + cap
+      }
+    }
+
+    // Net production (energy goes negative but is floored at 0, not stockpiled)
+    const net = { ...prod, energy: (prod.energy ?? 0) - energyDrain }
+    for (const [res, amt] of Object.entries(net)) {
+      if (res === 'energy') continue
+      if (amt === 0) continue
+      const cap = caps[res]
+      const newVal = Math.max(0, (pr[res] ?? 0) + amt * ticks)
+      pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
+    }
+  }
 }
 
 // ── Tick ───────────────────────────────────────────────────

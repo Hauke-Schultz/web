@@ -255,9 +255,13 @@ Player state (resources, slot unlock status, building progress) is currently per
 - A version guard discards outdated saves automatically.
 - `allPlanetStates` is the core state object — keyed by `planetId`, each entry holds resources, buildings, dock, and conversion queues for that planet.
 
+### Offline Production
+
+When the game is closed and reopened, the engine calculates how many production ticks were missed while offline and applies them all at once on load, before the first live tick fires. The save file stores `savedAt` (the timestamp of the last save). On load, `offlineTicks = floor((now - savedAt) / tickRateMs)` is computed and capped at 24 hours. Per-planet offline production mirrors the live tick logic exactly: gross output per building level × ticks, energy deficit handled (negative net energy floors resources at 0), storage caps applied. Buildings/ships/missions that completed while offline are resolved on the first live tick as normal — their endsAt timestamps are in the past, so the tick loop completes them immediately.
+
 ### Dev Mode
 
-A persistent dev panel at the bottom of the game page exposes two tuning controls: **Tick Rate (ms)** adjusts how often the game tick fires, and **Build Time Factor** scales all build durations globally (buildings, ships, conversions). Values are saved to `hawk-star-dev` in localStorage independently of the game save. The goal is to find balanced build times where level 1 buildings feel fast and higher levels scale up noticeably.
+The settings panel (`HsSettingsPanel`) exposes two tuning controls: **Tick Rate (ms)** adjusts how often the game tick fires, and **Build Time Factor** scales all build durations globally (buildings, ships, conversions). Values are saved to `hawk-star-dev` in localStorage independently of the game save. The goal is to find balanced build times where level 1 buildings feel fast and higher levels scale up noticeably.
 
 ### Implementation Status
 
