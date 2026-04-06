@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { BUILDINGS } from '~/utils/hawkStarConfig.js'
@@ -15,8 +15,6 @@ const {
   formatTime,
   homeSystem,
 } = useHawkStar()
-
-const collapsed = ref(true)
 
 // ── Helpers ────────────────────────────────────────────────
 const planetName = (planetId) =>
@@ -177,17 +175,7 @@ const totalCount    = computed(() => doneCount.value + progressCount.value)
 
 <template>
   <div class="hs-notif" :class="{ 'hs-notif--empty': totalCount === 0 }">
-    <!-- Header -->
-    <button class="hs-notif-header" @click="collapsed = !collapsed">
-      <span class="hs-notif-title">
-        {{ t('hawkStar.notifications.header') }}
-        <span v-if="progressCount > 0" class="hs-notif-badge hs-notif-badge--active">{{ progressCount }} {{ t('hawkStar.notifications.badgeActive') }}</span>
-        <span v-if="doneCount > 0" class="hs-notif-badge hs-notif-badge--done">{{ doneCount }} {{ t('hawkStar.notifications.badgeDone') }}</span>
-      </span>
-      <span class="hs-notif-toggle">{{ collapsed ? '▸' : '▾' }}</span>
-    </button>
-
-    <div v-if="!collapsed" class="hs-notif-body">
+    <div class="hs-notif-body">
       <!-- Done notifications -->
       <div
         v-for="n in notifications"
@@ -231,49 +219,18 @@ const totalCount    = computed(() => doneCount.value + progressCount.value)
   </div>
 </template>
 
+
 <style lang="scss" scoped>
 .hs-notif {
   width: 100%;
-  max-width: 52rem;
   border-radius: var(--hs-r-md, 0.5rem);
   border: 1px solid rgba(100, 130, 220, 0.15);
   background: rgba(255, 255, 255, 0.03);
   overflow: hidden;
-	margin-bottom: 0.875rem;
 
   &--empty {
     border-color: rgba(100, 130, 220, 0.08);
   }
-}
-
-.hs-notif-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.45rem 0.75rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  transition: color 0.15s;
-
-  &:hover { color: rgba(255, 255, 255, 0.8); }
-}
-
-.hs-notif-title {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.hs-notif-toggle {
-  font-size: 0.65rem;
-  opacity: 0.5;
 }
 
 .hs-notif-badge {
@@ -300,7 +257,6 @@ const totalCount    = computed(() => doneCount.value + progressCount.value)
   display: flex;
   flex-direction: column;
   gap: 1px;
-  border-top: 1px solid rgba(100, 130, 220, 0.1);
 }
 
 .hs-notif-item {

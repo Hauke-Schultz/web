@@ -1,0 +1,182 @@
+<script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useHawkStar } from '~/composables/useHawkStar.js'
+import { BUILDINGS } from '~/utils/hawkStarConfig.js'
+import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
+
+const props = defineProps({
+  activePanel: { type: String, default: null },
+})
+const emit = defineEmits(['update:activePanel'])
+
+const { t } = useI18n()
+const {
+  allPlanetStates,
+  notifications,
+  now,
+  activePlanetId,
+  planetHasDock,
+  homeSystem,
+} = useHawkStar()
+
+// ── Badge counts (mirrors HsNotificationPanel logic) ──────────────────────────
+const planetName = (planetId) =>
+  allPlanetStates.value[planetId]?.planetName
+  ?? homeSystem.value?.planets.find(p => p.id === planetId)?.name
+  ?? planetId
+
+const remSec = (endsAt) => Math.max(0, Math.ceil((endsAt - now.value) / 1000))
+
+const inProgressCount = computed(() => {
+  let count = 0
+  for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
+    for (const bstate of Object.values(pstate.buildings ?? {})) {
+      if (bstate.buildEndsAt) count++
+    }
+    const dock = pstate.dock
+    if (dock) {
+      const shipKeys = ['reconDroneBuild','galaxyProbeBuild','colonyShipBuild','warshipBuild','freighterBuild']
+      for (const key of shipKeys) { if (dock[key]) count++ }
+      count += (dock.activeDroneMissions?.length ?? 0)
+      count += (dock.activeGalaxyProbes?.length ?? 0)
+      count += (dock.activeColonyMissions?.length ?? 0)
+      count += (dock.activeFreighterMissions?.length ?? 0)
+    }
+    count += (pstate.conversionQueues?.length ?? 0)
+  }
+  return count
+})
+
+const doneCount = computed(() => notifications.value.length)
+const totalNotifCount = computed(() => inProgressCount.value + doneCount.value)
+
+// ── Dock unlock ───────────────────────────────────────────────────────────────
+const dockUnlocked = computed(() => planetHasDock(activePlanetId.value))
+
+// ── Tile toggle ───────────────────────────────────────────────────────────────
+const toggle = (panel) => {
+  if (panel === 'dock' && !dockUnlocked.value) return
+  emit('update:activePanel', props.activePanel === panel ? null : panel)
+}
+</script>
+
+<template>
+  <div class="hs-panel-tiles">
+    <!-- Notification tile -->
+    <button
+      class="hs-panel-tile"
+      :class="{ 'hs-panel-tile--active': activePanel === 'notifications' }"
+      @click="toggle('notifications')"
+    >
+      <span class="hs-panel-tile-icon">🔔</span>
+      <span class="hs-panel-tile-label">{{ t('hawkStar.panel.tabActivity') }}</span>
+      <span v-if="inProgressCount > 0" class="hs-notif-badge hs-notif-badge--active">{{ inProgressCount }}</span>
+      <span v-if="doneCount > 0" class="hs-notif-badge hs-notif-badge--done">{{ doneCount }}</span>
+    </button>
+
+    <!-- Settings tile -->
+    <button
+      class="hs-panel-tile"
+      :class="{ 'hs-panel-tile--active': activePanel === 'settings' }"
+      @click="toggle('settings')"
+    >
+      <span class="hs-panel-tile-icon">⚙️</span>
+      <span class="hs-panel-tile-label">{{ t('hawkStar.panel.tabSettings') }}</span>
+    </button>
+
+    <!-- Dock tile -->
+    <button
+      class="hs-panel-tile"
+      :class="{
+        'hs-panel-tile--active': activePanel === 'dock',
+        'hs-panel-tile--locked': !dockUnlocked,
+      }"
+      :disabled="!dockUnlocked"
+      @click="toggle('dock')"
+    >
+      <span class="hs-panel-tile-icon">🚀</span>
+      <span class="hs-panel-tile-label">{{ t('hawkStar.panel.tabDock') }}</span>
+      <span v-if="!dockUnlocked" class="hs-panel-tile-lock">🔒</span>
+    </button>
+  </div>
+</template>
+
+<style lang="scss" scoped>
+.hs-panel-tiles {
+  display: flex;
+  gap: 0.375rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.hs-panel-tile {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(100, 130, 220, 0.15);
+  border-radius: var(--hs-r-md, 0.5rem);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+
+  &:hover:not(:disabled) {
+    color: rgba(255, 255, 255, 0.75);
+    border-color: rgba(100, 130, 220, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &--active {
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(100, 130, 220, 0.5);
+    background: rgba(100, 130, 220, 0.1);
+  }
+
+  &--locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.hs-panel-tile-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.hs-panel-tile-label {
+  white-space: nowrap;
+}
+
+.hs-panel-tile-lock {
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+.hs-notif-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.3rem;
+  border-radius: 999px;
+  letter-spacing: 0;
+
+  &--active {
+    background: rgba(80, 140, 255, 0.15);
+    color: rgba(120, 180, 255, 0.9);
+    border: 1px solid rgba(80, 140, 255, 0.25);
+  }
+
+  &--done {
+    background: rgba(80, 220, 120, 0.15);
+    color: rgba(80, 220, 120, 0.9);
+    border: 1px solid rgba(80, 220, 120, 0.25);
+  }
+}
+</style>

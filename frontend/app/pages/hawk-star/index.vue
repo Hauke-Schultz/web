@@ -1,5 +1,5 @@
 <script setup>
-import {computed, ref, watchEffect} from 'vue'
+import { ref, watchEffect } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
 import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
@@ -10,7 +10,9 @@ import HsGalaxyMap from '~/components/hawk-star/HsGalaxyMap.vue'
 import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
 import HsPlanetHeader from '~/components/hawk-star/HsPlanetHeader.vue'
 import HsDockPanel from "~/components/hawk-star/HsDockPanel.vue";
-import HsControlPanel from "~/components/hawk-star/HsControlPanel.vue";
+import HsPanelTiles from "~/components/hawk-star/HsPanelTiles.vue";
+import HsNotificationPanel from "~/components/hawk-star/HsNotificationPanel.vue";
+import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
@@ -19,8 +21,9 @@ onUnmounted(stopTick)
 
 const { starMapLevel, isFirstRun } = useHawkStar()
 
-const currentView = ref('planet')
-const setupName   = ref('')
+const currentView  = ref('planet')
+const activePanel  = ref('notifications')
+const setupName    = ref('')
 
 const submitSetup = () => {
   const name = setupName.value.trim()
@@ -49,10 +52,14 @@ watchEffect(() => {
 
     <div class="hs-main">
       <template v-if="currentView === 'planet'">
-        <HsPlanetGrid />
+        <div class="hs-planet-wrap">
+          <HsPanelTiles v-model:activePanel="activePanel" />
+          <HsPlanetGrid />
+        </div>
         <div class="hs-grid-right">
-          <HsControlPanel />
-          <HsDockPanel />
+          <HsNotificationPanel v-if="activePanel === 'notifications'" />
+          <HsSettingsPanel v-else-if="activePanel === 'settings'" />
+          <HsDockPanel v-else-if="activePanel === 'dock'" />
           <HsTilePanel />
         </div>
       </template>
@@ -182,6 +189,17 @@ watchEffect(() => {
   &--disabled, &:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+  }
+}
+
+.hs-planet-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: auto;
+    flex-shrink: 0;
   }
 }
 

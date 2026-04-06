@@ -115,7 +115,8 @@
 
     "panel": {
       "tabActivity": "Activity",
-      "tabSettings": "Settings"
+      "tabSettings": "Settings",
+      "tabDock": "Dock"
     },
 
     "starClass": {

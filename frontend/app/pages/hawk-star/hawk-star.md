@@ -238,13 +238,15 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `HsResourceBar` | Resource bar shown at top of all views |
 | `HsPlanetGrid` | 3×3 slot grid for the active planet |
 | `HsTilePanel` | Buildings & High-Tech conversions for the selected slot |
-| `HsDockPanel` | Space Base tab — build & manage all ship types |
+| `HsDockPanel` | Space Base panel — build & manage all ship types; shown in right column when Dock tile is active |
 | `HsSolarSystem` | Home system view — all planets, drone & colony actions |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type header |
 | `HsAllResourcePanel` | Full resource breakdown panel |
-| `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
-| `HsLangSwitcher` | In-game EN/DE language toggle — uses `setLocale()`, embedded in HsNavBar |
+| `HsPanelTiles` | Three tiles above the planet grid — **Notification** (shows `hs-notif-badge` counts), **Settings**, **Dock** (locked if active planet has no Space Base). Clicking a tile sets the active right panel; clicking the active tile deactivates it. |
+| `HsNotificationPanel` | Live activity feed body — buildings/ships in progress + completed events (persistent until dismissed). Shown in right column when Notification tile is active. |
+| `HsSettingsPanel` | Language switcher + dev tuning controls (tick rate, build factor). Shown in right column when Settings tile is active. |
+| `HsLangSwitcher` | In-game EN/DE language toggle — uses `setLocale()`, embedded in HsSettingsPanel |
 
 ### State & Persistence
 
