@@ -1,0 +1,338 @@
+{
+  "player": {
+    "name": "Player",
+    "avatar": "avatar/user",
+    "level": 1,
+    "experience": 100,
+    "totalScore": 34281,
+    "gamesPlayed": 7,
+    "coins": 6628,
+    "diamonds": 62,
+    "createdAt": "2026-04-06",
+    "lastPlayed": "2026-04-06",
+    "inventory": {
+      "items": {
+        "regular_glasses": {
+          "id": "regular_glasses",
+          "quantity": 1,
+          "purchasedAt": "2026-04-06T21:28:04.239Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "common",
+          "name": "Smart Glasses"
+        },
+        "friendship_ring": {
+          "id": "friendship_ring",
+          "quantity": 1,
+          "purchasedAt": "2026-04-06T21:28:14.061Z",
+          "type": "cosmetic",
+          "category": "gifts",
+          "rarity": "rare",
+          "name": "Friendship Ring"
+        },
+        "hammer_powerup": {
+          "id": "hammer_powerup",
+          "quantity": 1,
+          "purchasedAt": "2026-04-06T21:28:20.418Z",
+          "type": "consumable",
+          "category": "items",
+          "rarity": "common",
+          "name": "Fruit Hammer"
+        }
+      },
+      "equipped": {
+        "avatar": "avatar/user",
+        "theme": "default",
+        "frame": null
+      },
+      "activeBoosts": [],
+      "consumables": {}
+    },
+    "gifts": {
+      "sentToday": 0,
+      "receivedToday": 0,
+      "lastSentDate": "2026-04-06",
+      "lastReceivedDate": "2023-01-01",
+      "sentGifts": [],
+      "receivedGifts": []
+    }
+  },
+  "currency": {
+    "transactions": [],
+    "dailyRewards": {
+      "lastClaimed": "2026-04-06",
+      "counter": 1,
+      "selectedGame": null
+    },
+    "mysteryBoxes": {
+      "lastClaimed": "2023-01-01",
+      "totalClaimed": 0,
+      "lastClaimedCounter": 0,
+      "pendingMysteryBox": null
+    },
+    "milestones": {
+      "achievementCategories": {
+        "general": {
+          "completed": 0,
+          "total": 0,
+          "rewardClaimed": false
+        },
+        "gaming": {
+          "completed": 0,
+          "total": 0,
+          "rewardClaimed": false
+        },
+        "progress": {
+          "completed": 0,
+          "total": 0,
+          "rewardClaimed": false
+        },
+        "special": {
+          "completed": 0,
+          "total": 0,
+          "rewardClaimed": false
+        }
+      }
+    },
+    "statistics": {
+      "totalEarned": {
+        "coins": 0,
+        "diamonds": 0
+      },
+      "totalSpent": {
+        "coins": 0,
+        "diamonds": 0
+      },
+      "largestSingleReward": {
+        "coins": 0,
+        "diamonds": 0,
+        "source": ""
+      },
+      "favoriteEarningMethod": "",
+      "earningMethods": {
+        "achievements": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "levelCompletion": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "dailyRewards": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "perfectGames": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "combos": {
+          "coins": 0,
+          "diamonds": 0
+        }
+      }
+    }
+  },
+  "settings": {
+    "theme": "dark",
+    "soundEnabled": true,
+    "musicEnabled": true,
+    "language": "en",
+    "fontSize": "medium"
+  },
+  "games": {
+    "memory": {
+      "highScore": 889,
+      "totalScore": 1241,
+      "gamesPlayed": 2,
+      "bestTime": 8,
+      "averageTime": 20,
+      "maxCombo": 6,
+      "stars": 3,
+      "levels": {
+        "1": {
+          "completed": true,
+          "highScore": 352,
+          "bestTime": 8,
+          "bestMoves": 3,
+          "stars": 2,
+          "attempts": 1,
+          "bestPerformance": {
+            "score": 352,
+            "time": 8,
+            "moves": 3,
+            "stars": 2,
+            "performanceScore": 373.75,
+            "achievedAt": "2026-04-06T21:19:22.302Z"
+          }
+        },
+        "2": {
+          "completed": true,
+          "highScore": 889,
+          "bestTime": 31,
+          "bestMoves": 10,
+          "stars": 3,
+          "attempts": 1,
+          "bestPerformance": {
+            "score": 889,
+            "time": 31,
+            "moves": 10,
+            "stars": 3,
+            "performanceScore": 689.15,
+            "achievedAt": "2026-04-06T21:19:58.844Z"
+          }
+        }
+      }
+    },
+    "hawkFruit": {
+      "highScore": 27242,
+      "totalScore": 56008,
+      "gamesPlayed": 4,
+      "maxLevel": 2,
+      "totalMerges": 69,
+      "maxCombo": 4,
+      "stars": 2,
+      "completedLevels": 2,
+      "levels": {
+        "1": {
+          "completed": true,
+          "highScore": 295,
+          "bestTime": null,
+          "bestMoves": 11,
+          "stars": 1,
+          "attempts": 1,
+          "bestPerformance": {
+            "score": 295,
+            "moves": 11,
+            "stars": 1,
+            "performanceScore": 190.35,
+            "achievedAt": "2026-04-06T21:04:16.535Z"
+          }
+        },
+        "2": {
+          "completed": true,
+          "highScore": 1229,
+          "bestTime": null,
+          "bestMoves": 23,
+          "stars": 1,
+          "attempts": 1,
+          "bestPerformance": {
+            "score": 1229,
+            "moves": 23,
+            "stars": 1,
+            "performanceScore": 748.9499999999999,
+            "achievedAt": "2026-04-06T21:04:40.821Z"
+          }
+        },
+        "6": {
+          "completed": true,
+          "highScore": 27242,
+          "bestTime": 68,
+          "bestMoves": 102,
+          "stars": 2,
+          "attempts": 1,
+          "bestPerformance": {
+            "score": 27242,
+            "time": 68,
+            "moves": 102,
+            "stars": 2,
+            "performanceScore": 16478.199999999997,
+            "achievedAt": "2026-04-06T21:21:22.792Z"
+          }
+        }
+      }
+    },
+    "hawkDoubleUp": {
+      "highScore": 4274,
+      "totalScore": 4274,
+      "gamesPlayed": 1,
+      "maxLevel": 1,
+      "totalMerges": 73,
+      "maxCombo": 73,
+      "stars": 3,
+      "completedLevels": 1,
+      "levels": {
+        "1": {
+          "completed": true,
+          "highScore": 4274,
+          "bestTime": null,
+          "bestMoves": 81,
+          "stars": 3,
+          "attempts": 1,
+          "bestPerformance": {
+            "score": 4274,
+            "moves": 81,
+            "stars": 3,
+            "performanceScore": 2567.25,
+            "achievedAt": "2026-04-06T21:05:38.618Z"
+          }
+        }
+      }
+    },
+    "hawkTower": {
+      "highScore": 0,
+      "totalScore": 0,
+      "gamesPlayed": 0,
+      "maxLevel": 1,
+      "totalStacks": 0,
+      "totalPerfectStacks": 0,
+      "bestCombo": 0,
+      "maxCombo": 0,
+      "stars": 0,
+      "completedLevels": 0,
+      "levels": {}
+    }
+  },
+  "cardStates": {
+    "dailyRewardCard": {
+      "read": true,
+      "lastShown": null,
+      "readAt": "2026-04-06T21:04:01.284Z"
+    }
+  },
+  "achievements": [
+    {
+      "id": "hawkFruit_beginner",
+      "name": "Fruit Beginner",
+      "description": "Completed first hawkFruit level",
+      "category": "hawkFruit",
+      "icon": "hawk-fruit",
+      "rarity": "common",
+      "rewards": {
+        "coins": 100,
+        "diamonds": 1
+      },
+      "trigger": {
+        "type": "level_complete",
+        "game": "hawkFruit",
+        "level": 1
+      },
+      "earned": true,
+      "earnedAt": "2026-04-06T21:04:16.536Z"
+    },
+    {
+      "id": "first_game",
+      "name": "First Game",
+      "description": "Played your first game",
+      "category": "general",
+      "icon": "play",
+      "rarity": "common",
+      "rewards": {
+        "coins": 100,
+        "diamonds": 1
+      },
+      "trigger": {
+        "type": "auto",
+        "condition": "gamesPlayed >= 1"
+      },
+      "earned": true,
+      "earnedAt": "2026-04-06T21:04:16.536Z"
+    }
+  ],
+  "notifications": {
+    "unreadCount": 0,
+    "items": [],
+    "lastUpdated": "2026-04-06T21:28:24.592Z"
+  },
+  "version": "1.1"
+}

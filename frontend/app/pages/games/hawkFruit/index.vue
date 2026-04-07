@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
-import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG } from '~/utils/hawkFruitConfig.js'
+import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG, RAINBOW_FRUIT_CONFIG } from '~/utils/hawkFruitConfig.js'
+import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 const { locale } = useI18n()
 
 definePageMeta({ hideHeader: true })
@@ -19,8 +20,9 @@ const toDataUrl     = (svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`
 const clamp         = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
 // ── Special fruit shorthands (from config) ────────────────
-const BOMB = FRUIT_TYPES.BOMB_FRUIT
-const MOLD = FRUIT_TYPES.MOLD_FRUIT
+const BOMB    = FRUIT_TYPES.BOMB_FRUIT
+const MOLD    = FRUIT_TYPES.MOLD_FRUIT
+const RAINBOW = FRUIT_TYPES.RAINBOW_FRUIT
 
 // Shrink rate derived from lifespan: fruit goes from full radius to minRadius over lifespan ms
 const MOLD_SHRINK_PER_FRAME =
@@ -28,7 +30,8 @@ const MOLD_SHRINK_PER_FRAME =
 
 const moldHitCooldown = new Map() // fruitId → timestamp, throttles shrink-on-hit
 
-let lastBombTime = -Infinity
+let lastBombTime    = -Infinity
+let lastRainbowTime = -Infinity
 
 // ── Bomb state (declared before randomDrop so it can reference bombActive) ──
 const bombActive      = ref(false)
@@ -36,6 +39,9 @@ const bombId          = ref(null)
 const bombFuseEnd     = ref(0)
 const bombFuseLeft    = ref(0)   // seconds remaining, for display
 const screenShaking   = ref(false)
+
+// ── Rainbow state ─────────────────────────────────────────
+const rainbowActive = ref(false)
 
 const randomDrop = () => {
   const now = Date.now()
@@ -45,6 +51,11 @@ const randomDrop = () => {
     Math.random() < BOMB_FRUIT_CONFIG.spawnChance
   ) return BOMB
   if (Math.random() < MOLD_FRUIT_CONFIG.spawnChance) return MOLD
+  if (
+    !rainbowActive.value &&
+    now - lastRainbowTime > RAINBOW_FRUIT_CONFIG.minSpawnDelay &&
+    Math.random() < RAINBOW_FRUIT_CONFIG.spawnChance
+  ) return RAINBOW
   return DROPPABLE[Math.floor(Math.random() * DROPPABLE.length)]
 }
 
@@ -61,6 +72,10 @@ const isHovering      = ref(false)
 const particles       = ref([])
 const comboCount      = ref(0)
 const comboFlashes    = ref([])
+
+// ── Persistent stats (loaded from / saved to hawk3_game_data) ─────────────────
+let _sessionMerges  = 0   // merges this game
+let _sessionMaxCombo = 0  // max combo this game
 
 // ── Matter.js refs ────────────────────────────────────────
 let M           = null
@@ -114,6 +129,7 @@ const getComboTier = (c) => {
 
 const triggerCombo = () => {
   comboCount.value++
+  if (comboCount.value > _sessionMaxCombo) _sessionMaxCombo = comboCount.value
   if (comboTimer) clearTimeout(comboTimer)
   comboTimer = setTimeout(() => { comboCount.value = 0 }, 2500)
 
@@ -179,8 +195,9 @@ const spawnFruit = (typeName, x, y) => {
     y: body.position.y,
     radius: cfg.radius,
     angle: 0,
-    isBomb: !!cfg.isBomb,
-    isMold: !!cfg.isMold,
+    isBomb:    !!cfg.isBomb,
+    isMold:    !!cfg.isMold,
+    isRainbow: !!cfg.isRainbow,
     moldRadius: cfg.isMold ? cfg.radius : undefined,
   }]
   return id
@@ -210,10 +227,18 @@ const drop = () => {
     bombFuseEnd.value = Date.now() + BOMB_FRUIT_CONFIG.fuseTime
     lastBombTime      = Date.now()
   }
+  if (cfg.isRainbow) {
+    rainbowActive.value = true
+    lastRainbowTime     = Date.now()
+    spawnMergeEffect(x, DROP_Y, '#FFD700', cfg.radius)
+  }
 
   nextFruitType.value = nextNextFruit.value
   nextNextFruit.value = randomDrop()
-  setTimeout(() => { canDrop.value = true }, PHYSICS_CONFIG.dropCooldown)
+  setTimeout(() => {
+    canDrop.value = true
+    saveGameState()
+  }, PHYSICS_CONFIG.dropCooldown)
 }
 
 // ── Merge particles ───────────────────────────────────────
@@ -320,6 +345,49 @@ const onCollision = (event) => {
       continue
     }
 
+    // Rainbow merges universally with any regular fruit
+    const isRainbowMerge = fA.isRainbow || fB.isRainbow
+    if (isRainbowMerge) {
+      const regular = fA.isRainbow ? fB : fA
+      const rainbow = fA.isRainbow ? fA : fB
+      const regCfg  = FRUIT_TYPES[regular.type]
+      if (!regCfg?.nextType || !FRUIT_TYPES[regCfg.nextType]) continue
+      if (merging.has(fA.id) || merging.has(fB.id)) continue
+
+      merging.add(fA.id)
+      merging.add(fB.id)
+      _sessionMerges++
+
+      const mx = (bodyA.position.x + bodyB.position.x) / 2
+      const my = (bodyA.position.y + bodyB.position.y) / 2
+      const bonusScore = Math.round(regCfg.scoreValue * RAINBOW_FRUIT_CONFIG.bonusMultiplier)
+
+      spawnMergeEffect(mx, my, '#FFD700', RAINBOW.radius)
+      spawnMergeEffect(mx, my, regCfg.sparkleColor, regCfg.radius)
+      triggerCombo()
+
+      setTimeout(() => {
+        removeFruit(fA.id)
+        removeFruit(fB.id)
+        merging.delete(fA.id)
+        merging.delete(fB.id)
+        const nextR = FRUIT_TYPES[regCfg.nextType].radius
+        spawnFruit(regCfg.nextType, mx, clamp(my, nextR, BOARD_H - nextR))
+        score.value += bonusScore
+        rainbowActive.value = false
+
+        const wakeR  = RAINBOW.radius * 6
+        const wakeR2 = wakeR * wakeR
+        for (const f of fruits.value) {
+          if (merging.has(f.id)) continue
+          const dx = f.body.position.x - mx
+          const dy = f.body.position.y - my
+          if (dx * dx + dy * dy < wakeR2) M.Sleeping.set(f.body, false)
+        }
+      }, PHYSICS_CONFIG.popEffect.delay)
+      continue
+    }
+
     if (fA.type !== fB.type) continue
 
     const cfg = FRUIT_TYPES[fA.type]
@@ -327,6 +395,7 @@ const onCollision = (event) => {
 
     merging.add(idA)
     merging.add(idB)
+    _sessionMerges++
 
     const mx = (bodyA.position.x + bodyB.position.x) / 2
     const my = (bodyA.position.y + bodyB.position.y) / 2
@@ -410,12 +479,41 @@ const gameLoop = () => {
 const triggerGameOver = () => {
   gameState.value = 'gameover'
   M.Runner.stop(runner)
-  const saved = parseInt(localStorage.getItem('hawk-fruit-hs') || '0')
-  if (score.value > saved) localStorage.setItem('hawk-fruit-hs', String(score.value))
-  highScore.value = Math.max(score.value, saved)
+
+  const data = loadHawk3Data()
+  const hf   = data.games.hawkFruit
+  const isNewHigh = score.value > hf.highScore
+
+  hf.gamesPlayed += 1
+  hf.totalScore  += score.value
+  hf.totalMerges += _sessionMerges
+  if (_sessionMaxCombo > hf.maxCombo) hf.maxCombo = _sessionMaxCombo
+  if (isNewHigh) hf.highScore = score.value
+
+  hf.savedGame = null   // clear saved state on game over
+
+  const lv = hf.levels['6']
+  lv.attempts += 1
+  if (isNewHigh) {
+    lv.highScore = score.value
+    lv.bestMoves = _sessionMerges
+    lv.stars     = score.value >= 10000 ? 3 : score.value >= 3000 ? 2 : 1
+    lv.completed = true
+    lv.bestPerformance = {
+      score:            score.value,
+      moves:            _sessionMerges,
+      stars:            lv.stars,
+      performanceScore: score.value * 0.6 + _sessionMerges * 2,
+      achievedAt:       new Date().toISOString(),
+    }
+  }
+
+  saveHawk3Data(data)
+  highScore.value = hf.highScore
 }
 
 const restart = () => {
+  clearSavedGame()
   M.Composite.clear(engine.world)
   bodyMap.clear()
   merging.clear()
@@ -424,12 +522,16 @@ const restart = () => {
   comboFlashes.value = []
   comboCount.value   = 0
   if (comboTimer) { clearTimeout(comboTimer); comboTimer = null }
-  bombActive.value   = false
-  bombId.value       = null
-  bombFuseLeft.value = 0
-  lastBombTime       = -Infinity
+  bombActive.value    = false
+  bombId.value        = null
+  bombFuseLeft.value  = 0
+  lastBombTime        = -Infinity
+  rainbowActive.value = false
+  lastRainbowTime     = -Infinity
   moldHitCooldown.clear()
   score.value        = 0
+  _sessionMerges     = 0
+  _sessionMaxCombo   = 0
   if (gameOverTimer) { clearTimeout(gameOverTimer); gameOverTimer = null }
   buildWalls()
   nextFruitType.value = randomDrop()
@@ -459,9 +561,70 @@ const previewX = computed(() => {
   return clamp(dropX.value, r + WALL_T, BOARD_W - r - WALL_T)
 })
 
+// ── Save / Restore board state ────────────────────────────
+const saveGameState = () => {
+  if (gameState.value !== 'playing') return
+  const data = loadHawk3Data()
+  data.games.hawkFruit.savedGame = {
+    score:         score.value,
+    nextFruit:     nextFruitType.value?.type ?? null,
+    nextNextFruit: nextNextFruit.value?.type  ?? null,
+    fruits: fruits.value
+      .filter(f => !f.isBomb && !merging.has(f.id))
+      .map(f => ({
+        type:       f.type,
+        x:          Math.round(f.x),
+        y:          Math.round(f.y),
+        angle:      f.angle,
+        moldRadius: f.isMold ? Math.round(f.moldRadius) : undefined,
+      })),
+    savedAt: new Date().toISOString(),
+  }
+  saveHawk3Data(data)
+}
+
+const clearSavedGame = () => {
+  const data = loadHawk3Data()
+  data.games.hawkFruit.savedGame = null
+  saveHawk3Data(data)
+}
+
+const restoreGameState = (saved) => {
+  if (!saved?.fruits?.length) return false
+  score.value = saved.score ?? 0
+  if (saved.nextFruit    && FRUIT_TYPES[saved.nextFruit])    nextFruitType.value = FRUIT_TYPES[saved.nextFruit]
+  if (saved.nextNextFruit && FRUIT_TYPES[saved.nextNextFruit]) nextNextFruit.value = FRUIT_TYPES[saved.nextNextFruit]
+
+  for (const sf of saved.fruits) {
+    if (!FRUIT_TYPES[sf.type]) continue
+    const id = spawnFruit(sf.type, sf.x, sf.y)
+    if (id === null) continue
+    const f = fruits.value.find(fr => fr.id === id)
+    if (!f) continue
+    if (sf.angle) M.Body.setAngle(f.body, sf.angle)
+    M.Body.setVelocity(f.body, { x: 0, y: 0 })
+    M.Body.setAngularVelocity(f.body, 0)
+    // Restore mold at its saved (shrunk) radius
+    if (f.isMold && sf.moldRadius && sf.moldRadius < MOLD.radius) {
+      const scale = sf.moldRadius / MOLD.radius
+      M.Body.scale(f.body, scale, scale)
+      const idx = fruits.value.findIndex(fr => fr.id === id)
+      if (idx !== -1) {
+        const arr = [...fruits.value]
+        arr[idx] = { ...arr[idx], moldRadius: sf.moldRadius, radius: sf.moldRadius }
+        fruits.value = arr
+      }
+    }
+    if (f.isRainbow) rainbowActive.value = true
+  }
+  return true
+}
+
 // ── Lifecycle ─────────────────────────────────────────────
 onMounted(async () => {
-  highScore.value = parseInt(localStorage.getItem('hawk-fruit-hs') || '0')
+  const initData  = loadHawk3Data()
+  highScore.value = initData.games.hawkFruit.highScore ?? 0
+  const savedGame = initData.games.hawkFruit.savedGame ?? null
 
   M = await import('matter-js')
 
@@ -476,10 +639,12 @@ onMounted(async () => {
   buildWalls()
   M.Events.on(engine, 'collisionStart', onCollision)
   M.Runner.run(runner, engine)
+  if (savedGame) restoreGameState(savedGame)
   gameLoop()
 })
 
 onUnmounted(() => {
+  saveGameState()   // persist board state when navigating away
   if (animFrame)  cancelAnimationFrame(animFrame)
   if (runner && M) M.Runner.stop(runner)
   if (engine && M) M.Engine.clear(engine)

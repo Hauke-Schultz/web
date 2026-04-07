@@ -12,7 +12,7 @@ const projects = [
     title:       'Hawk Fruit',
     description: 'Merge-Spiel im Suika-Stil – kombiniere Früchte zu immer größeren!',
     emoji:       '🍉',
-    route:       '/hawk-fruit',
+    route:       '/games/hawkFruit',
     tags:        ['Spiel', 'Beta'],
   },
   {

@@ -10,7 +10,7 @@ A browser-based physics puzzle game inspired by Suika Game. Fruits fall into a b
 - Two identical fruits that touch → merge into the next larger fruit → score points
 - Chain reactions build combos with animated floating texts
 - Game Over: fruits stack above the danger line (y=60) and stay there
-- Highscore saved in LocalStorage (`hawk-fruit-hs`)
+- Highscore saved in LocalStorage (`hawk3_game_data` → `games.hawkFruit`)
 
 ---
 
@@ -70,8 +70,9 @@ Tiers: 1x / 3x / 5x / 8x / 12x / 15x / 20x / 30x — with random floating texts 
 
 | File | Content |
 |------|---------|
-| `pages/hawk-fruit/index.vue` | Full game logic + template (single file) |
+| `pages/games/hawkFruit/index.vue` | Full game logic + template (single file) |
 | `utils/hawkFruitConfig.js` | `FRUIT_TYPES`, `PHYSICS_CONFIG`, `BOMB_FRUIT_CONFIG`, `MOLD_FRUIT_CONFIG`, `RAINBOW_FRUIT_CONFIG` |
+| `utils/localStores.js` | `loadHawk3Data()`, `saveHawk3Data()` — liest/schreibt `hawk3_game_data` |
 
 **Physics:** Matter.js (lazy-loaded via dynamic import on mount)
 **Rendering:** Vue 3 + SVG data-URLs (no canvas)
@@ -92,7 +93,8 @@ Tiers: 1x / 3x / 5x / 8x / 12x / 15x / 20x / 30x — with random floating texts 
 - Rainbow Fruit: spawn in rotation, universal merge
 - Game over detection (fruits above danger line)
 - Restart without page reload
-- LocalStorage highscore
+- LocalStorage highscore + Stats via `hawk3_game_data` (Level 6 = Endless Mode)
+- Board-Zustand wird nach jedem Drop + beim Verlassen gespeichert (Resume beim nächsten Besuch)
 - Responsive touch support (mobile)
 - i18n combo texts (DE/EN)
 - Merge chain guide below the board

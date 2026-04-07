@@ -1,0 +1,81 @@
+// ── LocalStore Key Registry ────────────────────────────────────────────────────
+// Single source of truth for all localStorage keys used across the platform.
+// Import from here — never hardcode key strings in components or composables.
+
+export const LS_KEYS = {
+  // Shared game data (same format as old website)
+  HAWK3_DATA: 'hawk3_game_data',
+
+  // Hawk-Star (own versioned save)
+  HAWK_STAR_SAVE: 'hawk-star-save',
+  HAWK_STAR_DEV:  'hawk-star-dev',
+
+  // App
+  THEME: 'theme',
+
+  // Party
+  PARTY_RSVP:        'party_rsvp',
+  PARTY_LEVEL:       'party_level',
+  PARTY_PLAYER_NAME: 'party_player_name',
+  PARTY_PLAYER_ID:   'party_player_id',
+}
+
+// ── hawk3_game_data helpers ───────────────────────────────────────────────────
+
+const freshHawkFruitLevel = () => ({
+  completed:       false,
+  highScore:       0,
+  bestMoves:       null,
+  stars:           0,
+  attempts:        0,
+  bestPerformance: null,
+})
+
+const freshHawkFruit = () => ({
+  highScore:      0,
+  totalScore:     0,
+  gamesPlayed:    0,
+  totalMerges:    0,
+  maxCombo:       0,
+  savedGame:      null,   // { score, nextFruit, nextNextFruit, fruits[], savedAt }
+  levels: {
+    '6': freshHawkFruitLevel(),   // 6 = Endless Mode
+  },
+})
+
+const freshHawk3Data = () => ({
+  version: '1.1',
+  games: {
+    hawkFruit:    freshHawkFruit(),
+    memory:       { highScore: 0, gamesPlayed: 0 },
+    hawkDoubleUp: { highScore: 0, gamesPlayed: 0 },
+    hawkTower:    { highScore: 0, gamesPlayed: 0 },
+  },
+})
+
+// Returns the full hawk3_game_data object. Falls back to fresh defaults if missing or corrupt.
+export const loadHawk3Data = () => {
+  try {
+    const raw = localStorage.getItem(LS_KEYS.HAWK3_DATA)
+    if (!raw) return freshHawk3Data()
+    const data = JSON.parse(raw)
+    // Ensure all game keys exist (forward-compat)
+    data.games            = data.games            ?? {}
+    data.games.hawkFruit  = data.games.hawkFruit  ?? freshHawkFruit()
+    // Ensure required hawkFruit fields exist (forward-compat)
+    data.games.hawkFruit.levels        = data.games.hawkFruit.levels        ?? {}
+    data.games.hawkFruit.levels['6']   = data.games.hawkFruit.levels['6']   ?? freshHawkFruitLevel()
+    if (!('savedGame' in data.games.hawkFruit)) data.games.hawkFruit.savedGame = null
+    data.games.memory        = data.games.memory        ?? { highScore: 0, gamesPlayed: 0 }
+    data.games.hawkDoubleUp  = data.games.hawkDoubleUp  ?? { highScore: 0, gamesPlayed: 0 }
+    data.games.hawkTower     = data.games.hawkTower     ?? { highScore: 0, gamesPlayed: 0 }
+    return data
+  } catch {
+    return freshHawk3Data()
+  }
+}
+
+// Writes the full object back to localStorage.
+export const saveHawk3Data = (data) => {
+  localStorage.setItem(LS_KEYS.HAWK3_DATA, JSON.stringify(data))
+}
