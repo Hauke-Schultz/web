@@ -10,3 +10,4 @@ api/setup.php
 api/party-backup-*.json
 /api/highscores.json
 /api/rsvp.json
+/frontend/app/oldPageSrc/
