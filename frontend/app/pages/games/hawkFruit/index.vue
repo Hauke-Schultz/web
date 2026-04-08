@@ -656,34 +656,32 @@ onUnmounted(() => {
   <div class="flex flex-col items-center min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-6 px-4 select-none">
 
     <!-- HUD: score + next fruits -->
-    <div class="flex items-stretch gap-3 mb-4 w-full max-w-[320px]">
+    <div class="flex items-stretch gap-1 mb-4 w-full max-w-[320px]">
       <!-- Score -->
-      <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-white">
+      <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-1 text-white">
         <div class="text-[10px] uppercase tracking-widest opacity-60">Score</div>
-        <div class="text-2xl font-bold tabular-nums">{{ score.toLocaleString() }}</div>
+        <div class="text-l font-bold tabular-nums">{{ score.toLocaleString() }}</div>
       </div>
       <!-- Best -->
-      <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-white">
+      <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-1 text-white">
         <div class="text-[10px] uppercase tracking-widest opacity-60">Best</div>
-        <div class="text-2xl font-bold tabular-nums">{{ Math.max(score, highScore).toLocaleString() }}</div>
+        <div class="text-l font-bold tabular-nums">{{ Math.max(score, highScore).toLocaleString() }}</div>
       </div>
       <!-- Combo badge (only when active) -->
       <Transition name="combo-pop">
         <div
-          v-if="comboCount >= 2"
-          class="bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-white text-center min-w-[60px]"
+          class="bg-white/10 border border-white/10 rounded-xl px-2 py-1 text-white text-center min-w-[60px]"
         >
           <div class="text-[10px] uppercase tracking-widest opacity-60 mb-0.5">Combo</div>
-          <div class="text-2xl font-bold tabular-nums" style="color: #feca57; text-shadow: 0 0 12px #feca5780;">
+          <div class="text-l font-bold tabular-nums" style="color: #feca57; text-shadow: 0 0 12px #feca5780;">
             {{ comboCount }}x
           </div>
         </div>
       </Transition>
       <!-- Next -->
-      <div class="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-white text-center">
-        <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Next</div>
-        <div class="flex items-center gap-2">
-          <img v-if="nextFruitType" :src="toDataUrl(nextFruitType.svg)" class="w-9 h-9" alt="" />
+      <div class="bg-white/10 border border-white/10 rounded-xl px-4 py-1 text-white text-center">
+        <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1 text-center justify-center w-full">Next</div>
+        <div class="flex items-center justify-center">
           <img v-if="nextNextFruit" :src="toDataUrl(nextNextFruit.svg)" class="w-5 h-5 opacity-50" alt="" />
         </div>
       </div>

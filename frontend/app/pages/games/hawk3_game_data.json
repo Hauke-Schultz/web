@@ -1,43 +1,116 @@
 {
   "player": {
-    "name": "Player",
+    "name": "Froppy",
     "avatar": "avatar/user",
     "level": 1,
-    "experience": 100,
-    "totalScore": 34281,
-    "gamesPlayed": 7,
-    "coins": 6628,
-    "diamonds": 62,
-    "createdAt": "2026-04-06",
-    "lastPlayed": "2026-04-06",
+    "experience": 50,
+    "totalScore": 3542,
+    "gamesPlayed": 39,
+    "coins": 1155,
+    "diamonds": 123,
+    "createdAt": "2025-11-16",
+    "lastPlayed": "2026-04-07",
     "inventory": {
       "items": {
+        "cap": {
+          "id": "cap",
+          "quantity": 1,
+          "purchasedAt": "2025-12-08T21:48:01.838Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "common",
+          "name": "Baseball Cap"
+        },
+        "magic_hat": {
+          "id": "magic_hat",
+          "quantity": 2,
+          "purchasedAt": "2025-12-08T22:01:53.865Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "rare",
+          "name": "Magic Hat",
+          "description": "A mysterious hat that sparkles with ancient magic",
+          "tier": 1,
+          "mysteryBoxNumber": 1,
+          "claimedAt": "2025-12-08T22:01:53.865Z"
+        },
+        "crystal_orb": {
+          "id": "crystal_orb",
+          "quantity": 1,
+          "purchasedAt": "2025-12-13T20:52:40.087Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "rare",
+          "name": "Crystal Orb",
+          "description": "A glowing orb that reveals hidden secrets",
+          "tier": 1,
+          "mysteryBoxNumber": 2,
+          "claimedAt": "2025-12-13T20:52:40.087Z"
+        },
         "regular_glasses": {
           "id": "regular_glasses",
           "quantity": 1,
-          "purchasedAt": "2026-04-06T21:28:04.239Z",
+          "purchasedAt": "2025-12-13T20:53:45.712Z",
           "type": "cosmetic",
           "category": "profile",
           "rarity": "common",
           "name": "Smart Glasses"
         },
-        "friendship_ring": {
-          "id": "friendship_ring",
-          "quantity": 1,
-          "purchasedAt": "2026-04-06T21:28:14.061Z",
+        "love_letter": {
+          "id": "love_letter",
+          "quantity": 3,
+          "purchasedAt": "2025-12-16T10:34:25.161Z",
           "type": "cosmetic",
           "category": "gifts",
-          "rarity": "rare",
-          "name": "Friendship Ring"
-        },
-        "hammer_powerup": {
-          "id": "hammer_powerup",
-          "quantity": 1,
-          "purchasedAt": "2026-04-06T21:28:20.418Z",
-          "type": "consumable",
-          "category": "items",
           "rarity": "common",
-          "name": "Fruit Hammer"
+          "name": "Love Letter"
+        },
+        "party_hat": {
+          "id": "party_hat",
+          "quantity": 2,
+          "purchasedAt": "2025-12-16T10:35:31.265Z",
+          "type": "cosmetic",
+          "category": "gifts",
+          "rarity": "uncommon",
+          "name": "Party Hat",
+          "receivedAsGift": true,
+          "giftFrom": "hauke",
+          "receivedAt": "2025-12-16T10:35:38.390Z"
+        },
+        "friendship_bracelet": {
+          "id": "friendship_bracelet",
+          "quantity": 1,
+          "purchasedAt": "2025-12-17T22:44:19.618Z",
+          "type": "cosmetic",
+          "category": "gifts",
+          "rarity": "uncommon",
+          "name": "Friendship Bracelet"
+        },
+        "golden_feather": {
+          "id": "golden_feather",
+          "quantity": 1,
+          "purchasedAt": "2025-12-28T21:49:58.485Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "rare",
+          "name": "Golden Feather",
+          "description": "A feather from a legendary phoenix",
+          "tier": 1,
+          "mysteryBoxNumber": 3,
+          "claimedAt": "2025-12-28T21:49:58.485Z"
+        },
+        "unicorn_horn": {
+          "id": "unicorn_horn",
+          "quantity": 1,
+          "purchasedAt": "2026-04-07T12:07:30.139Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "epic",
+          "name": "Unicorn Horn",
+          "description": "A rare horn from the last unicorn in the realm",
+          "tier": 2,
+          "mysteryBoxNumber": 4,
+          "claimedAt": "2026-04-07T12:07:30.139Z"
         }
       },
       "equipped": {
@@ -49,25 +122,718 @@
       "consumables": {}
     },
     "gifts": {
-      "sentToday": 0,
+      "sentToday": 1,
       "receivedToday": 0,
-      "lastSentDate": "2026-04-06",
-      "lastReceivedDate": "2023-01-01",
-      "sentGifts": [],
-      "receivedGifts": []
+      "lastSentDate": "2025-12-17",
+      "lastReceivedDate": "2025-12-15",
+      "sentGifts": [
+        {
+          "itemId": "friendship_bracelet",
+          "itemName": "Friendship Bracelet",
+          "itemIcon": "📿",
+          "itemRarity": "uncommon",
+          "recipientUsername": "hauke",
+          "senderName": "froppy",
+          "sentAt": "2025-12-17T22:44:28.822Z",
+          "sentDate": "2025-12-17",
+          "method": "direct"
+        }
+      ],
+      "receivedGifts": [
+        {
+          "itemId": "party_hat",
+          "itemName": "Party Hat",
+          "quantity": 1,
+          "from": "hauke",
+          "receivedAt": "2025-12-17T22:43:18.762Z",
+          "itemData": {
+            "id": "party_hat",
+            "quantity": 0,
+            "purchasedAt": "2025-12-16T10:35:31.265Z",
+            "type": "cosmetic",
+            "category": "gifts",
+            "rarity": "uncommon",
+            "name": "Party Hat"
+          }
+        }
+      ]
     }
   },
   "currency": {
-    "transactions": [],
+    "transactions": [
+      {
+        "id": "daily_minigame_1765231570789_lqu3twd8e",
+        "timestamp": "2025-12-08T22:06:10.789Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 100,
+          "diamonds": 3
+        },
+        "balanceAfter": {
+          "coins": 5452,
+          "diamonds": 45
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 100,
+            "diamonds": 3,
+            "source": "minigame",
+            "claimedAt": "2025-12-08T22:06:10.789Z",
+            "claimedDate": "2025-12-08"
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "daily_minigame_1765231607277_7i9dmpjw1",
+        "timestamp": "2025-12-08T22:06:47.277Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 100,
+          "diamonds": 3
+        },
+        "balanceAfter": {
+          "coins": 5552,
+          "diamonds": 48
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 100,
+            "diamonds": 3,
+            "source": "minigame",
+            "claimedAt": "2025-12-08T22:06:47.277Z",
+            "claimedDate": "2025-12-08",
+            "mysteryBoxUnlocked": true,
+            "mysteryBoxNumber": 1,
+            "pendingItem": {
+              "id": "magic_hat",
+              "name": "Magic Hat",
+              "description": "A mysterious hat that sparkles with ancient magic",
+              "category": "profile",
+              "rarity": "rare",
+              "icon": "🎩",
+              "type": "cosmetic",
+              "tier": 1,
+              "mysteryBoxNumber": 1
+            }
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "mystery_box_1765231618021_qkbh210vl",
+        "timestamp": "2025-12-08T22:06:58.020Z",
+        "type": "mystery_item",
+        "source": "mystery_box",
+        "description": "Magic Hat discovered!",
+        "amounts": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "balanceAfter": {
+          "coins": 5552,
+          "diamonds": 48
+        },
+        "metadata": {
+          "rewardType": "mystery_item",
+          "mysteryBoxNumber": 1,
+          "isSpecial": false,
+          "totalMysteryBoxesClaimed": 1,
+          "itemReceived": {
+            "id": "magic_hat",
+            "name": "Magic Hat",
+            "rarity": "rare",
+            "tier": 1
+          }
+        }
+      },
+      {
+        "id": "daily_minigame_1765396196161_chcj53ykq",
+        "timestamp": "2025-12-10T19:49:56.161Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 120,
+          "diamonds": 5
+        },
+        "balanceAfter": {
+          "coins": 6809,
+          "diamonds": 55
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 120,
+            "diamonds": 5,
+            "source": "minigame",
+            "claimedAt": "2025-12-10T19:49:56.161Z",
+            "claimedDate": "2025-12-10"
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "tx_1765477996815_5qj5q87ue",
+        "timestamp": "2025-12-11T18:33:16.815Z",
+        "type": "earn",
+        "source": "achievement",
+        "description": "Achievement: Game Enthusiast",
+        "amounts": {
+          "coins": 1000,
+          "diamonds": 10
+        },
+        "balanceAfter": {
+          "coins": 8776,
+          "diamonds": 77
+        },
+        "metadata": {
+          "achievementId": "games_10",
+          "rarity": "uncommon"
+        }
+      },
+      {
+        "id": "daily_minigame_1765567674479_mi933o9o1",
+        "timestamp": "2025-12-12T19:27:54.478Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 25,
+          "diamonds": 1
+        },
+        "balanceAfter": {
+          "coins": 9161,
+          "diamonds": 84
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 25,
+            "diamonds": 1,
+            "source": "minigame",
+            "claimedAt": "2025-12-12T19:27:54.478Z",
+            "claimedDate": "2025-12-12"
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "daily_minigame_1765659155954_r3iku6mnq",
+        "timestamp": "2025-12-13T20:52:35.954Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 80,
+          "diamonds": 2
+        },
+        "balanceAfter": {
+          "coins": 12226,
+          "diamonds": 130
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 80,
+            "diamonds": 2,
+            "source": "minigame",
+            "claimedAt": "2025-12-13T20:52:35.954Z",
+            "claimedDate": "2025-12-13",
+            "mysteryBoxUnlocked": true,
+            "mysteryBoxNumber": 2,
+            "pendingItem": {
+              "id": "crystal_orb",
+              "name": "Crystal Orb",
+              "description": "A glowing orb that reveals hidden secrets",
+              "category": "profile",
+              "rarity": "rare",
+              "icon": "🔮",
+              "type": "cosmetic",
+              "tier": 1,
+              "mysteryBoxNumber": 2
+            }
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "mystery_box_1765659160088_iy9kap91j",
+        "timestamp": "2025-12-13T20:52:40.088Z",
+        "type": "mystery_item",
+        "source": "mystery_box",
+        "description": "Crystal Orb discovered!",
+        "amounts": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "balanceAfter": {
+          "coins": 12226,
+          "diamonds": 130
+        },
+        "metadata": {
+          "rewardType": "mystery_item",
+          "mysteryBoxNumber": 2,
+          "isSpecial": false,
+          "totalMysteryBoxesClaimed": 2,
+          "itemReceived": {
+            "id": "crystal_orb",
+            "name": "Crystal Orb",
+            "rarity": "rare",
+            "tier": 1
+          }
+        }
+      },
+      {
+        "id": "purchase_1765659225713_h7qh0anem",
+        "timestamp": "2025-12-13T20:53:45.713Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Smart Glasses",
+        "amounts": {
+          "coins": -1000,
+          "diamonds": 0
+        },
+        "balanceAfter": {
+          "coins": 11226,
+          "diamonds": 130
+        },
+        "metadata": {
+          "itemId": "regular_glasses",
+          "itemName": "Smart Glasses",
+          "category": "profile",
+          "rarity": "common"
+        }
+      },
+      {
+        "id": "tx_1765659256269_2dguw38cm",
+        "timestamp": "2025-12-13T20:54:16.269Z",
+        "type": "earn",
+        "source": "achievement",
+        "description": "Achievement: Stack Beginner",
+        "amounts": {
+          "coins": 150,
+          "diamonds": 1
+        },
+        "balanceAfter": {
+          "coins": 11376,
+          "diamonds": 131
+        },
+        "metadata": {
+          "achievementId": "hawkTower_beginner",
+          "rarity": "common"
+        }
+      },
+      {
+        "id": "daily_minigame_1765710408724_xa2950f2f",
+        "timestamp": "2025-12-14T11:06:48.724Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 100,
+          "diamonds": 3
+        },
+        "balanceAfter": {
+          "coins": 11912,
+          "diamonds": 140
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 100,
+            "diamonds": 3,
+            "source": "minigame",
+            "claimedAt": "2025-12-14T11:06:48.724Z",
+            "claimedDate": "2025-12-14"
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "purchase_1765738105180_36od1z7va",
+        "timestamp": "2025-12-14T18:48:25.180Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Champagne Bottle",
+        "amounts": {
+          "coins": -2000,
+          "diamonds": -6
+        },
+        "balanceAfter": {
+          "coins": 9912,
+          "diamonds": 134
+        },
+        "metadata": {
+          "itemId": "champagne_bottle",
+          "itemName": "Champagne Bottle",
+          "category": "gifts",
+          "rarity": "uncommon"
+        }
+      },
+      {
+        "id": "purchase_1765738367563_3tzrj3thw",
+        "timestamp": "2025-12-14T18:52:47.563Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Champagne Bottle",
+        "amounts": {
+          "coins": -2000,
+          "diamonds": -6
+        },
+        "balanceAfter": {
+          "coins": 7912,
+          "diamonds": 128
+        },
+        "metadata": {
+          "itemId": "champagne_bottle",
+          "itemName": "Champagne Bottle",
+          "category": "gifts",
+          "rarity": "uncommon"
+        }
+      },
+      {
+        "id": "purchase_1765788102974_03ff4588z",
+        "timestamp": "2025-12-15T08:41:42.974Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Red Rose",
+        "amounts": {
+          "coins": -600,
+          "diamonds": -2
+        },
+        "balanceAfter": {
+          "coins": 7312,
+          "diamonds": 126
+        },
+        "metadata": {
+          "itemId": "red_rose",
+          "itemName": "Red Rose",
+          "category": "gifts",
+          "rarity": "common"
+        }
+      },
+      {
+        "id": "daily_minigame_1765788140103_oxvlbwy75",
+        "timestamp": "2025-12-15T08:42:20.102Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 100,
+          "diamonds": 3
+        },
+        "balanceAfter": {
+          "coins": 7412,
+          "diamonds": 129
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 100,
+            "diamonds": 3,
+            "source": "minigame",
+            "claimedAt": "2025-12-15T08:42:20.102Z",
+            "claimedDate": "2025-12-15"
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "purchase_1765880612083_hjwqxlez8",
+        "timestamp": "2025-12-16T10:23:32.083Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Friendship Ring",
+        "amounts": {
+          "coins": -2500,
+          "diamonds": -8
+        },
+        "balanceAfter": {
+          "coins": 4912,
+          "diamonds": 121
+        },
+        "metadata": {
+          "itemId": "friendship_ring",
+          "itemName": "Friendship Ring",
+          "category": "gifts",
+          "rarity": "rare"
+        }
+      },
+      {
+        "id": "purchase_1765880854729_of5ske8rw",
+        "timestamp": "2025-12-16T10:27:34.729Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Friendship Ring",
+        "amounts": {
+          "coins": -2500,
+          "diamonds": -8
+        },
+        "balanceAfter": {
+          "coins": 2412,
+          "diamonds": 113
+        },
+        "metadata": {
+          "itemId": "friendship_ring",
+          "itemName": "Friendship Ring",
+          "category": "gifts",
+          "rarity": "rare"
+        }
+      },
+      {
+        "id": "purchase_1765881265162_c7h817l46",
+        "timestamp": "2025-12-16T10:34:25.162Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Love Letter",
+        "amounts": {
+          "coins": -800,
+          "diamonds": -2
+        },
+        "balanceAfter": {
+          "coins": 1612,
+          "diamonds": 111
+        },
+        "metadata": {
+          "itemId": "love_letter",
+          "itemName": "Love Letter",
+          "category": "gifts",
+          "rarity": "common"
+        }
+      },
+      {
+        "id": "purchase_1766011459619_o2r5tydxl",
+        "timestamp": "2025-12-17T22:44:19.619Z",
+        "type": "spend",
+        "source": "shop_purchase",
+        "description": "Purchased: Friendship Bracelet",
+        "amounts": {
+          "coins": -1500,
+          "diamonds": -5
+        },
+        "balanceAfter": {
+          "coins": 112,
+          "diamonds": 106
+        },
+        "metadata": {
+          "itemId": "friendship_bracelet",
+          "itemName": "Friendship Bracelet",
+          "category": "gifts",
+          "rarity": "uncommon"
+        }
+      },
+      {
+        "id": "daily_minigame_1766011776088_rk65nyon5",
+        "timestamp": "2025-12-17T22:49:36.088Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 100,
+          "diamonds": 3
+        },
+        "balanceAfter": {
+          "coins": 212,
+          "diamonds": 109
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 100,
+            "diamonds": 3,
+            "source": "minigame",
+            "claimedAt": "2025-12-17T22:49:36.088Z",
+            "claimedDate": "2025-12-17"
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "daily_minigame_1766874775894_9zp8yyxzu",
+        "timestamp": "2025-12-27T22:32:55.893Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 25,
+          "diamonds": 1
+        },
+        "balanceAfter": {
+          "coins": 609,
+          "diamonds": 113
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 25,
+            "diamonds": 1,
+            "source": "minigame",
+            "claimedAt": "2025-12-27T22:32:55.893Z",
+            "claimedDate": "2025-12-27"
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "daily_minigame_1766958595278_yel7pisl0",
+        "timestamp": "2025-12-28T21:49:55.277Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 80,
+          "diamonds": 2
+        },
+        "balanceAfter": {
+          "coins": 923,
+          "diamonds": 118
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 80,
+            "diamonds": 2,
+            "source": "minigame",
+            "claimedAt": "2025-12-28T21:49:55.277Z",
+            "claimedDate": "2025-12-28",
+            "mysteryBoxUnlocked": true,
+            "mysteryBoxNumber": 3,
+            "pendingItem": {
+              "id": "golden_feather",
+              "name": "Golden Feather",
+              "description": "A feather from a legendary phoenix",
+              "category": "profile",
+              "rarity": "rare",
+              "icon": "🪶",
+              "type": "cosmetic",
+              "tier": 1,
+              "mysteryBoxNumber": 3
+            }
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "mystery_box_1766958598487_0j6yqr4nn",
+        "timestamp": "2025-12-28T21:49:58.487Z",
+        "type": "mystery_item",
+        "source": "mystery_box",
+        "description": "Golden Feather discovered!",
+        "amounts": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "balanceAfter": {
+          "coins": 923,
+          "diamonds": 118
+        },
+        "metadata": {
+          "rewardType": "mystery_item",
+          "mysteryBoxNumber": 3,
+          "isSpecial": false,
+          "totalMysteryBoxesClaimed": 3,
+          "itemReceived": {
+            "id": "golden_feather",
+            "name": "Golden Feather",
+            "rarity": "rare",
+            "tier": 1
+          }
+        }
+      },
+      {
+        "id": "daily_minigame_1775563647498_jomf0o1oz",
+        "timestamp": "2026-04-07T12:07:27.498Z",
+        "type": "earn",
+        "source": "daily_minigame",
+        "description": "Daily Minigame Reward",
+        "amounts": {
+          "coins": 100,
+          "diamonds": 3
+        },
+        "balanceAfter": {
+          "coins": 1155,
+          "diamonds": 123
+        },
+        "metadata": {
+          "rewardType": "daily_minigame",
+          "gameResult": "reward_claimed",
+          "rewardAmount": {
+            "coins": 100,
+            "diamonds": 3,
+            "source": "minigame",
+            "claimedAt": "2026-04-07T12:07:27.498Z",
+            "claimedDate": "2026-04-07",
+            "mysteryBoxUnlocked": true,
+            "mysteryBoxNumber": 4,
+            "pendingItem": {
+              "id": "unicorn_horn",
+              "name": "Unicorn Horn",
+              "description": "A rare horn from the last unicorn in the realm",
+              "category": "profile",
+              "rarity": "epic",
+              "icon": "🦄",
+              "type": "cosmetic",
+              "tier": 2,
+              "mysteryBoxNumber": 4
+            }
+          },
+          "source": "minigame"
+        }
+      },
+      {
+        "id": "mystery_box_1775563650141_7pxu3munr",
+        "timestamp": "2026-04-07T12:07:30.141Z",
+        "type": "mystery_item",
+        "source": "mystery_box",
+        "description": "Unicorn Horn discovered!",
+        "amounts": {
+          "coins": 0,
+          "diamonds": 0
+        },
+        "balanceAfter": {
+          "coins": 1155,
+          "diamonds": 123
+        },
+        "metadata": {
+          "rewardType": "mystery_item",
+          "mysteryBoxNumber": 4,
+          "isSpecial": false,
+          "totalMysteryBoxesClaimed": 4,
+          "itemReceived": {
+            "id": "unicorn_horn",
+            "name": "Unicorn Horn",
+            "rarity": "epic",
+            "tier": 2
+          }
+        }
+      }
+    ],
     "dailyRewards": {
       "lastClaimed": "2026-04-06",
-      "counter": 1,
+      "counter": 24,
       "selectedGame": null
     },
     "mysteryBoxes": {
-      "lastClaimed": "2023-01-01",
-      "totalClaimed": 0,
-      "lastClaimedCounter": 0,
+      "lastClaimed": "2026-04-07",
+      "totalClaimed": 4,
+      "lastClaimedCounter": 20,
       "pendingMysteryBox": null
     },
     "milestones": {
@@ -142,152 +908,142 @@
   },
   "games": {
     "memory": {
-      "highScore": 889,
-      "totalScore": 1241,
-      "gamesPlayed": 2,
-      "bestTime": 8,
-      "averageTime": 20,
-      "maxCombo": 6,
-      "stars": 3,
+      "highScore": 354,
+      "totalScore": 354,
+      "gamesPlayed": 1,
+      "bestTime": 6,
+      "averageTime": 6,
+      "maxCombo": 2,
+      "stars": 2,
       "levels": {
         "1": {
           "completed": true,
-          "highScore": 352,
-          "bestTime": 8,
+          "highScore": 354,
+          "bestTime": 6,
           "bestMoves": 3,
           "stars": 2,
           "attempts": 1,
           "bestPerformance": {
-            "score": 352,
-            "time": 8,
+            "score": 354,
+            "time": 6,
             "moves": 3,
             "stars": 2,
-            "performanceScore": 373.75,
-            "achievedAt": "2026-04-06T21:19:22.302Z"
-          }
-        },
-        "2": {
-          "completed": true,
-          "highScore": 889,
-          "bestTime": 31,
-          "bestMoves": 10,
-          "stars": 3,
-          "attempts": 1,
-          "bestPerformance": {
-            "score": 889,
-            "time": 31,
-            "moves": 10,
-            "stars": 3,
-            "performanceScore": 689.15,
-            "achievedAt": "2026-04-06T21:19:58.844Z"
+            "performanceScore": 375.45,
+            "achievedAt": "2025-12-08T21:48:31.097Z"
           }
         }
       }
     },
     "hawkFruit": {
-      "highScore": 27242,
-      "totalScore": 56008,
-      "gamesPlayed": 4,
+      "highScore": 1757,
+      "totalScore": 2846,
+      "gamesPlayed": 3,
       "maxLevel": 2,
-      "totalMerges": 69,
-      "maxCombo": 4,
-      "stars": 2,
+      "totalMerges": 0,
+      "maxCombo": 12,
+      "stars": 0,
       "completedLevels": 2,
       "levels": {
         "1": {
           "completed": true,
-          "highScore": 295,
+          "highScore": 100,
           "bestTime": null,
-          "bestMoves": 11,
-          "stars": 1,
+          "bestMoves": 5,
+          "stars": 3,
           "attempts": 1,
           "bestPerformance": {
-            "score": 295,
-            "moves": 11,
-            "stars": 1,
-            "performanceScore": 190.35,
-            "achievedAt": "2026-04-06T21:04:16.535Z"
+            "score": 100,
+            "moves": 5,
+            "stars": 3,
+            "performanceScore": 74.25,
+            "achievedAt": "2025-11-21T10:34:59.138Z"
           }
         },
         "2": {
           "completed": true,
-          "highScore": 1229,
+          "highScore": 1757,
           "bestTime": null,
-          "bestMoves": 23,
-          "stars": 1,
-          "attempts": 1,
+          "bestMoves": 14,
+          "stars": 3,
+          "attempts": 2,
           "bestPerformance": {
-            "score": 1229,
-            "moves": 23,
-            "stars": 1,
-            "performanceScore": 748.9499999999999,
-            "achievedAt": "2026-04-06T21:04:40.821Z"
-          }
-        },
-        "6": {
-          "completed": true,
-          "highScore": 27242,
-          "bestTime": 68,
-          "bestMoves": 102,
-          "stars": 2,
-          "attempts": 1,
-          "bestPerformance": {
-            "score": 27242,
-            "time": 68,
-            "moves": 102,
+            "score": 1757,
+            "moves": 20,
             "stars": 2,
-            "performanceScore": 16478.199999999997,
-            "achievedAt": "2026-04-06T21:21:22.792Z"
+            "performanceScore": 1066.2,
+            "achievedAt": "2025-12-08T21:58:51.195Z"
           }
         }
       }
     },
     "hawkDoubleUp": {
-      "highScore": 4274,
-      "totalScore": 4274,
-      "gamesPlayed": 1,
-      "maxLevel": 1,
-      "totalMerges": 73,
-      "maxCombo": 73,
-      "stars": 3,
-      "completedLevels": 1,
-      "levels": {
-        "1": {
-          "completed": true,
-          "highScore": 4274,
-          "bestTime": null,
-          "bestMoves": 81,
-          "stars": 3,
-          "attempts": 1,
-          "bestPerformance": {
-            "score": 4274,
-            "moves": 81,
-            "stars": 3,
-            "performanceScore": 2567.25,
-            "achievedAt": "2026-04-06T21:05:38.618Z"
-          }
-        }
-      }
-    },
-    "hawkTower": {
       "highScore": 0,
       "totalScore": 0,
       "gamesPlayed": 0,
       "maxLevel": 1,
-      "totalStacks": 0,
-      "totalPerfectStacks": 0,
-      "bestCombo": 0,
+      "totalMerges": 0,
       "maxCombo": 0,
       "stars": 0,
       "completedLevels": 0,
       "levels": {}
+    },
+    "hawkTower": {
+      "highScore": 189,
+      "totalScore": 224,
+      "gamesPlayed": 2,
+      "maxLevel": 1,
+      "totalStacks": 23,
+      "totalPerfectStacks": 17,
+      "bestCombo": 5,
+      "maxCombo": 5,
+      "stars": 3,
+      "completedLevels": 0,
+      "levels": {
+        "1": {
+          "completed": true,
+          "stars": 3,
+          "bestHeight": 10,
+          "bestScore": 189,
+          "perfectPercent": 80
+        }
+      }
+    },
+    "hawkDungeon": {
+      "highScore": 20,
+      "totalScore": 118,
+      "gamesPlayed": 33,
+      "maxLevel": 2,
+      "totalKills": 236,
+      "totalCoins": 3803,
+      "bestSurvivalTime": 0,
+      "maxCombo": 0,
+      "stars": 75,
+      "completedLevels": 0,
+      "levels": {
+        "1": {
+          "completed": true,
+          "stars": 3,
+          "bestKills": 5,
+          "bestScore": 5,
+          "bestSurvivalTime": 0,
+          "healthRemaining": 11
+        },
+        "2": {
+          "completed": true,
+          "stars": 3,
+          "bestKills": 20,
+          "bestScore": 20,
+          "bestSurvivalTime": 0,
+          "healthRemaining": 9
+        }
+      }
     }
   },
   "cardStates": {
     "dailyRewardCard": {
       "read": true,
       "lastShown": null,
-      "readAt": "2026-04-06T21:04:01.284Z"
+      "readAt": "2026-04-07T12:07:27.502Z"
     }
   },
   "achievements": [
@@ -308,7 +1064,7 @@
         "level": 1
       },
       "earned": true,
-      "earnedAt": "2026-04-06T21:04:16.536Z"
+      "earnedAt": "2025-11-21T10:34:59.141Z"
     },
     {
       "id": "first_game",
@@ -326,13 +1082,105 @@
         "condition": "gamesPlayed >= 1"
       },
       "earned": true,
-      "earnedAt": "2026-04-06T21:04:16.536Z"
+      "earnedAt": "2025-11-21T10:34:59.141Z"
+    },
+    {
+      "id": "memory_beginner",
+      "name": "Memory Beginner",
+      "description": "Completed first memory level",
+      "category": "memory",
+      "icon": "brain",
+      "rarity": "common",
+      "rewards": {
+        "coins": 150,
+        "diamonds": 0
+      },
+      "trigger": {
+        "type": "level_complete",
+        "game": "memory",
+        "level": 1
+      },
+      "earned": true,
+      "earnedAt": "2025-12-08T21:48:31.099Z"
+    },
+    {
+      "id": "score_1000",
+      "name": "Score Hunter",
+      "description": "Earned 1000 total points",
+      "category": "gaming",
+      "icon": "trophy",
+      "rarity": "uncommon",
+      "rewards": {
+        "coins": 150,
+        "diamonds": 1
+      },
+      "trigger": {
+        "type": "auto",
+        "condition": "totalScore >= 1000"
+      },
+      "earned": true,
+      "earnedAt": "2025-12-08T21:57:40.480Z"
+    },
+    {
+      "id": "mystery_box_first",
+      "name": "Mystery Explorer",
+      "description": "Unlocked your first Mystery Box",
+      "category": "special",
+      "icon": "star-filled",
+      "rarity": "uncommon",
+      "rewards": {
+        "coins": 1000,
+        "diamonds": 5
+      },
+      "trigger": {
+        "type": "mystery_box_count",
+        "count": 1
+      },
+      "earned": true,
+      "earnedAt": "2025-12-08T22:01:53.867Z"
+    },
+    {
+      "id": "games_10",
+      "name": "Game Enthusiast",
+      "description": "Played 10 games",
+      "category": "gaming",
+      "icon": "play",
+      "rarity": "uncommon",
+      "rewards": {
+        "coins": 1000,
+        "diamonds": 10
+      },
+      "trigger": {
+        "type": "auto",
+        "condition": "gamesPlayed >= 10"
+      },
+      "earned": true,
+      "earnedAt": "2025-12-11T18:33:16.814Z"
+    },
+    {
+      "id": "hawkTower_beginner",
+      "name": "Stack Beginner",
+      "description": "Completed first Hawk Tower level",
+      "category": "hawkTower",
+      "icon": "hawk-tower",
+      "rarity": "common",
+      "rewards": {
+        "coins": 150,
+        "diamonds": 1
+      },
+      "trigger": {
+        "type": "level_complete",
+        "game": "hawkTower",
+        "level": 1
+      },
+      "earned": true,
+      "earnedAt": "2025-12-13T20:54:16.269Z"
     }
   ],
   "notifications": {
     "unreadCount": 0,
     "items": [],
-    "lastUpdated": "2026-04-06T21:28:24.592Z"
+    "lastUpdated": "2026-04-07T12:20:08.502Z"
   },
   "version": "1.1"
 }

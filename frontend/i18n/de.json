@@ -59,7 +59,9 @@
       "slot_triple_coins": "💰💰💰 Triple Coins!",
       "slot_double_diamonds": "💎💎 Double Diamonds!",
       "slot_double_coins": "💰💰 Double Coins!",
-      "slot_mixed": "🎰 Gemischt!"
+      "slot_mixed": "🎰 Gemischt!",
+      "badge_new": "Neu!",
+      "badge_claimed": "✅ Abgeholt"
     },
     "profile": {
       "title": "Mein Profil",
@@ -72,10 +74,17 @@
       "stat_daily": "Daily Rewards",
       "stat_boxes": "Mystery Boxes",
       "stat_items": "Items",
+      "inventory_title": "Inventar",
+      "mystery_section": "Mystery Items",
+      "items_section": "Items",
+      "received_on": "Erhalten am {date}",
       "mystery_items_title": "Mystery Items",
+      "rarity_uncommon": "Uncommon",
       "empty_title": "Noch keine Items",
       "empty_text": "Sammle täglich deinen Daily Reward um Mystery Boxes freizuschalten.",
       "empty_cta": "Daily Reward spielen →",
+      "player_name_placeholder": "Dein Name",
+      "avatar_title": "Avatar wählen",
       "rarity_legendary": "Legendary",
       "rarity_epic": "Epic",
       "rarity_rare": "Rare",

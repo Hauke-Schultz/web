@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <!-- Background circle -->
+    <circle cx="100" cy="100" r="95" fill="#e8f4f8" stroke="#2c3e50" stroke-width="2"/>
+
+    <!-- Head -->
+    <ellipse cx="100" cy="85" rx="45" ry="50" fill="#fdbcb4"/>
+
+    <!-- Hair -->
+    <path d="M55 70 Q55 45 75 40 Q90 35 100 35 Q110 35 125 40 Q145 45 145 70 Q145 55 135 50 Q125 45 115 45 Q105 42 100 42 Q95 42 85 45 Q75 45 65 50 Q55 55 55 70" fill="#8b4513"/>
+
+    <!-- Eyebrows -->
+    <ellipse cx="85" cy="75" rx="8" ry="3" fill="#654321" transform="rotate(-10 85 75)"/>
+    <ellipse cx="115" cy="75" rx="8" ry="3" fill="#654321" transform="rotate(10 115 75)"/>
+
+    <!-- Eyes -->
+    <ellipse cx="85" cy="82" rx="6" ry="8" fill="white"/>
+    <ellipse cx="115" cy="82" rx="6" ry="8" fill="white"/>
+    <circle cx="85" cy="82" r="3" fill="#2c3e50"/>
+    <circle cx="115" cy="82" r="3" fill="#2c3e50"/>
+    <circle cx="86" cy="81" r="1" fill="white"/>
+    <circle cx="116" cy="81" r="1" fill="white"/>
+
+    <!-- Nose -->
+    <ellipse cx="100" cy="95" rx="4" ry="8" fill="#f4a394"/>
+    <ellipse cx="98" cy="99" rx="1.5" ry="2" fill="#e8967a"/>
+    <ellipse cx="102" cy="99" rx="1.5" ry="2" fill="#e8967a"/>
+
+    <!-- Mouth -->
+    <path d="M92 108 Q100 115 108 108" stroke="#d73027" stroke-width="2" fill="none"/>
+
+    <!-- Beard outline -->
+    <path d="M70 105 Q65 115 65 125 Q65 135 70 145 Q80 155 100 157 Q120 155 130 145 Q135 135 135 125 Q135 115 130 105" fill="#654321"/>
+
+    <!-- Mustache -->
+    <ellipse cx="88" cy="105" rx="12" ry="4" fill="#654321"/>
+    <ellipse cx="112" cy="105" rx="12" ry="4" fill="#654321"/>
+
+    <!-- Beard details/texture -->
+    <path d="M75 125 Q80 130 85 128 Q90 132 95 130 Q100 135 105 130 Q110 132 115 128 Q120 130 125 125" stroke="#5a3a1a" stroke-width="1" fill="none"/>
+    <path d="M72 135 Q78 140 84 138 Q90 142 96 140 Q102 145 108 140 Q114 142 120 138 Q126 140 128 135" stroke="#5a3a1a" stroke-width="1" fill="none"/>
+
+    <!-- Shirt/clothing -->
+    <path d="M55 170 Q55 160 65 155 Q85 150 100 150 Q115 150 135 155 Q145 160 145 170 L145 195 L55 195 Z" fill="#34495e"/>
+    <path d="M80 155 Q90 158 100 155 Q110 158 120 155" stroke="#2c3e50" stroke-width="2" fill="none"/>
+</svg>

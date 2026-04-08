@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <!-- Background circle -->
+    <circle cx="100" cy="100" r="95" fill="#e8f8e8" stroke="#2c3e50" stroke-width="2"/>
+
+    <!-- Head -->
+    <ellipse cx="100" cy="88" rx="42" ry="46" fill="#fdbcb4"/>
+
+    <!-- Eyebrows -->
+    <ellipse cx="87" cy="78" rx="7" ry="2.5" fill="#27ae60"/>
+    <ellipse cx="113" cy="78" rx="7" ry="2.5" fill="#27ae60"/>
+
+    <!-- Eyes -->
+    <ellipse cx="87" cy="85" rx="5.5" ry="7" fill="white"/>
+    <ellipse cx="113" cy="85" rx="5.5" ry="7" fill="white"/>
+    <circle cx="87" cy="85" r="2.8" fill="#2c3e50"/>
+    <circle cx="113" cy="85" r="2.8" fill="#2c3e50"/>
+    <circle cx="88" cy="84" r="0.8" fill="white"/>
+    <circle cx="114" cy="84" r="0.8" fill="white"/>
+
+    <!-- Grüne Haare (wild und modern) -->
+    <path d="M58 60 Q58 40 75 35 Q85 30 100 30 Q115 30 125 35 Q142 40 142 60 Q142 70 137 75 Q132 78 127 80 Q117 83 100 83 Q83 83 73 80 Q68 78 63 75 Q58 70 58 60" fill="#2ecc71"/>
+
+    <!-- Wilde Haarsträhnen -->
+    <path d="M70 45 Q68 40 65 38 Q62 35 60 40" stroke="#27ae60" stroke-width="3" fill="none"/>
+    <path d="M82 42 Q80 37 78 35 Q75 32 73 37" stroke="#27ae60" stroke-width="3" fill="none"/>
+    <path d="M98 40 Q96 35 94 33 Q91 30 89 35" stroke="#27ae60" stroke-width="3" fill="none"/>
+    <path d="M118 42 Q120 37 122 35 Q125 32 127 37" stroke="#27ae60" stroke-width="3" fill="none"/>
+    <path d="M130 45 Q132 40 135 38 Q138 35 140 40" stroke="#27ae60" stroke-width="3" fill="none"/>
+
+    <!-- Haar-Highlights -->
+    <path d="M75 50 Q80 45 85 50 Q90 45 95 50 Q100 45 105 50 Q110 45 115 50 Q120 45 125 50" stroke="#58d68d" stroke-width="1" fill="none"/>
+    <path d="M72 65 Q77 60 82 65 Q87 60 92 65" stroke="#58d68d" stroke-width="1" fill="none"/>
+    <path d="M108 65 Q113 60 118 65 Q123 60 128 65" stroke="#58d68d" stroke-width="1" fill="none"/>
+
+    <!-- Nose -->
+    <ellipse cx="100" cy="97" rx="3.5" ry="6.5" fill="#f4a394"/>
+    <ellipse cx="99" cy="100.5" rx="1" ry="1.5" fill="#e8967a"/>
+    <ellipse cx="101" cy="100.5" rx="1" ry="1.5" fill="#e8967a"/>
+
+    <!-- Mouth (leichtes Lächeln) -->
+    <path d="M95 110 Q100 114 105 110" stroke="#d73027" stroke-width="2" fill="none"/>
+
+    <!-- Neck -->
+    <rect x="87" y="130" width="26" height="22" fill="#fdbcb4"/>
+
+    <!-- Shirt/clothing -->
+    <path d="M55 170 Q55 160 65 155 Q85 150 100 150 Q115 150 135 155 Q145 160 145 170 L145 195 L55 195 Z" fill="#1a1a1a"/>
+    <path d="M80 155 Q90 158 100 155 Q110 158 120 155" stroke="#2c3e50" stroke-width="2" fill="none"/>
+
+    <!-- Gaming/Music shirt design -->
+    <polygon points="95,165 105,165 102,175 98,175" fill="#1abc9c"/>
+    <circle cx="100" cy="168" r="2" fill="#ecf0f1"/>
+    <path d="M90 180 Q95 185 100 180 Q105 185 110 180" stroke="#1abc9c" stroke-width="2" fill="none"/>
+</svg>

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <!-- Background circle -->
+    <circle cx="100" cy="100" r="95" fill="#f8e8f4" stroke="#2c3e50" stroke-width="2"/>
+
+    <!-- Head -->
+    <ellipse cx="100" cy="90" rx="42" ry="47" fill="#fdbcb4"/>
+
+    <!-- Cap -->
+    <!-- Cap visor -->
+    <ellipse cx="100" cy="65" rx="55" ry="15" fill="#e74c3c" transform="rotate(-5 100 65)"/>
+    <ellipse cx="100" cy="63" rx="55" ry="12" fill="#c0392b" transform="rotate(-5 100 63)"/>
+
+    <!-- Cap main part -->
+    <path d="M65 55 Q65 35 80 30 Q90 25 100 25 Q110 25 120 30 Q135 35 135 55 Q135 65 130 70 Q120 75 100 75 Q80 75 70 70 Q65 65 65 55" fill="#e74c3c"/>
+
+    <!-- Cap details -->
+    <circle cx="100" cy="50" r="3" fill="#c0392b"/>
+    <path d="M85 45 Q100 40 115 45" stroke="#c0392b" stroke-width="1" fill="none"/>
+
+    <!-- Hair (visible under cap) -->
+    <path d="M70 70 Q75 75 80 78 Q85 80 90 79" stroke="#d4af37" stroke-width="4" fill="none"/>
+    <path d="M130 70 Q125 75 120 78 Q115 80 110 79" stroke="#d4af37" stroke-width="4" fill="none"/>
+    <path d="M95 78 Q97 82 100 78 Q103 82 105 78" stroke="#d4af37" stroke-width="2" fill="none"/>
+
+    <!-- Eyebrows -->
+    <ellipse cx="87" cy="80" rx="7" ry="2.5" fill="#b8860b" transform="rotate(-8 87 80)"/>
+    <ellipse cx="113" cy="80" rx="7" ry="2.5" fill="#b8860b" transform="rotate(8 113 80)"/>
+
+    <!-- Eyes -->
+    <ellipse cx="87" cy="87" rx="6" ry="8" fill="white"/>
+    <ellipse cx="113" cy="87" rx="6" ry="8" fill="white"/>
+    <circle cx="87" cy="87" r="3" fill="#2c3e50"/>
+    <circle cx="113" cy="87" r="3" fill="#2c3e50"/>
+    <circle cx="88" cy="86" r="1" fill="white"/>
+    <circle cx="114" cy="86" r="1" fill="white"/>
+
+    <!-- Eyelashes -->
+    <path d="M82 83 L81 81 M85 82 L84 80 M89 82 L88 80 M91 83 L90 81" stroke="#2c3e50" stroke-width="1"/>
+    <path d="M109 83 L110 81 M112 82 L113 80 M115 82 L116 80 M118 83 L119 81" stroke="#2c3e50" stroke-width="1"/>
+
+    <!-- Nose -->
+    <ellipse cx="100" cy="100" rx="3.5" ry="7" fill="#f4a394"/>
+    <ellipse cx="98.5" cy="104" rx="1" ry="1.5" fill="#e8967a"/>
+    <ellipse cx="101.5" cy="104" rx="1" ry="1.5" fill="#e8967a"/>
+
+    <!-- Mouth -->
+    <ellipse cx="100" cy="113" rx="8" ry="4" fill="#d73027"/>
+    <ellipse cx="100" cy="111" rx="6" ry="2" fill="#e8967a"/>
+
+    <!-- Earrings -->
+    <circle cx="65" cy="95" r="3" fill="#f39c12"/>
+    <circle cx="135" cy="95" r="3" fill="#f39c12"/>
+
+    <!-- Neck -->
+    <ellipse cx="100" cy="140" rx="15" ry="12" fill="#fdbcb4"/>
+
+    <!-- Shirt/clothing -->
+    <path d="M55 170 Q55 160 65 155 Q85 150 100 150 Q115 150 135 155 Q145 160 145 170 L145 195 L55 195 Z" fill="#9b59b6"/>
+    <path d="M80 155 Q90 158 100 155 Q110 158 120 155" stroke="#8e44ad" stroke-width="2" fill="none"/>
+
+    <!-- Necklace -->
+    <ellipse cx="100" cy="148" rx="20" ry="3" fill="#f39c12"/>
+    <circle cx="100" cy="151" r="2" fill="#f39c12"/>
+</svg>

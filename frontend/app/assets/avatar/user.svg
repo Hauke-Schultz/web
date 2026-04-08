@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <!-- Background circle -->
+    <circle cx="100" cy="100" r="95" fill="#f0f0f0" stroke="#2c3e50" stroke-width="2"/>
+
+    <!-- Head -->
+    <ellipse cx="100" cy="88" rx="42" ry="46" fill="#fdbcb4"/>
+
+    <!-- Eyebrows (neutral shape) -->
+    <ellipse cx="87" cy="78" rx="7" ry="2.5" fill="#7a5f3a"/>
+    <ellipse cx="113" cy="78" rx="7" ry="2.5" fill="#7a5f3a"/>
+
+    <!-- Eyes (neutral expression) -->
+    <ellipse cx="87" cy="85" rx="5.5" ry="7" fill="white"/>
+    <ellipse cx="113" cy="85" rx="5.5" ry="7" fill="white"/>
+    <circle cx="87" cy="85" r="2.8" fill="#2c3e50"/>
+    <circle cx="113" cy="85" r="2.8" fill="#2c3e50"/>
+    <circle cx="88" cy="84" r="0.8" fill="white"/>
+    <circle cx="114" cy="84" r="0.8" fill="white"/>
+
+    <!-- Hair (short, neutral style) -->
+    <path d="M58 60 Q58 40 75 35 Q85 30 100 30 Q115 30 125 35 Q142 40 142 60 Q142 70 137 75 Q132 78 127 80 Q117 83 100 83 Q83 83 73 80 Q68 78 63 75 Q58 70 58 60" fill="#8b6f47"/>
+
+    <!-- Hair texture -->
+    <path d="M72 50 Q77 45 82 50 Q87 45 92 50 Q97 45 102 50 Q107 45 112 50 Q117 45 122 50 Q127 45 128 50" stroke="#7a5f3a" stroke-width="1" fill="none"/>
+    <path d="M70 65 Q75 60 80 65 Q85 60 90 65" stroke="#7a5f3a" stroke-width="1" fill="none"/>
+    <path d="M110 65 Q115 60 120 65 Q125 60 130 65" stroke="#7a5f3a" stroke-width="1" fill="none"/>
+
+    <!-- Nose (simple, neutral) -->
+    <ellipse cx="100" cy="97" rx="3.5" ry="6.5" fill="#f4a394"/>
+    <ellipse cx="99" cy="100.5" rx="1" ry="1.5" fill="#e8967a"/>
+    <ellipse cx="101" cy="100.5" rx="1" ry="1.5" fill="#e8967a"/>
+
+    <!-- Mouth (neutral expression) -->
+    <ellipse cx="100" cy="110" rx="6" ry="2" fill="#d4a394"/>
+
+    <!-- Neck -->
+    <rect x="87" y="130" width="26" height="22" fill="#fdbcb4"/>
+
+    <!-- Shirt/clothing (neutral colors) -->
+    <path d="M55 170 Q55 160 65 155 Q85 150 100 150 Q115 150 135 155 Q145 160 145 170 L145 195 L55 195 Z" fill="#95a5a6"/>
+    <path d="M80 155 Q90 158 100 155 Q110 158 120 155" stroke="#7f8c8d" stroke-width="2" fill="none"/>
+
+    <!-- Simple shirt pattern -->
+    <path d="M85 165 L90 165 M110 165 L115 165" stroke="#7f8c8d" stroke-width="1"/>
+    <path d="M88 175 L92 175 M108 175 L112 175" stroke="#7f8c8d" stroke-width="1"/>
+</svg>

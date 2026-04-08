@@ -58,6 +58,8 @@ const freshMysteryBoxes = () => ({
 const freshHawk3Data = () => ({
   version: '1.1',
   player: {
+    name:     'Spieler',
+    avatar:   'avatar/user',
     coins:    0,
     diamonds: 0,
   },
@@ -91,6 +93,8 @@ export const loadHawk3Data = () => {
     data.games.hawkTower     = data.games.hawkTower     ?? { highScore: 0, gamesPlayed: 0 }
     // Player currency
     data.player              = data.player              ?? {}
+    data.player.name         = data.player.name         ?? 'Spieler'
+    data.player.avatar       = data.player.avatar       ?? 'avatar/user'
     data.player.coins        = data.player.coins        ?? 0
     data.player.diamonds     = data.player.diamonds     ?? 0
     // Daily rewards + mystery boxes

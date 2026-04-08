@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <!-- Background circle -->
+    <circle cx="100" cy="100" r="95" fill="#f8f4e8" stroke="#2c3e50" stroke-width="2"/>
+
+    <!-- Head -->
+    <ellipse cx="100" cy="88" rx="43" ry="48" fill="#fdbcb4"/>
+
+    <!-- Hair -->
+    <path d="M57 55 Q57 35 75 30 Q85 25 100 25 Q115 25 125 30 Q143 35 143 55 Q143 65 138 70 Q133 75 128 78 Q118 82 100 82 Q82 82 72 78 Q67 75 62 70 Q57 65 57 55" fill="#2c3e50"/>
+
+    <!-- Hair details/texture -->
+    <path d="M70 45 Q75 40 80 45 Q85 40 90 45 Q95 40 100 45 Q105 40 110 45 Q115 40 120 45 Q125 40 130 45" stroke="#1a1a1a" stroke-width="1" fill="none"/>
+    <path d="M65 60 Q70 55 75 60 Q80 55 85 60" stroke="#1a1a1a" stroke-width="1" fill="none"/>
+    <path d="M115 60 Q120 55 125 60 Q130 55 135 60" stroke="#1a1a1a" stroke-width="1" fill="none"/>
+
+    <!-- Sunglasses frame -->
+    <path d="M65 78 Q70 75 85 75 Q95 75 100 78 Q105 75 115 75 Q130 75 135 78" stroke="#2c3e50" stroke-width="3" fill="none"/>
+
+    <!-- Left lens -->
+    <ellipse cx="82" cy="85" rx="15" ry="12" fill="#1a1a1a"/>
+    <ellipse cx="82" cy="85" rx="13" ry="10" fill="#2c3e50"/>
+    <ellipse cx="85" cy="82" rx="3" ry="2" fill="#34495e" opacity="0.6"/>
+
+    <!-- Right lens -->
+    <ellipse cx="118" cy="85" rx="15" ry="12" fill="#1a1a1a"/>
+    <ellipse cx="118" cy="85" rx="13" ry="10" fill="#2c3e50"/>
+    <ellipse cx="121" cy="82" rx="3" ry="2" fill="#34495e" opacity="0.6"/>
+
+    <!-- Bridge of sunglasses -->
+    <ellipse cx="100" cy="80" rx="6" ry="2" fill="#2c3e50"/>
+
+    <!-- Sunglasses arms -->
+    <path d="M67 82 Q55 80 50 85" stroke="#2c3e50" stroke-width="3" fill="none"/>
+    <path d="M133 82 Q145 80 150 85" stroke="#2c3e50" stroke-width="3" fill="none"/>
+
+    <!-- Eyebrows (barely visible above glasses) -->
+    <path d="M70 74 Q77 72 84 74" stroke="#1a1a1a" stroke-width="2" fill="none"/>
+    <path d="M116 74 Q123 72 130 74" stroke="#1a1a1a" stroke-width="2" fill="none"/>
+
+    <!-- Nose -->
+    <ellipse cx="100" cy="98" rx="4" ry="7" fill="#f4a394"/>
+    <ellipse cx="98.5" cy="102" rx="1.2" ry="1.8" fill="#e8967a"/>
+    <ellipse cx="101.5" cy="102" rx="1.2" ry="1.8" fill="#e8967a"/>
+
+    <!-- Mouth (confident smile) -->
+    <path d="M92 112 Q100 118 108 112" stroke="#d73027" stroke-width="2" fill="none"/>
+    <path d="M94 115 Q100 119 106 115" stroke="#d73027" stroke-width="1" fill="none"/>
+
+    <!-- Neck -->
+    <ellipse cx="100" cy="140" rx="14" ry="12" fill="#fdbcb4"/>
+
+    <!-- Shirt/clothing -->
+    <path d="M55 170 Q55 160 65 155 Q85 150 100 150 Q115 150 135 155 Q145 160 145 170 L145 195 L55 195 Z" fill="#1a1a1a"/>
+    <path d="M80 155 Q90 158 100 155 Q110 158 120 155" stroke="#2c3e50" stroke-width="2" fill="none"/>
+
+    <!-- Shirt details (subtle pattern) -->
+    <circle cx="90" cy="170" r="2" fill="#2c3e50" opacity="0.3"/>
+    <circle cx="110" cy="175" r="2" fill="#2c3e50" opacity="0.3"/>
+    <circle cx="100" cy="185" r="2" fill="#2c3e50" opacity="0.3"/>
+</svg>

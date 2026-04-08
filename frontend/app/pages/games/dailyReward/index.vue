@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 import { calculateMysteryBoxReward, getMysteryBoxProgress, canClaimMysteryBox, MYSTERY_BOX_CONFIG } from '~/utils/mysteryBoxConfig.js'
-import SlotMachineGame from './SlotMachineGame.vue'
+import SlotMachineGame from '../../../components/dailyReward/SlotMachineGame.vue'
 
 const { t } = useI18n()
 

@@ -60,7 +60,9 @@
       "slot_triple_coins": "💰💰💰 Triple Coins!",
       "slot_double_diamonds": "💎💎 Double Diamonds!",
       "slot_double_coins": "💰💰 Double Coins!",
-      "slot_mixed": "🎰 Mixed symbols!"
+      "slot_mixed": "🎰 Mixed symbols!",
+      "badge_new": "New!",
+      "badge_claimed": "✅ Claimed"
     },
     "profile": {
       "title": "My Profile",
@@ -73,15 +75,29 @@
       "stat_daily": "Daily Rewards",
       "stat_boxes": "Mystery Boxes",
       "stat_items": "Items",
+      "inventory_title": "Inventory",
+      "mystery_section": "Mystery Items",
+      "items_section": "Items",
+      "received_on": "Received {date}",
       "mystery_items_title": "Mystery Items",
+      "rarity_uncommon": "Uncommon",
       "empty_title": "No items yet",
       "empty_text": "Collect your Daily Reward every day to unlock Mystery Boxes.",
       "empty_cta": "Play Daily Reward →",
+      "player_name_placeholder": "Your name",
+      "avatar_title": "Choose avatar",
       "rarity_legendary": "Legendary",
       "rarity_epic": "Epic",
       "rarity_rare": "Rare",
       "rarity_common": "Common",
-      "box_label": "Box #{number}"
+      "box_label": "Box #{number}",
+      "avatars": {
+        "default_user": "Default User",
+        "beard_user": "Beard User",
+        "glasses_user": "Glasses User",
+        "headset_user": "Headset User",
+        "cap_user": "Cap User"
+      }
     }
   },
   "party": {
