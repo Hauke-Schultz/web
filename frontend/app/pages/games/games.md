@@ -31,7 +31,7 @@ Kachel-Grid mit allen Spielen.
 | Daily Reward   | Sektion auf /games    | ✅ Fertig     | —                     |
 | Hawk Fruit     | `/games/hawkFruit`    | ✅ Fertig     | `games/hawkfruit/`    |
 | Hawk Double-Up | `/games/hawkDoubleUp` | ✅ Fertig     | `games/hawkdoubleup/` |
-| Hawk Tower     | `/games/hawktower`    | 🔒 Geplant   | `games/hawktower/`    |
+| Hawk Tower     | `/games/hawkTower`    | ✅ Fertig    | `games/hawktower/`    |
 | Shop           | `/games/shop`         | 🔒 Geplant   | `views/Shop.vue`      |
 | Hawk Star      | `/hawk-star`          | 🚧 In Arbeit | Neu (kein Alt-System) |
 
@@ -183,6 +183,6 @@ Für jedes neue Spiel aus dem alten System:
 | Profile-Seite | ✅ Fertig |
 | `utils/shopConfig.js` erstellt | ✅ Fertig (leer) |
 | Hawk Double-Up | ✅ Fertig |
-| Hawk Tower | 🔒 Offen |
+| Hawk Tower | ✅ Fertig |
 | Shop-Seite + Logik | 🔒 Offen |
 | Hawk Star (Kachel + Integration) | 🚧 In Arbeit |

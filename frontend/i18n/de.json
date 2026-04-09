@@ -75,6 +75,18 @@
       "badge_new": "Neu!",
       "badge_claimed": "✅ Abgeholt"
     },
+    "tower": {
+      "subtitle": "Stapele Blöcke so hoch wie möglich.",
+      "back": "← Games",
+      "height": "Höhe",
+      "score": "Score",
+      "best": "Rekord",
+      "instructions": "Tippe oder drücke Leertaste, um den Block fallen zu lassen. Triff so genau wie möglich – bei einem vollständigen Daneben ist das Spiel vorbei.",
+      "start": "🏗️ Spiel starten",
+      "game_over": "Daneben!",
+      "play_again": "🏗️ Nochmal spielen",
+      "restart": "Neu starten"
+    },
     "doubleUp": {
       "subtitle": "Verdopple Zahlen und jage deinen Highscore.",
       "back": "← Games",

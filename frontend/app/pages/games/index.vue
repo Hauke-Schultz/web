@@ -64,7 +64,7 @@ const games = [
     description: 'Stapele Blöcke so hoch wie möglich ohne umzufallen.',
     emoji:       '🏗️',
     route:       '/games/hawkTower',
-    active:      false,
+    active:      true,
   },
 ]
 </script>

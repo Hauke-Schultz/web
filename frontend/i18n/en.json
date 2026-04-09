@@ -76,6 +76,18 @@
       "badge_new": "New!",
       "badge_claimed": "✅ Claimed"
     },
+    "tower": {
+      "subtitle": "Stack blocks as high as possible.",
+      "back": "← Games",
+      "height": "Height",
+      "score": "Score",
+      "best": "Best",
+      "instructions": "Tap or press Space to drop the block. Aim carefully — a complete miss ends the game.",
+      "start": "🏗️ Start Game",
+      "game_over": "Missed!",
+      "play_again": "🏗️ Play Again",
+      "restart": "Restart"
+    },
     "doubleUp": {
       "subtitle": "Merge numbers and chase your high score.",
       "back": "← Games",
