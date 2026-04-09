@@ -3,6 +3,7 @@ import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 import { calculateMysteryBoxReward, getMysteryBoxProgress, canClaimMysteryBox, MYSTERY_BOX_CONFIG } from '~/utils/mysteryBoxConfig.js'
 import SlotMachineGame from '../../../components/dailyReward/SlotMachineGame.vue'
+import FortuneWheelGame from '../../../components/dailyReward/FortuneWheelGame.vue'
 
 const { t } = useI18n()
 
@@ -16,9 +17,8 @@ useHead({
 // ── Daily game rotation ───────────────────────────────────
 // dayIndex changes every calendar day. Add new games here when ready.
 const DAILY_GAMES = [
-  { key: 'slot', label: 'Slot Machine', emoji: '🎰', component: SlotMachineGame },
-  // { key: 'shells', label: 'Three Shells', emoji: '🐚', component: ThreeShellsGame },
-  // { key: 'whack',  label: 'Whack-a-Mole', emoji: '🦔', component: WhackAMoleGame  },
+  { key: 'slot',  label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
+  { key: 'wheel', label: 'Fortune Wheel', emoji: '🎡', component: FortuneWheelGame },
 ]
 
 const dayIndex  = Math.floor(Date.now() / 86400000)  // days since epoch

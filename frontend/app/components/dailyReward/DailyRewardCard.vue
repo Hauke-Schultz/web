@@ -2,7 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 import { calculateMysteryBoxReward, getMysteryBoxProgress, canClaimMysteryBox, MYSTERY_BOX_CONFIG } from '~/utils/mysteryBoxConfig.js'
-import SlotMachineGame from './SlotMachineGame.vue'
+import SlotMachineGame  from './SlotMachineGame.vue'
+import FortuneWheelGame from './FortuneWheelGame.vue'
+import ThreeShellsGame  from './ThreeShellsGame.vue'
 
 const { t } = useI18n()
 
@@ -12,7 +14,9 @@ const today = new Date().toISOString().split('T')[0]
 
 // Daily game rotation — add new game components here when ready
 const DAILY_GAMES = [
-  { key: 'slot', label: 'Slot Machine', emoji: '🎰', component: SlotMachineGame },
+  { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
+  { key: 'wheel',  label: 'Fortune Wheel', emoji: '🎡', component: FortuneWheelGame },
+  { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
 ]
 const dayIndex  = Math.floor(Date.now() / 86400000)
 const todayGame = DAILY_GAMES[dayIndex % DAILY_GAMES.length]
