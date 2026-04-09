@@ -32,7 +32,7 @@ Kachel-Grid mit allen Spielen.
 | Hawk Fruit     | `/games/hawkFruit`    | ✅ Fertig     | `games/hawkfruit/`    |
 | Hawk Double-Up | `/games/hawkDoubleUp` | ✅ Fertig     | `games/hawkdoubleup/` |
 | Hawk Tower     | `/games/hawkTower`    | ✅ Fertig    | `games/hawktower/`    |
-| Shop           | `/games/shop`         | 🔒 Geplant   | `views/Shop.vue`      |
+| Shop           | `/games/shop`         | ✅ Fertig    | `views/Shop.vue`      |
 | Hawk Star      | `/hawk-star`          | 🚧 In Arbeit | Neu (kein Alt-System) |
 
 **Daily Reward Kachel** ist eine eigenständige, expandierte Sektion (kein NuxtLink).
@@ -184,5 +184,5 @@ Für jedes neue Spiel aus dem alten System:
 | `utils/shopConfig.js` erstellt | ✅ Fertig (leer) |
 | Hawk Double-Up | ✅ Fertig |
 | Hawk Tower | ✅ Fertig |
-| Shop-Seite + Logik | 🔒 Offen |
+| Shop-Seite + Logik | ✅ Fertig |
 | Hawk Star (Kachel + Integration) | 🚧 In Arbeit |

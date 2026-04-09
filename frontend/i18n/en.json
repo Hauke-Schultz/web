@@ -76,6 +76,21 @@
       "badge_new": "New!",
       "badge_claimed": "✅ Claimed"
     },
+    "shop": {
+      "title": "Shop",
+      "subtitle": "Buy cosmetics with your Coins and Diamonds.",
+      "back": "← Games",
+      "coins": "Coins",
+      "diamonds": "Diamonds",
+      "owned": "Owned",
+      "buy": "Buy",
+      "cancel": "Cancel",
+      "close": "Close",
+      "not_enough": "Not enough Coins or Diamonds.",
+      "success_title": "Purchased!",
+      "success_text": "{name} is now yours.",
+      "limit": "Max. {n}× purchasable"
+    },
     "tower": {
       "subtitle": "Stack blocks as high as possible.",
       "back": "← Games",

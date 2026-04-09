@@ -66,6 +66,14 @@ const games = [
     route:       '/games/hawkTower',
     active:      true,
   },
+  {
+    key:         'shop',
+    title:       'Shop',
+    description: 'Kaufe Cosmetics und Items mit deinen Coins und Diamonds.',
+    emoji:       '🛒',
+    route:       '/games/shop',
+    active:      true,
+  },
 ]
 </script>
 

@@ -97,8 +97,10 @@ export const loadHawk3Data = () => {
     data.player              = data.player              ?? {}
     data.player.name         = data.player.name         ?? 'Spieler'
     data.player.avatar       = data.player.avatar       ?? 'avatar/user'
-    data.player.coins        = data.player.coins        ?? 0
-    data.player.diamonds     = data.player.diamonds     ?? 0
+    data.player.coins              = data.player.coins              ?? 0
+    data.player.diamonds           = data.player.diamonds           ?? 0
+    data.player.inventory          = data.player.inventory          ?? {}
+    data.player.inventory.items    = data.player.inventory.items    ?? {}
     // Daily rewards + mystery boxes
     data.currency                             = data.currency                             ?? {}
     data.currency.dailyRewards               = data.currency.dailyRewards               ?? freshDailyRewards()

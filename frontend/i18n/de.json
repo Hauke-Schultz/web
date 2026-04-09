@@ -75,6 +75,21 @@
       "badge_new": "Neu!",
       "badge_claimed": "✅ Abgeholt"
     },
+    "shop": {
+      "title": "Shop",
+      "subtitle": "Kaufe Cosmetics mit deinen Coins und Diamonds.",
+      "back": "← Games",
+      "coins": "Coins",
+      "diamonds": "Diamonds",
+      "owned": "Besitz",
+      "buy": "Kaufen",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "not_enough": "Nicht genug Coins oder Diamonds.",
+      "success_title": "Gekauft!",
+      "success_text": "{name} ist jetzt in deinem Besitz.",
+      "limit": "Max. {n}× kaufbar"
+    },
     "tower": {
       "subtitle": "Stapele Blöcke so hoch wie möglich.",
       "back": "← Games",
