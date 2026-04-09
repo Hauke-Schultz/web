@@ -26,14 +26,14 @@ Jeden Tag wechselt das Minispiel automatisch. Die Logik steht in `pages/games/da
 
 Kachel-Grid mit allen Spielen.
 
-| Spiel          | Route               | Status        | Quelle (alt)        |
-|----------------|---------------------|---------------|---------------------|
-| Daily Reward   | Sektion auf /games  | ✅ Fertig      | —                   |
-| Hawk Fruit     | `/games/hawkFruit`  | ✅ Fertig      | `games/hawkfruit/`  |
-| Hawk Double-Up | `/games/doubleUp`   | 🔒 Geplant     | `games/hawkdoubleup/` |
-| Hawk Tower     | `/games/tower`      | 🔒 Geplant     | `games/hawktower/`  |
-| Shop           | `/games/shop`       | 🔒 Geplant     | `views/Shop.vue`    |
-| Hawk Star      | `/hawk-star`        | 🚧 In Arbeit   | Neu (kein Alt-System) |
+| Spiel          | Route                 | Status       | Quelle (alt)          |
+|----------------|-----------------------|--------------|-----------------------|
+| Daily Reward   | Sektion auf /games    | ✅ Fertig     | —                     |
+| Hawk Fruit     | `/games/hawkFruit`    | ✅ Fertig     | `games/hawkfruit/`    |
+| Hawk Double-Up | `/games/hawkDoubleUp` | ✅ Fertig     | `games/hawkdoubleup/` |
+| Hawk Tower     | `/games/hawktower`    | 🔒 Geplant   | `games/hawktower/`    |
+| Shop           | `/games/shop`         | 🔒 Geplant   | `views/Shop.vue`      |
+| Hawk Star      | `/hawk-star`          | 🚧 In Arbeit | Neu (kein Alt-System) |
 
 **Daily Reward Kachel** ist eine eigenständige, expandierte Sektion (kein NuxtLink).
 
@@ -182,7 +182,7 @@ Für jedes neue Spiel aus dem alten System:
 | Hawk Fruit (Endless Mode) | ✅ Fertig |
 | Profile-Seite | ✅ Fertig |
 | `utils/shopConfig.js` erstellt | ✅ Fertig (leer) |
-| Hawk Double-Up | 🔒 Offen |
+| Hawk Double-Up | ✅ Fertig |
 | Hawk Tower | 🔒 Offen |
 | Shop-Seite + Logik | 🔒 Offen |
 | Hawk Star (Kachel + Integration) | 🚧 In Arbeit |

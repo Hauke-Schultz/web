@@ -56,7 +56,7 @@ const games = [
     description: 'Verdopple deinen Einsatz – aber wann ist genug genug?',
     emoji:       '🎰',
     route:       '/games/hawkDoubleUp',
-    active:      false,
+    active:      true,
   },
   {
     key:         'hawkTower',

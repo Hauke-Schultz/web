@@ -75,6 +75,18 @@
       "badge_new": "Neu!",
       "badge_claimed": "✅ Abgeholt"
     },
+    "doubleUp": {
+      "subtitle": "Verdopple Zahlen und jage deinen Highscore.",
+      "back": "← Games",
+      "score": "Score",
+      "best": "Bestleistung",
+      "instructions": "Wische oder nutze die Pfeiltasten, um Zahlen zu bewegen. Gleiche Zahlen verschmelzen und verdoppeln sich. Wie weit kommst du?",
+      "start": "🎰 Spiel starten",
+      "game_over": "Keine Züge mehr möglich!",
+      "final_score": "Dein Score: {score}",
+      "play_again": "🎰 Nochmal spielen",
+      "restart": "Neu starten"
+    },
     "profile": {
       "title": "Mein Profil",
       "subtitle": "Deine gesammelten Schätze",

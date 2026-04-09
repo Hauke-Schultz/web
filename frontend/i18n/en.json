@@ -76,6 +76,18 @@
       "badge_new": "New!",
       "badge_claimed": "✅ Claimed"
     },
+    "doubleUp": {
+      "subtitle": "Merge numbers and chase your high score.",
+      "back": "← Games",
+      "score": "Score",
+      "best": "Best",
+      "instructions": "Swipe or use arrow keys to move tiles. Equal numbers merge and double. How far can you go?",
+      "start": "🎰 Start Game",
+      "game_over": "No moves left!",
+      "final_score": "Your score: {score}",
+      "play_again": "🎰 Play Again",
+      "restart": "Restart"
+    },
     "profile": {
       "title": "My Profile",
       "subtitle": "Your collected treasures",
