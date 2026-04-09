@@ -45,6 +45,20 @@ Ein 2048-Klon im Endless Mode. Zahlen auf einem 4×4-Grid durch Wischen oder Pfe
 
 ---
 
+## Rewards
+
+Am Spielende werden Coins und Diamonds basierend auf dem erzielten Score gutgeschrieben:
+
+| Währung | Formel |
+|---------|--------|
+| Coins | `floor(score / 15)` |
+| Diamonds | `floor(score / 500)` |
+
+Beispiele: Score 750 → 50 Coins, 1 Diamond. Score 300 → 20 Coins, 0 Diamonds.
+Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeichert.
+
+---
+
 ## Speicher-Format (`hawk3_game_data.games.hawkDoubleUp`)
 
 ```json

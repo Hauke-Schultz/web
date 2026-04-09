@@ -66,6 +66,20 @@ Rot → Orange → Amber → Gelb → Lime → Grün → Emerald → Teal → Cy
 
 ---
 
+## Rewards
+
+Am Spielende werden Coins und Diamonds basierend auf der erreichten Höhe gutgeschrieben:
+
+| Währung | Formel |
+|---------|--------|
+| Coins | `height × 3` |
+| Diamonds | `floor(height / 10)` |
+
+Beispiele: Höhe 15 → 45 Coins, 1 Diamond. Höhe 30 → 90 Coins, 3 Diamonds.
+Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeichert.
+
+---
+
 ## Speicher-Format (`hawk3_game_data.games.hawkTower`)
 
 ```json

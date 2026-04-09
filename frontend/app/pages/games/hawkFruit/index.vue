@@ -476,6 +476,8 @@ const gameLoop = () => {
   animFrame = requestAnimationFrame(gameLoop)
 }
 
+const lastReward = ref(null)   // { coins, diamonds }
+
 const triggerGameOver = () => {
   gameState.value = 'gameover'
   M.Runner.stop(runner)
@@ -507,6 +509,13 @@ const triggerGameOver = () => {
       achievedAt:       new Date().toISOString(),
     }
   }
+
+  // Reward
+  const coins    = Math.floor(score.value / 20)
+  const diamonds = Math.floor(score.value / 1000)
+  data.player.coins    = (data.player.coins    ?? 0) + coins
+  data.player.diamonds = (data.player.diamonds ?? 0) + diamonds
+  lastReward.value = { coins, diamonds }
 
   saveHawk3Data(data)
   highScore.value = hf.highScore
@@ -834,6 +843,16 @@ onUnmounted(() => {
             <div class="text-xs uppercase tracking-widest opacity-60">Score</div>
             <div class="text-5xl font-bold tabular-nums">{{ score.toLocaleString() }}</div>
             <div class="text-sm opacity-50 pt-1">Best: {{ Math.max(score, highScore).toLocaleString() }}</div>
+          </div>
+          <div v-if="lastReward" class="flex gap-3">
+            <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
+              <div class="text-xs opacity-50 mb-0.5">Coins</div>
+              <div class="text-lg font-bold">+{{ lastReward.coins }}</div>
+            </div>
+            <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
+              <div class="text-xs opacity-50 mb-0.5">Diamonds</div>
+              <div class="text-lg font-bold">+{{ lastReward.diamonds }}</div>
+            </div>
           </div>
           <button
             @click.stop="restart"

@@ -37,6 +37,7 @@ const highScore   = ref(0)
 const maxHeight   = ref(0)
 const combo       = ref(0)
 const showPerfect = ref(false)
+const lastReward  = ref(null)   // { coins, diamonds }
 
 // ── Internal (non-reactive for perf) ─────────────────────
 let blocks  = []  // { x, y, w, color }
@@ -164,10 +165,16 @@ function endGame() {
   if (score.value        > highScore.value) highScore.value = score.value
   if (towerHeight.value  > maxHeight.value) maxHeight.value = towerHeight.value
 
+  const coins    = towerHeight.value * 3
+  const diamonds = Math.floor(towerHeight.value / 10)
+  lastReward.value = { coins, diamonds }
+
   const data = loadHawk3Data()
-  data.games.hawkTower.highScore  = highScore.value
-  data.games.hawkTower.maxHeight  = maxHeight.value
+  data.games.hawkTower.highScore   = highScore.value
+  data.games.hawkTower.maxHeight   = maxHeight.value
   data.games.hawkTower.gamesPlayed = (data.games.hawkTower.gamesPlayed ?? 0) + 1
+  data.player.coins    = (data.player.coins    ?? 0) + coins
+  data.player.diamonds = (data.player.diamonds ?? 0) + diamonds
   saveHawk3Data(data)
 
   render()  // final frame
@@ -367,6 +374,16 @@ function onCanvasTap(e) {
               <div class="text-xs uppercase tracking-widest opacity-60">{{ t('games.tower.height') }}</div>
               <div class="text-5xl font-bold tabular-nums">{{ towerHeight }}</div>
               <div class="text-sm opacity-50 pt-1">Best: {{ maxHeight }}</div>
+            </div>
+            <div v-if="lastReward" class="flex gap-3">
+              <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
+                <div class="text-xs opacity-50 mb-0.5">Coins</div>
+                <div class="text-lg font-bold">+{{ lastReward.coins }}</div>
+              </div>
+              <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
+                <div class="text-xs opacity-50 mb-0.5">Diamonds</div>
+                <div class="text-lg font-bold">+{{ lastReward.diamonds }}</div>
+              </div>
             </div>
             <button
               class="px-10 py-3 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors"

@@ -82,6 +82,20 @@ Tiers: 1x / 3x / 5x / 8x / 12x / 15x / 20x / 30x — with random floating texts 
 
 ## Status
 
+## Rewards
+
+Am Spielende werden Coins und Diamonds basierend auf dem erzielten Score gutgeschrieben:
+
+| Währung | Formel |
+|---------|--------|
+| Coins | `floor(score / 20)` |
+| Diamonds | `floor(score / 1000)` |
+
+Beispiele: Score 2000 → 100 Coins, 2 Diamonds. Score 500 → 25 Coins, 0 Diamonds.
+Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeichert.
+
+---
+
 ### Done ✅
 - Physics engine (Matter.js) with correct sleep/wake handling
 - All 12 regular fruits with animated SVG faces (blink every 10s)

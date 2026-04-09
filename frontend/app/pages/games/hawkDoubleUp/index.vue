@@ -37,6 +37,7 @@ const score       = ref(0)
 const highScore   = ref(0)
 const gamesPlayed = ref(0)
 const phase       = ref('idle')    // 'idle' | 'playing' | 'over'
+const lastReward  = ref(null)      // { coins, diamonds }
 const newCells    = ref([])
 const mergeCells  = ref([])
 const countdown   = ref(null)      // { row, col, value } — special tile that counts down
@@ -229,10 +230,16 @@ function endGame() {
   gamesPlayed.value++
   if (score.value > highScore.value) highScore.value = score.value
 
+  const coins    = Math.floor(score.value / 15)
+  const diamonds = Math.floor(score.value / 500)
+  lastReward.value = { coins, diamonds }
+
   const data = loadHawk3Data()
   data.games.hawkDoubleUp.highScore   = highScore.value
   data.games.hawkDoubleUp.gamesPlayed = gamesPlayed.value
   data.games.hawkDoubleUp.savedGame   = null
+  data.player.coins    = (data.player.coins    ?? 0) + coins
+  data.player.diamonds = (data.player.diamonds ?? 0) + diamonds
   saveHawk3Data(data)
 }
 
@@ -356,6 +363,16 @@ function handleKeyDown(e) {
               <div class="text-xs uppercase tracking-widest opacity-60">{{ t('games.doubleUp.score') }}</div>
               <div class="text-5xl font-bold tabular-nums">{{ score.toLocaleString() }}</div>
               <div class="text-sm opacity-50 pt-1">Best: {{ Math.max(score, highScore).toLocaleString() }}</div>
+            </div>
+            <div v-if="lastReward" class="flex gap-3">
+              <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
+                <div class="text-xs opacity-50 mb-0.5">Coins</div>
+                <div class="text-lg font-bold">+{{ lastReward.coins }}</div>
+              </div>
+              <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
+                <div class="text-xs opacity-50 mb-0.5">Diamonds</div>
+                <div class="text-lg font-bold">+{{ lastReward.diamonds }}</div>
+              </div>
             </div>
             <button
               class="px-10 py-3 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors"
