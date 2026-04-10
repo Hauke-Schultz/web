@@ -1,10 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
+import GamesHeader from '~/components/games/GamesHeader.vue'
 
 const { t } = useI18n()
 
-definePageMeta({ layout: 'default' })
+definePageMeta({ hideHeader: true })
 
 useHead({
   title: 'Hawk Double-Up',
@@ -36,6 +37,7 @@ const grid        = ref(emptyGrid())
 const score       = ref(0)
 const highScore   = ref(0)
 const gamesPlayed = ref(0)
+const headerRef   = ref(null)
 const phase       = ref('idle')    // 'idle' | 'playing' | 'over'
 const lastReward  = ref(null)      // { coins, diamonds }
 const newCells    = ref([])
@@ -241,6 +243,7 @@ function endGame() {
   data.player.coins    = (data.player.coins    ?? 0) + coins
   data.player.diamonds = (data.player.diamonds ?? 0) + diamonds
   saveHawk3Data(data)
+  headerRef.value?.refresh()
 }
 
 function saveGame() {
@@ -283,22 +286,14 @@ function handleKeyDown(e) {
 
 <template>
   <div
-    class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-8 px-4 select-none"
+    class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4 select-none"
     @touchstart.passive="handleTouchStart"
     @touchend.passive="handleTouchEnd"
   >
     <div class="max-w-[420px] mx-auto flex flex-col gap-5">
 
       <!-- Header -->
-      <div class="flex items-start justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-white mb-1">🎰 Hawk Double-Up</h1>
-          <p class="text-white/40 text-sm">{{ t('games.doubleUp.subtitle') }}</p>
-        </div>
-        <NuxtLink to="/games" class="text-white/30 hover:text-white/70 text-sm transition-colors mt-1">
-          {{ t('games.doubleUp.back') }}
-        </NuxtLink>
-      </div>
+      <GamesHeader ref="headerRef" title="🎰 Hawk Double-Up" />
 
       <!-- Stats -->
       <div class="flex gap-3">

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
 import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG, RAINBOW_FRUIT_CONFIG } from '~/utils/hawkFruitConfig.js'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
+import GamesHeader from '~/components/games/GamesHeader.vue'
 const { locale } = useI18n()
 
 definePageMeta({ hideHeader: true })
@@ -476,6 +477,7 @@ const gameLoop = () => {
   animFrame = requestAnimationFrame(gameLoop)
 }
 
+const headerRef  = ref(null)
 const lastReward = ref(null)   // { coins, diamonds }
 
 const triggerGameOver = () => {
@@ -519,6 +521,7 @@ const triggerGameOver = () => {
 
   saveHawk3Data(data)
   highScore.value = hf.highScore
+  headerRef.value?.refresh()
 }
 
 const restart = () => {
@@ -662,7 +665,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-6 px-4 select-none">
+  <div class="flex flex-col items-center min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4 select-none">
+
+    <!-- Header -->
+    <GamesHeader ref="headerRef" title="🍉 Hawk Fruit" class="w-full max-w-[320px]" />
 
     <!-- HUD: score + next fruits -->
     <div class="flex items-stretch gap-1 mb-4 w-full max-w-[320px]">

@@ -18,7 +18,12 @@ Alle alten Spiele hatten **6 Level** mit LevelSelection-Screen. Im neuen System 
 
 ## Daily Reward — Spiel-Rotation
 
-Jeden Tag wechselt das Minispiel automatisch. Die Logik steht in `pages/games/dailyReward`:
+Jeden Tag wechselt das Minispiel automatisch. Drei Spiele rotieren per Day-Index:
+- 🎰 Slot Machine (`SlotMachineGame.vue`)
+- 🎡 Fortune Wheel (`FortuneWheelGame.vue`)
+- 🐚 Three Shells (`ThreeShellsGame.vue`)
+
+Die Logik liegt in `components/dailyReward/DailyRewardCard.vue` (eingebettet auf `/games`) und `pages/games/dailyReward/index.vue` (standalone Seite).
 
 ---
 
@@ -26,14 +31,15 @@ Jeden Tag wechselt das Minispiel automatisch. Die Logik steht in `pages/games/da
 
 Kachel-Grid mit allen Spielen.
 
-| Spiel          | Route                 | Status       | Quelle (alt)          |
-|----------------|-----------------------|--------------|-----------------------|
-| Daily Reward   | Sektion auf /games    | ✅ Fertig     | —                     |
-| Hawk Fruit     | `/games/hawkFruit`    | ✅ Fertig     | `games/hawkfruit/`    |
-| Hawk Double-Up | `/games/hawkDoubleUp` | ✅ Fertig     | `games/hawkdoubleup/` |
-| Hawk Tower     | `/games/hawkTower`    | ✅ Fertig    | `games/hawktower/`    |
-| Shop           | `/games/shop`         | ✅ Fertig    | `views/Shop.vue`      |
-| Hawk Star      | `/hawk-star`          | 🚧 In Arbeit | Neu (kein Alt-System) |
+| Seite / Spiel  | Route                 | Status        | Quelle (alt)          |
+|----------------|-----------------------|---------------|-----------------------|
+| Daily Reward   | Sektion auf /games    | ✅ Fertig      | —                     |
+| Hawk Fruit     | `/games/hawkFruit`    | ✅ Fertig      | `games/hawkfruit/`    |
+| Hawk Double-Up | `/games/hawkDoubleUp` | ✅ Fertig      | `games/hawkdoubleup/` |
+| Hawk Tower     | `/games/hawkTower`    | ✅ Fertig      | `games/hawktower/`    |
+| Shop           | `/games/shop`         | ✅ Fertig      | `views/Shop.vue`      |
+| Profile        | `/games/profile`      | ✅ Fertig      | `views/Profile.vue`   |
+| Hawk Star      | `/hawk-star`          | 🚧 In Arbeit  | Neu (kein Alt-System) |
 
 **Daily Reward Kachel** ist eine eigenständige, expandierte Sektion (kein NuxtLink).
 
@@ -49,8 +55,13 @@ Derselbe Key wie auf der alten Website — kein Datenverlust beim Seitenwechsel.
 ```
 hawk3_game_data (JSON, version "1.1")
 ├── player
-│   ├── coins          ← Münzen (aus Daily Reward, Shop)
-│   └── diamonds       ← Diamanten (aus Daily Reward, Shop)
+│   ├── name
+│   ├── avatar
+│   ├── coins          ← Münzen (aus Daily Reward, Spiele, Shop)
+│   ├── diamonds       ← Diamanten (aus Daily Reward, Spiele)
+│   └── inventory
+│       └── items      ← Object { [itemId]: { id, quantity, purchasedAt, type, category, rarity, name } }
+│                         Enthält Shop-Käufe UND Mystery-Box-Items
 ├── currency
 │   ├── dailyRewards
 │   │   ├── lastClaimed   ← 'YYYY-MM-DD'
@@ -60,20 +71,18 @@ hawk3_game_data (JSON, version "1.1")
 │       ├── totalClaimed
 │       ├── lastClaimedCounter
 │       └── pendingMysteryBox  ← null | { item, mysteryBoxNumber, ... }
-├── shop
-│   └── purchasedItems    ← Array von Item-IDs
 ├── games
 │   ├── hawkFruit        ← aktiv (siehe unten)
+│   ├── hawkDoubleUp     ← aktiv (siehe unten)
+│   ├── hawkTower        ← aktiv (siehe unten)
 │   ├── memory           ← Platzhalter
-│   ├── hawkDoubleUp     ← Platzhalter
-│   ├── hawkTower        ← Platzhalter
 │   └── hawkDungeon      ← Platzhalter
 ├── settings             ← nicht aktiv
 ├── achievements         ← nicht aktiv
 └── version              "1.1"
 ```
 
-Alter `counter`-Wert aus dem alten Format wird automatisch übernommen.
+**Hinweis:** `shop.purchasedItems` existiert nicht mehr. Alle gekauften Items (Shop + Mystery Box) liegen in `player.inventory.items`.
 
 ---
 
@@ -90,62 +99,50 @@ Alter `counter`-Wert aus dem alten Format wird automatisch übernommen.
   "maxCombo": 0,
   "savedGame": null,
   "levels": {
-    "6": {
-      "completed": false,
-      "highScore": 0,
-      "bestMoves": null,
-      "stars": 0,
-      "attempts": 0,
-      "bestPerformance": null
-    }
+    "6": { "completed": false, "highScore": 0, "bestMoves": null, "stars": 0, "attempts": 0, "bestPerformance": null }
   }
 }
 ```
 
-`levels["6"]` = Endless Mode. Im alten System war Level 6 das letzte von 6 Levels.
-`savedGame` = null wenn kein laufendes Spiel. Wird bei jedem Drop und beim Verlassen gespeichert.
-Bomb-Früchte werden **nicht** gespeichert (zu komplex zum Wiederherstellen).
+Rewards: `floor(score / 20)` Coins · `floor(score / 1000)` Diamonds — bei Game Over ausgezahlt.
 
-### Hawk Double-Up (`games.hawkDoubleUp`) — Geplant
+### Hawk Double-Up (`games.hawkDoubleUp`)
 
 ```json
 "hawkDoubleUp": {
   "highScore": 0,
   "gamesPlayed": 0,
-  "totalWins": 0,
   "savedGame": null
 }
 ```
 
-### Hawk Tower (`games.hawkTower`) — Geplant
+Rewards: `floor(score / 15)` Coins · `floor(score / 500)` Diamonds — bei Game Over ausgezahlt.
+
+### Hawk Tower (`games.hawkTower`)
 
 ```json
 "hawkTower": {
   "highScore": 0,
   "gamesPlayed": 0,
-  "maxHeight": 0,
-  "savedGame": null
+  "maxHeight": 0
 }
 ```
 
+Rewards: `height × 3` Coins · `floor(height / 10)` Diamonds — bei Game Over ausgezahlt.
+
+---
+
 ## Shop
 
-### Altes System
-- `oldPageSrc/gamingHub/views/Shop.vue` — Shop-UI mit Kategorien und Kauf-Modal
-- `oldPageSrc/gamingHub/config/shopConfig.js` — SHOP_ITEMS, SHOP_CATEGORIES
-- `oldPageSrc/gamingHub/composables/useShop.js` — Kauf-Logik, Leistbarkeit, Limits
-- `oldPageSrc/gamingHub/composables/useInventory.js` — Inventar-Verwaltung
+- `utils/shopConfig.js` — `SHOP_ITEMS`, `SHOP_CATEGORIES`, `RARITY`
+- `pages/games/shop/index.vue` — Shop-UI mit Tab-Navigation (Profile / Items / Gifts)
+- Kauf-Modal inline (confirm / broke / success)
+- Gekaufte Items: `player.inventory.items[id]` — gleiche Struktur wie Mystery-Box-Items
 
-### Neues System
-- `utils/shopConfig.js` — bereits erstellt (noch leer / in Arbeit)
-- Shop-Seite: `/games/shop` — noch zu erstellen
-- Kauf-Composable: `composables/useShop.js` — noch zu erstellen
-- Gekaufte Items liegen in `hawk3_game_data.shop.purchasedItems`
-
-### Shop-Kategorien (aus altem System übernehmen)
-- **Profile** — Avatar-Items, Profilbild-Elemente
-- **Power-Ups** — Einmalige Spielvorteile
-- **Cosmetics** — Skins, Themes
+### Kategorien
+- **Profile** — Cosmetics (purchaseLimit: 1)
+- **Items** — Consumables (Fruit Hammer, Undo Move; unbegrenzter Kauf)
+- **Gifts** — Verschenkbare Cosmetics (purchaseLimit: 5–10)
 
 ---
 
@@ -155,20 +152,18 @@ Hawk-Star liegt in `/pages/hawk-star/` und ist ein eigenständiges Spiel (kein T
 Separate Dokumentation: `pages/hawk-star/hawk-star.md`
 LocalStorage-Key: `hawkStarSave` (getrennt von `hawk3_game_data`)
 
-Hawk-Star soll als Kachel auf der Games-Übersichtsseite erscheinen (Route `/hawk-star`).
-
 ---
 
 ## Neue Spiele implementieren — Checkliste
 
-Für jedes neue Spiel aus dem alten System:
-
 1. **Ordner anlegen**: `pages/games/<spielname>/index.vue`
 2. **1 Level only**: Kein LevelSelection-Screen. Direkt ins Spiel.
-3. **Save-Format** in `hawk3_game_data.games.<spielname>` hinzufügen (siehe oben)
+3. **Save-Format** in `hawk3_game_data.games.<spielname>` hinzufügen
 4. **`localStores.js`** um die neuen Felder erweitern
-5. **Kachel** auf `pages/games/index.vue` von "Coming Soon" auf aktiv stellen
+5. **Kachel** auf `pages/games/index.vue` auf `active: true` stellen
 6. **i18n**: `de.json` + `en.json` um Spielname und UI-Texte erweitern
+7. **Reward**: Coins/Diamonds bei Game Over gutschreiben und im Overlay anzeigen
+8. **MD-Datei**: `pages/games/<spielname>/<spielname>.md` anlegen
 
 ---
 
@@ -178,11 +173,15 @@ Für jedes neue Spiel aus dem alten System:
 |------|--------|
 | `hawk3_game_data` helpers in `localStores.js` | ✅ Fertig |
 | Games Overview Page (`/games`) | ✅ Fertig |
-| Daily Reward | ✅ Fertig |
-| Hawk Fruit (Endless Mode) | ✅ Fertig |
+| Daily Reward (3 rotierende Spiele) | ✅ Fertig |
+| Hawk Fruit (Endless Mode + Rewards) | ✅ Fertig |
+| Hawk Double-Up (Endless Mode + Rewards) | ✅ Fertig |
+| Hawk Tower (Endless Mode + Rewards) | ✅ Fertig |
+| Shop (Profile / Items / Gifts) | ✅ Fertig |
 | Profile-Seite | ✅ Fertig |
-| `utils/shopConfig.js` erstellt | ✅ Fertig (leer) |
-| Hawk Double-Up | ✅ Fertig |
-| Hawk Tower | ✅ Fertig |
-| Shop-Seite + Logik | ✅ Fertig |
 | Hawk Star (Kachel + Integration) | 🚧 In Arbeit |
+| Games-Header (alle Seiten) | 🔲 Geplant |
+| i18n-Überarbeitung (alle Spiele + Shop + Profile) | 🔲 Geplant |
+| Games-Index Kacheln neu ordnen (Profile + Shop oben) | 🔲 Geplant |
+| DailyRewardCard kompakter nach Claim | 🔲 Geplant |
+| Light-Mode-Anpassung (Games-Bereich) | 🔲 Geplant |

@@ -2,9 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 import { SHOP_ITEMS, SHOP_CATEGORIES, RARITY } from '~/utils/shopConfig.js'
+import GamesHeader from '~/components/games/GamesHeader.vue'
 
 const { t } = useI18n()
-definePageMeta({ layout: 'default' })
+definePageMeta({ hideHeader: true })
 useHead({ title: 'Shop' })
 
 // ── State ─────────────────────────────────────────────────
@@ -91,19 +92,11 @@ function closeModal() {
 </script>
 
 <template>
-  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-8 px-4">
+  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4">
     <div class="max-w-[480px] mx-auto flex flex-col gap-5">
 
       <!-- Header -->
-      <div class="flex items-start justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-white mb-1">🛒 {{ t('games.shop.title') }}</h1>
-          <p class="text-white/40 text-sm">{{ t('games.shop.subtitle') }}</p>
-        </div>
-        <NuxtLink to="/games" class="text-white/30 hover:text-white/70 text-sm transition-colors mt-1">
-          {{ t('games.shop.back') }}
-        </NuxtLink>
-      </div>
+      <GamesHeader :title="`🛒 ${t('games.shop.title')}`" />
 
       <!-- Balance -->
       <div class="flex gap-3">

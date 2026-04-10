@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
+import GamesHeader from '~/components/games/GamesHeader.vue'
 
 const { t } = useI18n()
-definePageMeta({ layout: 'default' })
+definePageMeta({ hideHeader: true })
 useHead({ title: 'Hawk Tower' })
 
 // ── Config ────────────────────────────────────────────────
@@ -34,6 +35,7 @@ const phase       = ref('idle')   // 'idle' | 'playing' | 'over'
 const score       = ref(0)
 const towerHeight = ref(0)
 const highScore   = ref(0)
+const headerRef   = ref(null)
 const maxHeight   = ref(0)
 const combo       = ref(0)
 const showPerfect = ref(false)
@@ -176,6 +178,7 @@ function endGame() {
   data.player.coins    = (data.player.coins    ?? 0) + coins
   data.player.diamonds = (data.player.diamonds ?? 0) + diamonds
   saveHawk3Data(data)
+  headerRef.value?.refresh()
 
   render()  // final frame
 }
@@ -307,19 +310,11 @@ function onCanvasTap(e) {
 </script>
 
 <template>
-  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-8 px-4 select-none">
+  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4 select-none">
     <div class="max-w-[420px] mx-auto flex flex-col gap-5">
 
       <!-- Header -->
-      <div class="flex items-start justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-white mb-1">🏗️ Hawk Tower</h1>
-          <p class="text-white/40 text-sm">{{ t('games.tower.subtitle') }}</p>
-        </div>
-        <NuxtLink to="/games" class="text-white/30 hover:text-white/70 text-sm transition-colors mt-1">
-          {{ t('games.tower.back') }}
-        </NuxtLink>
-      </div>
+      <GamesHeader ref="headerRef" title="🏗️ Hawk Tower" />
 
       <!-- Stats -->
       <div class="flex gap-3">

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { loadHawk3Data, saveHawk3Data, LS_KEYS } from '~/utils/localStores.js'
 import { MYSTERY_ITEMS } from '~/utils/mysteryBoxConfig.js'
 import { SHOP_ITEMS } from '~/utils/shopConfig.js'
+import GamesHeader from '~/components/games/GamesHeader.vue'
 
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
@@ -221,19 +222,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-8 px-4">
+  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4">
     <div class="max-w-[480px] mx-auto flex flex-col gap-6">
 
       <!-- Top bar -->
-      <div class="flex items-center justify-between">
-        <NuxtLink :to="localePath('/games')" class="text-white/30 hover:text-white/70 text-sm transition-colors">
-          {{ t('games.profile.back') }}
-        </NuxtLink>
-        <div class="flex items-center gap-2">
-          <LanguageSwitcher />
-          <ThemeToggle />
-        </div>
-      </div>
+      <GamesHeader :title="`👤 ${t('games.profile.title')}`" />
 
       <!-- Player card -->
       <div class="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">

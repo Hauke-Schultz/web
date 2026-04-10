@@ -2,8 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { loadHawk3Data } from '~/utils/localStores.js'
 import DailyRewardCard from '../../components/dailyReward/DailyRewardCard.vue'
+import GamesHeader from '~/components/games/GamesHeader.vue'
 
 const localePath = useLocalePath()
+const { t } = useI18n()
 
 useHead({
   title: 'Games',
@@ -12,6 +14,7 @@ useHead({
 definePageMeta({ hideHeader: true })
 
 // ── Profile state ─────────────────────────────────────────
+const headerRef        = ref(null)
 const playerName       = ref('Spieler')
 const playerAvatar     = ref('avatar/user')
 const playerCoins      = ref(0)
@@ -31,6 +34,7 @@ const onCurrencyUpdated = ({ coins, diamonds, mysteryItemCount: mic }) => {
   playerCoins.value      = coins
   playerDiamonds.value   = diamonds
   mysteryItemCount.value = mic
+  headerRef.value?.refresh()
 }
 
 const games = [
@@ -78,8 +82,11 @@ const games = [
 </script>
 
 <template>
-  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-8 px-4">
+  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4">
     <div class="max-w-[480px] mx-auto flex flex-col gap-6">
+
+      <!-- Header -->
+      <GamesHeader ref="headerRef" :title="t('games.overview.title')" back-to="/" back-label="← Home" />
 
       <!-- Profile card -->
       <NuxtLink
