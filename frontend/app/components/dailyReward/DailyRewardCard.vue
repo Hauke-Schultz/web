@@ -14,9 +14,9 @@ const today = new Date().toISOString().split('T')[0]
 
 // Daily game rotation — add new game components here when ready
 const DAILY_GAMES = [
-  { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
+  // { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
   { key: 'wheel',  label: 'Fortune Wheel', emoji: '🎡', component: FortuneWheelGame },
-  { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
+  // { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
 ]
 const dayIndex  = Math.floor(Date.now() / 86400000)
 const todayGame = DAILY_GAMES[dayIndex % DAILY_GAMES.length]
@@ -42,11 +42,18 @@ const rarityColor = (rarity) => ({
 
 // ── Load ──────────────────────────────────────────────────
 onMounted(() => {
-  const data = loadHawk3Data()
+  const data        = loadHawk3Data()
+  const claimedToday = data.currency.dailyRewards.lastClaimed === today
+
   counter.value            = data.currency.dailyRewards.counter
   lastClaimedCounter.value = data.currency.mysteryBoxes.lastClaimedCounter ?? 0
-  pendingBox.value         = data.currency.mysteryBoxes.pendingMysteryBox ?? null
-  phase.value              = data.currency.dailyRewards.lastClaimed === today ? 'claimed' : 'idle'
+  pendingBox.value         = data.currency.mysteryBoxes.pendingMysteryBox  ?? null
+  phase.value              = claimedToday ? 'claimed' : 'idle'
+
+  if (claimedToday) {
+    lastReward.value = data.currency.dailyRewards.lastReward                ?? null
+    claimedBox.value = data.currency.mysteryBoxes.lastClaimedBox            ?? null
+  }
 })
 
 // ── Handle game-complete from child ──────────────────────
@@ -60,16 +67,34 @@ const onGameComplete = ({ coins: c, diamonds: d, label }) => {
   const newCounter = data.currency.dailyRewards.counter
   const lastCC     = data.currency.mysteryBoxes.lastClaimedCounter ?? 0
 
+  let autoClaimed = null
   if (canClaimMysteryBox(newCounter, lastCC)) {
     const boxNumber = Math.floor(newCounter / MYSTERY_BOX_CONFIG.requiredDailyRewards)
-    data.currency.mysteryBoxes.pendingMysteryBox = calculateMysteryBoxReward(boxNumber)
+    const box = calculateMysteryBoxReward(boxNumber)
+    const item = box.item
+    data.player.inventory              = data.player.inventory       ?? {}
+    data.player.inventory.items        = data.player.inventory.items ?? {}
+    data.player.inventory.items[item.id] = {
+      id: item.id, quantity: 1, purchasedAt: new Date().toISOString(),
+      type: item.type, category: item.category, rarity: item.rarity,
+      name: item.name, icon: item.icon, description: item.description,
+      tier: item.tier, mysteryBoxNumber: item.mysteryBoxNumber,
+    }
+    data.currency.mysteryBoxes.pendingMysteryBox  = null
+    data.currency.mysteryBoxes.lastClaimedCounter = newCounter
+    data.currency.mysteryBoxes.totalClaimed       = (data.currency.mysteryBoxes.totalClaimed ?? 0) + 1
+    data.currency.mysteryBoxes.lastClaimed        = today
+    data.currency.mysteryBoxes.lastClaimedBox     = box
+    autoClaimed = box
   }
 
+  data.currency.dailyRewards.lastReward = { coins: c, diamonds: d }
   saveHawk3Data(data)
 
   counter.value            = newCounter
-  lastClaimedCounter.value = lastCC
-  pendingBox.value         = data.currency.mysteryBoxes.pendingMysteryBox ?? null
+  lastClaimedCounter.value = autoClaimed ? newCounter : lastCC
+  pendingBox.value         = null
+  claimedBox.value         = autoClaimed
   lastReward.value         = { coins: c, diamonds: d, label }
   phase.value              = 'claimed'
 
@@ -116,127 +141,125 @@ const claimMysteryBox = () => {
 </script>
 
 <template>
-  <div class="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
+  <!-- ── COMPACT: already claimed today ─────────────────────── -->
+  <div v-if="phase === 'claimed'" class="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-3">
 
-    <!-- Header -->
-    <div class="flex items-center justify-between">
+    <!-- Auto-claimed mystery box (full visual, no button) -->
+    <div
+      v-if="claimedBox"
+      class="bg-[#1a1a2e] border-2 border-yellow-400 rounded-xl p-4 flex flex-col gap-3"
+      style="box-shadow: 0 0 20px rgba(255,215,0,0.25);"
+    >
+      <div class="flex items-center gap-2 text-yellow-400 text-xs font-bold uppercase tracking-widest">
+        <span>⭐</span>
+        <span>{{ t('games.daily_reward.mystery_item_discovered') }}</span>
+      </div>
       <div class="flex items-center gap-3">
-        <span class="text-3xl leading-none">🎁</span>
-        <div>
-          <h3 class="text-base font-bold text-fg m-0">{{ t('games.daily_reward.title') }}</h3>
-          <p class="text-xs text-muted m-0 mt-0.5">{{ t('games.daily_reward.today_subtitle', { emoji: todayGame.emoji, label: todayGame.label }) }}</p>
+        <div class="w-14 h-14 rounded-xl border-2 border-yellow-400/60 bg-yellow-400/10 flex items-center justify-center text-3xl shrink-0">
+          {{ claimedBox.item?.icon }}
+        </div>
+        <div class="flex flex-col gap-1 min-w-0">
+          <div class="text-white font-bold text-sm">{{ claimedBox.item?.name }}</div>
+          <div class="text-white/50 text-xs leading-relaxed">{{ claimedBox.item?.description }}</div>
+          <div class="text-xs font-bold capitalize" :class="rarityColor(claimedBox.item?.rarity)">{{ claimedBox.item?.rarity }}</div>
         </div>
       </div>
-      <span
-        v-if="phase === 'claimed'"
-        class="text-[11px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full bg-green-400/20 text-green-400"
-      >{{ t('games.daily_reward.badge_claimed') }}</span>
+      <div v-if="lastReward" class="flex gap-2">
+        <div class="flex-1 bg-white/10 rounded-lg px-2 py-1.5 text-white text-center">
+          <div class="text-[10px] opacity-50">{{ t('games.daily_reward.coins') }}</div>
+          <div class="text-sm font-bold tabular-nums">+{{ lastReward.coins }}</div>
+        </div>
+        <div class="flex-1 bg-white/10 rounded-lg px-2 py-1.5 text-white text-center">
+          <div class="text-[10px] opacity-50">{{ t('games.daily_reward.diamonds') }}</div>
+          <div class="text-sm font-bold tabular-nums">+{{ lastReward.diamonds }}</div>
+        </div>
+      </div>
     </div>
 
-    <!-- Pending Mystery Box -->
-    <Transition name="fade">
-      <div
-        v-if="pendingBox"
-        class="bg-[#1a1a2e] border-2 border-yellow-400 rounded-xl p-4 flex flex-col gap-3"
-        style="box-shadow: 0 0 20px rgba(255,215,0,0.25);"
-      >
-        <div class="flex items-center gap-2 text-yellow-400 text-xs font-bold uppercase tracking-widest">
-          <span>⭐</span>
-          <span>{{ t('games.daily_reward.mystery_item_discovered') }}</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <div class="w-14 h-14 rounded-xl border-2 border-yellow-400/60 bg-yellow-400/10 flex items-center justify-center text-3xl shrink-0">
-            {{ pendingBox.item?.icon }}
-          </div>
-          <div class="flex flex-col gap-1 min-w-0">
-            <div class="text-white font-bold text-sm">{{ pendingBox.item?.name }}</div>
-            <div class="text-white/50 text-xs leading-relaxed">{{ pendingBox.item?.description }}</div>
-            <div class="text-xs font-bold capitalize" :class="rarityColor(pendingBox.item?.rarity)">
-              {{ pendingBox.item?.rarity }}
-            </div>
-          </div>
-        </div>
-        <button
-          class="w-full py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-colors text-sm"
-          @click="claimMysteryBox"
-        >⭐ {{ t('games.daily_reward.collect') }}</button>
+    <!-- No mystery box: just reward row -->
+    <div v-else-if="lastReward" class="flex gap-2">
+      <div class="flex-1 bg-white/5 rounded-xl px-3 py-2 text-white text-center">
+        <div class="text-[10px] opacity-50 mb-0.5">{{ t('games.daily_reward.coins') }}</div>
+        <div class="text-base font-bold tabular-nums">+{{ lastReward.coins }}</div>
       </div>
-    </Transition>
+      <div class="flex-1 bg-white/5 rounded-xl px-3 py-2 text-white text-center">
+        <div class="text-[10px] opacity-50 mb-0.5">{{ t('games.daily_reward.diamonds') }}</div>
+        <div class="text-base font-bold tabular-nums">+{{ lastReward.diamonds }}</div>
+      </div>
+    </div>
 
-    <!-- Claimed box notification -->
-    <Transition name="fade">
-      <div
-        v-if="claimedBox && !pendingBox"
-        class="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center gap-3"
-      >
-        <div class="text-3xl">{{ claimedBox.item?.icon }}</div>
-        <div>
-          <div class="text-white font-semibold text-sm">{{ t('games.daily_reward.mystery_item_received', { name: claimedBox.item?.name }) }}</div>
-          <div class="text-white/40 text-xs">{{ t('games.daily_reward.mystery_item_added') }}</div>
-        </div>
+    <!-- Fallback: pending box from old session (manual collect) -->
+    <div
+      v-else-if="pendingBox"
+      class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-400/40 rounded-xl px-3 py-2.5"
+    >
+      <span class="text-2xl leading-none shrink-0">{{ pendingBox.item?.icon }}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-white font-semibold text-sm leading-tight truncate">{{ pendingBox.item?.name }}</div>
+        <div class="text-yellow-400/70 text-[11px]">⭐ {{ t('games.daily_reward.mystery_box_title') }}</div>
       </div>
-    </Transition>
+      <button
+        class="shrink-0 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg transition-colors text-xs"
+        @click="claimMysteryBox"
+      >{{ t('games.daily_reward.collect') }}</button>
+    </div>
+
+    <!-- Compact Mystery Box Progress -->
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] text-white/40 uppercase tracking-wider shrink-0">{{ t('games.daily_reward.mystery_box_title') }}</span>
+      <div class="flex gap-1.5 flex-1 justify-end">
+        <div
+          v-for="i in progress.required"
+          :key="i"
+          class="w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold transition-all"
+          :class="i <= progress.current
+            ? 'bg-primary border-primary text-white'
+            : 'bg-white/5 border-white/10 text-white/20'"
+        >{{ i }}</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── FULL: not yet played today ─────────────────────────── -->
+  <div v-else class="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3">
+      <span class="text-3xl leading-none">🎁</span>
+      <div>
+        <h3 class="text-base font-bold text-fg m-0">{{ t('games.daily_reward.title') }}</h3>
+        <p class="text-xs text-muted m-0 mt-0.5">{{ t('games.daily_reward.today_subtitle', { emoji: todayGame.emoji, label: todayGame.label }) }}</p>
+      </div>
+    </div>
 
     <!-- Game area -->
     <div class="bg-white/5 border border-white/10 rounded-xl p-5">
       <template v-if="phase === 'idle'">
         <component :is="todayGame.component" @game-complete="onGameComplete" />
       </template>
-      <template v-else-if="phase === 'claimed'">
-        <div class="flex flex-col gap-3">
-          <div v-if="lastReward" class="flex gap-3 justify-center">
-            <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-20">
-              <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.coins') }}</div>
-              <div class="text-xl font-bold">+{{ lastReward.coins }}</div>
-            </div>
-            <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-20">
-              <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.diamonds') }}</div>
-              <div class="text-xl font-bold">+{{ lastReward.diamonds }}</div>
-            </div>
-          </div>
-          <div class="py-3 bg-white/5 border border-white/10 text-white/40 font-semibold rounded-xl text-center text-sm">
-            {{ t('games.daily_reward.already_claimed') }}
-          </div>
-        </div>
-      </template>
       <template v-else>
         <div class="h-24 flex items-center justify-center text-white/20 text-sm">{{ t('games.daily_reward.loading') }}</div>
       </template>
     </div>
 
-    <!-- Mystery Box Progress -->
-    <div class="flex flex-col gap-2">
-      <div class="flex items-center justify-between">
-        <span class="text-white/70 font-semibold text-xs uppercase tracking-widest">{{ t('games.daily_reward.mystery_box_title') }}</span>
-        <span class="text-white/40 text-xs">{{ t('games.daily_reward.mystery_box_progress', { current: progress.current, required: progress.required }) }}</span>
-      </div>
-      <div class="flex gap-2 justify-center">
+    <!-- Compact Mystery Box Progress — next dot highlighted as CTA -->
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] text-white/40 uppercase tracking-wider shrink-0">{{ t('games.daily_reward.mystery_box_title') }}</span>
+      <div class="flex gap-1.5 flex-1 justify-end">
         <div
           v-for="i in progress.required"
           :key="i"
-          class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all"
+          class="w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold transition-all"
           :class="i <= progress.current
             ? 'bg-primary border-primary text-white'
-            : 'bg-white/5 border-white/15 text-white/20'"
+            : i === progress.current + 1 && !progress.isComplete
+              ? 'bg-white/10 border-white text-white'
+              : 'bg-white/5 border-white/10 text-white/20'"
         >{{ i }}</div>
-      </div>
-      <div class="text-xs text-white/40 text-center">
-        <template v-if="progress.isComplete && pendingBox">{{ t('games.daily_reward.mystery_box_waiting') }}</template>
-        <template v-else-if="progress.isComplete">{{ t('games.daily_reward.mystery_box_ready') }}</template>
-        <template v-else>{{
-          t('games.daily_reward.mystery_box_remaining', {
-            count: progress.remaining,
-            days:  progress.remaining === 1 ? t('games.daily_reward.day') : t('games.daily_reward.days'),
-            box:   progress.mysteryBoxNumber + 1,
-          })
-        }}</template>
       </div>
     </div>
 
   </div>
 </template>
 
-<style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
-.fade-enter-from,  .fade-leave-to      { opacity: 0; }
-</style>

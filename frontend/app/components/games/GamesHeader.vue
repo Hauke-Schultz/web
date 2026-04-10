@@ -1,12 +1,17 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { loadHawk3Data } from '~/utils/localStores.js'
 
-defineProps({
-  title:     { type: String, required: true },
-  backTo:    { type: String, default: '/games' },
-  backLabel: { type: String, default: '← Games' },
+const { t } = useI18n()
+const localePath = useLocalePath()
+
+const props = defineProps({
+  title:    { type: String, required: true },
+  backTo:   { type: String, default: '/games' },
+  homeMode: { type: Boolean, default: false },
 })
+
+const localizedBack = computed(() => localePath(props.backTo))
 
 const coins    = ref(0)
 const diamonds = ref(0)
@@ -24,12 +29,12 @@ defineExpose({ refresh })
 
 <template>
   <div class="flex items-center w-full py-3">
-    <!-- Back -->
+    <!-- Back / Home -->
     <NuxtLink
-      :to="backTo"
+      :to="localizedBack"
       class="text-white/40 hover:text-white/80 text-sm transition-colors shrink-0 min-w-[80px]"
     >
-      {{ backLabel }}
+      {{ homeMode ? t('games.header.home') : t('games.header.back') }}
     </NuxtLink>
 
     <!-- Title -->

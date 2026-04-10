@@ -226,7 +226,13 @@ onUnmounted(() => {
     <div class="max-w-[480px] mx-auto flex flex-col gap-6">
 
       <!-- Top bar -->
-      <GamesHeader :title="`👤 ${t('games.profile.title')}`" />
+      <div class="flex flex-col gap-2">
+        <GamesHeader :title="`👤 ${t('games.profile.title')}`" />
+        <div class="flex justify-end gap-2">
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
+      </div>
 
       <!-- Player card -->
       <div class="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">

@@ -46,6 +46,7 @@ const freshHawkFruit = () => ({
 const freshDailyRewards = () => ({
   lastClaimed:  '2023-01-01',
   counter:      0,
+  lastReward:   null,   // { coins, diamonds } — reset each day
 })
 
 const freshMysteryBoxes = () => ({
@@ -53,6 +54,7 @@ const freshMysteryBoxes = () => ({
   totalClaimed:       0,
   lastClaimedCounter: 0,
   pendingMysteryBox:  null,
+  lastClaimedBox:     null,   // box claimed today — reset each day
 })
 
 const freshHawk3Data = () => ({
@@ -108,6 +110,8 @@ export const loadHawk3Data = () => {
     data.currency.dailyRewards.counter       = data.currency.dailyRewards.counter       ?? 0
     data.currency.mysteryBoxes               = data.currency.mysteryBoxes               ?? freshMysteryBoxes()
     if (!('pendingMysteryBox' in data.currency.mysteryBoxes)) data.currency.mysteryBoxes.pendingMysteryBox = null
+    if (!('lastClaimedBox'    in data.currency.mysteryBoxes)) data.currency.mysteryBoxes.lastClaimedBox    = null
+    if (!('lastReward'        in data.currency.dailyRewards)) data.currency.dailyRewards.lastReward        = null
     return data
   } catch {
     return freshHawk3Data()

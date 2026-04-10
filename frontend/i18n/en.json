@@ -29,9 +29,11 @@
   "games": {
     "overview": {
       "title": "Games",
-      "description": "All games at a glance.",
-      "profile_title": "My Profile",
       "profile_link": "Profile →"
+    },
+    "header": {
+      "back": "← Games",
+      "home": "← Home"
     },
     "daily_reward": {
       "title": "Daily Reward",
@@ -53,9 +55,6 @@
       "mystery_box_remaining": "{count} more {days} until the next box (Box #{box})",
       "day": "day",
       "days": "days",
-      "back": "← Games",
-      "reward_coins": "Coins",
-      "reward_diamonds": "Diamonds",
       "slot_jackpot": "💎💎💎 Jackpot!",
       "slot_triple_coins": "💰💰💰 Triple Coins!",
       "slot_double_diamonds": "💎💎 Double Diamonds!",
@@ -73,13 +72,10 @@
       "wheel_jackpot": "🌟 Jackpot!",
       "wheel_coins": "💰 {n} Coins won!",
       "wheel_diamonds": "💎 {n} Diamonds won!",
-      "badge_new": "New!",
       "badge_claimed": "✅ Claimed"
     },
     "shop": {
       "title": "Shop",
-      "subtitle": "Buy cosmetics with your Coins and Diamonds.",
-      "back": "← Games",
       "coins": "Coins",
       "diamonds": "Diamonds",
       "owned": "Owned",
@@ -92,8 +88,6 @@
       "limit": "Max. {n}× purchasable"
     },
     "tower": {
-      "subtitle": "Stack blocks as high as possible.",
-      "back": "← Games",
       "height": "Height",
       "score": "Score",
       "best": "Best",
@@ -101,24 +95,23 @@
       "start": "🏗️ Start Game",
       "game_over": "Missed!",
       "play_again": "🏗️ Play Again",
-      "restart": "Restart"
+      "restart": "Restart",
+      "reward_coins": "Coins",
+      "reward_diamonds": "Diamonds"
     },
     "doubleUp": {
-      "subtitle": "Merge numbers and chase your high score.",
-      "back": "← Games",
       "score": "Score",
       "best": "Best",
       "instructions": "Swipe or use arrow keys to move tiles. Equal numbers merge and double. How far can you go?",
       "start": "🎰 Start Game",
       "game_over": "No moves left!",
-      "final_score": "Your score: {score}",
       "play_again": "🎰 Play Again",
-      "restart": "Restart"
+      "restart": "Restart",
+      "reward_coins": "Coins",
+      "reward_diamonds": "Diamonds"
     },
     "profile": {
       "title": "My Profile",
-      "subtitle": "Your collected treasures",
-      "back": "← Games",
       "import_btn": "📂 Import hawk3_game_data.json",
       "import_error_format": "Invalid format — player field is missing.",
       "import_error_parse": "JSON could not be parsed.",
@@ -130,17 +123,16 @@
       "mystery_section": "Mystery Items",
       "items_section": "Items",
       "received_on": "Received {date}",
-      "mystery_items_title": "Mystery Items",
+      "rarity_legendary": "Legendary",
+      "rarity_epic": "Epic",
+      "rarity_rare": "Rare",
       "rarity_uncommon": "Uncommon",
+      "rarity_common": "Common",
       "empty_title": "No items yet",
       "empty_text": "Collect your Daily Reward every day to unlock Mystery Boxes.",
       "empty_cta": "Play Daily Reward →",
       "player_name_placeholder": "Your name",
       "avatar_title": "Choose avatar",
-      "rarity_legendary": "Legendary",
-      "rarity_epic": "Epic",
-      "rarity_rare": "Rare",
-      "rarity_common": "Common",
       "box_label": "Box #{number}",
       "avatars": {
         "default_user": "Default User",

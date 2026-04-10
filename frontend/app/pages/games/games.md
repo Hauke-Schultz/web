@@ -180,8 +180,8 @@ LocalStorage-Key: `hawkStarSave` (getrennt von `hawk3_game_data`)
 | Shop (Profile / Items / Gifts) | ✅ Fertig |
 | Profile-Seite | ✅ Fertig |
 | Hawk Star (Kachel + Integration) | 🚧 In Arbeit |
-| Games-Header (alle Seiten) | 🔲 Geplant |
-| i18n-Überarbeitung (alle Spiele + Shop + Profile) | 🔲 Geplant |
+| Games-Header (alle Seiten) | ✅ Fertig |
+| i18n-Überarbeitung (alGames-Index Kachelnle Spiele + Shop + Profile) | ✅ Fertig |
 | Games-Index Kacheln neu ordnen (Profile + Shop oben) | 🔲 Geplant |
 | DailyRewardCard kompakter nach Claim | 🔲 Geplant |
 | Light-Mode-Anpassung (Games-Bereich) | 🔲 Geplant |

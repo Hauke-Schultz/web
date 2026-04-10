@@ -47,14 +47,6 @@ const games = [
     active:      true,
   },
   {
-    key:         'hawkMemory',
-    title:       'Hawk Memory',
-    description: 'Finde alle Paare so schnell und mit so wenigen Zügen wie möglich.',
-    emoji:       '🧠',
-    route:       '/games/hawkMemory',
-    active:      false,
-  },
-  {
     key:         'hawkDoubleUp',
     title:       'Hawk Double-Up',
     description: 'Verdopple deinen Einsatz – aber wann ist genug genug?',
@@ -86,7 +78,7 @@ const games = [
     <div class="max-w-[480px] mx-auto flex flex-col gap-6">
 
       <!-- Header -->
-      <GamesHeader ref="headerRef" :title="t('games.overview.title')" back-to="/" back-label="← Home" />
+      <GamesHeader ref="headerRef" :title="t('games.overview.title')" back-to="/" home-mode />
 
       <!-- Profile card -->
       <NuxtLink
@@ -112,12 +104,12 @@ const games = [
       <DailyRewardCard @currency-updated="onCurrencyUpdated" />
 
       <!-- Other game tiles -->
-      <div class="flex flex-wrap gap-4">
+      <div class="grid grid-cols-2 gap-3">
         <NuxtLink
           v-for="g in games"
           :key="g.key"
           :to="localePath(g.route)"
-          class="group relative flex flex-col gap-3 bg-surface border border-border rounded-2xl p-6 no-underline w-full"
+          class="group relative flex flex-col gap-2 bg-surface border border-border rounded-2xl p-4 no-underline"
           :class="g.active
             ? 'transition-all hover:border-primary hover:shadow-[0_4px_24px_var(--c-shadow)] hover:-translate-y-1 cursor-pointer'
             : 'opacity-60 cursor-default select-none'"
@@ -127,20 +119,18 @@ const games = [
             v-if="!g.active"
             class="absolute inset-0 rounded-2xl flex items-center justify-center bg-surface/40 backdrop-blur-[1px] z-10"
           >
-            <span class="text-xs font-bold uppercase tracking-widest text-muted bg-surface border border-border px-3 py-1 rounded-full">Coming Soon</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-muted bg-surface border border-border px-2 py-0.5 rounded-full">Coming Soon</span>
           </div>
 
-          <div class="flex items-start justify-between gap-2">
-            <span class="text-4xl leading-none">{{ g.emoji }}</span>
-          </div>
+          <span class="text-3xl leading-none">{{ g.emoji }}</span>
 
           <div>
-            <h3 class="text-base font-bold text-fg mb-1 group-hover:text-primary transition-colors">{{ g.title }}</h3>
-            <p class="text-sm text-muted leading-relaxed m-0">{{ g.description }}</p>
+            <h3 class="text-sm font-bold text-fg mb-0.5 group-hover:text-primary transition-colors leading-tight">{{ g.title }}</h3>
+            <p class="text-xs text-muted leading-relaxed m-0 line-clamp-2">{{ g.description }}</p>
           </div>
 
-          <div class="mt-auto">
-            <span v-if="g.active" class="text-primary text-sm font-semibold">Spielen →</span>
+          <div class="mt-auto pt-1">
+            <span v-if="g.active" class="text-primary text-xs font-semibold">Spielen →</span>
           </div>
         </NuxtLink>
       </div>

@@ -28,9 +28,11 @@
   "games": {
     "overview": {
       "title": "Games",
-      "description": "Alle Spiele auf einem Blick.",
-      "profile_title": "Mein Profil",
       "profile_link": "Profil →"
+    },
+    "header": {
+      "back": "← Games",
+      "home": "← Startseite"
     },
     "daily_reward": {
       "title": "Daily Reward",
@@ -52,9 +54,6 @@
       "mystery_box_remaining": "Noch {count} {days} bis zur nächsten Box (Box #{box})",
       "day": "Tag",
       "days": "Tage",
-      "back": "← Games",
-      "reward_coins": "Coins",
-      "reward_diamonds": "Diamonds",
       "slot_jackpot": "💎💎💎 Jackpot!",
       "slot_triple_coins": "💰💰💰 Triple Coins!",
       "slot_double_diamonds": "💎💎 Double Diamonds!",
@@ -72,13 +71,10 @@
       "wheel_jackpot": "🌟 Jackpot!",
       "wheel_coins": "💰 {n} Coins gewonnen!",
       "wheel_diamonds": "💎 {n} Diamonds gewonnen!",
-      "badge_new": "Neu!",
       "badge_claimed": "✅ Abgeholt"
     },
     "shop": {
       "title": "Shop",
-      "subtitle": "Kaufe Cosmetics mit deinen Coins und Diamonds.",
-      "back": "← Games",
       "coins": "Coins",
       "diamonds": "Diamonds",
       "owned": "Besitz",
@@ -91,8 +87,6 @@
       "limit": "Max. {n}× kaufbar"
     },
     "tower": {
-      "subtitle": "Stapele Blöcke so hoch wie möglich.",
-      "back": "← Games",
       "height": "Höhe",
       "score": "Score",
       "best": "Rekord",
@@ -100,24 +94,23 @@
       "start": "🏗️ Spiel starten",
       "game_over": "Daneben!",
       "play_again": "🏗️ Nochmal spielen",
-      "restart": "Neu starten"
+      "restart": "Neu starten",
+      "reward_coins": "Coins",
+      "reward_diamonds": "Diamonds"
     },
     "doubleUp": {
-      "subtitle": "Verdopple Zahlen und jage deinen Highscore.",
-      "back": "← Games",
       "score": "Score",
       "best": "Bestleistung",
       "instructions": "Wische oder nutze die Pfeiltasten, um Zahlen zu bewegen. Gleiche Zahlen verschmelzen und verdoppeln sich. Wie weit kommst du?",
       "start": "🎰 Spiel starten",
       "game_over": "Keine Züge mehr möglich!",
-      "final_score": "Dein Score: {score}",
       "play_again": "🎰 Nochmal spielen",
-      "restart": "Neu starten"
+      "restart": "Neu starten",
+      "reward_coins": "Coins",
+      "reward_diamonds": "Diamonds"
     },
     "profile": {
       "title": "Mein Profil",
-      "subtitle": "Deine gesammelten Schätze",
-      "back": "← Games",
       "import_btn": "📂 hawk3_game_data.json importieren",
       "import_error_format": "Ungültiges Format — player-Feld fehlt.",
       "import_error_parse": "JSON konnte nicht geparst werden.",
@@ -129,18 +122,24 @@
       "mystery_section": "Mystery Items",
       "items_section": "Items",
       "received_on": "Erhalten am {date}",
-      "mystery_items_title": "Mystery Items",
+      "rarity_legendary": "Legendary",
+      "rarity_epic": "Epic",
+      "rarity_rare": "Rare",
       "rarity_uncommon": "Uncommon",
+      "rarity_common": "Common",
       "empty_title": "Noch keine Items",
       "empty_text": "Sammle täglich deinen Daily Reward um Mystery Boxes freizuschalten.",
       "empty_cta": "Daily Reward spielen →",
       "player_name_placeholder": "Dein Name",
       "avatar_title": "Avatar wählen",
-      "rarity_legendary": "Legendary",
-      "rarity_epic": "Epic",
-      "rarity_rare": "Rare",
-      "rarity_common": "Common",
-      "box_label": "Box #{number}"
+      "box_label": "Box #{number}",
+      "avatars": {
+        "default_user": "Standard",
+        "beard_user": "Bart",
+        "glasses_user": "Brille",
+        "headset_user": "Headset",
+        "cap_user": "Cap"
+      }
     }
   },
   "party": {

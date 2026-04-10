@@ -368,15 +368,15 @@ function onCanvasTap(e) {
             <div class="text-center text-white space-y-1">
               <div class="text-xs uppercase tracking-widest opacity-60">{{ t('games.tower.height') }}</div>
               <div class="text-5xl font-bold tabular-nums">{{ towerHeight }}</div>
-              <div class="text-sm opacity-50 pt-1">Best: {{ maxHeight }}</div>
+              <div class="text-sm opacity-50 pt-1">{{ t('games.tower.best') }}: {{ maxHeight }}</div>
             </div>
             <div v-if="lastReward" class="flex gap-3">
               <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
-                <div class="text-xs opacity-50 mb-0.5">Coins</div>
+                <div class="text-xs opacity-50 mb-0.5">{{ t('games.tower.reward_coins') }}</div>
                 <div class="text-lg font-bold">+{{ lastReward.coins }}</div>
               </div>
               <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
-                <div class="text-xs opacity-50 mb-0.5">Diamonds</div>
+                <div class="text-xs opacity-50 mb-0.5">{{ t('games.tower.reward_diamonds') }}</div>
                 <div class="text-lg font-bold">+{{ lastReward.diamonds }}</div>
               </div>
             </div>
