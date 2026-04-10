@@ -109,7 +109,9 @@
       "reward_coins": "Coins",
       "reward_diamonds": "Diamonds",
       "milestones_title": "Meilensteine",
-      "milestone_reached": "erreicht!"
+      "milestone_reached": "erreicht!",
+      "countdown_defeated": "7er besiegt",
+      "milestone_stat": "Meilenstein"
     },
     "profile": {
       "title": "Mein Profil",

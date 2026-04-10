@@ -42,6 +42,8 @@ Ein 2048-Klon im Endless Mode. Zahlen auf einem 4×4-Grid durch Wischen oder Pfe
 - Zählt nach jedem Zug um 1 runter: 7 → 6 → 5 → 4
 - Bei Wert 4 wird das Tile zu einem normalen 4er (kann danach normal gemergt werden)
 - Tile-Farben: 7 = violett (`#4c1ff4`), 6 = lila (`#6049b6`), 5 = grau-lila (`#6d6881`)
+- **Defeat-Belohnung:** +25 Coins pro besiegtem 7-Tile (sofort gutgeschrieben)
+- **7er-Counter** in der Stats-Leiste zeigt pro Runde, wie viele 7-Tiles besiegt wurden (reset bei Neustart)
 
 ---
 
@@ -49,15 +51,18 @@ Ein 2048-Klon im Endless Mode. Zahlen auf einem 4×4-Grid durch Wischen oder Pfe
 
 Beim erstmaligen Erreichen eines bestimmten Tile-Werts gibt es eine **Extra-Belohnung** (einmalig pro Wert, nicht pro Spiel). Die erreichten Meilensteine werden persistent gespeichert und im Spiel abgehakt angezeigt.
 
-| Tile  | Status |
-|-------|--------|
-| 64    | ☐ |
-| 128   | ☐ |
-| 256   | ☐ |
-| 512   | ☐ |
-| 1024  | ☐ |
-| 2048  | ☐ |
-| 4096  | ☐ |
+| Tile  | Coins | Diamonds | Status |
+|-------|-------|----------|--------|
+| 8     | +10   | —        | ☐ |
+| 16    | +15   | —        | ☐ |
+| 32    | +25   | —        | ☐ |
+| 64    | +50   | —        | ☐ |
+| 128   | +100  | +1       | ☐ |
+| 256   | +200  | +2       | ☐ |
+| 512   | +500  | +5       | ☐ |
+| 1024  | +800  | +8       | ☐ |
+| 2048  | +1500 | +15      | ☐ |
+| 4096  | +3000 | +30      | ☐ |
 
 Belohnungen pro Meilenstein: noch festzulegen (z. B. gestaffelt mehr Coins/Diamonds je höher der Wert).
 
@@ -137,8 +142,8 @@ Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeich
 - i18n (DE/EN)
 
 ### Geplant / Ideen 🔲
-- Tile-Meilensteine mit Einmal-Belohnungen (64 / 128 / 256 / 512 / 2048 / 4096)
+- Tile-Meilensteine mit Einmal-Belohnungen (64 / 128 / 256 / 512 / 1024 / 2048 / 4096)
 - Meilenstein-Anzeige im Spiel (Fortschrittsliste zum Abhaken)
 - Bestenliste / globale Highscores
 - Undo-Button (1 Zug zurück)
-- Animierte Tile-Bewegung (CSS translate statt instant snap)
+- ~~Animierte Tile-Bewegung (CSS translate statt instant snap)~~ ✅

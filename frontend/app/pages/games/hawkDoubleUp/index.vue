@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 import GamesHeader from '~/components/games/GamesHeader.vue'
 
@@ -32,9 +32,15 @@ const TILE = {
   8192: { bg: '#000000', fg: '#f9f6f2' },
 }
 
+// ── Countdown defeat reward ───────────────────────────────
+const COUNTDOWN_DEFEAT_REWARD = 25  // coins per defeated 7-tile
+
 // ── Milestones ────────────────────────────────────────────
-const MILESTONES = [64, 128, 256, 512, 1024, 2048, 4096]
+const MILESTONES = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 const MILESTONE_REWARDS = {
+  8:    { coins: 10,   diamonds: 0  },
+  16:   { coins: 15,   diamonds: 0  },
+  32:   { coins: 25,   diamonds: 0  },
   64:   { coins: 50,   diamonds: 0  },
   128:  { coins: 100,  diamonds: 1  },
   256:  { coins: 200,  diamonds: 2  },
@@ -44,23 +50,82 @@ const MILESTONE_REWARDS = {
   4096: { coins: 3000, diamonds: 30 },
 }
 
-// ── State ─────────────────────────────────────────────────
-const grid         = ref(emptyGrid())
+// ── Board measurement ─────────────────────────────────────
+// Board: p-3 (12px padding), grid: gap-2.5 (10px gap)
+const GRID_GAP      = 10
+const BOARD_PADDING = 12
+const boardRef      = ref(null)
+const cellWidth     = ref(0)
+
+function measureBoard() {
+  if (!boardRef.value) return
+  const inner = boardRef.value.clientWidth - 2 * BOARD_PADDING
+  cellWidth.value = (inner - 3 * GRID_GAP) / 4
+}
+
+// Returns absolute-position style for a tile at (row, col).
+// Outer wrapper handles position via transform — inner div handles scale animations separately.
+function getTilePos(row, col) {
+  const s = cellWidth.value
+  return {
+    top:       `${BOARD_PADDING}px`,
+    left:      `${BOARD_PADDING}px`,
+    width:     `${s}px`,
+    height:    `${s}px`,
+    transform: `translate(${col * (s + GRID_GAP)}px, ${row * (s + GRID_GAP)}px)`,
+  }
+}
+
+// ── Tile state ────────────────────────────────────────────
+// Each tile: { id, value, row, col, isNew, merging }
+const displayTiles = ref([])
+let nextId = 0
+
+function findTile(id)  { return displayTiles.value.find(t => t.id === id) }
+
+function gridValues() {
+  const g = Array.from({ length: 4 }, () => Array(4).fill(null))
+  for (const t of displayTiles.value) g[t.row][t.col] = t.value
+  return g
+}
+
+function idGrid() {
+  const g = Array.from({ length: 4 }, () => Array(4).fill(null))
+  for (const t of displayTiles.value) g[t.row][t.col] = t.id
+  return g
+}
+
+function getEmptyCells() {
+  const occ = new Set(displayTiles.value.map(t => `${t.row}-${t.col}`))
+  const cells = []
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (!occ.has(`${r}-${c}`)) cells.push([r, c])
+  return cells
+}
+
+// ── Other state ───────────────────────────────────────────
 const score        = ref(0)
 const highScore    = ref(0)
 const gamesPlayed  = ref(0)
 const headerRef    = ref(null)
-const phase        = ref('idle')    // 'idle' | 'playing' | 'over'
-const lastReward   = ref(null)      // { coins, diamonds }
-const newCells     = ref([])
-const mergeCells   = ref([])
-const countdown    = ref(null)      // { row, col, value } — special tile that counts down
-const milestones   = ref({})        // { "64": true, "128": true, ... }
-const newMilestone = ref(null)      // { value, coins, diamonds } — toast
+const phase        = ref('idle')   // 'idle' | 'playing' | 'over'
+const lastReward   = ref(null)
+const milestones   = ref({})
+const newMilestone = ref(null)
+// Last achieved milestone + next target
+const milestoneProgress = computed(() => {
+  const achieved  = MILESTONES.filter(m => milestones.value[m])
+  const remaining = MILESTONES.filter(m => !milestones.value[m])
+  return {
+    last: achieved.at(-1) ?? null,
+    next: remaining[0]    ?? null,
+  }
+})
 
-function emptyGrid() {
-  return Array.from({ length: 4 }, () => Array(4).fill(null))
-}
+const countdown        = ref(null)  // ID of the active countdown tile, or null
+const isAnimating      = ref(false)
+const countdownDefeats = ref(0)     // 7-tiles defeated this round
 
 // ── Load ──────────────────────────────────────────────────
 onMounted(() => {
@@ -70,27 +135,48 @@ onMounted(() => {
   milestones.value  = data.games.hawkDoubleUp.milestones  ?? {}
 
   const saved = data.games.hawkDoubleUp.savedGame
-  if (saved) {
-    grid.value      = saved.grid
-    score.value     = saved.score
-    countdown.value = saved.countdown ?? null
-    phase.value     = 'playing'
+  if (saved?.grid) {
+    nextId = 0
+    displayTiles.value = []
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++) {
+        const val = saved.grid[r]?.[c]
+        if (val !== null && val !== undefined)
+          displayTiles.value.push({ id: nextId++, value: val, row: r, col: c, isNew: false, merging: false })
+      }
+    score.value = saved.score ?? 0
+    // Restore countdown: find tile at saved position with saved value
+    if (saved.countdown) {
+      const cd = displayTiles.value.find(t =>
+        t.row === saved.countdown.row &&
+        t.col === saved.countdown.col &&
+        t.value === saved.countdown.value
+      )
+      countdown.value = cd?.id ?? null
+    }
+    phase.value = 'playing'
   }
 
+  measureBoard()
+  window.addEventListener('resize', measureBoard)
   document.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', measureBoard)
   document.removeEventListener('keydown', handleKeyDown)
 })
 
 // ── Helpers ───────────────────────────────────────────────
-function getEmptyCells() {
-  const cells = []
-  for (let r = 0; r < 4; r++)
-    for (let c = 0; c < 4; c++)
-      if (grid.value[r][c] === null) cells.push([r, c])
-  return cells
+function tileStyle(val) {
+  const s = TILE[val]
+  return s ? { background: s.bg, color: s.fg } : { background: '#3c3a32', color: '#f9f6f2' }
+}
+
+function tileSize(val) {
+  if (val >= 1024) return 'text-lg'
+  if (val >= 128)  return 'text-xl'
+  return 'text-xl'
 }
 
 function addRandomTile() {
@@ -98,135 +184,155 @@ function addRandomTile() {
   if (!cells.length) return
   const [r, c] = cells[Math.floor(Math.random() * cells.length)]
   const val = Math.random() < 0.9 ? 2 : 4
-  grid.value[r][c] = val
-  newCells.value = [`${r}-${c}`]
-  setTimeout(() => { newCells.value = [] }, 250)
+  const id = nextId++
+  displayTiles.value.push({ id, value: val, row: r, col: c, isNew: true, merging: false })
+  setTimeout(() => {
+    displayTiles.value = displayTiles.value.map(t => t.id === id ? { ...t, isNew: false } : t)
+  }, 250)
 }
-
-function tileStyle(val) {
-  const s = TILE[val]
-  return s ? { background: s.bg, color: s.fg } : { background: '#3c3a32', color: '#f9f6f2' }
-}
-
-function tileSize(val) {
-  if (val >= 1024) return 'text-sm'
-  if (val >= 128)  return 'text-base'
-  return 'text-lg'
-}
-
-function isNew(r, c)        { return newCells.value.includes(`${r}-${c}`) }
-function isMerge(r, c)      { return mergeCells.value.includes(`${r}-${c}`) }
-function isCountdown(r, c)  { return countdown.value?.row === r && countdown.value?.col === c }
 
 // ── Move logic ────────────────────────────────────────────
-function processLine(line) {
-  const tiles = line.filter(x => x !== null)
-  let gained = 0
-  const merged = []
-
-  for (let i = 0; i < tiles.length - 1; i++) {
-    if (tiles[i] === tiles[i + 1] && !merged.includes(i)) {
-      tiles[i] *= 2
-      gained += tiles[i]
-      tiles.splice(i + 1, 1)
-      merged.push(i)
+// Processes one line of tile IDs (4 entries, left-to-right / top-to-bottom).
+// Returns compacted result: [{ id, newValue, absorbedId? }]
+function processLineIds(line) {
+  const active = line.filter(x => x !== null)
+  const result = []
+  let i = 0
+  while (i < active.length) {
+    const id = active[i]
+    const val = findTile(id).value
+    if (i + 1 < active.length) {
+      const nextTileId = active[i + 1]
+      if (val === findTile(nextTileId).value) {
+        result.push({ id, newValue: val * 2, absorbedId: nextTileId })
+        i += 2
+        continue
+      }
     }
+    result.push({ id, newValue: val })
+    i++
   }
-
-  while (tiles.length < 4) tiles.push(null)
-  return { tiles, gained, mergedAt: merged }
+  return result
 }
 
 function move(dir) {
-  if (phase.value !== 'playing') return
+  if (phase.value !== 'playing' || isAnimating.value) return
 
+  const ig = idGrid()
   let moved = false
   let totalGained = 0
-  const newMerge = []
+  const updates = new Map()  // id → { newRow, newCol, newValue, absorbed }
 
-  if (dir === 'left' || dir === 'right') {
-    for (let r = 0; r < 4; r++) {
-      const rev = dir === 'right'
-      const line = rev ? [...grid.value[r]].reverse() : [...grid.value[r]]
-      const { tiles, gained, mergedAt } = processLine(line)
-      const result = rev ? [...tiles].reverse() : tiles
+  for (let i = 0; i < 4; i++) {
+    let line
+    if      (dir === 'left')  line = ig[i]
+    else if (dir === 'right') line = [...ig[i]].reverse()
+    else if (dir === 'up')    line = [ig[0][i], ig[1][i], ig[2][i], ig[3][i]]
+    else                      line = [ig[3][i], ig[2][i], ig[1][i], ig[0][i]]
 
-      if (result.some((v, c) => v !== grid.value[r][c])) moved = true
-      grid.value[r] = result
-      totalGained += gained
-      mergedAt.forEach(i => newMerge.push(`${r}-${rev ? 3 - i : i}`))
-    }
-  } else {
-    for (let c = 0; c < 4; c++) {
-      const rev = dir === 'down'
-      const col = Array.from({ length: 4 }, (_, r) => grid.value[r][c])
-      const line = rev ? [...col].reverse() : col
-      const { tiles, gained, mergedAt } = processLine(line)
-      const result = rev ? [...tiles].reverse() : tiles
+    const result = processLineIds(line)
 
-      for (let r = 0; r < 4; r++) {
-        if (grid.value[r][c] !== result[r]) moved = true
-        grid.value[r][c] = result[r]
+    result.forEach(({ id, newValue, absorbedId }, pos) => {
+      let newRow, newCol
+      if      (dir === 'left')  { newRow = i;       newCol = pos }
+      else if (dir === 'right') { newRow = i;       newCol = 3 - pos }
+      else if (dir === 'up')    { newRow = pos;     newCol = i }
+      else                      { newRow = 3 - pos; newCol = i }
+
+      const tile = findTile(id)
+      if (tile.row !== newRow || tile.col !== newCol) moved = true
+      updates.set(id, { newRow, newCol, newValue })
+
+      if (absorbedId) {
+        const abs = findTile(absorbedId)
+        if (abs.row !== newRow || abs.col !== newCol) moved = true
+        updates.set(absorbedId, { newRow, newCol, newValue: abs.value, absorbed: true })
+        totalGained += newValue
       }
-      totalGained += gained
-      mergedAt.forEach(i => newMerge.push(`${rev ? 3 - i : i}-${c}`))
-    }
+    })
   }
 
   if (!moved) return
 
   score.value += totalGained
-  mergeCells.value = newMerge
-  setTimeout(() => { mergeCells.value = [] }, 200)
+  isAnimating.value = true
 
-  tickCountdown()
-  addRandomTile()
-  checkMilestones()
-  saveGame()
+  // Phase 1 — slide tiles to new positions (CSS transition fires here)
+  displayTiles.value = displayTiles.value.map(t => {
+    const u = updates.get(t.id)
+    return u ? { ...t, row: u.newRow, col: u.newCol } : t
+  })
 
-  if (!canMove()) endGame()
+  // Phase 2 — after slide finishes: remove absorbed, apply merged values, spawn
+  setTimeout(() => {
+    displayTiles.value = displayTiles.value
+      .filter(t => !updates.get(t.id)?.absorbed)
+      .map(t => {
+        const u = updates.get(t.id)
+        if (!u) return t
+        const didMerge = u.newValue !== t.value
+        return { ...t, value: u.newValue, merging: didMerge }
+      })
+
+    // Clear merge-pop after animation
+    setTimeout(() => {
+      displayTiles.value = displayTiles.value.map(t => ({ ...t, merging: false }))
+    }, 150)
+
+    tickCountdown()
+    addRandomTile()
+    checkMilestones()
+    saveGame()
+    isAnimating.value = false
+
+    if (!canMove()) endGame()
+  }, 130)
 }
 
 // ── Countdown tile ────────────────────────────────────────
 function tickCountdown() {
-  if (!countdown.value) {
-    // 5% chance to spawn a countdown tile if there's enough space (min 7 free cells)
+  if (countdown.value === null) {
     if (getEmptyCells().length >= 7 && Math.random() < 0.05) {
       const cells = getEmptyCells()
       const [r, c] = cells[Math.floor(Math.random() * cells.length)]
-      grid.value[r][c] = 7
-      countdown.value = { row: r, col: c, value: 7 }
+      const id = nextId++
+      displayTiles.value.push({ id, value: 7, row: r, col: c, isNew: true, merging: false })
+      setTimeout(() => {
+        displayTiles.value = displayTiles.value.map(t => t.id === id ? { ...t, isNew: false } : t)
+      }, 250)
+      countdown.value = id
     }
     return
   }
 
-  const { value } = countdown.value
-  if (value <= 4) { countdown.value = null; return }
+  const tile = findTile(countdown.value)
+  if (!tile) { countdown.value = null; return }
+  if (tile.value <= 4) { countdown.value = null; return }
 
-  // Find the countdown tile (it may have moved after a merge)
-  let found = null
-  outer: for (let r = 0; r < 4; r++)
-    for (let c = 0; c < 4; c++)
-      if (grid.value[r][c] === value && [5, 6, 7].includes(value)) {
-        found = [r, c]; break outer
-      }
+  displayTiles.value = displayTiles.value.map(t =>
+    t.id === countdown.value ? { ...t, value: t.value - 1 } : t
+  )
 
-  if (!found) { countdown.value = null; return }
-
-  const [r, c] = found
-  const next = value - 1
-  grid.value[r][c] = next
-  countdown.value = next <= 4 ? null : { row: r, col: c, value: next }
+  if ((findTile(countdown.value)?.value ?? 0) <= 4) {
+    // 7-tile defeated — give reward
+    countdownDefeats.value++
+    const data = loadHawk3Data()
+    data.player.coins = (data.player.coins ?? 0) + COUNTDOWN_DEFEAT_REWARD
+    saveHawk3Data(data)
+    headerRef.value?.refresh()
+    countdown.value = null
+  }
 }
 
 // ── Milestone check ───────────────────────────────────────
 function checkMilestones() {
-  let anyNew    = false
+  const g = gridValues()
+  let anyNew = false
   let highestNew = null
   const data = loadHawk3Data()
   for (const m of MILESTONES) {
     if (milestones.value[m]) continue
-    if (grid.value.some(row => row.some(cell => cell === m))) {
+    if (g.some(row => row.some(cell => cell === m))) {
       milestones.value[m] = true
       const reward = MILESTONE_REWARDS[m]
       data.player.coins    = (data.player.coins    ?? 0) + reward.coins
@@ -246,23 +352,25 @@ function checkMilestones() {
 
 // ── Can move check ────────────────────────────────────────
 function canMove() {
+  const g = gridValues()
   for (let r = 0; r < 4; r++)
     for (let c = 0; c < 4; c++) {
-      if (grid.value[r][c] === null) return true
-      if (c < 3 && grid.value[r][c] === grid.value[r][c + 1]) return true
-      if (r < 3 && grid.value[r][c] === grid.value[r + 1][c]) return true
+      if (g[r][c] === null) return true
+      if (c < 3 && g[r][c] === g[r][c + 1]) return true
+      if (r < 3 && g[r][c] === g[r + 1][c]) return true
     }
   return false
 }
 
 // ── Game flow ─────────────────────────────────────────────
 function startGame() {
-  grid.value         = emptyGrid()
+  displayTiles.value = []
+  nextId             = 0
   score.value        = 0
-  countdown.value    = null
-  newMilestone.value = null
-  newCells.value     = []
-  mergeCells.value   = []
+  countdown.value        = null
+  newMilestone.value     = null
+  isAnimating.value      = false
+  countdownDefeats.value = 0
   phase.value        = 'playing'
   addRandomTile()
   addRandomTile()
@@ -290,11 +398,12 @@ function endGame() {
 
 function saveGame() {
   if (phase.value !== 'playing') return
+  const cdTile = countdown.value !== null ? findTile(countdown.value) : null
   const data = loadHawk3Data()
   data.games.hawkDoubleUp.savedGame = {
-    grid:      grid.value.map(r => [...r]),
+    grid:      gridValues().map(r => [...r]),
     score:     score.value,
-    countdown: countdown.value,
+    countdown: cdTile ? { row: cdTile.row, col: cdTile.col, value: cdTile.value } : null,
   }
   saveHawk3Data(data)
 }
@@ -339,40 +448,77 @@ function handleKeyDown(e) {
 
       <!-- Stats -->
       <div class="flex gap-3">
-        <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white text-center">
+        <!-- Score -->
+        <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-2 text-white text-center">
           <div class="text-[10px] uppercase tracking-widest opacity-50 mb-0.5">{{ t('games.doubleUp.score') }}</div>
           <div class="text-xl font-bold tabular-nums">{{ score.toLocaleString() }}</div>
         </div>
-        <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white text-center">
+
+        <!-- Best -->
+        <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-2 text-white text-center">
           <div class="text-[10px] uppercase tracking-widest opacity-50 mb-0.5">{{ t('games.doubleUp.best') }}</div>
           <div class="text-xl font-bold tabular-nums">{{ highScore.toLocaleString() }}</div>
+        </div>
+
+        <!-- 7er defeated -->
+        <div class="flex-1 bg-[#4c1ff4] border border-white/10 rounded-xl px-2 py-2 text-white text-center">
+          <div class="text-[10px] uppercase tracking-widest opacity-50 mb-0.5">{{ t('games.doubleUp.countdown_defeated') }}</div>
+          <div class="text-xl font-bold tabular-nums">{{ countdownDefeats }}</div>
+        </div>
+
+        <!-- Milestone progress: last achieved + next -->
+        <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-2 text-white text-center">
+          <div class="text-[10px] uppercase tracking-widest opacity-50 mb-1.5">{{ t('games.doubleUp.milestone_stat') }}</div>
+          <div class="flex flex-col gap-1">
+            <div v-if="milestoneProgress.last" class="flex justify-center items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all" :class="milestoneProgress.last ? ' bg-yellow-400/15 text-yellow-400 border-yellow-400/30' : 'bg-white/5 text-white/25 border-white/10'">
+              {{ milestoneProgress.last ? `✓ ${milestoneProgress.last.toLocaleString()}` : '— —' }}
+            </div>
+            <div class="flex justify-center items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all bg-white/5 text-white/25 border-white/10">
+              {{ milestoneProgress.next ? `${milestoneProgress.next.toLocaleString()}` : 'Max!' }}
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Board -->
-      <div class="relative bg-[#bbada0] rounded-2xl p-3">
+      <div ref="boardRef" class="relative bg-[#bbada0] rounded-2xl p-3">
+
+        <!-- Background cells (define cell sizes, nothing else) -->
         <div class="grid grid-cols-4 gap-2.5">
-          <template v-for="(row, r) in grid" :key="r">
+          <div v-for="i in 16" :key="i" class="aspect-square rounded-xl bg-[#cdc1b4]" />
+        </div>
+
+        <!-- Animated tile layer -->
+        <template v-if="cellWidth > 0">
+          <!--
+            Two-div approach: outer div moves (transform translate, transition),
+            inner div scales (pop / merge animations) — no transform conflict.
+          -->
+          <div
+            v-for="tile in displayTiles"
+            :key="tile.id"
+            class="absolute"
+            :class="tile.isNew ? '' : 'tile-slide'"
+            :style="getTilePos(tile.row, tile.col)"
+          >
             <div
-              v-for="(cell, c) in row"
-              :key="c"
-              class="aspect-square rounded-xl flex items-center justify-center font-bold relative overflow-hidden transition-colors duration-100"
+              class="w-full h-full rounded-xl flex items-center justify-center font-bold relative overflow-hidden"
               :class="[
-                cell ? '' : 'bg-[#cdc1b4]',
-                isNew(r, c)   ? 'animate-pop'   : '',
-                isMerge(r, c) ? 'animate-merge' : '',
-                tileSize(cell),
+                tileSize(tile.value),
+                tile.isNew    ? 'animate-pop'   : '',
+                tile.merging  ? 'animate-merge' : '',
               ]"
-              :style="cell ? tileStyle(cell) : {}"
+              :style="tileStyle(tile.value)"
             >
+              <!-- Countdown glow ring -->
               <div
-                v-if="isCountdown(r, c)"
+                v-if="countdown === tile.id"
                 class="absolute inset-0 rounded-xl border-2 border-yellow-400 animate-pulse pointer-events-none"
               />
-              {{ cell ?? '' }}
+              {{ tile.value }}
             </div>
-          </template>
-        </div>
+          </div>
+        </template>
 
         <!-- Start overlay -->
         <Transition name="fade">
@@ -463,6 +609,11 @@ function handleKeyDown(e) {
 </template>
 
 <style scoped>
+/* Tile slide: only the outer positioning wrapper transitions transform */
+.tile-slide {
+  transition: transform 0.12s ease;
+}
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from,  .fade-leave-to      { opacity: 0; }
 
@@ -471,11 +622,13 @@ function handleKeyDown(e) {
 .milestone-enter-from   { opacity: 0; transform: translate(-50%, 12px); }
 .milestone-leave-to     { opacity: 0; transform: translate(-50%, -8px); }
 
+/* Pop: new tile spawns (inner div — no conflict with outer translate) */
 @keyframes pop {
   0%   { transform: scale(0.2); opacity: 0; }
   80%  { transform: scale(1.08); }
   100% { transform: scale(1); opacity: 1; }
 }
+/* Merge: tile that absorbed another bounces (inner div) */
 @keyframes merge {
   0%   { transform: scale(1); }
   50%  { transform: scale(1.18); }

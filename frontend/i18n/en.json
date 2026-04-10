@@ -110,7 +110,9 @@
       "reward_coins": "Coins",
       "reward_diamonds": "Diamonds",
       "milestones_title": "Milestones",
-      "milestone_reached": "reached!"
+      "milestone_reached": "reached!",
+      "countdown_defeated": "7s defeated",
+      "milestone_stat": "Milestone"
     },
     "profile": {
       "title": "My Profile",
