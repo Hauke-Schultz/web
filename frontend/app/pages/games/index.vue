@@ -62,14 +62,6 @@ const games = [
     route:       '/games/hawkTower',
     active:      true,
   },
-  {
-    key:         'shop',
-    title:       'Shop',
-    description: 'Kaufe Cosmetics und Items mit deinen Coins und Diamonds.',
-    emoji:       '🛒',
-    route:       '/games/shop',
-    active:      true,
-  },
 ]
 </script>
 
@@ -80,30 +72,42 @@ const games = [
       <!-- Header -->
       <GamesHeader ref="headerRef" :title="t('games.overview.title')" back-to="/" home-mode />
 
-      <!-- Profile card -->
-      <NuxtLink
-        :to="localePath('/games/profile')"
-        class="flex items-center justify-between gap-4 bg-surface border border-border rounded-2xl p-5 no-underline group transition-all hover:border-primary hover:shadow-[0_4px_24px_var(--c-shadow)] hover:-translate-y-0.5"
-      >
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 overflow-hidden">
-            <Icon :name="playerAvatar" :size="44" decorative />
-          </div>
+      <!-- Profile + Shop row -->
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Profile card -->
+        <NuxtLink
+          :to="localePath('/games/profile')"
+          class="flex items-center justify-between gap-4 bg-surface border border-border rounded-2xl p-5 no-underline group transition-all hover:border-primary hover:shadow-[0_4px_24px_var(--c-shadow)] hover:-translate-y-0.5"
+        >
+	        <div class="flex items-center gap-4">
+		        <div class="w-12 h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 overflow-hidden">
+			        <Icon :name="playerAvatar" :size="44" decorative />
+		        </div>
+		        <div>
+			        <div class="text-fg font-bold group-hover:text-primary transition-colors">{{ playerName }}</div>
+			        <div class="text-muted text-sm mt-0.5">
+				        <template v-if="mysteryItemCount > 0">🎁 {{ mysteryItemCount }} {{ mysteryItemCount === 1 ? 'Item' : 'Items' }}</template>
+			        </div>
+		        </div>
+	        </div>
+	      </NuxtLink>
+
+        <!-- Shop card -->
+        <NuxtLink
+          :to="localePath('/games/shop')"
+          class="flex flex-col items-center justify-between gap-4 bg-surface border border-border rounded-2xl p-5 no-underline group transition-all hover:border-primary hover:shadow-[0_4px_24px_var(--c-shadow)] hover:-translate-y-0.5"
+        >
+          <span class="text-3xl leading-none">🛒</span>
           <div>
-            <div class="text-fg font-bold group-hover:text-primary transition-colors">{{ playerName }}</div>
-            <div class="text-muted text-sm mt-0.5">
-              💰 {{ playerCoins.toLocaleString() }} · 💎 {{ playerDiamonds.toLocaleString() }}
-              <template v-if="mysteryItemCount > 0"> · 🎁 {{ mysteryItemCount }} {{ mysteryItemCount === 1 ? 'Item' : 'Items' }}</template>
-            </div>
+            <h3 class="text-sm font-bold text-fg mb-0.5 group-hover:text-primary transition-colors leading-tight">Shop</h3>
           </div>
-        </div>
-        <span class="text-primary text-sm font-semibold shrink-0">{{ $t('games.overview.profile_link') }}</span>
-      </NuxtLink>
+        </NuxtLink>
+      </div>
 
       <!-- Daily Reward (inline game + mystery box progress) -->
       <DailyRewardCard @currency-updated="onCurrencyUpdated" />
 
-      <!-- Other game tiles -->
+      <!-- Game tiles -->
       <div class="grid grid-cols-2 gap-3">
         <NuxtLink
           v-for="g in games"

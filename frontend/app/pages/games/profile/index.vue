@@ -228,10 +228,6 @@ onUnmounted(() => {
       <!-- Top bar -->
       <div class="flex flex-col gap-2">
         <GamesHeader :title="`👤 ${t('games.profile.title')}`" />
-        <div class="flex justify-end gap-2">
-          <LanguageSwitcher />
-          <ThemeToggle />
-        </div>
       </div>
 
       <!-- Player card -->
@@ -288,6 +284,7 @@ onUnmounted(() => {
             <div class="text-xs text-muted mt-1">
               💰 {{ coins.toLocaleString() }} · 💎 {{ diamonds.toLocaleString() }}
             </div>
+
           </div>
         </div>
 
@@ -306,17 +303,26 @@ onUnmounted(() => {
             <div class="text-xl font-bold tabular-nums">{{ totalItemCount }}</div>
           </div>
         </div>
-      </div>
+        <div class="flex gap-3">
+          <div class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-center text-white">
+	          <div class="text-[10px] uppercase tracking-widest opacity-50 mb-1">{{ t('games.profile.language') }}</div>
+	          <div class="text-xl font-bold tabular-nums"><LanguageSwitcher /></div>
+          </div>
+          <div class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-center text-white">
+	          <div class="text-[10px] uppercase tracking-widest opacity-50 mb-1">{{ t('games.profile.theme') }}</div>
+	          <div class="text-xl font-bold tabular-nums"><ThemeToggle /></div>
+          </div>
+          <div class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-center text-white">
 
-      <!-- JSON Import -->
-      <div class="flex flex-col gap-2">
-        <input ref="fileInputRef" type="file" accept=".json,application/json" class="hidden" @change="onFileChange" />
-        <button
-          class="w-full py-2.5 px-4 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/30 text-white/60 hover:text-white text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
-          @click="triggerImport"
-        >{{ t('games.profile.import_btn') }}</button>
-        <p v-if="importError" class="text-red-400 text-xs text-center">{{ importError }}</p>
-        <p v-if="importOk"    class="text-green-400 text-xs text-center">{{ t('games.profile.import_ok') }}</p>
+	          <input ref="fileInputRef" type="file" accept=".json,application/json" class="hidden" @change="onFileChange" />
+	          <button
+			          class="w-full py-2.5 px-4 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/30 text-white/60 hover:text-white text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+			          @click="triggerImport"
+	          >{{ t('games.profile.import_btn') }}</button>
+	          <p v-if="importError" class="text-red-400 text-xs text-center">{{ importError }}</p>
+	          <p v-if="importOk"    class="text-green-400 text-xs text-center">{{ t('games.profile.import_ok') }}</p>
+          </div>
+        </div>
       </div>
 
       <!-- ── Inventory ───────────────────────────────────── -->

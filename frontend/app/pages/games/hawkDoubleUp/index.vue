@@ -32,17 +32,31 @@ const TILE = {
   8192: { bg: '#000000', fg: '#f9f6f2' },
 }
 
+// ── Milestones ────────────────────────────────────────────
+const MILESTONES = [64, 128, 256, 512, 1024, 2048, 4096]
+const MILESTONE_REWARDS = {
+  64:   { coins: 50,   diamonds: 0  },
+  128:  { coins: 100,  diamonds: 1  },
+  256:  { coins: 200,  diamonds: 2  },
+  512:  { coins: 500,  diamonds: 5  },
+  1024: { coins: 800,  diamonds: 8  },
+  2048: { coins: 1500, diamonds: 15 },
+  4096: { coins: 3000, diamonds: 30 },
+}
+
 // ── State ─────────────────────────────────────────────────
-const grid        = ref(emptyGrid())
-const score       = ref(0)
-const highScore   = ref(0)
-const gamesPlayed = ref(0)
-const headerRef   = ref(null)
-const phase       = ref('idle')    // 'idle' | 'playing' | 'over'
-const lastReward  = ref(null)      // { coins, diamonds }
-const newCells    = ref([])
-const mergeCells  = ref([])
-const countdown   = ref(null)      // { row, col, value } — special tile that counts down
+const grid         = ref(emptyGrid())
+const score        = ref(0)
+const highScore    = ref(0)
+const gamesPlayed  = ref(0)
+const headerRef    = ref(null)
+const phase        = ref('idle')    // 'idle' | 'playing' | 'over'
+const lastReward   = ref(null)      // { coins, diamonds }
+const newCells     = ref([])
+const mergeCells   = ref([])
+const countdown    = ref(null)      // { row, col, value } — special tile that counts down
+const milestones   = ref({})        // { "64": true, "128": true, ... }
+const newMilestone = ref(null)      // { value, coins, diamonds } — toast
 
 function emptyGrid() {
   return Array.from({ length: 4 }, () => Array(4).fill(null))
@@ -53,6 +67,7 @@ onMounted(() => {
   const data = loadHawk3Data()
   highScore.value   = data.games.hawkDoubleUp.highScore   ?? 0
   gamesPlayed.value = data.games.hawkDoubleUp.gamesPlayed ?? 0
+  milestones.value  = data.games.hawkDoubleUp.milestones  ?? {}
 
   const saved = data.games.hawkDoubleUp.savedGame
   if (saved) {
@@ -166,6 +181,7 @@ function move(dir) {
 
   tickCountdown()
   addRandomTile()
+  checkMilestones()
   saveGame()
 
   if (!canMove()) endGame()
@@ -174,8 +190,8 @@ function move(dir) {
 // ── Countdown tile ────────────────────────────────────────
 function tickCountdown() {
   if (!countdown.value) {
-    // 5% chance to spawn a countdown tile if there's enough space
-    if (getEmptyCells().length > 4 && Math.random() < 0.05) {
+    // 5% chance to spawn a countdown tile if there's enough space (min 7 free cells)
+    if (getEmptyCells().length >= 7 && Math.random() < 0.05) {
       const cells = getEmptyCells()
       const [r, c] = cells[Math.floor(Math.random() * cells.length)]
       grid.value[r][c] = 7
@@ -203,6 +219,31 @@ function tickCountdown() {
   countdown.value = next <= 4 ? null : { row: r, col: c, value: next }
 }
 
+// ── Milestone check ───────────────────────────────────────
+function checkMilestones() {
+  let anyNew    = false
+  let highestNew = null
+  const data = loadHawk3Data()
+  for (const m of MILESTONES) {
+    if (milestones.value[m]) continue
+    if (grid.value.some(row => row.some(cell => cell === m))) {
+      milestones.value[m] = true
+      const reward = MILESTONE_REWARDS[m]
+      data.player.coins    = (data.player.coins    ?? 0) + reward.coins
+      data.player.diamonds = (data.player.diamonds ?? 0) + reward.diamonds
+      highestNew = { value: m, ...reward }
+      anyNew = true
+    }
+  }
+  if (anyNew) {
+    data.games.hawkDoubleUp.milestones = { ...milestones.value }
+    saveHawk3Data(data)
+    headerRef.value?.refresh()
+    newMilestone.value = highestNew
+    setTimeout(() => { newMilestone.value = null }, 3000)
+  }
+}
+
 // ── Can move check ────────────────────────────────────────
 function canMove() {
   for (let r = 0; r < 4; r++)
@@ -216,12 +257,13 @@ function canMove() {
 
 // ── Game flow ─────────────────────────────────────────────
 function startGame() {
-  grid.value       = emptyGrid()
-  score.value      = 0
-  countdown.value  = null
-  newCells.value   = []
-  mergeCells.value = []
-  phase.value      = 'playing'
+  grid.value         = emptyGrid()
+  score.value        = 0
+  countdown.value    = null
+  newMilestone.value = null
+  newCells.value     = []
+  mergeCells.value   = []
+  phase.value        = 'playing'
   addRandomTile()
   addRandomTile()
   saveGame()
@@ -377,6 +419,24 @@ function handleKeyDown(e) {
         </Transition>
       </div>
 
+      <!-- Milestones -->
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-4">
+        <div class="text-[10px] uppercase tracking-widest text-white/40 mb-3">{{ t('games.doubleUp.milestones_title') }}</div>
+        <div class="flex gap-2 flex-wrap">
+          <div
+            v-for="m in MILESTONES"
+            :key="m"
+            class="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all"
+            :class="milestones[m]
+              ? 'bg-yellow-400/15 text-yellow-400 border-yellow-400/30'
+              : 'bg-white/5 text-white/25 border-white/10'"
+          >
+            <span v-if="milestones[m]">✓</span>
+            {{ m.toLocaleString() }}
+          </div>
+        </div>
+      </div>
+
       <!-- Restart button while playing -->
       <div v-if="phase === 'playing'" class="flex justify-center">
         <button
@@ -387,11 +447,29 @@ function handleKeyDown(e) {
 
     </div>
   </div>
+
+  <!-- Milestone toast -->
+  <Transition name="milestone">
+    <div
+      v-if="newMilestone"
+      class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-yellow-400 text-black font-bold rounded-2xl px-5 py-3 shadow-2xl text-center whitespace-nowrap pointer-events-none"
+    >
+      <div class="text-base">🏆 {{ newMilestone.value.toLocaleString() }} {{ t('games.doubleUp.milestone_reached') }}</div>
+      <div class="text-sm font-semibold mt-0.5 opacity-80">
+        +{{ newMilestone.coins }} 💰<template v-if="newMilestone.diamonds > 0"> · +{{ newMilestone.diamonds }} 💎</template>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from,  .fade-leave-to      { opacity: 0; }
+
+.milestone-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.milestone-leave-active { transition: opacity 0.4s ease, transform 0.4s ease; }
+.milestone-enter-from   { opacity: 0; transform: translate(-50%, 12px); }
+.milestone-leave-to     { opacity: 0; transform: translate(-50%, -8px); }
 
 @keyframes pop {
   0%   { transform: scale(0.2); opacity: 0; }

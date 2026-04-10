@@ -72,7 +72,7 @@ const freshHawk3Data = () => ({
   games: {
     hawkFruit:    freshHawkFruit(),
     memory:       { highScore: 0, gamesPlayed: 0 },
-    hawkDoubleUp: { highScore: 0, gamesPlayed: 0, savedGame: null },
+    hawkDoubleUp: { highScore: 0, gamesPlayed: 0, savedGame: null, milestones: {} },
     hawkTower:    { highScore: 0, gamesPlayed: 0, maxHeight: 0 },
   },
 })
@@ -91,8 +91,9 @@ export const loadHawk3Data = () => {
     data.games.hawkFruit.levels['6']   = data.games.hawkFruit.levels['6']   ?? freshHawkFruitLevel()
     if (!('savedGame' in data.games.hawkFruit)) data.games.hawkFruit.savedGame = null
     data.games.memory        = data.games.memory        ?? { highScore: 0, gamesPlayed: 0 }
-    data.games.hawkDoubleUp  = data.games.hawkDoubleUp  ?? { highScore: 0, gamesPlayed: 0, savedGame: null }
-    if (!('savedGame' in data.games.hawkDoubleUp)) data.games.hawkDoubleUp.savedGame = null
+    data.games.hawkDoubleUp  = data.games.hawkDoubleUp  ?? { highScore: 0, gamesPlayed: 0, savedGame: null, milestones: {} }
+    if (!('savedGame'  in data.games.hawkDoubleUp)) data.games.hawkDoubleUp.savedGame  = null
+    if (!('milestones' in data.games.hawkDoubleUp)) data.games.hawkDoubleUp.milestones = {}
     data.games.hawkTower     = data.games.hawkTower     ?? { highScore: 0, gamesPlayed: 0, maxHeight: 0 }
     if (!('maxHeight' in data.games.hawkTower)) data.games.hawkTower.maxHeight = 0
     // Player currency

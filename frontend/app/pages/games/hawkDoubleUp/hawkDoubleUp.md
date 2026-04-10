@@ -37,11 +37,31 @@ Ein 2048-Klon im Endless Mode. Zahlen auf einem 4×4-Grid durch Wischen oder Pfe
 
 ## Countdown-Tile (Spezial)
 
-- 5% Chance pro Zug zu spawnen, wenn mehr als 4 Felder frei sind
+- 5% Chance pro Zug zu spawnen, wenn **mindestens 7 Felder frei** sind
 - Startet mit Wert **7** (leuchtet mit gelbem Glow-Rand)
 - Zählt nach jedem Zug um 1 runter: 7 → 6 → 5 → 4
 - Bei Wert 4 wird das Tile zu einem normalen 4er (kann danach normal gemergt werden)
 - Tile-Farben: 7 = violett (`#4c1ff4`), 6 = lila (`#6049b6`), 5 = grau-lila (`#6d6881`)
+
+---
+
+## Tile-Meilensteine
+
+Beim erstmaligen Erreichen eines bestimmten Tile-Werts gibt es eine **Extra-Belohnung** (einmalig pro Wert, nicht pro Spiel). Die erreichten Meilensteine werden persistent gespeichert und im Spiel abgehakt angezeigt.
+
+| Tile  | Status |
+|-------|--------|
+| 64    | ☐ |
+| 128   | ☐ |
+| 256   | ☐ |
+| 512   | ☐ |
+| 1024  | ☐ |
+| 2048  | ☐ |
+| 4096  | ☐ |
+
+Belohnungen pro Meilenstein: noch festzulegen (z. B. gestaffelt mehr Coins/Diamonds je höher der Wert).
+
+Speicherort: `hawk3_game_data.games.hawkDoubleUp.milestones` — Object `{ "64": true, "128": true, ... }`
 
 ---
 
@@ -65,8 +85,14 @@ Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeich
 "hawkDoubleUp": {
   "highScore": 0,
   "gamesPlayed": 0,
-  "savedGame": null
+  "savedGame": null,
+  "milestones": {}
 }
+```
+
+`milestones` enthält die einmalig erreichten Tile-Werte:
+```json
+"milestones": { "64": true, "128": true }
 ```
 
 `savedGame` enthält beim laufenden Spiel:
@@ -111,7 +137,8 @@ Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeich
 - i18n (DE/EN)
 
 ### Geplant / Ideen 🔲
-- Score-Milestone-Anzeige (z. B. "2048 erreicht!")
+- Tile-Meilensteine mit Einmal-Belohnungen (64 / 128 / 256 / 512 / 2048 / 4096)
+- Meilenstein-Anzeige im Spiel (Fortschrittsliste zum Abhaken)
 - Bestenliste / globale Highscores
 - Undo-Button (1 Zug zurück)
 - Animierte Tile-Bewegung (CSS translate statt instant snap)

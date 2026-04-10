@@ -107,11 +107,13 @@
       "play_again": "🎰 Nochmal spielen",
       "restart": "Neu starten",
       "reward_coins": "Coins",
-      "reward_diamonds": "Diamonds"
+      "reward_diamonds": "Diamonds",
+      "milestones_title": "Meilensteine",
+      "milestone_reached": "erreicht!"
     },
     "profile": {
       "title": "Mein Profil",
-      "import_btn": "📂 hawk3_game_data.json importieren",
+      "import_btn": "📂 JSON importieren",
       "import_error_format": "Ungültiges Format — player-Feld fehlt.",
       "import_error_parse": "JSON konnte nicht geparst werden.",
       "import_ok": "✅ Daten geladen!",
@@ -139,7 +141,9 @@
         "glasses_user": "Brille",
         "headset_user": "Headset",
         "cap_user": "Cap"
-      }
+      },
+      "theme": "Theme",
+      "language": "Sprache"
     }
   },
   "party": {

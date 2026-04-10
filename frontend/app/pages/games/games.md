@@ -179,9 +179,8 @@ LocalStorage-Key: `hawkStarSave` (getrennt von `hawk3_game_data`)
 | Hawk Tower (Endless Mode + Rewards) | ✅ Fertig |
 | Shop (Profile / Items / Gifts) | ✅ Fertig |
 | Profile-Seite | ✅ Fertig |
-| Hawk Star (Kachel + Integration) | 🚧 In Arbeit |
 | Games-Header (alle Seiten) | ✅ Fertig |
 | i18n-Überarbeitung (alGames-Index Kachelnle Spiele + Shop + Profile) | ✅ Fertig |
-| Games-Index Kacheln neu ordnen (Profile + Shop oben) | 🔲 Geplant |
-| DailyRewardCard kompakter nach Claim | 🔲 Geplant |
+| Games-Index Kacheln neu ordnen (Profile + Shop oben) | ✅ Fertig |
 | Light-Mode-Anpassung (Games-Bereich) | 🔲 Geplant |
+| Hawk Star (Kachel + Integration) | 🚧 In Arbeit |
