@@ -15,10 +15,25 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      link: [
+        { rel: 'manifest', href: '/site.webmanifest' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon-180x180.png' },
+      ],
+      meta: [
+        { name: 'theme-color', content: '#4F46E5' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        { name: 'apple-mobile-web-app-title', content: "Games" },
+      ],
       script: [
         {
           innerHTML: `(function(){try{var t=localStorage.getItem('theme')||((window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           tagPosition: 'head',
+        },
+        {
+          innerHTML: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js');})}`,
+          tagPosition: 'bodyClose',
         },
       ],
     },

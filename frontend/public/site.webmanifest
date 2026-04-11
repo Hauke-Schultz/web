@@ -1,21 +1,54 @@
 {
-  "name": "Hauke Schultz",
-  "short_name": "Hauke Schultz",
-  "icons": [
-    {
-      "src": "/web-app-manifest-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/web-app-manifest-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
+  "name": "Hawk3",
+  "short_name": "Hawk3",
+  "description": "Hawk Fruit, Hawk Double-Up, Hawk Tower und mehr",
+  "start_url": "/games",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#4F46E5",
   "background_color": "#0F0F0F",
-  "display": "standalone"
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Hawk Fruit",
+      "short_name": "Hawk Fruit",
+      "description": "Suika-Style Physik-Puzzle",
+      "url": "/games/hawkFruit",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Hawk Double-Up",
+      "short_name": "Double-Up",
+      "description": "2048-Style Merge-Game",
+      "url": "/games/hawkDoubleUp",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Hawk Tower",
+      "short_name": "Tower",
+      "description": "Tower-Building Game",
+      "url": "/games/hawkTower",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
 }
