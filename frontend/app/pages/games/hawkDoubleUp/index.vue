@@ -473,7 +473,7 @@ function handleKeyDown(e) {
             <div v-if="milestoneProgress.last" class="flex justify-center items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all" :class="milestoneProgress.last ? ' bg-yellow-400/15 text-yellow-400 border-yellow-400/30' : 'bg-white/5 text-white/25 border-white/10'">
               {{ milestoneProgress.last ? `✓ ${milestoneProgress.last.toLocaleString()}` : '— —' }}
             </div>
-            <div class="flex justify-center items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all bg-white/5 text-white/25 border-white/10">
+            <div v-else class="flex justify-center items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all bg-white/5 text-white/25 border-white/10">
               {{ milestoneProgress.next ? `${milestoneProgress.next.toLocaleString()}` : 'Max!' }}
             </div>
           </div>

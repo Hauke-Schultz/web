@@ -140,10 +140,10 @@ Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeich
 - Auto-Save nach jedem Zug, Wiederherstellung beim nächsten Besuch
 - Highscore persistent in `hawk3_game_data`
 - i18n (DE/EN)
+- Animierte Tile-Bewegung (CSS translate statt instant snap)
 
 ### Geplant / Ideen 🔲
 - Tile-Meilensteine mit Einmal-Belohnungen (64 / 128 / 256 / 512 / 1024 / 2048 / 4096)
 - Meilenstein-Anzeige im Spiel (Fortschrittsliste zum Abhaken)
 - Bestenliste / globale Highscores
 - Undo-Button (1 Zug zurück)
-- ~~Animierte Tile-Bewegung (CSS translate statt instant snap)~~ ✅
