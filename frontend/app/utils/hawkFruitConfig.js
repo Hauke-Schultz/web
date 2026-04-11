@@ -1122,6 +1122,27 @@ export const MOLD_FRUIT_CONFIG = {
   }
 }
 
+// Milestone rewards — first time each fruit is created via merge
+// Ordered from easiest (Strawberry = first merge) to hardest (Pumpkin)
+export const FRUIT_MILESTONE_TYPES = [
+  'STRAWBERRY', 'LEMON', 'ORANGE', 'APPLE', 'GRAPEFRUIT',
+  'PINEAPPLE', 'COCONUT', 'MELON', 'DRAGON_FRUIT', 'WATERMELON', 'PUMPKIN',
+]
+
+export const FRUIT_MILESTONE_REWARDS = {
+  STRAWBERRY:  { coins: 10,   diamonds: 0  },
+  LEMON:       { coins: 20,   diamonds: 0  },
+  ORANGE:      { coins: 35,   diamonds: 0  },
+  APPLE:       { coins: 50,   diamonds: 0  },
+  GRAPEFRUIT:  { coins: 75,   diamonds: 1  },
+  PINEAPPLE:   { coins: 100,  diamonds: 1  },
+  COCONUT:     { coins: 150,  diamonds: 2  },
+  MELON:       { coins: 200,  diamonds: 3  },
+  DRAGON_FRUIT:{ coins: 300,  diamonds: 5  },
+  WATERMELON:  { coins: 500,  diamonds: 8  },
+  PUMPKIN:     { coins: 1000, diamonds: 15 },
+}
+
 export const POINTS_CONFIG = {
 	DURATION: 2000,
 	MAX_DISTANCE: 100,

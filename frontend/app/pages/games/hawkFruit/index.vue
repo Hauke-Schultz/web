@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
-import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG, RAINBOW_FRUIT_CONFIG } from '~/utils/hawkFruitConfig.js'
+import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG, RAINBOW_FRUIT_CONFIG, FRUIT_MILESTONE_TYPES, FRUIT_MILESTONE_REWARDS } from '~/utils/hawkFruitConfig.js'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 import GamesHeader from '~/components/games/GamesHeader.vue'
 const { locale } = useI18n()
@@ -15,8 +15,9 @@ const DANGER_Y = 60   // y-threshold: fruits above here = game over risk
 const DROP_Y   = 28   // y where fruit spawns
 
 // ── Fruit helpers ─────────────────────────────────────────
-const FRUIT_LIST    = Object.values(FRUIT_TYPES).sort((a, b) => a.index - b.index)
-const DROPPABLE     = FRUIT_LIST.filter(f => f.index <= 5)
+const FRUIT_LIST          = Object.values(FRUIT_TYPES).sort((a, b) => a.index - b.index)
+const DROPPABLE           = FRUIT_LIST.filter(f => f.index <= 5)
+const MILESTONE_FRUIT_LIST = FRUIT_LIST.filter(f => FRUIT_MILESTONE_TYPES.includes(f.type))
 const toDataUrl     = (svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`
 const clamp         = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
@@ -25,17 +26,19 @@ const BOMB    = FRUIT_TYPES.BOMB_FRUIT
 const MOLD    = FRUIT_TYPES.MOLD_FRUIT
 const RAINBOW = FRUIT_TYPES.RAINBOW_FRUIT
 
-// Shrink rate derived from lifespan: fruit goes from full radius to minRadius over lifespan ms
-const MOLD_SHRINK_PER_FRAME =
-  (MOLD.radius - MOLD_FRUIT_CONFIG.minRadius) / (MOLD_FRUIT_CONFIG.lifespan / 1000 * 60)
+const moldHitCooldown   = new Map() // fruitId → timestamp, throttles shrink-on-hit
 
-const moldHitCooldown = new Map() // fruitId → timestamp, throttles shrink-on-hit
+// ── Fruit milestones ──────────────────────────────────────
+const fruitMilestones    = ref({})   // { STRAWBERRY: true, ... }
+const newFruitMilestone  = ref(null) // { type, label, emoji, coins, diamonds } — toast
 
 let lastBombTime    = -Infinity
 let lastRainbowTime = -Infinity
+let lastMoldTime    = -Infinity
 
-// ── Bomb state (declared before randomDrop so it can reference bombActive) ──
+// ── Bomb + Mold state (declared before randomDrop so randomDrop can reference them) ──
 const bombActive      = ref(false)
+const moldActive      = ref(false)
 const bombId          = ref(null)
 const bombFuseEnd     = ref(0)
 const bombFuseLeft    = ref(0)   // seconds remaining, for display
@@ -51,7 +54,11 @@ const randomDrop = () => {
     now - lastBombTime > BOMB_FRUIT_CONFIG.minSpawnDelay &&
     Math.random() < BOMB_FRUIT_CONFIG.spawnChance
   ) return BOMB
-  if (Math.random() < MOLD_FRUIT_CONFIG.spawnChance) return MOLD
+  if (
+    !moldActive.value &&
+    now - lastMoldTime > MOLD_FRUIT_CONFIG.minSpawnDelay &&
+    Math.random() < MOLD_FRUIT_CONFIG.spawnChance
+  ) return MOLD
   if (
     !rainbowActive.value &&
     now - lastRainbowTime > RAINBOW_FRUIT_CONFIG.minSpawnDelay &&
@@ -199,7 +206,8 @@ const spawnFruit = (typeName, x, y) => {
     isBomb:    !!cfg.isBomb,
     isMold:    !!cfg.isMold,
     isRainbow: !!cfg.isRainbow,
-    moldRadius: cfg.isMold ? cfg.radius : undefined,
+    moldRadius:    cfg.isMold ? cfg.radius    : undefined,
+    moldSpawnTime: cfg.isMold ? Date.now()    : undefined,
   }]
   return id
 }
@@ -208,6 +216,11 @@ const spawnFruit = (typeName, x, y) => {
 const removeFruit = (id) => {
   const f = fruits.value.find(f => f.id === id)
   if (!f) return
+  if (f.isMold) {
+    moldActive.value = false
+    lastMoldTime     = Date.now()
+    moldHitCooldown.delete(id)
+  }
   bodyMap.delete(f.body.id)
   M.Composite.remove(engine.world, f.body)
   fruits.value = fruits.value.filter(f2 => f2.id !== id)
@@ -232,6 +245,10 @@ const drop = () => {
     rainbowActive.value = true
     lastRainbowTime     = Date.now()
     spawnMergeEffect(x, DROP_Y, '#FFD700', cfg.radius)
+  }
+  if (cfg.isMold) {
+    moldActive.value = true
+    lastMoldTime     = Date.now()
   }
 
   nextFruitType.value = nextNextFruit.value
@@ -310,7 +327,6 @@ const shrinkMold = (id, amount) => {
   if (newR <= MOLD_FRUIT_CONFIG.minRadius) {
     spawnMergeEffect(f.x, f.y, MOLD.sparkleColor, f.moldRadius)
     removeFruit(id)
-    moldHitCooldown.delete(id)
     return
   }
   const scale = newR / f.moldRadius
@@ -318,6 +334,23 @@ const shrinkMold = (id, amount) => {
   const updated = [...fruits.value]
   updated[idx] = { ...f, moldRadius: newR, radius: newR }
   fruits.value = updated
+}
+
+// ── Fruit milestone check ─────────────────────────────────
+const checkFruitMilestone = (type) => {
+  if (!FRUIT_MILESTONE_REWARDS[type]) return
+  if (fruitMilestones.value[type]) return
+  fruitMilestones.value = { ...fruitMilestones.value, [type]: true }
+  const reward = FRUIT_MILESTONE_REWARDS[type]
+  const cfg    = FRUIT_TYPES[type]
+  const data   = loadHawk3Data()
+  data.player.coins              = (data.player.coins    ?? 0) + reward.coins
+  data.player.diamonds           = (data.player.diamonds ?? 0) + reward.diamonds
+  data.games.hawkFruit.milestones = { ...fruitMilestones.value }
+  saveHawk3Data(data)
+  headerRef.value?.refresh()
+  newFruitMilestone.value = { type, label: cfg?.label ?? type, emoji: cfg?.emoji ?? '🍑', ...reward }
+  setTimeout(() => { newFruitMilestone.value = null }, 3000)
 }
 
 // ── Merge ─────────────────────────────────────────────────
@@ -374,6 +407,7 @@ const onCollision = (event) => {
         merging.delete(fB.id)
         const nextR = FRUIT_TYPES[regCfg.nextType].radius
         spawnFruit(regCfg.nextType, mx, clamp(my, nextR, BOARD_H - nextR))
+        checkFruitMilestone(regCfg.nextType)
         score.value += bonusScore
         rainbowActive.value = false
 
@@ -412,6 +446,7 @@ const onCollision = (event) => {
       merging.delete(idB)
       const nextR = FRUIT_TYPES[cfg.nextType].radius
       spawnFruit(cfg.nextType, mx, clamp(my, nextR, BOARD_H - nextR))
+      checkFruitMilestone(cfg.nextType)
       score.value += cfg.scoreValue
 
       // Wake up all sleeping fruits near the merge point so they
@@ -435,21 +470,18 @@ let animFrame    = null
 let gameOverTimer = null
 
 const gameLoop = () => {
-  // Sync positions + shrink molt fruits
+  // Sync positions + check mold lifespan
   const moldExpired = []
+  const now = Date.now()
   fruits.value = fruits.value.map(f => {
     const base = { ...f, x: f.body.position.x, y: f.body.position.y, angle: f.body.angle }
     if (!f.isMold) return base
-    const newR = f.moldRadius - MOLD_SHRINK_PER_FRAME
-    if (newR <= MOLD_FRUIT_CONFIG.minRadius) { moldExpired.push(f); return base }
-    const scale = newR / f.moldRadius
-    M.Body.scale(f.body, scale, scale)
-    return { ...base, moldRadius: newR, radius: newR }
+    if (now - f.moldSpawnTime > MOLD_FRUIT_CONFIG.lifespan) moldExpired.push(f)
+    return base
   })
   for (const f of moldExpired) {
     spawnMergeEffect(f.x, f.y, MOLD.sparkleColor, f.radius)
     removeFruit(f.id)
-    moldHitCooldown.delete(f.id)
   }
 
   // Game-over check: fruits settled above danger line
@@ -540,6 +572,8 @@ const restart = () => {
   lastBombTime        = -Infinity
   rainbowActive.value = false
   lastRainbowTime     = -Infinity
+  moldActive.value    = false
+  lastMoldTime        = -Infinity
   moldHitCooldown.clear()
   score.value        = 0
   _sessionMerges     = 0
@@ -588,7 +622,8 @@ const saveGameState = () => {
         x:          Math.round(f.x),
         y:          Math.round(f.y),
         angle:      f.angle,
-        moldRadius: f.isMold ? Math.round(f.moldRadius) : undefined,
+        moldRadius:    f.isMold ? Math.round(f.moldRadius) : undefined,
+        moldSpawnTime: f.isMold ? f.moldSpawnTime         : undefined,
       })),
     savedAt: new Date().toISOString(),
   }
@@ -609,6 +644,9 @@ const restoreGameState = (saved) => {
 
   for (const sf of saved.fruits) {
     if (!FRUIT_TYPES[sf.type]) continue
+    // Skip mold fruits that have already expired
+    if (sf.type === 'MOLD_FRUIT' && sf.moldSpawnTime &&
+        Date.now() - sf.moldSpawnTime > MOLD_FRUIT_CONFIG.lifespan) continue
     const id = spawnFruit(sf.type, sf.x, sf.y)
     if (id === null) continue
     const f = fruits.value.find(fr => fr.id === id)
@@ -628,6 +666,17 @@ const restoreGameState = (saved) => {
       }
     }
     if (f.isRainbow) rainbowActive.value = true
+    // Restore mold active state + original spawn time
+    if (f.isMold) {
+      moldActive.value = true
+      const spawnTime = sf.moldSpawnTime ?? Date.now()
+      const idx2 = fruits.value.findIndex(fr => fr.id === id)
+      if (idx2 !== -1) {
+        const arr2 = [...fruits.value]
+        arr2[idx2] = { ...arr2[idx2], moldSpawnTime: spawnTime }
+        fruits.value = arr2
+      }
+    }
   }
   return true
 }
@@ -635,7 +684,8 @@ const restoreGameState = (saved) => {
 // ── Lifecycle ─────────────────────────────────────────────
 onMounted(async () => {
   const initData  = loadHawk3Data()
-  highScore.value = initData.games.hawkFruit.highScore ?? 0
+  highScore.value      = initData.games.hawkFruit.highScore  ?? 0
+  fruitMilestones.value = initData.games.hawkFruit.milestones ?? {}
   const savedGame = initData.games.hawkFruit.savedGame ?? null
 
   M = await import('matter-js')
@@ -870,20 +920,42 @@ onUnmounted(() => {
       </Transition>
     </div>
 
-    <!-- Merge chain guide -->
-    <div class="mt-5 flex items-center gap-1 flex-wrap justify-center max-w-[320px]">
-      <template v-for="(fruit, i) in FRUIT_LIST" :key="fruit.type">
-        <img
-          :src="toDataUrl(fruit.svg)"
-          :title="fruit.type"
-          :style="{ width: `${clamp(fruit.radius * 0.55, 16, 38)}px`, height: `${clamp(fruit.radius * 0.55, 16, 38)}px` }"
-          alt=""
-        />
-        <span v-if="i < FRUIT_LIST.length - 1" class="text-white/20 text-xs">→</span>
-      </template>
+    <!-- Fruit milestones -->
+    <div class="mt-4 max-w-[320px] bg-white/5 border border-white/10 rounded-2xl p-3">
+      <div class="text-[10px] uppercase tracking-widest text-white/40 mb-3">Meilensteine</div>
+      <div class="flex flex-wrap gap-2">
+        <div
+          v-for="fruit in MILESTONE_FRUIT_LIST"
+          :key="fruit.type"
+          class="flex flex-col items-center gap-1 rounded-xl p-1.5 border transition-all"
+          :class="fruitMilestones[fruit.type]
+            ? 'bg-yellow-400/15 border-yellow-400/30'
+            : 'bg-white/5 border-white/10 opacity-40'"
+        >
+          <img
+            :src="toDataUrl(fruit.svg)"
+            :style="{ width: '28px', height: '28px' }"
+            alt=""
+          />
+          <span v-if="fruitMilestones[fruit.type]" class="text-yellow-400 text-[9px] font-bold leading-none">✓</span>
+        </div>
+      </div>
     </div>
 
   </div>
+
+  <!-- Fruit milestone toast -->
+  <Transition name="fruit-milestone">
+    <div
+      v-if="newFruitMilestone"
+      class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-yellow-400 text-black font-bold rounded-2xl px-5 py-3 shadow-2xl text-center whitespace-nowrap pointer-events-none"
+    >
+      <div class="text-base">🏆 Erstes {{ newFruitMilestone.label }}!</div>
+      <div class="text-sm font-semibold mt-0.5 opacity-80">
+        +{{ newFruitMilestone.coins }} 💰<template v-if="newFruitMilestone.diamonds > 0"> · +{{ newFruitMilestone.diamonds }} 💎</template>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style>
@@ -892,6 +964,11 @@ onUnmounted(() => {
 .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from,
 .fade-leave-to     { opacity: 0; }
+
+.fruit-milestone-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.fruit-milestone-leave-active { transition: opacity 0.4s ease, transform 0.4s ease; }
+.fruit-milestone-enter-from   { opacity: 0; transform: translate(-50%, 12px); }
+.fruit-milestone-leave-to     { opacity: 0; transform: translate(-50%, -8px); }
 
 /* Combo badge pop-in */
 .combo-pop-enter-active { transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }

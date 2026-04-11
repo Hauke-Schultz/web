@@ -46,9 +46,11 @@ Droppable: Index 1–5 only (Blueberry through Apple)
 - Screen shake on explosion
 
 ### Mold Fruit 🟤
-- 5% spawn chance, 1 minute lifespan
-- Shrinks per frame and on collision (shrink on hit)
-- Never merges, disappears when minimum size is reached
+- 5% spawn chance, max. 1 at a time, min. 60s cooldown after removal
+- 1 minute lifespan — disappears when lifespan expires OR when `minRadius` is reached
+- **Shrinks only on collision** (not per frame) — each hit reduces radius by `shrinkOnHit` px
+- Hit-Cooldown per Fruit: `hitCooldown` ms between shrinks (prevents rapid-fire shrinking)
+- Never merges
 - Flashes as warning in the last 20 seconds
 
 ### Rainbow Fruit 🌈
@@ -93,6 +95,28 @@ Am Spielende werden Coins und Diamonds basierend auf dem erzielten Score gutgesc
 
 Beispiele: Score 2000 → 100 Coins, 2 Diamonds. Score 500 → 25 Coins, 0 Diamonds.
 Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeichert.
+
+---
+
+## Fruit Milestones
+
+Beim erstmaligen Erstellen einer Frucht via Merge gibt es eine **einmalige Belohnung**. Persistent gespeichert in `hawk3_game_data.games.hawkFruit.milestones`.
+
+| Frucht       | Coins  | Diamonds |
+|--------------|--------|----------|
+| Strawberry 🍓 | +10   | —        |
+| Lemon 🍋      | +20   | —        |
+| Orange 🍊     | +35   | —        |
+| Apple 🍎      | +50   | —        |
+| Grapefruit    | +75   | +1       |
+| Pineapple 🍍  | +100  | +1       |
+| Coconut 🥥    | +150  | +2       |
+| Melon 🍈      | +200  | +3       |
+| Dragon Fruit  | +300  | +5       |
+| Watermelon 🍉 | +500  | +8       |
+| Pumpkin 🎃    | +1000 | +15      |
+
+Anzeige: Panel unterhalb des Merge-Chain-Guides (kleine Fruit-Icons, erreichte gelb markiert). Toast bei Erreichen.
 
 ---
 

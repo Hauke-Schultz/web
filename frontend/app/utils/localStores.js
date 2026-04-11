@@ -38,6 +38,7 @@ const freshHawkFruit = () => ({
   totalMerges:    0,
   maxCombo:       0,
   savedGame:      null,   // { score, nextFruit, nextNextFruit, fruits[], savedAt }
+  milestones:     {},     // { STRAWBERRY: true, LEMON: true, ... }
   levels: {
     '6': freshHawkFruitLevel(),   // 6 = Endless Mode
   },
@@ -89,7 +90,8 @@ export const loadHawk3Data = () => {
     // Ensure required hawkFruit fields exist (forward-compat)
     data.games.hawkFruit.levels        = data.games.hawkFruit.levels        ?? {}
     data.games.hawkFruit.levels['6']   = data.games.hawkFruit.levels['6']   ?? freshHawkFruitLevel()
-    if (!('savedGame' in data.games.hawkFruit)) data.games.hawkFruit.savedGame = null
+    if (!('savedGame'  in data.games.hawkFruit)) data.games.hawkFruit.savedGame  = null
+    if (!('milestones' in data.games.hawkFruit)) data.games.hawkFruit.milestones = {}
     data.games.memory        = data.games.memory        ?? { highScore: 0, gamesPlayed: 0 }
     data.games.hawkDoubleUp  = data.games.hawkDoubleUp  ?? { highScore: 0, gamesPlayed: 0, savedGame: null, milestones: {} }
     if (!('savedGame'  in data.games.hawkDoubleUp)) data.games.hawkDoubleUp.savedGame  = null
