@@ -39,7 +39,7 @@ Kachel-Grid mit allen Spielen.
 | Hawk Tower     | `/games/hawkTower`    | ✅ Fertig      | `games/hawktower/`    |
 | Shop           | `/games/shop`         | ✅ Fertig      | `views/Shop.vue`      |
 | Profile        | `/games/profile`      | ✅ Fertig      | `views/Profile.vue`   |
-| Hawk Star      | `/hawk-star`          | 🚧 In Arbeit  | Neu (kein Alt-System) |
+| Hawk Star      | `/games/hawkStar`     | 🚧 In Arbeit  | Neu (kein Alt-System) |
 
 **Daily Reward Kachel** ist eine eigenständige, expandierte Sektion (kein NuxtLink).
 
@@ -148,8 +148,8 @@ Rewards: `height × 3` Coins · `floor(height / 10)` Diamonds — bei Game Over 
 
 ## Hawk Star
 
-Hawk-Star liegt in `/pages/hawk-star/` und ist ein eigenständiges Spiel (kein Teil des alten Systems).
-Separate Dokumentation: `pages/hawk-star/hawk-star.md`
+Hawk-Star liegt in `/pages/games/hawkStar/` und ist ein eigenständiges Spiel (kein Teil des alten Systems).
+Separate Dokumentation: `pages/games/hawkStar/hawk-star.md`
 LocalStorage-Key: `hawkStarSave` (getrennt von `hawk3_game_data`)
 
 ---
@@ -183,4 +183,4 @@ LocalStorage-Key: `hawkStarSave` (getrennt von `hawk3_game_data`)
 | i18n-Überarbeitung (alGames-Index Kachelnle Spiele + Shop + Profile) | ✅ Fertig |
 | Games-Index Kacheln neu ordnen (Profile + Shop oben) | ✅ Fertig |
 | Light-Mode-Anpassung (Games-Bereich) | 🔲 Geplant |
-| Hawk Star (Kachel + Integration) | 🚧 In Arbeit |
+| Hawk Star (Kachel + Integration) | ✅ Fertig |

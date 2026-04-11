@@ -1,7 +1,7 @@
 <script setup>
-import { ref, watchEffect } from 'vue'
-import { onMounted, onUnmounted } from 'vue'
+import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
 import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
+import { loadHawk3Data } from '~/utils/localStores.js'
 import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
 import HsPlanetGrid from '~/components/hawk-star/HsPlanetGrid.vue'
 import HsTilePanel from '~/components/hawk-star/HsTilePanel.vue'
@@ -16,13 +16,20 @@ import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
-onMounted(startTick)
+onMounted(() => {
+  startTick()
+  // Pre-fill commander name from games profile (user can still edit it)
+  if (!setupName.value) {
+    const profileName = loadHawk3Data().player?.name
+    if (profileName && profileName !== 'Spieler') setupName.value = profileName
+  }
+})
 onUnmounted(stopTick)
 
 const { starMapLevel, isFirstRun } = useHawkStar()
 
 const currentView  = ref('planet')
-const activePanel  = ref('notifications')
+const activePanel  = ref('')
 const setupName    = ref('')
 
 const submitSetup = () => {
@@ -79,7 +86,7 @@ watchEffect(() => {
             v-model="setupName"
             class="hs-setup-input"
             type="text"
-            placeholder="Commander…"
+            placeholder="Commander name…"
             maxlength="24"
             autofocus
             @keydown.enter="submitSetup"

@@ -12,7 +12,8 @@
       "Bash(find /mnt/c/Users/hauke/WebstormProjects/web/frontend -name *.vue)",
       "Bash(grep -E \"\\\\.\\(js|ts|vue\\)$\")",
       "Read(//tmp/**)",
-      "Bash(grep -rn 'i18n\\\\|useI18n\\\\|$t\\(' C:/Users/hauke/WebstormProjects/web/frontend/app/nuxt.config.ts)"
+      "Bash(grep -rn 'i18n\\\\|useI18n\\\\|$t\\(' C:/Users/hauke/WebstormProjects/web/frontend/app/nuxt.config.ts)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

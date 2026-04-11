@@ -1,16 +1,11 @@
 <script setup>
 import { useHawkStar, resetGame } from '~/composables/useHawkStar.js'
-import HsLangSwitcher from '~/components/hawk-star/HsLangSwitcher.vue'
 
 const { tickRateMs, buildTimeFactor, saveDevSettings } = useHawkStar()
 </script>
 
 <template>
   <div class="hs-settings-panel">
-    <div class="hs-settings-section">
-      <HsLangSwitcher />
-    </div>
-
     <div class="hs-dev-panel">
       <span class="hs-dev-label">DEV</span>
       <label class="hs-dev-field">

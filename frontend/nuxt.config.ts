@@ -51,6 +51,13 @@ export default defineNuxtConfig({
     strategy: 'prefix_except_default',
   },
 
+  routeRules: {
+    // Game pages with singleton composable state — disable SSR to avoid
+    // hydration mismatches and browser-API access during server rendering
+    '/games/hawkStar':    { ssr: false },
+    '/en/games/hawkStar': { ssr: false },
+  },
+
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000/api',

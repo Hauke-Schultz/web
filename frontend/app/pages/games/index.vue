@@ -62,6 +62,14 @@ const games = [
     route:       '/games/hawkTower',
     active:      true,
   },
+  {
+    key:         'hawkStar',
+    title:       'Hawk Star',
+    description: 'Aufbau-Strategie im Weltall – errichte deine Kolonie Planet für Planet.',
+    emoji:       '🌌',
+    route:       '/games/hawkStar',
+    active:      true,
+  },
 ]
 </script>
 
