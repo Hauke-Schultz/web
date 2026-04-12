@@ -14,7 +14,10 @@
       "Read(//tmp/**)",
       "Bash(grep -rn 'i18n\\\\|useI18n\\\\|$t\\(' C:/Users/hauke/WebstormProjects/web/frontend/app/nuxt.config.ts)",
       "Bash(xargs grep:*)",
-      "Bash(npx nuxi:*)"
+      "Bash(npx nuxi:*)",
+      "Bash(grep -v \"onMounted\\\\|onclick\\\\|//\")",
+      "Bash(timeout 30 npx nuxt build)",
+      "Bash(curl:*)"
     ]
   }
 }

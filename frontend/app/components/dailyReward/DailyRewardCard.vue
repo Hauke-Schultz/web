@@ -14,9 +14,9 @@ const today = new Date().toISOString().split('T')[0]
 
 // Daily game rotation — add new game components here when ready
 const DAILY_GAMES = [
-  // { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
+  { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
   { key: 'wheel',  label: 'Fortune Wheel', emoji: '🎡', component: FortuneWheelGame },
-  // { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
+  { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
 ]
 const dayIndex  = Math.floor(Date.now() / 86400000)
 const todayGame = DAILY_GAMES[dayIndex % DAILY_GAMES.length]
