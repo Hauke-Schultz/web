@@ -56,6 +56,13 @@ export default defineNuxtConfig({
     // hydration mismatches and browser-API access during server rendering
     '/games/hawkStar':    { ssr: false },
     '/en/games/hawkStar': { ssr: false },
+
+    // Redirect old level-based routes (/:level) to the new single-level game pages
+    '/games/hawkfruit/**':    { redirect: '/games/hawkFruit' },
+    '/games/hawkdoubleup/**': { redirect: '/games/hawkDoubleUp' },
+    '/games/hawktower/**':    { redirect: '/games/hawkTower' },
+    '/games/hawkdungeon/**':  { redirect: '/games' },
+    '/games/memory/**':       { redirect: '/games' },
   },
 
   runtimeConfig: {
