@@ -98,6 +98,20 @@
       "reward_coins": "Coins",
       "reward_diamonds": "Diamonds"
     },
+    "coin": {
+      "budget": "Budget",
+      "won": "Gewonnen",
+      "best": "Rekord",
+      "instructions": "Positioniere die Münze oben und klicke, um sie fallen zu lassen. Die Plattform bewegt sich vor und zurück – nutze den richtigen Moment, um möglichst viele Münzen über die Kante zu schieben!",
+      "start": "🪙 Spiel starten",
+      "game_over": "Runde beendet!",
+      "play_again": "🪙 Nochmal spielen",
+      "restart": "Neu starten",
+      "reward_coins": "Coins",
+      "reward_diamonds": "Diamonds",
+      "coins_left": "{n} Münzen übrig",
+      "settling": "Münzen fallen noch…"
+    },
     "doubleUp": {
       "score": "Score",
       "best": "Bestleistung",

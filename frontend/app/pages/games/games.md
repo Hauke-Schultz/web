@@ -40,6 +40,7 @@ Kachel-Grid mit allen Spielen.
 | Shop           | `/games/shop`         | ✅ Fertig      | `views/Shop.vue`      |
 | Profile        | `/games/profile`      | ✅ Fertig      | `views/Profile.vue`   |
 | Hawk Star      | `/games/hawkStar`     | 🚧 In Arbeit  | Neu (kein Alt-System) |
+| Hawk Coin      | `/games/hawkCoin`     | 🔲 Geplant    | Neu (kein Alt-System) |
 
 **Daily Reward Kachel** ist eine eigenständige, expandierte Sektion (kein NuxtLink).
 
@@ -154,6 +155,14 @@ LocalStorage-Key: `hawkStarSave` (getrennt von `hawk3_game_data`)
 
 ---
 
+## Hawk Coin
+
+Hawk-Coin liegt in `/pages/games/hawkCoin/` und ist ein eigenständiges Spiel (kein Teil des alten Systems).
+Separate Dokumentation: `pages/games/hawkCoin/hawkCoin.md`
+Save-Format: `hawk3_game_data.games.hawkCoin`
+
+---
+
 ## Neue Spiele implementieren — Checkliste
 
 1. **Ordner anlegen**: `pages/games/<spielname>/index.vue`
@@ -184,3 +193,4 @@ LocalStorage-Key: `hawkStarSave` (getrennt von `hawk3_game_data`)
 | Games-Index Kacheln neu ordnen (Profile + Shop oben) | ✅ Fertig |
 | Light-Mode-Anpassung (Games-Bereich) | 🔲 Geplant |
 | Hawk Star (Kachel + Integration) | ✅ Fertig |
+| Hawk Coin (Coin Pusher) | 🔲 Geplant |

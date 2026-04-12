@@ -5,12 +5,21 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
-  ssr: true,
+  ssr: false,
 
   css: ['~/assets/styles/main.css'],
 
+  devServer: {
+    port: 3000,
+  },
+
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      hmr: {
+        clientPort: 3000,
+      },
+    },
   },
 
   app: {
@@ -56,13 +65,15 @@ export default defineNuxtConfig({
     // hydration mismatches and browser-API access during server rendering
     '/games/hawkStar':    { ssr: false },
     '/en/games/hawkStar': { ssr: false },
+    '/games/hawkCoin':    { ssr: false },
+    '/en/games/hawkCoin': { ssr: false },
 
     // Redirect old level-based routes (/:level) to the new single-level game pages
-    '/games/hawkfruit/**':    { redirect: '/games/hawkFruit' },
-    '/games/hawkdoubleup/**': { redirect: '/games/hawkDoubleUp' },
-    '/games/hawktower/**':    { redirect: '/games/hawkTower' },
-    '/games/hawkdungeon/**':  { redirect: '/games' },
-    '/games/memory/**':       { redirect: '/games' },
+    // '/games/hawkfruit/**':    { redirect: '/games/hawkFruit' },
+    // '/games/hawkdoubleup/**': { redirect: '/games/hawkDoubleUp' },
+    // '/games/hawktower/**':    { redirect: '/games/hawkTower' },
+    // '/games/hawkdungeon/**':  { redirect: '/games' },
+    // '/games/memory/**':       { redirect: '/games' },
   },
 
   runtimeConfig: {

@@ -99,6 +99,20 @@
       "reward_coins": "Coins",
       "reward_diamonds": "Diamonds"
     },
+    "coin": {
+      "budget": "Budget",
+      "won": "Won",
+      "best": "Best",
+      "instructions": "Position your coin at the top and click to drop it. The platform moves back and forth — time your drops to push as many coins over the edge as possible!",
+      "start": "🪙 Start Game",
+      "game_over": "Round Over!",
+      "play_again": "🪙 Play Again",
+      "restart": "Restart",
+      "reward_coins": "Coins",
+      "reward_diamonds": "Diamonds",
+      "coins_left": "{n} coins left",
+      "settling": "Coins still falling…"
+    },
     "doubleUp": {
       "score": "Score",
       "best": "Best",

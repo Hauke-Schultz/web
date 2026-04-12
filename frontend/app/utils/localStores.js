@@ -75,6 +75,7 @@ const freshHawk3Data = () => ({
     memory:       { highScore: 0, gamesPlayed: 0 },
     hawkDoubleUp: { highScore: 0, gamesPlayed: 0, savedGame: null, milestones: {} },
     hawkTower:    { highScore: 0, gamesPlayed: 0, maxHeight: 0 },
+    hawkCoin:     { highScore: 0, gamesPlayed: 0, totalCoinsWon: 0, totalCoinsSpent: 0, bestNetWin: 0 },
   },
 })
 
@@ -98,6 +99,7 @@ export const loadHawk3Data = () => {
     if (!('milestones' in data.games.hawkDoubleUp)) data.games.hawkDoubleUp.milestones = {}
     data.games.hawkTower     = data.games.hawkTower     ?? { highScore: 0, gamesPlayed: 0, maxHeight: 0 }
     if (!('maxHeight' in data.games.hawkTower)) data.games.hawkTower.maxHeight = 0
+    data.games.hawkCoin      = data.games.hawkCoin      ?? { highScore: 0, gamesPlayed: 0, totalCoinsWon: 0, totalCoinsSpent: 0, bestNetWin: 0 }
     // Player currency
     data.player              = data.player              ?? {}
     data.player.name         = data.player.name         ?? 'Spieler'
