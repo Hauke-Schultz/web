@@ -1,45 +1,50 @@
 # Hawk Coin — Coin Pusher
 
-Ein browserbasiertes Coin-Pusher-Spiel inspiriert von klassischen Arcade-Automaten. Blick von vorne auf den Automaten: Münzen fallen von oben auf eine Plattform, die sich vor und zurück bewegt und dabei Münzen über die vordere Kante schiebt.
+Ein browserbasiertes Coin-Pusher-Spiel inspiriert von klassischen Arcade-Automaten. Blick von **oben** auf das Spielfeld: zwei übereinanderliegende Platten, die bewegte obere Platte schiebt Münzen auf die untere, von der sie herausfallen können.
 
 ---
 
 ## Perspektive & Darstellung
 
-Der Automat wird **von vorne** betrachtet — wie beim echten Arcade-Gerät.
+Der Automat wird **von oben** betrachtet — Vogelperspektive direkt auf das Spielfeld.
 
 ```
-┌─────────────────────────┐
-│   [  Einwurf-Zone  ]    │  ← Spieler positioniert Münze hier (X-Achse frei wählbar)
-│                         │
-│  ○  ○    ○   ○   ○      │  ← Münzen liegen auf der Spielfläche
-│ ○  ○  ○   ○    ○  ○     │
-│══════════════════════════│  ← Plattform (bewegt sich vor = nach unten, zurück = nach oben)
-│                         │
-│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  ← feste Ablagefläche (hinter der Plattform)
-└─────────────────────────┘
-         ↓ ↓ ↓
-    (Münzen fallen hier raus = Gewinn)
+┌─────────────────────────────────┐
+│     [ Einwurf-Zone oben ]       │  ← Spieler wirft Münzen von oben
+│                                 │
+│  ○   ○     ○   ○   ○    ○      │  ← Münzen auf der bewegten Platte
+│  ○     ○  ○   ○   ○    ○   ○   │
+│══════════════════════════════════│  ← Vorderkante der bewegten Platte
+│ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │  ↑ bewegte Platte (1/3 Höhe, fährt ↑↓)
+│══════════════════════════════════│  ← Hinterkante der bewegten Platte
+│                                 │
+│  ○  ○   ○    ○  ○   ○  ○  ○   │  ← Münzen auf der unteren (festen) Platte
+│  ○    ○  ○   ○   ○   ○   ○     │
+│  ○  ○   ○  ○   ○  ○    ○  ○   │
+└─────────────────────────────────┘
+          ↓   ↓   ↓
+    (Münzen fallen unten heraus = Gewinn)
 ```
 
-- Die **Plattform** bewegt sich auf der Y-Achse: vorwärts (nach unten im Canvas) und rückwärts (nach oben)
-- Die **Einwurf-Zone** ist die obere Kante — Spieler wählt die X-Position frei (Klick/Tap auf die obere Leiste)
-- Bei Bestätigung fällt die Münze senkrecht nach unten auf die Plattform oder die darauf liegenden Münzen
-- Wenn die Plattform vorwärts fährt, schiebt sie Münzen Richtung untere Kante
-- Münzen die über die **untere Kante** fallen → Gewinn
+- Die **bewegte Platte** (obere) nimmt ~1/3 der Spielfeldhöhe ein und fährt kontinuierlich vor (↓) und zurück (↑)
+- Die **untere Platte** ist größer (~2/3 der Spielfeldhöhe) und liegt fest darunter
+- Münzen werden von oben auf die bewegte Platte geworfen
+- Die Vorderkante der bewegten Platte schiebt Münzen, die sich auf der **unteren Platte** befinden, wenn sie sich nach unten bewegt
+- Münzen, die über die untere Kante der **bewegten Platte** kippen, landen auf der **unteren Platte**
+- Münzen, die über die untere Kante der **unteren Platte** fallen → **Gewinn**
 
 ---
 
 ## Game Concept
 
-- Blick von vorne auf den Coin-Pusher-Automaten
+- Vogelperspektive (Top-Down) auf das Spielfeld
 - Spieler wählt die X-Position der Münze frei (hover/drag in der Einwurf-Zone oben)
-- Bei Klick/Tap fällt die Münze nach unten (Gravitation via Matter.js)
-- Die Plattform bewegt sich kontinuierlich vor (↓) und zurück (↑)
-- Münzen auf der Plattform werden beim Vorwärtsfahren mitgeschoben
-- Münzen die über die untere Kante fallen = Gewinn
-- Münzen die seitlich herausfallen = kein Gewinn (verloren)
-- Game Over: wenn das Einwurf-Budget (Münzzahl) aufgebraucht ist
+- Bei Klick/Tap fällt die Münze auf die bewegte Platte
+- Die bewegte Platte fährt kontinuierlich vor (↓) und zurück (↑) — schiebt Münzen in beide Richtungen
+- Wenn Münzen von der bewegten Platte über deren Vorderkante fallen → landen auf der unteren Platte
+- Wenn Münzen auf der unteren Platte über die untere Kante fallen → Gewinn
+- Die bewegte Platte schiebt auch Münzen auf der **unteren Platte**, wenn ihre Vorderkante nach unten fährt
+- Game Over: wenn das Einwurf-Budget aufgebraucht ist
 - Ziel: maximalen Netto-Gewinn erzielen
 
 ---
@@ -47,36 +52,70 @@ Der Automat wird **von vorne** betrachtet — wie beim echten Arcade-Gerät.
 ## Spielmechanik
 
 ### Einwurf
-- Spieler bewegt die Maus/den Finger horizontal in der Einwurf-Zone oben
+- Spieler bewegt die Maus/den Finger horizontal in der Einwurf-Zone (ganz oben im Canvas)
 - Eine Geister-Münze zeigt die gewählte X-Position an (Drop-Preview)
-- Klick/Tap: Münze spawnt an der gewählten X-Position und fällt durch Gravitation nach unten
+- Klick/Tap: Münze spawnt an der gewählten X-Position und fällt auf die bewegte Platte
 - Budget wird um 1 verringert
 
-### Plattform
-- Rechteckiger Körper (kinematischer Body in Matter.js — kein Einfluss der Physik auf ihn)
-- Bewegt sich mit konstanter Geschwindigkeit auf der Y-Achse: Amplitude + Tempo konfigurierbar
-- Schiebt alle aufliegenden Münzen mit (Kollision über Matter.js)
-- Breite: 100% der Canvas-Breite (linke + rechte Wände halten Münzen)
-
 ### Spielfeld-Aufbau (Canvas von oben nach unten)
+
+```
+┌─────────────────────────┐  y=0
+│   Einwurf-Zone          │  Münzwurf-Leiste (interaktiv, ~60px)
+├─────────────────────────┤  y=60
+│   Freier Fall           │  Münze fällt hier herunter (~40px)
+├─────────────────────────┤  y=100
+│                         │
+│   Bewegte Platte        │  ~1/3 der Spielfeldhöhe
+│   (fährt ↑↓)           │
+│                         │
+├─────────────────────────┤  y=Mitte
+│                         │
+│   Untere Platte         │  ~2/3 der Spielfeldhöhe (größer, fest)
+│   (statisch)            │
+│                         │
+└─────────────────────────┘  y=max
+         ↓ ↓ ↓
+    Gewinn-Kante (Sensor)
+```
+
 | Bereich | Beschreibung |
 |---------|-------------|
 | Einwurf-Zone (oben) | Münz-Drop-Leiste, interaktiv |
-| Freier Fall-Bereich | Münze fällt hier herunter |
-| Plattform | Beweglicher Körper (vor/zurück) |
-| Ablagefläche | Feste Fläche hinter der Plattform — Münzen sammeln sich hier |
+| Freier Fall | Münze fällt hier auf die bewegte Platte |
+| Bewegte Platte | ~1/3 Höhe, fährt kontinuierlich vor/zurück (↑↓), schiebt Münzen |
+| Untere Platte | Größer (~2/3), statisch — sammelt Münzen von oben |
 | Austritts-Kante (unten) | Sensor: Münzen die hier ankommen = Gewinn |
 
-### Münzen
-- Kreisförmige Rigid Bodies in Matter.js (restitution niedrig, friction mittel)
-- Kollision untereinander und mit Plattform / Wänden / Ablagefläche
-- Münze verlässt untere Kante → Sensor-Event → Gewinn +1, Münze wird entfernt
-- Münze verlässt seitliche Kante → keine Aktion (nicht möglich, da Wände)
+### Bewegte Platte (obere Platte)
 
-### Gewinn & Verlust
-- Gewonnene Münzen = Münzen die unten herausfallen
-- Eingeworfene Münzen = Budget-Kosten
-- Netto-Gewinn: `gewonnene_münzen - eingeworfene_münzen`
+- Rechteckiger kinematischer Body in Matter.js (volle Canvas-Breite)
+- Höhe: ~1/3 des nutzbaren Spielfelds
+- Bewegt sich mit konstanter Geschwindigkeit auf der **Y-Achse**: Amplitude + Tempo konfigurierbar
+- Position wird per `Body.setPosition()` gesetzt (kein Physics-Einfluss auf die Platte selbst)
+- **Schiebt Münzen auf der bewegten Platte** durch physikalische Kollision
+- **Schiebt Münzen auf der unteren Platte** wenn die Vorderkante nach unten fährt und in deren Bereich eindringt
+
+### Untere Platte (feste Platte)
+
+- Statischer rechteckiger Body (volle Canvas-Breite)
+- Höhe: ~2/3 des nutzbaren Spielfelds
+- Liegt direkt unterhalb der bewegten Platte
+- Münzen landen hier, wenn sie von der bewegten Platte nach unten kippen
+- Wenn Münzen über die untere Kante fallen → Gewinn-Sensor
+
+### Münzen
+
+- Kreisförmige Rigid Bodies in Matter.js (restitution niedrig, friction mittel)
+- Kollision untereinander und mit Platten / Wänden
+- Münze verlässt untere Kante der unteren Platte → Gewinn +1, Münze wird entfernt
+- Linke + rechte Wände halten Münzen im Spielfeld
+
+### Übergangs-Mechanik (bewegte → untere Platte)
+
+- Münzen auf der bewegten Platte, die über deren **Vorderkante** (untere Kante der Platte) hinausgeschoben werden, fallen auf die untere Platte
+- Die untere Platte hat keine physische Rückkante für die bewegte Platte — der Übergang passiert durch normale Physik (Münze kippt über Kante, fällt hinunter)
+- Da der Canvas Top-Down ist: "fallen" bedeutet Y-Koordinate überschreitet die Plattengrenze → Münze wird der unteren Platte zugeordnet
 
 ---
 
@@ -86,15 +125,28 @@ Der Automat wird **von vorne** betrachtet — wie beim echten Arcade-Gerät.
 Engine + World
 ├── Bodies.rectangle — linke Wand (statisch)
 ├── Bodies.rectangle — rechte Wand (statisch)
-├── Bodies.rectangle — Ablagefläche hinten (statisch)
-├── Bodies.rectangle — Plattform (kinematisch, Y-Position per tick gesetzt)
+├── Bodies.rectangle — bewegte Platte (kinematisch, Y per tick)
+├── Bodies.rectangle — untere Platte / Ablagefläche (statisch)
+├── Bodies.rectangle — Gewinn-Sensor an unterer Kante (isSensor: true)
 ├── Bodies.circle    — Münzen (dynamisch, on-demand spawned)
-└── Events.on(engine, 'collisionStart') — Sensor an unterer Kante
+└── Events.on(engine, 'collisionStart') — Gewinn-Sensor Auswertung
 ```
 
-- Plattform wird **nicht** per Force bewegt, sondern per `Body.setPosition()` jeden Tick → stabiles kinematisches Verhalten
-- Gravitation: Standard Matter.js `gravity.y = 1`
-- Rendering: **kein** Matter.js Renderer — Vue + Canvas API oder SVG liest `body.position` und zeichnet selbst
+- Plattform wird **nicht** per Force bewegt, sondern per `Body.setPosition()` jeden Tick
+- Gravitation: `gravity.y = 1` (Münzen fallen auf Platten)
+- Rendering: **kein** Matter.js Renderer — Vue + Canvas API liest `body.position` und zeichnet selbst
+- Kamera-Perspektive: Top-Down → X/Y-Koordinaten entsprechen direkt der Bildschirmposition
+
+---
+
+## Visuelles Design (Top-Down)
+
+- **Bewegte Platte**: leicht hellere Farbe als untere Platte, z.B. Holz-Textur oder Grau-Gradient
+- **Untere Platte**: dunklere Basis-Farbe
+- **Münzen**: Kreise mit Goldton, leichter Glanz-Effekt
+- **Einwurf-Zone**: halbtransparenter Bereich oben mit Pfeil-Indikator
+- **Geister-Münze**: transparente Vorschau-Münze folgt Maus-X
+- **Plattenkante** der bewegten Platte: deutlich markiert (dickere Linie), da sie der aktive Schieber ist
 
 ---
 
@@ -139,12 +191,15 @@ Ausgezahlt am Ende der Runde (Budget leer oder manuell beendet). Anzeige im Game
 ## Implementation Checklist
 
 - [ ] `index.vue` anlegen
-- [ ] Matter.js Engine + World setup (Wände, Ablagefläche)
-- [ ] Kinematische Plattform (Y-Bewegung per `Body.setPosition`)
+- [ ] Matter.js Engine + World setup (Wände, beide Platten, Sensor)
+- [ ] Kinematische bewegte Platte (Y-Bewegung per `Body.setPosition`)
+- [ ] Untere statische Platte
 - [ ] Drop-Preview (Geister-Münze folgt Maus-X)
-- [ ] Münzwurf bei Klick/Tap (Münze spawnen, Budget verringern)
-- [ ] Gewinn-Sensor an unterer Kante (`collisionStart` oder `bounds` check)
-- [ ] Canvas-Rendering (Münzen + Plattform + Wände zeichnen)
+- [ ] Münzwurf bei Klick/Tap (Münze spawnen auf bewegter Platte, Budget verringern)
+- [ ] Übergangs-Logik: Münzen die Vorderkante der bewegten Platte verlassen → untere Platte
+- [ ] Schiebe-Logik: bewegte Platte schiebt Münzen auf unterer Platte mit
+- [ ] Gewinn-Sensor an unterer Kante (untere Platte Vorderkante)
+- [ ] Canvas-Rendering Top-Down (Münzen + beide Platten + Wände)
 - [ ] Score + Budget HUD
 - [ ] Game Over (Budget = 0) + Overlay
 - [ ] Rewards (Coins/Diamonds) ausschütten
