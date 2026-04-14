@@ -70,14 +70,14 @@ const games = [
     route:       '/games/hawkStar',
     active:      true,
   },
-  // {
-  //   key:         'hawkCoin',
-  //   title:       'Hawk Coin',
-  //   description: 'Wirf Münzen in den Automaten und schiebe sie über die Kante!',
-  //   emoji:       '🪙',
-  //   route:       '/games/hawkCoin',
-  //   active:      true,
-  // },
+  {
+    key:         'hawkCoin',
+    title:       'Hawk Coin',
+    description: 'Wirf Münzen in den Automaten und schiebe sie über die Kante!',
+    emoji:       '🪙',
+    route:       '/games/hawkCoin',
+    active:      true,
+  },
 ]
 </script>
 
