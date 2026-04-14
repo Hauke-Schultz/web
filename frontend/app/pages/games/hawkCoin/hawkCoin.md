@@ -75,15 +75,25 @@ Beim Spielstart liegen **bereits Münzen auf beiden Platten**, damit sofort Gewi
 ### Münzen
 - Kreisförmig, alle gleich groß
 - Kollision: Kreis–Kreis (Münze–Münze) und Kreis–Wand (links, rechts, oben)
+- **Kollision nur zwischen Münzen derselben Ebene** — Layer-0 und Layer-1 Münzen stoßen sich nicht gegenseitig weg (obere Platte liegt physikalisch höher)
+- Übergänge: Münze wechselt die Ebene wenn ihr **Mittelpunkt** die Kante überschreitet (50 % Überstand)
 - Münzen haben eine einfache Reibung/Dämpfung, damit sie nicht endlos gleiten
 - **Keine Gravitation** — reine 2D-Positionslogik
 
 ### Physik-Umsetzung (ohne Matter.js)
 Da es keine echte Schwerkraft gibt, reicht eine einfache eigene Physikschleife:
 - Pro Frame: Plattenposition aktualisieren, alle Münzen gegen Plattenränder und andere Münzen prüfen
-- Kollisionsantwort: Münzen werden aus Überlappungen herausgeschoben (positional correction)
-- Münze verlässt Plattenbereich → Ebene wechseln oder Gewinn auslösen
-- Dämpfung: Geschwindigkeit jeder Münze wird pro Frame mit einem Faktor < 1 multipliziert
+- Kollisionsantwort: Münzen werden aus Überlappungen herausgeschoben (positional correction), nur innerhalb derselben Ebene
+- Münze verlässt Plattenbereich → Ebene wechseln oder Gewinn auslösen (Trigger: Mittelpunkt überschreitet Kante)
+- Dämpfung: Geschwindigkeit jeder Münze wird pro Frame mit einem Faktor kleiner als 1 multipliziert
+
+### Rendering-Reihenfolge (Z-Order)
+1. Spielfeld-Hintergrund
+2. Untere Platte (Hintergrund)
+3. **Layer-1 Münzen** (untere Platte)
+4. **Bewegte Platte** (überdeckt Münzen, die noch halb darunter liegen)
+5. **Layer-0 Münzen** (auf der bewegten Platte, ganz oben)
+6. Win-Slot + Slot-Münzen
 
 ---
 

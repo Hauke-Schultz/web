@@ -91,6 +91,7 @@ function resolveCollisions(withImpulse = true) {
   for (let i = 0; i < coins.length; i++) {
     for (let j = i + 1; j < coins.length; j++) {
       const a = coins[i], b = coins[j]
+      if (a.layer !== b.layer) continue   // different levels — no collision
       const dx = b.x - a.x, dy = b.y - a.y
       const d2 = dx * dx + dy * dy
       if (d2 >= minD * minD || d2 < 0.0001) continue
@@ -182,19 +183,28 @@ function update(dt) {
   }
 
   // 7. Layer transitions & win detection
+  const FALL_GRAVITY = 900   // px/s² during drop animation
   const remove = []
   for (const c of coins) {
-    if (c.layer === 0 && c.y + COIN_R > frontEdge) {
-      // Transition to lower plate — place at front edge with correct Y
-      c.layer = 1
-      c.y     = frontEdge + COIN_R     // coin sits just below front edge
-      c.vy    = Math.max(c.vy, 10)
+    if (c.layer === 0 && c.y > frontEdge) {
+      // Transition: keep current position, start fall animation
+      c.layer   = 1
+      c.falling = true
+      c.vy      = Math.max(c.vy, 40)
     }
     if (c.layer === 1) {
-      // ← FIX: clamp on coin CENTER, not coin top (was: c.y - COIN_R < LOWER_MIN_Y)
-      if (c.y < LOWER_MIN_Y) { c.y = LOWER_MIN_Y; if (c.vy < 0) c.vy = 0 }
-      // Win: coin exits play field into win slot
-      if (c.y - COIN_R > PLAY_H) {
+      if (c.falling) {
+        // Accelerate downward until coin reaches lower plate level
+        c.vy += FALL_GRAVITY * dt
+        if (c.y >= LOWER_MIN_Y) {
+          c.falling = false
+          c.vy      = c.vy * 0.3   // dampen on landing
+        }
+      } else {
+        if (c.y < LOWER_MIN_Y) { c.y = LOWER_MIN_Y; if (c.vy < 0) c.vy = 0 }
+      }
+      // Win: 50 % of coin past lower edge (center crosses PLAY_H)
+      if (c.y > PLAY_H) {
         remove.push(c)
         won.value++
         spawnSlotCoin(c.x)
@@ -203,9 +213,11 @@ function update(dt) {
   }
   if (remove.length) coins = coins.filter(c => !remove.includes(c))
 
-  // 8. Damping
+  // 8. Damping (skip falling coins so gravity isn't dampened away)
   const damp = Math.pow(FRICTION, dt * 60)
-  for (const c of coins) { c.vx *= damp; c.vy *= damp }
+  for (const c of coins) {
+    if (c.falling) { c.vx *= damp } else { c.vx *= damp; c.vy *= damp }
+  }
 
   // 9. Win-slot physics
   updateSlot(dt)
@@ -297,7 +309,14 @@ function draw() {
   ctx.fillStyle = '#111827'
   ctx.fillRect(0, SPLIT_Y, W, PLAY_H - SPLIT_Y)
 
-  // Moving plate
+  // Split line
+  ctx.strokeStyle = 'rgba(71,85,105,0.45)'
+  ctx.lineWidth = 1
+  ctx.setLineDash([5, 5])
+  ctx.beginPath(); ctx.moveTo(0, SPLIT_Y); ctx.lineTo(W, SPLIT_Y); ctx.stroke()
+  ctx.setLineDash([])
+
+  // Moving plate (drawn on top of lower-plate background)
   ctx.fillStyle = '#1e3a5f'
   ctx.fillRect(0, plateY, W, PLATE_H)
 
@@ -310,13 +329,6 @@ function draw() {
   ctx.strokeStyle = '#f59e0b'
   ctx.lineWidth = 2.5
   ctx.beginPath(); ctx.moveTo(0, frontEdge); ctx.lineTo(W, frontEdge); ctx.stroke()
-
-  // Split line
-  ctx.strokeStyle = 'rgba(71,85,105,0.45)'
-  ctx.lineWidth = 1
-  ctx.setLineDash([5, 5])
-  ctx.beginPath(); ctx.moveTo(0, SPLIT_Y); ctx.lineTo(W, SPLIT_Y); ctx.stroke()
-  ctx.setLineDash([])
 
   // ── Win slot ──────────────────────────────────────────────
   // Slot background
@@ -348,20 +360,18 @@ function draw() {
   ctx.textBaseline = 'bottom'
   for (let i = 0; i < 6; i++) ctx.fillText('▼', 30 + i * 60, PLAY_H - 3)
 
-  // ── Coins ─────────────────────────────────────────────────
-  for (const c of coins) drawCoin(c.x, c.y, c.layer)
+  // ── Layer-1 coins — drawn after slot background so they overlap the edge visibly
+  for (const c of coins) { if (c.layer === 1) drawCoin(c.x, c.y, c.layer) }
 
-  // Slot coins (clipped to slot area)
-  ctx.save()
-  ctx.beginPath()
-  ctx.rect(0, PLAY_H + 1, W, WIN_H - 1)
-  ctx.clip()
+  // ── Layer-0 coins (moving plate) — drawn on top of plate
+  for (const c of coins) { if (c.layer === 0) drawCoin(c.x, c.y, c.layer) }
+
+  // Slot coins (no clip — won coins are fully inside the slot by physics)
   for (const sc of slotCoins) {
     ctx.globalAlpha = sc.age < 2 ? 1 : Math.max(0, 1 - (sc.age - 2))
     drawCoin(sc.x, sc.y, 2)
   }
   ctx.globalAlpha = 1
-  ctx.restore()
 
   // ── Labels ────────────────────────────────────────────────
   ctx.font = '9px sans-serif'
