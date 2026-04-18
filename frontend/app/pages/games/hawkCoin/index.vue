@@ -17,7 +17,7 @@ const H        = PLAY_H + WIN_H  // 412 — total canvas
 
 // ── Gameplay config ─────────────────────────────────────────
 const COIN_R       = 22
-const BUDGET_START = 30
+const BUDGET_START = 60
 const PLATE_MIN_Y  = 15    // back edge Y when plate fully up
 const PLATE_MAX_Y  = 77    // back edge Y when plate fully down
 const PLATE_H      = 150   // plate height in px
@@ -78,7 +78,7 @@ function spawnInitialCoins() {
       y: nearBottom
         ? rnd(PLAY_H - 60, PLAY_H - COIN_R - 2)
         : rnd(LOWER_MIN_Y + 10, PLAY_H - 65),
-      vx: 0, vy: 0, layer: 1,
+      vx: 0, vy: 0, layer: 1, z: 0,
     })
   }
 
@@ -91,7 +91,9 @@ function resolveCollisions(withImpulse = true) {
   for (let i = 0; i < coins.length; i++) {
     for (let j = i + 1; j < coins.length; j++) {
       const a = coins[i], b = coins[j]
-      if (a.layer !== b.layer) continue   // different levels — no collision
+      if (a.layer !== b.layer) continue              // different plate levels
+      if ((a.z ?? 0) !== (b.z ?? 0)) continue       // different stack levels
+      if (a.falling || b.falling) continue           // falling coins phase through
       const dx = b.x - a.x, dy = b.y - a.y
       const d2 = dx * dx + dy * dy
       if (d2 >= minD * minD || d2 < 0.0001) continue
@@ -189,6 +191,7 @@ function update(dt) {
     if (c.layer === 0 && c.y > frontEdge) {
       // Transition: keep current position, start fall animation
       c.layer   = 1
+      c.z       = 0      // will be re-evaluated on landing
       c.falling = true
       c.vy      = Math.max(c.vy, 40)
     }
@@ -199,6 +202,7 @@ function update(dt) {
         if (c.y >= LOWER_MIN_Y) {
           c.falling = false
           c.vy      = c.vy * 0.3   // dampen on landing
+          c.z       = determineZOnLanding(c)
         }
       } else {
         if (c.y < LOWER_MIN_Y) { c.y = LOWER_MIN_Y; if (c.vy < 0) c.vy = 0 }
@@ -221,6 +225,26 @@ function update(dt) {
 
   // 9. Win-slot physics
   updateSlot(dt)
+}
+
+// ── Z-level on landing ───────────────────────────────────────
+function determineZOnLanding(coin) {
+  const minD2 = (COIN_R * 2) ** 2
+  let hasZ0 = false, hasZ1 = false
+  for (const c of coins) {
+    if (c === coin || c.layer !== 1 || c.falling) continue
+    const dx = c.x - coin.x, dy = c.y - coin.y
+    if (dx * dx + dy * dy < minD2) {
+      if ((c.z ?? 0) === 0) hasZ0 = true
+      if ((c.z ?? 0) === 1) hasZ1 = true
+    }
+  }
+  if (hasZ0 && !hasZ1) return 1                              // stack on z=0 layer
+  if (hasZ0 && hasZ1) {                                      // would be z=2 → slide off
+    coin.vx += (Math.random() > 0.5 ? 1 : -1) * 100
+    return 0
+  }
+  return 0                                                   // free ground
 }
 
 // ── Win slot ─────────────────────────────────────────────────
@@ -259,7 +283,8 @@ function updateSlot(dt) {
 }
 
 // ── Rendering ────────────────────────────────────────────────
-function drawCoin(x, y, layer) {
+// style: 0=moving plate  1=lower z=0 (dark)  2=lower z=1 (bright)  3=slot
+function drawCoin(x, y, style) {
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.22)'
   ctx.beginPath()
@@ -268,16 +293,18 @@ function drawCoin(x, y, layer) {
 
   // Body gradient
   const cg = ctx.createRadialGradient(x - 5, y - 5, 2, x, y, COIN_R)
-  if (layer === 0) {
+  if (style === 0) {        // moving plate — mid gold
     cg.addColorStop(0, '#fde68a')
     cg.addColorStop(1, '#b45309')
-  } else if (layer === 1) {
-    cg.addColorStop(0, '#fbbf24')
-    cg.addColorStop(1, '#92400e')
-  } else {
-    // slot coin — bright gold
+  } else if (style === 1) { // lower z=0 — dark gold
+    cg.addColorStop(0, '#d97706')
+    cg.addColorStop(1, '#78350f')
+  } else if (style === 2) { // lower z=1 — bright gold (stacked)
     cg.addColorStop(0, '#fef08a')
     cg.addColorStop(1, '#ca8a04')
+  } else {                  // slot — brightest gold
+    cg.addColorStop(0, '#fef9c3')
+    cg.addColorStop(1, '#eab308')
   }
   ctx.fillStyle = cg
   ctx.beginPath()
@@ -285,7 +312,8 @@ function drawCoin(x, y, layer) {
   ctx.fill()
 
   // Rim
-  ctx.strokeStyle = layer === 0 ? '#fcd34d' : layer === 1 ? '#f59e0b' : '#fde047'
+  const rims = ['#fcd34d', '#b45309', '#fde047', '#facc15']
+  ctx.strokeStyle = rims[style] ?? '#fcd34d'
   ctx.lineWidth = 1.5
   ctx.stroke()
 
@@ -360,16 +388,23 @@ function draw() {
   ctx.textBaseline = 'bottom'
   for (let i = 0; i < 6; i++) ctx.fillText('▼', 30 + i * 60, PLAY_H - 3)
 
-  // ── Layer-1 coins — drawn after slot background so they overlap the edge visibly
-  for (const c of coins) { if (c.layer === 1) drawCoin(c.x, c.y, c.layer) }
+  // ── Layer-1 z=0 coins (dark, ground level)
+  for (const c of coins) {
+    if (c.layer === 1 && (c.z ?? 0) === 0) drawCoin(c.x, c.y, 1)
+  }
+
+  // ── Layer-1 z=1 coins (bright, stacked on top of z=0)
+  for (const c of coins) {
+    if (c.layer === 1 && c.z === 1) drawCoin(c.x, c.y, 2)
+  }
 
   // ── Layer-0 coins (moving plate) — drawn on top of plate
-  for (const c of coins) { if (c.layer === 0) drawCoin(c.x, c.y, c.layer) }
+  for (const c of coins) { if (c.layer === 0) drawCoin(c.x, c.y, 0) }
 
-  // Slot coins (no clip — won coins are fully inside the slot by physics)
+  // Slot coins
   for (const sc of slotCoins) {
     ctx.globalAlpha = sc.age < 2 ? 1 : Math.max(0, 1 - (sc.age - 2))
-    drawCoin(sc.x, sc.y, 2)
+    drawCoin(sc.x, sc.y, 3)
   }
   ctx.globalAlpha = 1
 

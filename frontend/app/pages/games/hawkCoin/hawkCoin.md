@@ -70,30 +70,52 @@ Beim Spielstart liegen **bereits Münzen auf beiden Platten**, damit sofort Gewi
 ### Untere Platte
 - Statische Fläche (feste Y-Position)
 - Münzen landen hier, wenn sie von der bewegten Platte abgeschoben werden
-- Über die untere Kante hinaus → Gewinn-Auslöser, Münze wird entfernt
+- Münzen können sich auf der unteren Platte **stapeln** (zwei Z-Ebenen: z=0 und z=1)
+- Über die untere Kante hinaus → Gewinn-Auslöser, gilt für beide Z-Ebenen
+
+### Münz-Stapelsystem (Z-Ebenen auf der unteren Platte)
+Münzen auf der unteren Platte haben eine zusätzliche Z-Eigenschaft:
+
+| Z-Ebene | Bedeutung | Farbe |
+|---------|-----------|-------|
+| z=0 | Bodenebene, liegt direkt auf der Platte | Dunkles Gold |
+| z=1 | Gestapelt, liegt auf einer z=0-Münze | Helles Gold |
+
+**Stapelung bei Landung (`determineZOnLanding`):**
+- Nur z=0-Münzen in der Nähe → neue Münze landet als **z=1** (stapelt auf)
+- Sowohl z=0 als auch z=1 in der Nähe → würde z=2 werden → Münze bekommt **seitlichen Schubs** und landet als z=0 woanders
+- Keine anderen Münzen in der Nähe → landet normal als **z=0**
+
+**Physikregeln:**
+- Kollisionen nur innerhalb derselben Z-Ebene (z=0 ↔ z=0, z=1 ↔ z=1)
+- Fallende Münzen (während der Fallanimation) phasen durch — keine Kollision bis zur Landung
+- Die bewegte Platte schiebt **beide Z-Ebenen** direkt
+- Gewinnauslöser (Mittelpunkt überschreitet untere Kante) gilt für z=0 und z=1 gleichermaßen
 
 ### Münzen
 - Kreisförmig, alle gleich groß
 - Kollision: Kreis–Kreis (Münze–Münze) und Kreis–Wand (links, rechts, oben)
-- **Kollision nur zwischen Münzen derselben Ebene** — Layer-0 und Layer-1 Münzen stoßen sich nicht gegenseitig weg (obere Platte liegt physikalisch höher)
+- **Kollision nur zwischen Münzen derselben Platte UND derselben Z-Ebene**
 - Übergänge: Münze wechselt die Ebene wenn ihr **Mittelpunkt** die Kante überschreitet (50 % Überstand)
+- Fallanimation beim Übergang von bewegter auf untere Platte: kurze Gravitationsbeschleunigung, kein harter Positionssnap
 - Münzen haben eine einfache Reibung/Dämpfung, damit sie nicht endlos gleiten
-- **Keine Gravitation** — reine 2D-Positionslogik
+- **Keine Gravitation im Normalbetrieb** — nur während der Fallanimation
 
 ### Physik-Umsetzung (ohne Matter.js)
 Da es keine echte Schwerkraft gibt, reicht eine einfache eigene Physikschleife:
 - Pro Frame: Plattenposition aktualisieren, alle Münzen gegen Plattenränder und andere Münzen prüfen
-- Kollisionsantwort: Münzen werden aus Überlappungen herausgeschoben (positional correction), nur innerhalb derselben Ebene
+- Kollisionsantwort: Münzen werden aus Überlappungen herausgeschoben (positional correction), nur innerhalb derselben Platte + Z-Ebene
 - Münze verlässt Plattenbereich → Ebene wechseln oder Gewinn auslösen (Trigger: Mittelpunkt überschreitet Kante)
-- Dämpfung: Geschwindigkeit jeder Münze wird pro Frame mit einem Faktor kleiner als 1 multipliziert
+- Dämpfung: Geschwindigkeit jeder Münze wird pro Frame mit einem Faktor kleiner als 1 multipliziert (Y-Dämpfung während Fallanimation ausgesetzt)
 
 ### Rendering-Reihenfolge (Z-Order)
 1. Spielfeld-Hintergrund
 2. Untere Platte (Hintergrund)
-3. **Layer-1 Münzen** (untere Platte)
-4. **Bewegte Platte** (überdeckt Münzen, die noch halb darunter liegen)
-5. **Layer-0 Münzen** (auf der bewegten Platte, ganz oben)
-6. Win-Slot + Slot-Münzen
+3. **Layer-1 z=0 Münzen** (untere Platte, Bodenebene, dunkel)
+4. **Layer-1 z=1 Münzen** (untere Platte, gestapelt, hell)
+5. **Bewegte Platte** (überdeckt Münzen, die noch halb darunter liegen)
+6. **Layer-0 Münzen** (auf der bewegten Platte, ganz oben)
+7. Win-Slot + Slot-Münzen
 
 ---
 
@@ -139,7 +161,7 @@ Ausgezahlt am Ende der Runde (Budget leer oder manuell beendet). Anzeige im Game
 
 - [x] Canvas-Setup + Game-Loop (requestAnimationFrame)
 - [x] Bewegte Platte: Y-Animation (Hin- und Herbewegung)
-- [x] Münz-Klasse: Position, Velocity, Radius, Ebene (oben/unten)
+- [x] Münz-Klasse: Position, Velocity, Radius, Ebene (oben/unten), Z-Stapelebene
 - [x] Einwurf: Drop-Preview + Spawn bei Klick
 - [x] Kollision Münze–Münze (Kreis–Kreis)
 - [x] Kollision Münze–Wände (links, rechts, oben)
@@ -151,6 +173,9 @@ Ausgezahlt am Ende der Runde (Budget leer oder manuell beendet). Anzeige im Game
 - [x] Save in localStores
 - [x] Win-Slot: Gewinnmünzen fallen animiert in den Slot (Gravitation, Kollision)
 - [x] Win-Slot: Münzen faden nach 3 Sek. aus und verschwinden
+- [x] Münz-Stapelsystem: z=0 (dunkel) und z=1 (hell) auf der unteren Platte
+- [x] Fallanimation: sanfter Übergang von bewegter auf untere Platte (kein Positionssnap)
+- [x] 50%-Fallregel: Mittelpunkt-Trigger für beide Plattenkanten und beide Z-Ebenen
 
 ---
 
