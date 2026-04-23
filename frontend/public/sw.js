@@ -35,6 +35,9 @@ self.addEventListener('fetch', (event) => {
   // Skip API calls — always go to network
   if (url.pathname.startsWith('/api')) return
 
+  // Skip Nuxt/Vite internal assets — Vite handles caching via content hashes
+  if (url.pathname.startsWith('/_nuxt/')) return
+
   // Network-first for HTML navigation (always fresh page, fall back to cache)
   if (request.mode === 'navigate') {
     event.respondWith(

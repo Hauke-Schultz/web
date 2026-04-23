@@ -309,10 +309,6 @@ onUnmounted(() => {
 	          <div class="text-xl font-bold tabular-nums"><LanguageSwitcher /></div>
           </div>
           <div class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-center text-white">
-	          <div class="text-[10px] uppercase tracking-widest opacity-50 mb-1">{{ t('games.profile.theme') }}</div>
-	          <div class="text-xl font-bold tabular-nums"><ThemeToggle /></div>
-          </div>
-          <div class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-center text-white">
 
 	          <input ref="fileInputRef" type="file" accept=".json,application/json" class="hidden" @change="onFileChange" />
 	          <button

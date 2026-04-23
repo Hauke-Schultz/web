@@ -1,17 +1,19 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+
 import { loadHawk3Data } from '~/utils/localStores.js'
 import DailyRewardCard from '../../components/dailyReward/DailyRewardCard.vue'
 import GamesHeader from '~/components/games/GamesHeader.vue'
 
 const localePath = useLocalePath()
 const { t } = useI18n()
+const { applyTheme } = useTheme()
 
 useHead({
   title: 'Games',
   meta: [{ name: 'description', content: 'Alle Spiele auf einem Blick.' }],
 })
-definePageMeta({ hideHeader: true })
+definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
 // ── Profile state ─────────────────────────────────────────
 const headerRef        = ref(null)
@@ -21,7 +23,13 @@ const playerCoins      = ref(0)
 const playerDiamonds   = ref(0)
 const mysteryItemCount = ref(0)
 
+onUnmounted(() => {
+  const stored = localStorage.getItem('theme')
+  if (stored === 'light') applyTheme(stored)
+})
+
 onMounted(() => {
+  applyTheme('dark')
   const data = loadHawk3Data()
   playerName.value       = data.player?.name    ?? 'Spieler'
   playerAvatar.value     = data.player?.avatar  ?? 'avatar/user'
