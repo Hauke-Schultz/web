@@ -3,7 +3,9 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/bump-sw.mjs",
     "build": "nuxt build",
+    "pregenerate": "node scripts/bump-sw.mjs",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

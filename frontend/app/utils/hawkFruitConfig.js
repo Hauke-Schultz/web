@@ -15,7 +15,7 @@ export const PHYSICS_CONFIG = {
 		},
 		velocityIterations: 4,
 		positionIterations: 4,
-		enableSleeping: true,
+		enableSleeping: false,
 		broadphase: {
 			bucketWidth: 100,
 			bucketHeight: 100

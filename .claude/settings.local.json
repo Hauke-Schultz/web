@@ -17,7 +17,8 @@
       "Bash(npx nuxi:*)",
       "Bash(grep -v \"onMounted\\\\|onclick\\\\|//\")",
       "Bash(timeout 30 npx nuxt build)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(xargs ls *)"
     ]
   }
 }

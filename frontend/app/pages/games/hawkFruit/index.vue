@@ -42,6 +42,7 @@ const moldActive      = ref(false)
 const bombId          = ref(null)
 const bombFuseEnd     = ref(0)
 const bombFuseLeft    = ref(0)   // seconds remaining, for display
+const moldTimeLeft    = ref(0)   // ms remaining, for arc display
 const screenShaking   = ref(false)
 
 // ── Rainbow state ─────────────────────────────────────────
@@ -507,6 +508,12 @@ const gameLoop = () => {
     if (remaining <= 0) explodeBomb()
   }
 
+  // Mold lifespan countdown
+  if (moldActive.value) {
+    const mf = fruits.value.find(f => f.isMold)
+    if (mf) moldTimeLeft.value = Math.max(0, MOLD_FRUIT_CONFIG.lifespan - (Date.now() - mf.moldSpawnTime))
+  }
+
   animFrame = requestAnimationFrame(gameLoop)
 }
 
@@ -574,6 +581,7 @@ const restart = () => {
   rainbowActive.value = false
   lastRainbowTime     = -Infinity
   moldActive.value    = false
+  moldTimeLeft.value  = 0
   lastMoldTime        = -Infinity
   moldHitCooldown.clear()
   score.value        = 0
@@ -894,6 +902,66 @@ onUnmounted(() => {
         alt=""
       />
 
+      <!-- Mold: circular lifespan timer arc (inline on fruit border) -->
+      <template v-if="moldActive">
+        <template v-for="f in fruits" :key="`mold-timer-${f.id}`">
+          <template v-if="f.isMold">
+            <svg
+              class="absolute pointer-events-none"
+              :style="{
+                left:      `${f.x}px`,
+                top:       `${f.y}px`,
+                transform: 'translate(-50%, -50%)',
+                width:     `${f.radius * 2}px`,
+                height:    `${f.radius * 2}px`,
+                overflow:  'visible',
+              }"
+            >
+              <circle
+                :cx="f.radius"
+                :cy="f.radius"
+                :r="f.radius - 1"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                :stroke="moldTimeLeft < 10000 ? '#ff4444' : moldTimeLeft < 20000 ? '#ffaa00' : '#44ff99'"
+                :stroke-dasharray="`${2 * Math.PI * (f.radius - 1)}`"
+                :stroke-dashoffset="`${2 * Math.PI * (f.radius - 1) * (1 - moldTimeLeft / MOLD_FRUIT_CONFIG.lifespan)}`"
+                :transform="`rotate(-90, ${f.radius}, ${f.radius})`"
+                opacity="0.9"
+              />
+            </svg>
+          </template>
+        </template>
+      </template>
+
+      <!-- Danger zone: red pulsing outline on fruits near the top -->
+      <template v-if="gameState === 'playing'">
+        <svg
+          v-for="fruit in fruits"
+          :key="`danger-${fruit.id}`"
+          v-show="fruit.y - fruit.radius < DANGER_Y"
+          class="absolute pointer-events-none danger-pulse"
+          :style="{
+            left:      `${fruit.x}px`,
+            top:       `${fruit.y}px`,
+            transform: 'translate(-50%, -50%)',
+            width:     `${fruit.radius * 2}px`,
+            height:    `${fruit.radius * 2}px`,
+            overflow:  'visible',
+          }"
+        >
+          <circle
+            :cx="fruit.radius"
+            :cy="fruit.radius"
+            :r="fruit.radius - 1"
+            fill="none"
+            stroke="#ff4444"
+            stroke-width="2"
+          />
+        </svg>
+      </template>
+
       <!-- Game over overlay -->
       <Transition name="fade">
         <div
@@ -1009,5 +1077,14 @@ onUnmounted(() => {
 
 .screen-shake {
   animation: screen-shake 0.45s ease-out;
+}
+
+@keyframes danger-pulse {
+  0%, 100% { opacity: 0.15; }
+  50%       { opacity: 0.85; }
+}
+
+.danger-pulse {
+  animation: danger-pulse 0.7s ease-in-out infinite;
 }
 </style>
