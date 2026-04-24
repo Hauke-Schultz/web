@@ -47,19 +47,22 @@ const screenShaking   = ref(false)
 // ── Rainbow state ─────────────────────────────────────────
 const rainbowActive = ref(false)
 
-const randomDrop = () => {
+const randomDrop = (exclude = null) => {
   const now = Date.now()
   if (
+    exclude !== BOMB &&
     !bombActive.value &&
     now - lastBombTime > BOMB_FRUIT_CONFIG.minSpawnDelay &&
     Math.random() < BOMB_FRUIT_CONFIG.spawnChance
   ) return BOMB
   if (
+    exclude !== MOLD &&
     !moldActive.value &&
     now - lastMoldTime > MOLD_FRUIT_CONFIG.minSpawnDelay &&
     Math.random() < MOLD_FRUIT_CONFIG.spawnChance
   ) return MOLD
   if (
+    exclude !== RAINBOW &&
     !rainbowActive.value &&
     now - lastRainbowTime > RAINBOW_FRUIT_CONFIG.minSpawnDelay &&
     Math.random() < RAINBOW_FRUIT_CONFIG.spawnChance
@@ -70,13 +73,14 @@ const randomDrop = () => {
 // ── Game state ────────────────────────────────────────────
 const fruits          = shallowRef([])
 const nextFruitType   = ref(randomDrop())
-const nextNextFruit   = ref(randomDrop())
+const nextNextFruit   = ref(randomDrop(nextFruitType.value))
 const score           = ref(0)
 const highScore       = ref(0)
 const gameState       = ref('playing')   // 'playing' | 'gameover'
 const dropX           = ref(BOARD_W / 2)
 const canDrop         = ref(true)
 const isHovering      = ref(false)
+const isTouching      = ref(false)
 const particles       = ref([])
 const comboCount      = ref(0)
 const comboFlashes    = ref([])
@@ -148,7 +152,7 @@ const triggerCombo = () => {
   const id    = comboCtr++
 
   // Always center horizontally, float up from middle of board
-  comboFlashes.value = [...comboFlashes.value, {
+  comboFlashes.value = [{
     id,
     x: BOARD_W / 2,
     y: BOARD_H * 0.45,
@@ -156,7 +160,7 @@ const triggerCombo = () => {
   }]
   setTimeout(() => {
     comboFlashes.value = comboFlashes.value.filter(f => f.id !== id)
-  }, 1000)
+  }, 3000)
 }
 
 // ── DOM ───────────────────────────────────────────────────
@@ -226,6 +230,10 @@ const removeFruit = (id) => {
   fruits.value = fruits.value.filter(f2 => f2.id !== id)
 }
 
+const wakeAllFruits = () => {
+  for (const f of fruits.value) M.Sleeping.set(f.body, false)
+}
+
 // ── Drop ──────────────────────────────────────────────────
 const drop = () => {
   if (!canDrop.value || gameState.value !== 'playing') return
@@ -234,6 +242,7 @@ const drop = () => {
   const x   = clamp(dropX.value, cfg.radius + WALL_T, BOARD_W - cfg.radius - WALL_T)
   const typeName = cfg.type
   const id  = spawnFruit(typeName, x, DROP_Y)
+  wakeAllFruits()
 
   if (cfg.isBomb) {
     bombId.value      = id
@@ -252,7 +261,7 @@ const drop = () => {
   }
 
   nextFruitType.value = nextNextFruit.value
-  nextNextFruit.value = randomDrop()
+  nextNextFruit.value = randomDrop(nextFruitType.value)
   setTimeout(() => {
     canDrop.value = true
     saveGameState()
@@ -314,6 +323,7 @@ const explodeBomb = () => {
   })
   for (const f of victims) removeFruit(f.id)
   score.value += victims.length * BOMB_FRUIT_CONFIG.bonusPerFruit
+  wakeAllFruits()
 
   triggerScreenShake()
 }
@@ -327,6 +337,7 @@ const shrinkMold = (id, amount) => {
   if (newR <= MOLD_FRUIT_CONFIG.minRadius) {
     spawnMergeEffect(f.x, f.y, MOLD.sparkleColor, f.moldRadius)
     removeFruit(id)
+    wakeAllFruits()
     return
   }
   const scale = newR / f.moldRadius
@@ -449,18 +460,7 @@ const onCollision = (event) => {
       checkFruitMilestone(cfg.nextType)
       score.value += cfg.scoreValue
 
-      // Wake up all sleeping fruits near the merge point so they
-      // fall/roll into the gap left by the removed bodies
-      const wakeR = cfg.radius * 6
-      const wakeR2 = wakeR * wakeR
-      for (const f of fruits.value) {
-        if (merging.has(f.id)) continue
-        const dx = f.body.position.x - mx
-        const dy = f.body.position.y - my
-        if (dx * dx + dy * dy < wakeR2) {
-          M.Sleeping.set(f.body, false)
-        }
-      }
+      wakeAllFruits()
     }, PHYSICS_CONFIG.popEffect.delay)
   }
 }
@@ -483,6 +483,7 @@ const gameLoop = () => {
     spawnMergeEffect(f.x, f.y, MOLD.sparkleColor, f.radius)
     removeFruit(f.id)
   }
+  if (moldExpired.length) wakeAllFruits()
 
   // Game-over check: fruits settled above danger line
   if (gameState.value === 'playing') {
@@ -581,7 +582,7 @@ const restart = () => {
   if (gameOverTimer) { clearTimeout(gameOverTimer); gameOverTimer = null }
   buildWalls()
   nextFruitType.value = randomDrop()
-  nextNextFruit.value = randomDrop()
+  nextNextFruit.value = randomDrop(nextFruitType.value)
   canDrop.value       = true
   gameState.value     = 'playing'
   M.Runner.run(runner, engine)
@@ -598,8 +599,8 @@ const toBoard = (clientX) => {
 const onMouseMove  = (e) => { isHovering.value = true;  dropX.value = toBoard(e.clientX) }
 const onMouseLeave = ()  => { isHovering.value = false }
 const onClick      = (e) => { dropX.value = toBoard(e.clientX); drop() }
-const onTouchMove  = (e) => { e.preventDefault(); dropX.value = toBoard(e.touches[0].clientX) }
-const onTouchEnd   = (e) => { e.preventDefault(); dropX.value = toBoard(e.changedTouches[0].clientX); drop() }
+const onTouchMove  = (e) => { if (gameState.value !== 'playing') return; e.preventDefault(); isTouching.value = true; dropX.value = toBoard(e.touches[0].clientX) }
+const onTouchEnd   = (e) => { if (gameState.value !== 'playing') return; e.preventDefault(); isTouching.value = false; dropX.value = toBoard(e.changedTouches[0].clientX); drop() }
 
 // ── Computed ──────────────────────────────────────────────
 const previewX = computed(() => {
@@ -764,8 +765,8 @@ onUnmounted(() => {
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
       @click="onClick"
-      @touchmove.prevent="onTouchMove"
-      @touchend.prevent="onTouchEnd"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
     >
       <!-- Danger line -->
       <div
@@ -774,11 +775,16 @@ onUnmounted(() => {
       />
 
       <!-- Drop preview -->
-      <template v-if="isHovering && canDrop && gameState === 'playing' && nextFruitType">
+      <template v-if="canDrop && gameState === 'playing' && nextFruitType">
         <!-- Vertical guide line -->
         <div
-          class="absolute w-px bg-white/15 pointer-events-none z-10"
-          :style="{ left: `${previewX}px`, top: 0, height: `${DANGER_Y - nextFruitType.radius}px` }"
+          class="absolute w-px pointer-events-none z-10"
+          :style="{
+            left:       `${previewX}px`,
+            top:        `${DANGER_Y}px`,
+            height:     `${BOARD_H - DANGER_Y}px`,
+            background: 'linear-gradient(to bottom, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 100%)',
+          }"
         />
         <!-- Ghost fruit -->
         <img
