@@ -29,7 +29,7 @@ export default defineNuxtConfig({
       ],
       script: [
         {
-          innerHTML: `(function(){try{var t=localStorage.getItem('theme')||((window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+          innerHTML: `(function(){try{var t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           tagPosition: 'head',
         },
         {
@@ -44,10 +44,10 @@ export default defineNuxtConfig({
 
   i18n: {
     locales: [
-      { code: 'de', language: 'de-DE', name: 'Deutsch', files: ['de.json', 'hawk-star/de.json'] },
       { code: 'en', language: 'en-US', name: 'English', files: ['en.json', 'hawk-star/en.json'] },
+      { code: 'de', language: 'de-DE', name: 'Deutsch', files: ['de.json', 'hawk-star/de.json'] },
     ],
-    defaultLocale: 'de',
+    defaultLocale: 'en',
     langDir: './',
     strategy: 'prefix_except_default',
   },

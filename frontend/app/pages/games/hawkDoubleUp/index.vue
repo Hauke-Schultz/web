@@ -436,11 +436,7 @@ function handleKeyDown(e) {
 </script>
 
 <template>
-  <div
-    class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4 select-none"
-    @touchstart.passive="handleTouchStart"
-    @touchend.passive="handleTouchEnd"
-  >
+  <div class="min-h-dvh bg-gradient-to-b from-[#1a1a2e] to-[#16213e] py-4 px-4 select-none">
     <div class="max-w-[420px] mx-auto flex flex-col gap-5">
 
       <!-- Header -->
@@ -481,7 +477,13 @@ function handleKeyDown(e) {
       </div>
 
       <!-- Board -->
-      <div ref="boardRef" class="relative bg-[#bbada0] rounded-2xl p-3">
+      <div
+        ref="boardRef"
+        class="relative bg-[#bbada0] rounded-2xl p-3 touch-none"
+        @touchstart="handleTouchStart"
+        @touchmove.prevent
+        @touchend="handleTouchEnd"
+      >
 
         <!-- Background cells (define cell sizes, nothing else) -->
         <div class="grid grid-cols-4 gap-2.5">
@@ -598,7 +600,7 @@ function handleKeyDown(e) {
   <Transition name="milestone">
     <div
       v-if="newMilestone"
-      class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-yellow-400 text-black font-bold rounded-2xl px-5 py-3 shadow-2xl text-center whitespace-nowrap pointer-events-none"
+      class="fixed bottom-24 inset-x-0 mx-auto w-fit z-50 bg-yellow-400 text-black font-bold rounded-2xl px-5 py-3 shadow-2xl text-center whitespace-nowrap pointer-events-none"
     >
       <div class="text-base">🏆 {{ newMilestone.value.toLocaleString() }} {{ t('games.doubleUp.milestone_reached') }}</div>
       <div class="text-sm font-semibold mt-0.5 opacity-80">
@@ -617,10 +619,10 @@ function handleKeyDown(e) {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from,  .fade-leave-to      { opacity: 0; }
 
-.milestone-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
-.milestone-leave-active { transition: opacity 0.4s ease, transform 0.4s ease; }
-.milestone-enter-from   { opacity: 0; transform: translate(-50%, 12px); }
-.milestone-leave-to     { opacity: 0; transform: translate(-50%, -8px); }
+.milestone-enter-active { transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.milestone-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.milestone-enter-from   { opacity: 0; transform: translateY(40px); }
+.milestone-leave-to     { opacity: 0; transform: translateY(-12px); }
 
 /* Pop: new tile spawns (inner div — no conflict with outer translate) */
 @keyframes pop {

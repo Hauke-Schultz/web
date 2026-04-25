@@ -205,7 +205,7 @@ Die App ist als Progressive Web App installierbar.
 
 ### Light / Dark Mode
 
-- **Automatisch**: respektiert `prefers-color-scheme` (OS-Einstellung)
+- **Standard**: Dark Mode (unabhängig von der OS-Einstellung)
 - **Manuell**: Toggle-Button speichert Auswahl in `localStorage`
 - Kein FOUC dank Inline-Script im `<head>` (gesetzt in `nuxt.config.ts`)
 
@@ -217,18 +217,18 @@ Powered by [`@nuxtjs/i18n`](https://i18n.nuxtjs.org/).
 
 | Code | Sprache | Standard |
 |------|---------|----------|
-| `de` | Deutsch | ja |
-| `en` | English | nein |
+| `en` | English | ja |
+| `de` | Deutsch | nein |
 
 ### URL-Struktur
 
 ```
-/           → Deutsche Homepage
-/en         → Englische Homepage
-/games      → Spieleplattform (DE)
-/en/games   → Games platform (EN)
-/party      → Party-Einladung (DE)
-/en/party   → Party invitation (EN)
+/        → English Homepage (default)
+/de      → Deutsche Homepage
+/games   → Games platform (EN, default)
+/de/games → Spieleplattform (DE)
+/party   → Party invitation (EN, default)
+/de/party → Party-Einladung (DE)
 ```
 
 ---

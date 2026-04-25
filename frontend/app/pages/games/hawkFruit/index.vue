@@ -1022,7 +1022,7 @@ onUnmounted(() => {
   <Transition name="fruit-milestone">
     <div
       v-if="newFruitMilestone"
-      class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-yellow-400 text-black font-bold rounded-2xl px-5 py-3 shadow-2xl text-center whitespace-nowrap pointer-events-none"
+      class="fixed bottom-24 inset-x-0 mx-auto w-fit z-50 bg-yellow-400 text-black font-bold rounded-2xl px-5 py-3 shadow-2xl text-center whitespace-nowrap pointer-events-none"
     >
       <div class="text-base">🏆 Erstes {{ newFruitMilestone.label }}!</div>
       <div class="text-sm font-semibold mt-0.5 opacity-80">
@@ -1039,10 +1039,10 @@ onUnmounted(() => {
 .fade-enter-from,
 .fade-leave-to     { opacity: 0; }
 
-.fruit-milestone-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
-.fruit-milestone-leave-active { transition: opacity 0.4s ease, transform 0.4s ease; }
-.fruit-milestone-enter-from   { opacity: 0; transform: translate(-50%, 12px); }
-.fruit-milestone-leave-to     { opacity: 0; transform: translate(-50%, -8px); }
+.fruit-milestone-enter-active { transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.fruit-milestone-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.fruit-milestone-enter-from   { opacity: 0; transform: translateY(40px); }
+.fruit-milestone-leave-to     { opacity: 0; transform: translateY(-12px); }     .fruit-milestone-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
 
 /* Combo badge pop-in */
 .combo-pop-enter-active { transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
