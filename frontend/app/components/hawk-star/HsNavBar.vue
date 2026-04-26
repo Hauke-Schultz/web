@@ -1,6 +1,7 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
+import HsPlanetHeader from '~/components/hawk-star/HsPlanetHeader.vue'
 
 const props = defineProps({
   currentView: { type: String, required: true },
@@ -13,14 +14,10 @@ const { starMapLevel } = useHawkStar()
 
 <template>
   <nav class="hs-nav">
-    <button
-      class="hs-nav-tab"
-      :class="{ 'hs-nav-tab--active': currentView === 'planet' }"
+    <HsPlanetHeader
+      :active="currentView === 'planet'"
       @click="emit('update:currentView', 'planet')"
-    >
-      <span class="hs-nav-icon">🌍</span>
-      <span>{{ t('hawkStar.nav.planet') }}</span>
-    </button>
+    />
 
     <button
       class="hs-nav-tab"

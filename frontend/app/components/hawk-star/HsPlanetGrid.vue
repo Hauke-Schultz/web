@@ -37,20 +37,22 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
       }"
       @click="selectSlot(slot)"
     >
-      <span class="hs-tile-icon">
-        {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.icon : (slot.unlocked ? '?' : '🔒') }}
-      </span>
-      <span class="hs-tile-label">
-        {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.name : '???' }}
-      </span>
-      <template v-if="!slot.unlocked && unlockRequirement(slot.slot)">
-        <span
-          class="hs-tile-unlock"
-          :class="getLevel(unlockRequirement(slot.slot).building.id) >= unlockRequirement(slot.slot).level ? 'hs-tile-unlock--done' : ''"
-          :title="`Build ${unlockRequirement(slot.slot).building.name} to Level ${unlockRequirement(slot.slot).level}`"
-        >{{ unlockRequirement(slot.slot).building.icon }} Lv{{ unlockRequirement(slot.slot).level }}</span>
-      </template>
+      <div class="hs-tile-main">
+        <span class="hs-tile-icon">
+          {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.icon : (slot.unlocked ? '?' : '🔒') }}
+        </span>
+        <span class="hs-tile-label">
+          {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.name : '???' }}
+        </span>
+      </div>
       <div class="hs-tile-dots">
+        <template v-if="!slot.unlocked && unlockRequirement(slot.slot)">
+          <span
+            class="hs-tile-unlock"
+            :class="getLevel(unlockRequirement(slot.slot).building.id) >= unlockRequirement(slot.slot).level ? 'hs-tile-unlock--done' : ''"
+            :title="`Build ${unlockRequirement(slot.slot).building.name} to Level ${unlockRequirement(slot.slot).level}`"
+          >{{ unlockRequirement(slot.slot).building.icon }} Lv{{ unlockRequirement(slot.slot).level }}</span>
+        </template>
         <span
           v-for="b in slotsOnSlot(slot.slot)"
           :key="b.id"
@@ -89,14 +91,13 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 }
 
 .hs-tile {
-  aspect-ratio: 1;
   border-radius: var(--hs-r-md);
   border: 1px solid transparent;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: space-between;
+  padding: 6px 8px;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 
@@ -120,7 +121,15 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
   }
 }
 
-.hs-tile-icon  { font-size: 1.5rem; }
+.hs-tile-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.hs-tile-icon  { font-size: 1.25rem; line-height: 1; }
 .hs-tile-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.04em; opacity: 0.7; }
 
 .hs-tile-unlock {
@@ -142,9 +151,10 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 
 .hs-tile-dots {
   display: flex;
+  flex-direction: column;
   gap: 3px;
-  margin-top: 2px;
-  min-height: 8px;
+  align-items: center;
+  min-width: 8px;
 }
 
 .hs-dot {

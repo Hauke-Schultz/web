@@ -52,7 +52,6 @@ watchEffect(() => {
 <template>
   <div class="hs-page">
     <div class="hs-top">
-      <HsPlanetHeader />
       <HsNavBar v-model:currentView="currentView" />
       <HsResourceBar />
     </div>

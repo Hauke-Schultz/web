@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
+defineProps({ active: { type: Boolean, default: false } })
+
 const { planetName, systemName, planetType, PLANET_TYPES, homePlanetId, activePlanetId, playerName } = useHawkStar()
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 
@@ -10,7 +12,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div class="hs-planet-header">
+  <div class="hs-planet-header" :class="{ 'hs-planet-header--active': active }">
 	  <span class="hs-player-name">{{ playerName }}</span>
 	  <span class="hs-planet-name">
       🪐 {{ planetName }}
@@ -30,29 +32,31 @@ const { t } = useI18n()
   flex-direction: column;
   align-items: center;
   justify-content: center;
-	flex-wrap: wrap;
+  flex-wrap: wrap;
   gap: 2px;
-  flex-shrink: 0;
-  width: calc((28rem - 3 * 0.375rem) / 4);
-  border: 1px solid var(--hs-line-lg);
-	background: var(--hs-glass-xl);
+  width: 100%;
+  border: 1px solid var(--hs-line-sm);
+  background: var(--hs-glass-sm);
   border-radius: var(--hs-r-md);
-	border-color: var(--hs-active-border);
-	box-shadow: 0 0 20px var(--hs-active-glow);
   padding: 0.375rem 0.15rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    background: var(--hs-glass-md);
+    border-color: var(--hs-line-lg);
+  }
+
+  &--active {
+    background: var(--hs-glass-xl);
+    border-color: var(--hs-active-border);
+    box-shadow: 0 0 20px var(--hs-active-glow);
+  }
 
   @media (min-width: 640px) {
     gap: 3px;
-    width: calc((28rem - 3 * 0.5rem) / 3);
     padding: 0.5rem 0.25rem;
   }
-}
-
-.hs-planet-header {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 0.5rem;
 }
 
 .hs-player-name {
