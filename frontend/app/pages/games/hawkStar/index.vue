@@ -8,11 +8,6 @@ import HsTilePanel from '~/components/hawk-star/HsTilePanel.vue'
 import HsNavBar from '~/components/hawk-star/HsNavBar.vue'
 import HsGalaxyMap from '~/components/hawk-star/HsGalaxyMap.vue'
 import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
-import HsPlanetHeader from '~/components/hawk-star/HsPlanetHeader.vue'
-import HsDockPanel from "~/components/hawk-star/HsDockPanel.vue";
-import HsPanelTiles from "~/components/hawk-star/HsPanelTiles.vue";
-import HsNotificationPanel from "~/components/hawk-star/HsNotificationPanel.vue";
-import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
@@ -59,14 +54,10 @@ watchEffect(() => {
     <div class="hs-main">
       <template v-if="currentView === 'planet'">
         <div class="hs-planet-wrap">
-          <HsPanelTiles v-model:activePanel="activePanel" />
-          <HsPlanetGrid />
+          <HsPlanetGrid v-model:activePanel="activePanel" />
         </div>
         <div class="hs-grid-right">
-          <HsNotificationPanel v-if="activePanel === 'notifications'" />
-          <HsSettingsPanel v-else-if="activePanel === 'settings'" />
-          <HsDockPanel v-else-if="activePanel === 'dock'" />
-          <HsTilePanel />
+          <HsTilePanel :activePanel="activePanel" />
         </div>
       </template>
       <HsSolarSystem v-else-if="currentView === 'solar-system'" />

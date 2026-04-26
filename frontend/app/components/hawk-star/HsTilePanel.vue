@@ -4,6 +4,10 @@ import { useI18n } from 'vue-i18n'
 import { RESOURCES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
+import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
+import HsSettingsPanel from '~/components/hawk-star/HsSettingsPanel.vue'
+
+defineProps({ activePanel: { type: String, default: null } })
 
 const {
   playerResources,
@@ -84,7 +88,17 @@ const setConversionCount = (bId, idx, val) => {
 </script>
 
 <template>
-  <div class="hs-panel">
+  <!-- Activity + Settings -->
+  <template v-if="activePanel === 'notifications'">
+    <HsNotificationPanel />
+    <HsSettingsPanel />
+  </template>
+
+  <!-- Dock -->
+  <HsDockPanel v-else-if="activePanel === 'dock'" />
+
+  <!-- Building panel -->
+  <div v-else class="hs-panel">
     <div class="hs-panel-header">
       <span class="hs-panel-icon">{{ activeTileType?.icon ?? '?' }}</span>
       <h2 class="hs-panel-title">{{ activeTileType ? t('hawkStar.tiles.' + activeTileType.id + '.name') : t('hawkStar.tile.selectTile') }}</h2>
@@ -271,6 +285,7 @@ const setConversionCount = (bId, idx, val) => {
 
   </div>
 </template>
+
 
 <style lang="scss" scoped>
 .hs-panel {
