@@ -14,21 +14,34 @@ The game has three nested views, each unlocked progressively via the Star Map bu
 | **Solar System** | Star Map Lv1 | All planets in the home system |
 | **Galaxy Map** | Star Map Lv1+ | Star systems on a canvas — all systems always visible |
 
-The NavBar (`HsNavBar.vue`) handles view switching and gate checks.
+The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also renders `HsPlanetHeader` as its first item (planet name + type), which doubles as the planet-view button.
 
 ---
 
 ## Planet Grid
 
-Each planet is divided into a 3×3 slot grid (9 tiles). Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`):
+`HsPlanetGrid` renders a 4×3 tile grid (12 tiles total). The first row contains three **panel tiles**; rows 2–4 contain the nine **planet building slots**.
 
 ```
-[ Defense  ][ Mining    ][ Space Base ]
-[ Energy   ][ Base      ][ Comm       ]
-[ Agri     ][ Research  ][ High-Tech  ]
+[ Planet Info ][ Activity  ][ Dock       ]   ← panel tiles (row 1)
+[ Defense     ][ Mining    ][ Space Base ]   ← planet slots (rows 2–4)
+[ Energy      ][ Base      ][ Comm       ]
+[ Agri        ][ Research  ][ High-Tech  ]
 ```
 
-Slots start locked. They are unlocked by completing specific building levels (via the `unlocks` field on a building level). The center slot (slot 5, Base) and a few others start unlocked from the beginning.
+**Only one tile can be active at a time** across all 12. Clicking a panel tile deselects any active planet slot, and vice versa.
+
+### Panel tiles (row 1)
+
+| Tile | `activePanel` value | Right panel shows |
+|------|--------------------|--------------------|
+| **Planet Info** | `'resources'` | `HsAllResourcePanel` — full resource breakdown |
+| **Activity** | `'notifications'` | `HsNotificationPanel` + `HsSettingsPanel` (dev controls) |
+| **Dock** | `'dock'` | `HsDockPanel` — ship building & missions; locked if no Space Base |
+
+### Planet building slots (rows 2–4)
+
+Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`). Slots start locked and are unlocked by completing specific building levels (via the `unlocks` field on a building level). The center slot (slot 5, Base) and a few others start unlocked from the beginning.
 
 ### Tile Types
 
@@ -234,19 +247,17 @@ Player state (resources, slot unlock status, building progress) is currently per
 
 | Component | Role |
 |-----------|------|
-| `HsNavBar` | View switching (Planet / Solar System / Galaxy Map) + gate checks |
-| `HsResourceBar` | Resource bar shown at top of all views |
-| `HsPlanetGrid` | 3×3 slot grid for the active planet |
-| `HsTilePanel` | Buildings & High-Tech conversions for the selected slot |
-| `HsDockPanel` | Space Base panel — build & manage all ship types; shown in right column when Dock tile is active |
+| `HsNavBar` | View switching (Planet / Solar System / Galaxy Map) + gate checks. First item is `HsPlanetHeader` (planet name + type, clickable to switch to planet view). |
+| `HsResourceBar` | Compact resource bar shown at top of all views |
+| `HsPlanetGrid` | 4×3 unified tile grid — 3 panel tiles (row 1) + 9 planet building slots (rows 2–4). Manages single active-tile state across all 12 tiles. |
+| `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
+| `HsDockPanel` | Space Base panel — build & manage all ship types (drones, probes, colony ships, warships, freighters) + active missions |
 | `HsSolarSystem` | Home system view — all planets, drone & colony actions |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
-| `HsPlanetHeader` | Planet name + type header |
-| `HsAllResourcePanel` | Full resource breakdown panel |
-| `HsPanelTiles` | Three tiles above the planet grid — **Notification** (shows `hs-notif-badge` counts), **Settings**, **Dock** (locked if active planet has no Space Base). Clicking a tile sets the active right panel; clicking the active tile deactivates it. |
-| `HsNotificationPanel` | Live activity feed body — buildings/ships in progress + completed events (persistent until dismissed). Shown in right column when Notification tile is active. |
-| `HsSettingsPanel` | Language switcher + dev tuning controls (tick rate, build factor). Shown in right column when Settings tile is active. |
-| `HsLangSwitcher` | In-game EN/DE language toggle — uses `setLocale()`, embedded in HsSettingsPanel |
+| `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
+| `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |
+| `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
+| `HsSettingsPanel` | Dev tuning controls (tick rate, build factor, game reset). Shown below `HsNotificationPanel` in the Activity view. |
 
 ### State & Persistence
 
@@ -290,8 +301,6 @@ All Hawk-Star keys live under `hawkStar.*`:
 
 **In `useHawkStar.js`:** Cannot call `useI18n()` at module scope. Notification objects store `labelKey` + `labelParams`; the component resolves them with `t(n.labelKey, n.labelParams ?? {})`.
 
-**Language switcher:** `HsLangSwitcher.vue` uses `setLocale()` (no page reload), embedded in `HsNavBar`.
-
 **Not yet translated:** Building/resource names in `hawkStarConfig.js` — planned after backend (names will come from DB).
 
 ### Implementation Status
@@ -312,7 +321,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Solar System view                             | ✅ Done |
 | Dev mode — tick rate & build time factor      | ✅ Done |
 | Notification Panel                            | ✅ Done |
-| Localisation (i18n) — all components           | ✅ Done |
+| Localisation (i18n) — all components          | ✅ Done |
 | Backend — User login & registration           | ⬜ Planned |
 | Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
 | Backend — Handel & Kommunikation (Phase 2)    | ⬜ Planned |

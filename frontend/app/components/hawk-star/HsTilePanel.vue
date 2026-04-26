@@ -6,6 +6,7 @@ import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
 import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
 import HsSettingsPanel from '~/components/hawk-star/HsSettingsPanel.vue'
+import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 
 defineProps({ activePanel: { type: String, default: null } })
 
@@ -93,6 +94,9 @@ const setConversionCount = (bId, idx, val) => {
     <HsNotificationPanel />
     <HsSettingsPanel />
   </template>
+
+  <!-- Resources -->
+  <HsAllResourcePanel v-else-if="activePanel === 'resources'" />
 
   <!-- Dock -->
   <HsDockPanel v-else-if="activePanel === 'dock'" />

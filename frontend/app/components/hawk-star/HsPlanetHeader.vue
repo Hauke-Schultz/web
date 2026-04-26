@@ -12,17 +12,19 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div class="hs-planet-header" :class="{ 'hs-planet-header--active': active }">
+  <div
+	  class="hs-planet-header"
+    :class="{
+			'hs-planet-header--active': active,
+			[`hs-planet-type-badge--${planetType}`]: true
+		}"
+  >
 	  <span class="hs-player-name">{{ playerName }}</span>
-	  <span class="hs-planet-name">
-      🪐 {{ planetName }}
-    </span>
 	  <span
 		  v-if="currentPlanetType"
 		  class="hs-planet-type-badge"
-		  :class="`hs-planet-type-badge--${planetType}`"
 		  :title="t('hawkStar.planetTypes.' + planetType + '.desc')"
-	  >{{ currentPlanetType.icon }} {{ t('hawkStar.planetTypes.' + planetType + '.name') }}</span>
+	  >{{ currentPlanetType.icon }} {{ planetName }}</span>
   </div>
 </template>
 
@@ -38,7 +40,7 @@ const { t } = useI18n()
   border: 1px solid var(--hs-line-sm);
   background: var(--hs-glass-sm);
   border-radius: var(--hs-r-md);
-  padding: 0.375rem 0.15rem;
+  padding: 0.15rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 
@@ -51,11 +53,6 @@ const { t } = useI18n()
     background: var(--hs-glass-xl);
     border-color: var(--hs-active-border);
     box-shadow: 0 0 20px var(--hs-active-glow);
-  }
-
-  @media (min-width: 640px) {
-    gap: 3px;
-    padding: 0.5rem 0.25rem;
   }
 }
 
@@ -92,11 +89,6 @@ const { t } = useI18n()
 
 .hs-planet-type-badge {
 	font-size: 0.6rem;
-	font-weight: 700;
-	letter-spacing: 0.03em;
-	padding: 2px 7px;
-	border-radius: 999px;
-	border: 1px solid;
 	white-space: nowrap;
 	cursor: default;
 

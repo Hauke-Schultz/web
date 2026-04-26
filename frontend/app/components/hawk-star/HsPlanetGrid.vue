@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TILE_TYPES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
-import HsAllResourcePanel from "~/components/hawk-star/HsAllResourcePanel.vue";
 
 const props = defineProps({
   activePanel: { type: String, default: null },
@@ -13,7 +12,6 @@ const emit = defineEmits(['update:activePanel'])
 const { t } = useI18n()
 
 const {
-  playerName,
   planetName,
   planetType,
   PLANET_TYPES,
@@ -23,11 +21,9 @@ const {
   slotsOnSlot,
   unlockRequirement,
   getLevel,
-  homePlanetId,
   activePlanetId,
   allPlanetStates,
   notifications,
-  now,
   planetHasDock,
 } = useHawkStar()
 
@@ -75,6 +71,26 @@ const onSelectSlot = (slot) => {
     <div class="hs-grid">
 
       <!-- Panel tiles (row 1) -->
+	    <!-- Planet info tile -->
+	    <div
+		    class="hs-tile"
+		    :class="{
+					'hs-tile--active': activePanel === 'resources',
+					'hs-tile--unlocked': activePanel !== 'resources',
+					[`hs-tile-type--${planetType}`]: true
+				}"
+		    @click="togglePanel('resources')"
+	    >
+		    <div class="hs-tile-main">
+			    <span class="hs-tile-icon">{{ currentPlanetType?.icon ?? '🪐' }}</span>
+			    <span class="hs-tile-label">{{ planetName }}</span>
+			    <span v-if="currentPlanetType" class="hs-tile-type">
+            {{ t('hawkStar.planetTypes.' + planetType + '.name') }}
+          </span>
+		    </div>
+		    <div class="hs-tile-dots" />
+	    </div>
+
       <div
         class="hs-tile"
         :class="{ 'hs-tile--active': activePanel === 'notifications', 'hs-tile--unlocked': activePanel !== 'notifications' }"
@@ -90,7 +106,7 @@ const onSelectSlot = (slot) => {
         </div>
       </div>
 
-<div
+      <div
         class="hs-tile"
         :class="{
           'hs-tile--active':   activePanel === 'dock',
@@ -146,7 +162,6 @@ const onSelectSlot = (slot) => {
       </div>
 
     </div>
-    <HsAllResourcePanel />
   </div>
 </template>
 
@@ -240,6 +255,17 @@ const onSelectSlot = (slot) => {
 }
 
 .hs-tile-lock { font-size: 0.65rem; opacity: 0.6; }
+
+.hs-tile-type {
+  font-size: 0.6rem;
+	line-height: 1;
+  white-space: nowrap;
+
+  &--terrestrial { color: #86efac; border-color: rgba(134,239,172,0.35); background: rgba(134,239,172,0.08); }
+  &--volcanic    { color: #fca5a5; border-color: rgba(252,165,165,0.35); background: rgba(252,165,165,0.08); }
+  &--frozen      { color: #93c5fd; border-color: rgba(147,197,253,0.35); background: rgba(147,197,253,0.08); }
+  &--ocean       { color: #67e8f9; border-color: rgba(103,232,249,0.35); background: rgba(103,232,249,0.08); }
+}
 
 .hs-dot {
   width: 6px;
