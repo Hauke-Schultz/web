@@ -2,8 +2,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
-import { BUILDINGS } from '~/utils/hawkStarConfig.js'
-import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 const props = defineProps({
   activePanel: { type: String, default: null },
@@ -19,12 +17,6 @@ const {
   planetHasDock,
   homeSystem,
 } = useHawkStar()
-
-// ── Badge counts (mirrors HsNotificationPanel logic) ──────────────────────────
-const planetName = (planetId) =>
-  allPlanetStates.value[planetId]?.planetName
-  ?? homeSystem.value?.planets.find(p => p.id === planetId)?.name
-  ?? planetId
 
 const remSec = (endsAt) => Math.max(0, Math.ceil((endsAt - now.value) / 1000))
 
@@ -49,12 +41,9 @@ const inProgressCount = computed(() => {
 })
 
 const doneCount = computed(() => notifications.value.length)
-const totalNotifCount = computed(() => inProgressCount.value + doneCount.value)
 
-// ── Dock unlock ───────────────────────────────────────────────────────────────
 const dockUnlocked = computed(() => planetHasDock(activePlanetId.value))
 
-// ── Tile toggle ───────────────────────────────────────────────────────────────
 const toggle = (panel) => {
   if (panel === 'dock' && !dockUnlocked.value) return
   emit('update:activePanel', props.activePanel === panel ? null : panel)
@@ -63,42 +52,52 @@ const toggle = (panel) => {
 
 <template>
   <div class="hs-panel-tiles">
-    <!-- Notification tile -->
-    <button
-      class="hs-panel-tile"
-      :class="{ 'hs-panel-tile--active': activePanel === 'notifications' }"
+
+    <div
+      class="hs-tile"
+      :class="{ 'hs-tile--active': activePanel === 'notifications', 'hs-tile--unlocked': activePanel !== 'notifications' }"
       @click="toggle('notifications')"
     >
-      <span class="hs-panel-tile-icon">🔔</span>
-      <span class="hs-panel-tile-label">{{ t('hawkStar.panel.tabActivity') }}</span>
-      <span v-if="inProgressCount > 0" class="hs-notif-badge hs-notif-badge--active">{{ inProgressCount }}</span>
-      <span v-if="doneCount > 0" class="hs-notif-badge hs-notif-badge--done">{{ doneCount }}</span>
-    </button>
+      <div class="hs-tile-main">
+        <span class="hs-tile-icon">🔔</span>
+        <span class="hs-tile-label">{{ t('hawkStar.panel.tabActivity') }}</span>
+      </div>
+      <div class="hs-tile-dots">
+        <span v-if="inProgressCount > 0" class="hs-notif-badge hs-notif-badge--active">{{ inProgressCount }}</span>
+        <span v-if="doneCount > 0" class="hs-notif-badge hs-notif-badge--done">{{ doneCount }}</span>
+      </div>
+    </div>
 
-    <!-- Settings tile -->
-    <button
-      class="hs-panel-tile"
-      :class="{ 'hs-panel-tile--active': activePanel === 'settings' }"
+    <div
+      class="hs-tile"
+      :class="{ 'hs-tile--active': activePanel === 'settings', 'hs-tile--unlocked': activePanel !== 'settings' }"
       @click="toggle('settings')"
     >
-      <span class="hs-panel-tile-icon">⚙️</span>
-      <span class="hs-panel-tile-label">{{ t('hawkStar.panel.tabSettings') }}</span>
-    </button>
+      <div class="hs-tile-main">
+        <span class="hs-tile-icon">⚙️</span>
+        <span class="hs-tile-label">{{ t('hawkStar.panel.tabSettings') }}</span>
+      </div>
+      <div class="hs-tile-dots" />
+    </div>
 
-    <!-- Dock tile -->
-    <button
-      class="hs-panel-tile"
+    <div
+      class="hs-tile"
       :class="{
-        'hs-panel-tile--active': activePanel === 'dock',
-        'hs-panel-tile--locked': !dockUnlocked,
+        'hs-tile--active':   activePanel === 'dock',
+        'hs-tile--unlocked': dockUnlocked && activePanel !== 'dock',
+        'hs-tile--locked':   !dockUnlocked,
       }"
-      :disabled="!dockUnlocked"
       @click="toggle('dock')"
     >
-      <span class="hs-panel-tile-icon">🚀</span>
-      <span class="hs-panel-tile-label">{{ t('hawkStar.panel.tabDock') }}</span>
-      <span v-if="!dockUnlocked" class="hs-panel-tile-lock">🔒</span>
-    </button>
+      <div class="hs-tile-main">
+        <span class="hs-tile-icon">🚀</span>
+        <span class="hs-tile-label">{{ t('hawkStar.panel.tabDock') }}</span>
+      </div>
+      <div class="hs-tile-dots">
+        <span v-if="!dockUnlocked" class="hs-tile-lock">🔒</span>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -110,55 +109,57 @@ const toggle = (panel) => {
   margin-bottom: 0.5rem;
 }
 
-.hs-panel-tile {
+.hs-tile {
   flex: 1;
+  border-radius: var(--hs-r-md);
+  border: 1px solid transparent;
   display: flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.5rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(100, 130, 220, 0.15);
-  border-radius: var(--hs-r-md, 0.5rem);
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  justify-content: space-between;
+  padding: 6px 8px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition: background 0.2s, border-color 0.2s;
 
-  &:hover:not(:disabled) {
-    color: rgba(255, 255, 255, 0.75);
-    border-color: rgba(100, 130, 220, 0.3);
-    background: rgba(255, 255, 255, 0.05);
+  &--locked {
+    background: var(--hs-glass-xs);
+    border-color: var(--hs-line-xs);
+    cursor: not-allowed;
+  }
+
+  &--unlocked {
+    background: var(--hs-glass-xl);
+    border-color: var(--hs-line-xl);
+    &:hover { background: var(--hs-glass-4xl); }
   }
 
   &--active {
-    color: rgba(255, 255, 255, 0.9);
-    border-color: rgba(100, 130, 220, 0.5);
-    background: rgba(100, 130, 220, 0.1);
-  }
-
-  &--locked {
-    opacity: 0.4;
-    cursor: not-allowed;
+    background: var(--hs-active-bg);
+    border-color: var(--hs-active-border);
+    box-shadow: 0 0 20px var(--hs-active-glow);
   }
 }
 
-.hs-panel-tile-icon {
-  font-size: 0.85rem;
-  line-height: 1;
+.hs-tile-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
 }
 
-.hs-panel-tile-label {
-  white-space: nowrap;
+.hs-tile-icon  { font-size: 1.25rem; line-height: 1; }
+.hs-tile-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.04em; opacity: 0.7; }
+
+.hs-tile-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  min-width: 8px;
 }
 
-.hs-panel-tile-lock {
-  font-size: 0.65rem;
-  opacity: 0.6;
-}
+.hs-tile-lock { font-size: 0.65rem; opacity: 0.6; }
 
 .hs-notif-badge {
   font-size: 0.6rem;
