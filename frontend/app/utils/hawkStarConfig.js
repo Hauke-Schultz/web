@@ -135,21 +135,27 @@ export const TILE_TYPES = {
   agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Reserved — no buildings yet' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
+  dock:          { id: 'dock',          name: 'Dock',          icon: '🛸', description: 'Ship management, missions and fleet operations' },
+  warship_bay:   { id: 'warship_bay',   name: 'Warship Bay',   icon: '⚔️', description: 'Heavy warship construction — placeholder' },
+  orbit:         { id: 'orbit',         name: 'Orbit',         icon: '🛰️', description: 'Orbital infrastructure — placeholder' },
 }
 
 // ── Planet grid (3×3, slot 5 = center = base) ────────────────────────────────
 // slot:     1–9 (reading order, 5 = center)
 // tileType: null = unknown/locked, string = tile type id
 export const PLANET_GRID = [
-  { slot: 1, tileType: 'defense',      startsUnlocked: false },
-  { slot: 2, tileType: 'mining',       startsUnlocked: false },
-  { slot: 3, tileType: 'spacebase',    startsUnlocked: false },
-  { slot: 4, tileType: 'energy',       startsUnlocked: false },
-  { slot: 5, tileType: 'base',         startsUnlocked: true },
-  { slot: 6, tileType: 'research', startsUnlocked: false },
-  { slot: 7, tileType: 'agriculture',  startsUnlocked: false },
-  { slot: 8, tileType: 'techcenter',     startsUnlocked: false },
-  { slot: 9, tileType: 'hightech',     startsUnlocked: false },
+  { slot: 1,  tileType: 'defense',     startsUnlocked: false },
+  { slot: 2,  tileType: 'mining',      startsUnlocked: false },
+  { slot: 3,  tileType: 'spacebase',   startsUnlocked: false },
+  { slot: 4,  tileType: 'energy',      startsUnlocked: false },
+  { slot: 5,  tileType: 'base',        startsUnlocked: true  },
+  { slot: 6,  tileType: 'research',    startsUnlocked: false },
+  { slot: 7,  tileType: 'agriculture', startsUnlocked: false },
+  { slot: 8,  tileType: 'techcenter',  startsUnlocked: false },
+  { slot: 9,  tileType: 'hightech',    startsUnlocked: false },
+  { slot: 10, tileType: 'dock',        startsUnlocked: false },
+  { slot: 11, tileType: 'warship_bay', startsUnlocked: false },
+  { slot: 12, tileType: 'orbit',       startsUnlocked: false },
 ]
 
 // ── Buildings ─────────────────────────────────────────────────────────────────
@@ -1033,11 +1039,11 @@ export const BUILDINGS = {
         level:       1,
         cost:        { metal: 200, crystal: 150 },
         buildTime:   35,
-        effect:      'Unlocks Space Base tile · uses 6 energy · 3 workers',
+        effect:      'Unlocks Space Base · Unlocks Dock · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
-        unlocks:     [{ slot: 3 }],
+        unlocks:     [{ slot: 3 }, { slot: 10 }],
       },
       {
         level:       2,

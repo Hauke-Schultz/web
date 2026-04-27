@@ -153,7 +153,10 @@
       "spacebase":   { "name": "Space Base",  "desc": "Launch pad for probes, colony ships and freighters" },
       "agriculture": { "name": "Agriculture", "desc": "Reserved — no buildings yet" },
       "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
-      "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" }
+      "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" },
+      "dock":        { "name": "Dock",        "desc": "Ship management, missions and fleet operations" },
+      "warship_bay": { "name": "Warship Bay", "desc": "Heavy warship construction — placeholder" },
+      "orbit":       { "name": "Orbit",       "desc": "Orbital infrastructure — placeholder" }
     },
 
     "planetTypes": {

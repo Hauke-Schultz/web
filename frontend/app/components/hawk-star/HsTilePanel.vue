@@ -47,6 +47,7 @@ const { t } = useI18n()
 
 const isSpacebaseTile = computed(() => activeTileType.value?.id === 'spacebase')
 const isHightechTile  = computed(() => activeTileType.value?.id === 'hightech')
+const isDockTile      = computed(() => activeTileType.value?.id === 'dock')
 
 const hightechBuildings = computed(() => {
   if (!isHightechTile.value) return []
@@ -98,8 +99,8 @@ const setConversionCount = (bId, idx, val) => {
   <!-- Resources -->
   <HsAllResourcePanel v-else-if="activePanel === 'resources'" />
 
-  <!-- Dock -->
-  <HsDockPanel v-else-if="activePanel === 'dock'" />
+  <!-- Dock slot -->
+  <HsDockPanel v-else-if="isDockTile" />
 
   <!-- Building panel -->
   <div v-else class="hs-panel">

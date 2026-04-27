@@ -775,7 +775,7 @@ const getPlanetName      = (planetId) => allPlanetStates.value[planetId]?.planet
 const getPlanetResources = (planetId) => allPlanetStates.value[planetId]?.resources ?? {}
 
 const planetHasDock = (planetId) =>
-  (allPlanetStates.value[planetId]?.slots ?? []).some(s => s.tileType === 'spacebase' && s.unlocked)
+  (allPlanetStates.value[planetId]?.slots ?? []).some(s => s.tileType === 'dock' && s.unlocked)
 
 const canSendFreighter = (fromPlanetId, toPlanetId, cargo) => {
   if (freighterInventory.value <= 0) return false
@@ -931,7 +931,7 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 15
+const SAVE_VERSION = 16
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({

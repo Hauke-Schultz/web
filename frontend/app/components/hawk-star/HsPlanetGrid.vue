@@ -21,10 +21,8 @@ const {
   slotsOnSlot,
   unlockRequirement,
   getLevel,
-  activePlanetId,
   allPlanetStates,
   notifications,
-  planetHasDock,
 } = useHawkStar()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
@@ -51,11 +49,8 @@ const inProgressCount = computed(() => {
 })
 
 const doneCount    = computed(() => notifications.value.length)
-const dockUnlocked = computed(() => planetHasDock(activePlanetId.value))
-
 // ── Unified selection ─────────────────────────────────────────────────────────
 const togglePanel = (panel) => {
-  if (panel === 'dock' && !dockUnlocked.value) return
   activeSlot.value = null
   emit('update:activePanel', props.activePanel === panel ? null : panel)
 }
@@ -106,23 +101,8 @@ const onSelectSlot = (slot) => {
         </div>
       </div>
 
-      <div
-        class="hs-tile"
-        :class="{
-          'hs-tile--active':   activePanel === 'dock',
-          'hs-tile--unlocked': dockUnlocked && activePanel !== 'dock',
-          'hs-tile--locked':   !dockUnlocked,
-        }"
-        @click="togglePanel('dock')"
-      >
-        <div class="hs-tile-main">
-          <span class="hs-tile-icon">🚀</span>
-          <span class="hs-tile-label">{{ t('hawkStar.panel.tabDock') }}</span>
-        </div>
-        <div class="hs-tile-dots">
-          <span v-if="!dockUnlocked" class="hs-tile-lock">🔒</span>
-        </div>
-      </div>
+      <!-- empty cell — keeps the 3-column panel row aligned -->
+      <div class="hs-tile hs-tile--empty" />
 
       <!-- Planet slots (rows 2–4) -->
       <div
@@ -202,6 +182,13 @@ const onSelectSlot = (slot) => {
     background: var(--hs-glass-xs);
     border-color: var(--hs-line-xs);
     cursor: not-allowed;
+  }
+
+  &--empty {
+    background: transparent;
+    border-color: transparent;
+    cursor: default;
+    pointer-events: none;
   }
 
   &--unlocked {

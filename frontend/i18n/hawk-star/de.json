@@ -157,7 +157,10 @@
       "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Sonden, Kolonisierungsschiffe und Frachter" },
       "agriculture": { "name": "Landwirtschaft",  "desc": "Reserviert — noch keine Gebäude" },
       "defense":     { "name": "Verteidigung",    "desc": "Planetarische Schilde, Waffenplattformen und Frühwarnsysteme" },
-      "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" }
+      "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" },
+      "dock":        { "name": "Dock",            "desc": "Schiffsverwaltung, Missionen und Flottenoperationen" },
+      "warship_bay": { "name": "Kriegsschiffwerft", "desc": "Schwere Kriegsschiffe — Platzhalter" },
+      "orbit":       { "name": "Orbit",           "desc": "Orbitale Infrastruktur — Platzhalter" }
     },
 
     "planetTypes": {

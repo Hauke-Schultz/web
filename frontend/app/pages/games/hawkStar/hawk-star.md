@@ -20,16 +20,17 @@ The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also rend
 
 ## Planet Grid
 
-`HsPlanetGrid` renders a 4×3 tile grid (12 tiles total). The first row contains three **panel tiles**; rows 2–4 contain the nine **planet building slots**.
+`HsPlanetGrid` renders a 5×3 tile grid (15 tiles total). The first row contains two **panel tiles** and one empty cell; rows 2–5 contain the twelve **planet building slots**.
 
 ```
-[ Planet Info ][ Activity  ][ Dock       ]   ← panel tiles (row 1)
-[ Defense     ][ Mining    ][ Space Base ]   ← planet slots (rows 2–4)
-[ Energy      ][ Base      ][ Comm       ]
-[ Agri        ][ Research  ][ High-Tech  ]
+[ Planet Info ][ Activity  ][            ]   ← panel tiles (row 1, 3rd cell empty)
+[ Defense     ][ Mining    ][ Space Base ]   ← planet slots (rows 2–5)
+[ Energy      ][ Base      ][ Research   ]
+[ Agri        ][ Tech Ctr  ][ High-Tech  ]
+[ Dock        ][ Warship Bay][ Orbit     ]
 ```
 
-**Only one tile can be active at a time** across all 12. Clicking a panel tile deselects any active planet slot, and vice versa.
+**Only one tile can be active at a time** across all 15. Clicking a panel tile deselects any active planet slot, and vice versa.
 
 ### Panel tiles (row 1)
 
@@ -37,7 +38,7 @@ The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also rend
 |------|--------------------|--------------------|
 | **Planet Info** | `'resources'` | `HsAllResourcePanel` — full resource breakdown |
 | **Activity** | `'notifications'` | `HsNotificationPanel` + `HsSettingsPanel` (dev controls) |
-| **Dock** | `'dock'` | `HsDockPanel` — ship building & missions; locked if no Space Base |
+| *(empty)* | — | — |
 
 ### Planet building slots (rows 2–4)
 
@@ -56,6 +57,9 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | `agriculture` | Reserved — no buildings yet (planned for later) |
 | `defense` | Planetary shields and weapons platforms |
 | `hightech` | Advanced material refinement (planet-exclusive) |
+| `dock` | Ship management, missions and fleet operations — unlocked by Space Technology Lv 1; clicking opens `HsDockPanel` |
+| `warship_bay` | Heavy warship construction — placeholder |
+| `orbit` | Orbital infrastructure — placeholder |
 
 Each tile can hold one or more buildings. Buildings have up to 3 upgrade levels. Only one building per tile can be under construction at a time.
 
