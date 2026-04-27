@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RESOURCES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
+import HsWarshipPanel from '~/components/hawk-star/HsWarshipPanel.vue'
 import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
 import HsSettingsPanel from '~/components/hawk-star/HsSettingsPanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
@@ -45,9 +46,10 @@ const {
 
 const { t } = useI18n()
 
-const isSpacebaseTile = computed(() => activeTileType.value?.id === 'spacebase')
-const isHightechTile  = computed(() => activeTileType.value?.id === 'hightech')
-const isDockTile      = computed(() => activeTileType.value?.id === 'dock')
+const isSpacebaseTile   = computed(() => activeTileType.value?.id === 'spacebase')
+const isHightechTile    = computed(() => activeTileType.value?.id === 'hightech')
+const isDockTile        = computed(() => activeTileType.value?.id === 'dock')
+const isWarshipBayTile  = computed(() => activeTileType.value?.id === 'warship_bay')
 
 const hightechBuildings = computed(() => {
   if (!isHightechTile.value) return []
@@ -101,6 +103,9 @@ const setConversionCount = (bId, idx, val) => {
 
   <!-- Dock slot -->
   <HsDockPanel v-else-if="isDockTile" />
+
+  <!-- Warship Bay slot -->
+  <HsWarshipPanel v-else-if="isWarshipBayTile" />
 
   <!-- Building panel -->
   <div v-else class="hs-panel">

@@ -1156,10 +1156,11 @@ export const BUILDINGS = {
         level:       1,
         cost:        { metal: 800, crystal: 400 },
         buildTime:   60,
-        effect:      'Enables warship construction · 1 warship slot · uses 12 energy · 5 workers',
+        effect:      'Unlocks Warship Bay tile · 1 warship slot · uses 12 energy · 5 workers',
         production:  {},
         energyDrain: 12,
         staffDrain:  5,
+        unlocks:     [{ slot: 11 }],
       },
       {
         level:       2,
