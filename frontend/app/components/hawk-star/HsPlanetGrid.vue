@@ -17,6 +17,7 @@ const {
   PLANET_TYPES,
   playerSlots,
   activeSlot,
+  activePlanetId,
   selectSlot,
   slotsOnSlot,
   unlockRequirement,
@@ -48,7 +49,28 @@ const inProgressCount = computed(() => {
   return count
 })
 
-const doneCount    = computed(() => notifications.value.length)
+const doneCount = computed(() => notifications.value.length)
+
+const dockInfo = computed(() => {
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return { inventory: [], dots: [] }
+
+  const ship = (count, building) => ({ count: count ?? 0, building: !!building })
+  const inventory = []
+  if ((dock.reconDroneInventory  ?? 0) > 0 || dock.reconDroneBuild)  inventory.push({ icon: '🛸', ...ship(dock.reconDroneInventory,  dock.reconDroneBuild) })
+  if ((dock.galaxyProbeInventory ?? 0) > 0 || dock.galaxyProbeBuild) inventory.push({ icon: '🔭', ...ship(dock.galaxyProbeInventory, dock.galaxyProbeBuild) })
+  if ((dock.colonyShipInventory  ?? 0) > 0 || dock.colonyShipBuild)  inventory.push({ icon: '🚀', ...ship(dock.colonyShipInventory,  dock.colonyShipBuild) })
+  if ((dock.freighterInventory   ?? 0) > 0 || dock.freighterBuild)   inventory.push({ icon: '🚢', ...ship(dock.freighterInventory,   dock.freighterBuild) })
+
+  const missions = (dock.activeDroneMissions?.length    ?? 0)
+                 + (dock.activeGalaxyProbes?.length      ?? 0)
+                 + (dock.activeColonyMissions?.length    ?? 0)
+                 + (dock.activeFreighterMissions?.length ?? 0)
+  const dots = Array.from({ length: missions }, () => 'mission')
+
+  return { inventory, dots }
+})
+
 // ── Unified selection ─────────────────────────────────────────────────────────
 const togglePanel = (panel) => {
   activeSlot.value = null
@@ -132,12 +154,28 @@ const onSelectSlot = (slot) => {
               :title="`Build ${unlockRequirement(slot.slot).building.name} to Level ${unlockRequirement(slot.slot).level}`"
             >{{ unlockRequirement(slot.slot).building.icon }} Lv{{ unlockRequirement(slot.slot).level }}</span>
           </template>
-          <span
-            v-for="b in slotsOnSlot(slot.slot)"
-            :key="b.id"
-            class="hs-dot"
-            :class="b.building ? 'hs-dot--building' : b.offline ? 'hs-dot--offline' : 'hs-dot--done'"
-          />
+          <template v-else-if="slot.tileType === 'dock'">
+            <span
+              v-for="item in dockInfo.inventory"
+              :key="item.icon"
+              class="hs-dock-inv"
+              :class="{ 'hs-dock-inv--building': item.building }"
+            >{{ item.icon }}{{ item.count }}</span>
+            <span
+              v-for="(type, i) in dockInfo.dots"
+              :key="'d' + i"
+              class="hs-dot"
+              :class="type === 'building' ? 'hs-dot--building' : 'hs-dot--mission'"
+            />
+          </template>
+          <template v-else>
+            <span
+              v-for="b in slotsOnSlot(slot.slot)"
+              :key="b.id"
+              class="hs-dot"
+              :class="b.building ? 'hs-dot--building' : b.offline ? 'hs-dot--offline' : 'hs-dot--done'"
+            />
+          </template>
         </div>
       </div>
 
@@ -262,6 +300,20 @@ const onSelectSlot = (slot) => {
   &--done     { background: var(--hs-ok); }
   &--building { background: var(--hs-warn); animation: pulse 1.2s ease-in-out infinite; }
   &--offline  { background: var(--hs-danger); animation: pulse 1.5s ease-in-out infinite; }
+  &--mission  { background: #60a5fa; animation: pulse 1.4s ease-in-out infinite; }
+}
+
+.hs-dock-inv {
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+
+  &--building {
+    color: var(--hs-warn);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
 }
 
 .hs-notif-badge {

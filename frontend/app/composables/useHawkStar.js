@@ -426,9 +426,10 @@ const droneProgressStyle = (planetId) => {
 }
 
 const droneBuildProgressStyle = computed(() => {
-  if (!reconDroneBuild.value) return {}
-  const bt = droneBuildTime.value
-  return { animationDuration: `${bt}s` }
+  const build = reconDroneBuild.value
+  if (!build) return {}
+  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
+  return { width: `${pct}%` }
 })
 
 // ── Galaxy Probes (remote system scouting) ─────────────────
@@ -508,9 +509,10 @@ const probeProgressStyle = (systemId) => {
 }
 
 const probeBuildProgressStyle = computed(() => {
-  if (!galaxyProbeBuild.value) return {}
-  const bt      = probeBuildTime.value
-  return { animationDuration: `${bt}s` }
+  const build = galaxyProbeBuild.value
+  if (!build) return {}
+  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
+  return { width: `${pct}%` }
 })
 
 // ── Colony Ships (home system colonization) ────────────────
@@ -591,9 +593,10 @@ const colonyProgressStyle = (planetId) => {
 }
 
 const colonyShipBuildProgressStyle = computed(() => {
-  if (!colonyShipBuild.value) return {}
-  const bt      = colonyShipBuildTime.value
-  return { animationDuration: `${bt}s` }
+  const build = colonyShipBuild.value
+  if (!build) return {}
+  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
+  return { width: `${pct}%` }
 })
 
 // ── Warships ───────────────────────────────────────────────
@@ -712,9 +715,10 @@ const recallFromOrbit = (shipId) => {
 }
 
 const warshipBuildProgressStyle = computed(() => {
-  if (!warshipBuild.value) return {}
-  const bt      = warshipBuildTime.value
-  return { animationDuration: `${bt}s` }
+  const build = warshipBuild.value
+  if (!build) return {}
+  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
+  return { width: `${pct}%` }
 })
 
 // ── Freighters (resource transport between colonies) ────────
@@ -823,9 +827,10 @@ const freighterProgressStyle = (missionId) => {
 }
 
 const freighterBuildProgressStyle = computed(() => {
-  if (!freighterBuild.value) return {}
-  const bt      = freighterBuildTime.value
-  return { animationDuration: `${bt}s` }
+  const build = freighterBuild.value
+  if (!build) return {}
+  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
+  return { width: `${pct}%` }
 })
 
 // ── Conversion Queues (High-Tech / Refinery) ───────────────
