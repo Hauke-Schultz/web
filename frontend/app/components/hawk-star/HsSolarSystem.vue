@@ -71,7 +71,7 @@ const effectivePlanetState = (planet) => {
 }
 
 // ── Selection ─────────────────────────────────────────────
-const selectedPlanetId = ref(null)
+const selectedPlanetId = ref(activePlanetId.value)
 
 const toggleSelect = (planet) => {
   if (effectivePlanetState(planet) !== 'own') return
@@ -639,14 +639,12 @@ const doSendFreighter = () => {
 
 // ── Orbit row ────────────────────────────────────────────────────────────────
 .hs-solar-orbit {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
   gap: 0.375rem;
 
   @media (min-width: 640px) {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
     gap: 0;
     overflow-x: auto;
     scrollbar-width: none;
@@ -654,7 +652,7 @@ const doSendFreighter = () => {
   }
 }
 
-// ── Orbit connector line (desktop only) ─────────────────────────────────────
+// ── Orbit connector line ─────────────────────────────────────────────────────
 .hs-solar-connector {
   display: none;
 
@@ -676,30 +674,71 @@ const doSendFreighter = () => {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 0.5rem 0.375rem;
+  padding: 0.5rem 0.25rem;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-line-lg);
   border-radius: var(--hs-r-md);
+  flex-shrink: 0;
+  width: 2.5rem;
+  transition: width 0.25s ease, flex 0.25s ease;
 
   @media (min-width: 640px) {
-    flex-shrink: 0;
     width: 5.5rem;
     padding: 0.625rem 0.375rem;
   }
 
-  &--sun         { border-color: rgba(253,230,138,0.3); background: rgba(253,230,138,0.05); }
-  &--own         { border-color: rgba(96,165,250,0.25); cursor: pointer; }
-  &--enemy       { border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.04); }
-  &--ally        { border-color: rgba(52,211,153,0.2); }
-  &--uncolonized { border-color: var(--hs-line-lg); }
-  &--unknown     { border-color: rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
-  &--scanning    { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.04); }
-  &--colonizing  { border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.04); }
+  &--sun         { border-color: rgba(253,230,138,0.5);  background: rgba(253,230,138,0.06); }
+  &--own         { border-color: rgba(96,165,250,0.6);   background: rgba(96,165,250,0.07);  cursor: pointer; }
+  &--enemy       { border-color: rgba(248,113,113,0.6);  background: rgba(248,113,113,0.07); }
+  &--ally        { border-color: rgba(52,211,153,0.6);   background: rgba(52,211,153,0.06);  cursor: pointer; }
+  &--uncolonized { border-color: rgba(255,255,255,0.18); }
+  &--unknown     { border-color: rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); }
+  &--scanning    { border-color: rgba(251,191,36,0.6);   background: rgba(251,191,36,0.05);  }
+  &--colonizing  { border-color: rgba(96,165,250,0.55);  background: rgba(96,165,250,0.06);  }
 
   &--selected {
-    outline: 2px solid rgba(96,165,250,0.55);
+    outline: 2px solid rgba(96,165,250,0.85);
     outline-offset: -1px;
-    background: rgba(96,165,250,0.07);
+    background: rgba(96,165,250,0.12);
+  }
+}
+
+// ── Mobile: aktive Tile expandiert, alle anderen bleiben schmal ───────────────
+@media (max-width: 639px) {
+  .hs-solar-tile--selected {
+    flex: 1;
+    width: auto;
+  }
+
+  .hs-solar-tile:not(.hs-solar-tile--selected) {
+    // Name immer sichtbar, aber tiny + truncated
+    .hs-solar-tile-name {
+      display: block;
+      font-size: 0.42rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      line-height: 1.2;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .hs-solar-tile-sub,
+    .hs-solar-tile-state,
+    .hs-solar-active-tag,
+    .hs-solar-tile-slots,
+    .hs-solar-tile-owner,
+    .hs-solar-tile-units,
+    .hs-solar-tile-dock,
+    .hs-solar-tile-freighter-mission,
+    .hs-solar-tile-scanning-label,
+    .hs-solar-tile-timer,
+    .hs-solar-tile-hint,
+    .hs-solar-tile-flight-time,
+    .hs-solar-tile-unknown-label,
+    .hs-solar-action-btn,
+    .hs-freighter-dest-btn,
+    .hs-freighter-send-btn { display: none; }
   }
 }
 

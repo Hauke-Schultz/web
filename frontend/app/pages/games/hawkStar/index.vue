@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
+import { ref, watch, watchEffect, onMounted, onUnmounted, nextTick } from 'vue'
 import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
 import { loadHawk3Data } from '~/utils/localStores.js'
 import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
@@ -21,11 +21,20 @@ onMounted(() => {
 })
 onUnmounted(stopTick)
 
-const { starMapLevel, isFirstRun } = useHawkStar()
+const { starMapLevel, isFirstRun, activeSlot } = useHawkStar()
 
 const currentView  = ref('planet')
 const activePanel  = ref('')
 const setupName    = ref('')
+const panelRef     = ref(null)
+
+const scrollToPanel = () => {
+  if (window.innerWidth >= 640) return
+  nextTick(() => panelRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+}
+
+watch(activePanel, scrollToPanel)
+watch(activeSlot,  scrollToPanel)
 
 const submitSetup = () => {
   const name = setupName.value.trim()
@@ -56,7 +65,7 @@ watchEffect(() => {
         <div class="hs-planet-wrap">
           <HsPlanetGrid v-model:activePanel="activePanel" />
         </div>
-        <div class="hs-grid-right">
+        <div ref="panelRef" class="hs-grid-right">
           <HsTilePanel :activePanel="activePanel" />
         </div>
       </template>

@@ -58,7 +58,7 @@ const { starMapLevel } = useHawkStar()
   flex-direction: column;
   gap: 0.375rem;
   flex-shrink: 0;
-  width: calc((28rem - 3 * 0.375rem) / 4);
+  width: 5rem;
 
   @media (min-width: 640px) {
     gap: 0.5rem;
