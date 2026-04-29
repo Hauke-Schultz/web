@@ -5,7 +5,7 @@ import { MYSTERY_ITEMS } from '~/utils/mysteryBoxConfig.js'
 import { SHOP_ITEMS } from '~/utils/shopConfig.js'
 import GamesHeader from '~/components/games/GamesHeader.vue'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const localePath = useLocalePath()
 
 useHead({
@@ -61,15 +61,21 @@ const rarityText = (rarity) => ({
   uncommon:  'text-green-400',
 })[rarity] ?? 'text-white/50'
 
+const rarityGlow = (rarity) => ({
+  legendary: '139, 92, 246',
+  epic:      '168, 85, 247',
+  rare:      '59, 130, 246',
+  uncommon:  '34, 197, 94',
+})[rarity] ?? '255, 255, 255'
+
 // ── Sorting ───────────────────────────────────────────────
 const tierOrder = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 }
 
 const sortedMysteryItems = computed(() =>
   [...mysteryItems.value].sort((a, b) => {
-    const ta = tierOrder[a.rarity] ?? 5
-    const tb = tierOrder[b.rarity] ?? 5
-    if (ta !== tb) return ta - tb
-    return (a.mysteryBoxNumber ?? 0) - (b.mysteryBoxNumber ?? 0)
+    const da = a.purchasedAt ? new Date(a.purchasedAt).getTime() : 0
+    const db = b.purchasedAt ? new Date(b.purchasedAt).getTime() : 0
+    return db - da
   })
 )
 
@@ -87,9 +93,7 @@ const totalItemCount = computed(() => mysteryItems.value.length + shopItems.valu
 const formatDate = (iso) => {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleDateString(locale.value === 'de' ? 'de-DE' : 'en-GB', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
 }
 
 // ── Name editing ──────────────────────────────────────────
@@ -192,6 +196,8 @@ const loadData = () => {
         rarity:           saved.rarity           ?? cfg?.rarity           ?? 'rare',
         mysteryBoxNumber: saved.mysteryBoxNumber ?? cfg?.mysteryBoxNumber ?? 0,
         purchasedAt:      saved.purchasedAt      ?? null,
+        glowDelay:        Math.random() * 6,
+        glowDuration:     4 + Math.random() * 1.5,
       })
     } else {
       const cfg = SHOP_ITEMS.find(s => s.id === saved.id)
@@ -346,8 +352,13 @@ onUnmounted(() => {
             <div
               v-for="item in sortedMysteryItems"
               :key="item.id"
-              class="flex items-center gap-4 border rounded-2xl p-4"
+              class="flex items-center gap-4 border rounded-2xl p-4 mystery-glow"
               :class="rarityBg(item.rarity)"
+              :style="{
+                '--glow': rarityGlow(item.rarity),
+                animationDelay:    item.glowDelay    + 's',
+                animationDuration: item.glowDuration + 's',
+              }"
             >
               <!-- Icon -->
               <div
@@ -359,12 +370,6 @@ onUnmounted(() => {
               <div class="flex flex-col gap-1 min-w-0 flex-1">
                 <div class="text-white font-bold text-sm leading-tight">{{ item.name }}</div>
                 <div class="text-white/50 text-xs leading-relaxed line-clamp-2">{{ item.description }}</div>
-                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span class="text-xs font-bold capitalize" :class="rarityText(item.rarity)">
-                    {{ rarityLabel[item.rarity] ?? item.rarity }}
-                  </span>
-                  <span class="text-white/20 text-xs">· {{ t('games.profile.box_label', { number: item.mysteryBoxNumber }) }}</span>
-                </div>
               </div>
 
               <!-- Date badge -->
@@ -396,11 +401,6 @@ onUnmounted(() => {
                   <span v-if="item.quantity > 1" class="text-white/40 font-normal text-xs ml-1">×{{ item.quantity }}</span>
                 </div>
                 <div class="text-white/50 text-xs leading-relaxed line-clamp-2">{{ item.description }}</div>
-                <div class="flex items-center gap-2 mt-0.5">
-                  <span class="text-xs font-bold capitalize" :class="rarityText(item.rarity)">
-                    {{ rarityLabel[item.rarity] ?? item.rarity }}
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -415,4 +415,10 @@ onUnmounted(() => {
 <style scoped>
 .picker-enter-active, .picker-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
 .picker-enter-from, .picker-leave-to       { opacity: 0; transform: translateY(-4px) scale(0.97); }
+
+@keyframes mysteryGlow {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(var(--glow), 0.15); }
+  50%       { box-shadow: 0 0 12px 5px rgba(var(--glow), 0.50); }
+}
+.mystery-glow { animation: mysteryGlow ease-in-out infinite; }
 </style>

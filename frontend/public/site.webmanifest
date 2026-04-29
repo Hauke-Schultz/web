@@ -2,7 +2,7 @@
   "name": "Hawk3",
   "short_name": "Hawk3",
   "description": "Hawk Fruit, Hawk Double-Up, Hawk Tower und mehr",
-  "start_url": "/",
+  "start_url": "/games",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

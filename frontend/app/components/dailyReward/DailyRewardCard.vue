@@ -10,6 +10,7 @@ const { t } = useI18n()
 
 const emit = defineEmits(['currency-updated'])
 
+const cardRef = ref(null)
 const today = new Date().toISOString().split('T')[0]
 
 // Daily game rotation — add new game components here when ready
@@ -55,6 +56,11 @@ onMounted(() => {
     claimedBox.value = data.currency.mysteryBoxes.lastClaimedBox            ?? null
   }
 })
+
+// ── Scroll to card top when game starts spinning ──────────
+const onSpinStart = () => {
+  cardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 // ── Handle game-complete from child ──────────────────────
 const onGameComplete = ({ coins: c, diamonds: d, label }) => {
@@ -142,7 +148,7 @@ const claimMysteryBox = () => {
 
 <template>
   <!-- ── COMPACT: already claimed today ─────────────────────── -->
-  <div v-if="phase === 'claimed'" class="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-3">
+  <div ref="cardRef" v-if="phase === 'claimed'" class="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-3">
 
     <!-- Auto-claimed mystery box (full visual, no button) -->
     <div
@@ -222,7 +228,7 @@ const claimMysteryBox = () => {
   </div>
 
   <!-- ── FULL: not yet played today ─────────────────────────── -->
-  <div v-else class="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
+  <div ref="cardRef" v-else class="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
 
     <!-- Header -->
     <div class="flex items-center gap-3">
@@ -236,7 +242,7 @@ const claimMysteryBox = () => {
     <!-- Game area -->
     <div class="bg-white/5 border border-white/10 rounded-xl p-5">
       <template v-if="phase === 'idle'">
-        <component :is="todayGame.component" @game-complete="onGameComplete" />
+        <component :is="todayGame.component" @game-complete="onGameComplete" @spin-start="onSpinStart" />
       </template>
       <template v-else>
         <div class="h-24 flex items-center justify-center text-white/20 text-sm">{{ t('games.daily_reward.loading') }}</div>
@@ -262,4 +268,3 @@ const claimMysteryBox = () => {
 
   </div>
 </template>
-

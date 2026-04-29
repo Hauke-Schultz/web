@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 
-const emit = defineEmits(['game-complete'])
+const emit = defineEmits(['game-complete', 'spin-start'])
 const { t } = useI18n()
 
 // ── Rewards ───────────────────────────────────────────────
@@ -15,8 +15,8 @@ const shellSlots = ref([0, 1, 2]) // slot position of each shell (0=left,1=mid,2
 const selected   = ref(null)
 const won        = ref(false)
 
-// ── Slot x-positions (in 224px container, shells 56px wide) ──
-const SLOT_X = [0, 84, 168]
+// ── Slot x-positions (in 192px container, shells 48px wide) ──
+const SLOT_X = [0, 72, 144]
 
 // ── Computed helpers ──────────────────────────────────────
 const reward = computed(() => won.value ? REWARD_WIN : REWARD_LOSE)
@@ -25,7 +25,7 @@ const phaseText = computed(() => {
   if (phase.value === 'showing')   return t('games.daily_reward.shells_watch')
   if (phase.value === 'shuffling') return t('games.daily_reward.shells_shuffling')
   if (phase.value === 'playing')   return t('games.daily_reward.shells_pick')
-  return ''
+  return ' '
 })
 
 // ── Style + class helpers ─────────────────────────────────
@@ -42,7 +42,7 @@ function showPrize(i) {
 }
 
 function cupClass(i) {
-  const base = 'w-full h-12 rounded-t-2xl rounded-b-sm border-2 transition-all duration-300'
+  const base = 'w-full h-10 rounded-t-2xl rounded-b-sm border-2 transition-all duration-300'
   if (phase.value === 'revealed' && i === prizeShell.value)
     return base + ' bg-yellow-600 border-yellow-400'
   if (phase.value === 'showing' && i === prizeShell.value)
@@ -64,6 +64,7 @@ function shellGlow(i) {
 
 // ── Game flow ─────────────────────────────────────────────
 const start = () => {
+  emit('spin-start')
   prizeShell.value = Math.floor(Math.random() * 3)
   shellSlots.value = [0, 1, 2]
   selected.value   = null
@@ -84,7 +85,7 @@ const startShuffling = () => {
       a = Math.floor(Math.random() * 3)
       b = Math.floor(Math.random() * 3)
     } while (a === b)
-    const tmp       = shellSlots.value[a]
+    const tmp        = shellSlots.value[a]
     shellSlots.value[a] = shellSlots.value[b]
     shellSlots.value[b] = tmp
     done++
@@ -110,20 +111,20 @@ const collect = () => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-5">
+  <div class="flex flex-col gap-3">
 
     <!-- Shell area -->
-    <div class="relative h-[104px] w-[224px] mx-auto select-none">
+    <div class="relative h-[90px] w-[192px] mx-auto select-none">
       <div
         v-for="i in [0, 1, 2]"
         :key="i"
-        class="absolute bottom-0 w-14 flex flex-col items-center gap-0.5 group"
+        class="absolute bottom-0 w-12 flex flex-col items-center gap-0.5 group"
         :style="[shellStyle(i), { filter: shellGlow(i) }]"
         :class="phase === 'playing' ? 'cursor-pointer' : ''"
         @click="pick(i)"
       >
-        <!-- Prize / reveal area (always same height to avoid layout shifts) -->
-        <div class="h-10 flex items-center justify-center text-3xl leading-none">
+        <!-- Prize / reveal area (fixed height) -->
+        <div class="h-9 flex items-center justify-center text-2xl leading-none">
           <Transition name="pop">
             <span v-if="showPrize(i)">💎</span>
             <span v-else-if="phase === 'revealed' && i !== prizeShell.value">🪙</span>
@@ -138,48 +139,46 @@ const collect = () => {
       </div>
     </div>
 
-    <!-- Phase label -->
-    <Transition name="fade">
-      <p v-if="phaseText" class="text-center text-white/60 text-sm font-medium m-0">
-        {{ phaseText }}
-      </p>
-    </Transition>
+    <!-- Phase label — always in DOM to prevent height jump -->
+    <p class="text-center text-white/60 text-xs font-medium m-0 transition-opacity duration-[250ms]"
+       :class="phaseText !== ' ' ? 'opacity-100' : 'opacity-0'"
+    >{{ phaseText }}</p>
 
-    <!-- Revealed: reward amounts -->
-    <Transition name="fade">
-      <div v-if="phase === 'revealed'" class="flex flex-col gap-3">
-        <p class="text-center font-bold text-white m-0">
-          {{ won ? t('games.daily_reward.shells_win') : t('games.daily_reward.shells_lose') }}
-        </p>
-        <div class="flex gap-3 justify-center">
-          <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[80px]">
-            <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.coins') }}</div>
-            <div class="text-xl font-bold">+{{ reward.coins }}</div>
-          </div>
-          <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[80px]">
-            <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.diamonds') }}</div>
-            <div class="text-xl font-bold">+{{ reward.diamonds }}</div>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <!-- Result badges — always in DOM to prevent height jump -->
+    <div
+      class="flex items-center gap-1.5 justify-center transition-opacity duration-[250ms]"
+      :class="phase === 'revealed' ? 'opacity-100' : 'opacity-0'"
+    >
+      <span class="text-xs font-bold" :class="won ? 'text-green-400' : 'text-white/50'">
+        {{ phase === 'revealed' ? (won ? t('games.daily_reward.shells_win') : t('games.daily_reward.shells_lose')) : ' ' }}
+      </span>
+      <span class="bg-white/10 rounded-md px-2 py-0.5 text-white text-xs font-bold">💰 +{{ reward.coins }}</span>
+      <span class="bg-white/10 rounded-md px-2 py-0.5 text-white text-xs font-bold">💎 +{{ reward.diamonds }}</span>
+    </div>
 
-    <!-- Buttons -->
+    <!-- Button — always same height; playing phase uses invisible placeholder -->
     <button
       v-if="phase === 'start'"
-      class="w-full py-4 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors text-lg"
+      class="w-full py-2.5 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors"
       @click="start"
     >{{ t('games.daily_reward.shells_start') }}</button>
 
     <button
       v-else-if="phase === 'shuffling' || phase === 'showing'"
       disabled
-      class="w-full py-4 bg-white/10 text-white/40 font-bold rounded-xl text-lg cursor-not-allowed"
+      class="w-full py-2.5 bg-white/10 text-white/40 font-bold rounded-xl cursor-not-allowed"
     >{{ t('games.daily_reward.shells_wait') }}</button>
 
     <button
+      v-else-if="phase === 'playing'"
+      disabled
+      class="w-full py-2.5 bg-transparent text-transparent font-bold rounded-xl cursor-default"
+      aria-hidden="true"
+    >-</button>
+
+    <button
       v-else-if="phase === 'revealed'"
-      class="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl transition-colors text-lg"
+      class="w-full py-2.5 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl transition-colors"
       @click="collect"
     >{{ t('games.daily_reward.collect') }}</button>
 
@@ -187,9 +186,6 @@ const collect = () => {
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
-.fade-enter-from,  .fade-leave-to      { opacity: 0; }
-
 .pop-enter-active { transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1); }
 .pop-enter-from   { opacity: 0; transform: scale(0.4) translateY(8px); }
 </style>

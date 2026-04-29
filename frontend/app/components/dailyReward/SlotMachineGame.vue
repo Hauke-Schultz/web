@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 
-const emit = defineEmits(['game-complete'])
+const emit = defineEmits(['game-complete', 'spin-start'])
 const { t } = useI18n()
 
 // ── Symbols + rewards ─────────────────────────────────────
@@ -27,6 +27,7 @@ const reward = ref(null)
 // ── Spin ──────────────────────────────────────────────────
 const spin = () => {
   if (phase.value !== 'idle') return
+  emit('spin-start')
   phase.value = 'spinning'
   reward.value = null
 
@@ -64,14 +65,14 @@ const collect = () => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-5">
+  <div class="flex flex-col gap-3">
 
     <!-- Reels -->
     <div class="flex gap-3 justify-center">
       <div
         v-for="reel in reels"
         :key="reel.id"
-        class="w-20 h-20 bg-[#0d0d1a] border-2 border-white/15 rounded-xl flex items-center justify-center text-4xl select-none"
+        class="w-16 h-16 bg-[#0d0d1a] border-2 border-white/15 rounded-xl flex items-center justify-center text-3xl select-none"
       >
         <span :class="reel.spinning ? 'reel-spin' : ''">
           {{ reel.spinning ? '🎰' : reel.display }}
@@ -79,45 +80,35 @@ const collect = () => {
       </div>
     </div>
 
-    <!-- Result label -->
-    <Transition name="fade">
-      <div
-        v-if="phase === 'result' && reward"
-        class="text-center font-bold text-lg"
-        :style="{ color: reward.color }"
-      >{{ reward.label }}</div>
-    </Transition>
+    <!-- Result badges — always in DOM to prevent height jump -->
+    <div
+      class="flex items-center gap-1.5 justify-center transition-opacity duration-[250ms]"
+      :class="phase === 'result' && reward ? 'opacity-100' : 'opacity-0'"
+    >
+      <span
+        class="text-xs font-bold"
+        :style="{ color: reward?.color ?? 'transparent' }"
+      >{{ reward?.label ?? ' ' }}</span>
+      <span class="bg-white/10 rounded-md px-2 py-0.5 text-white text-xs font-bold">💰 +{{ reward?.coins ?? 0 }}</span>
+      <span class="bg-white/10 rounded-md px-2 py-0.5 text-white text-xs font-bold">💎 +{{ reward?.diamonds ?? 0 }}</span>
+    </div>
 
-    <!-- Reward detail -->
-    <Transition name="fade">
-      <div v-if="phase === 'result' && reward" class="flex gap-3 justify-center">
-        <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[80px]">
-          <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.coins') }}</div>
-          <div class="text-xl font-bold">+{{ reward.coins }}</div>
-        </div>
-        <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[80px]">
-          <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.diamonds') }}</div>
-          <div class="text-xl font-bold">+{{ reward.diamonds }}</div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Buttons -->
+    <!-- Button — all variants same size, swap via v-if -->
     <button
       v-if="phase === 'idle'"
-      class="w-full py-4 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors text-lg"
+      class="w-full py-2.5 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors"
       @click="spin"
     >{{ t('games.daily_reward.spin') }}</button>
 
     <button
       v-else-if="phase === 'spinning'"
       disabled
-      class="w-full py-4 bg-white/10 text-white/40 font-bold rounded-xl text-lg cursor-not-allowed"
+      class="w-full py-2.5 bg-white/10 text-white/40 font-bold rounded-xl cursor-not-allowed"
     >{{ t('games.daily_reward.spinning') }}</button>
 
     <button
       v-else-if="phase === 'result'"
-      class="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl transition-colors text-lg"
+      class="w-full py-2.5 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl transition-colors"
       @click="collect"
     >{{ t('games.daily_reward.collect') }}</button>
 
@@ -125,9 +116,6 @@ const collect = () => {
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
-.fade-enter-from,  .fade-leave-to      { opacity: 0; }
-
 @keyframes reelSpin {
   0%   { transform: translateY(0)    scale(1.1); opacity: 0.7; }
   50%  { transform: translateY(-8px) scale(0.9); opacity: 0.4; }

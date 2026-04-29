@@ -187,6 +187,122 @@ export const MYSTERY_ITEMS = [
     tier: 3,
     mysteryBoxNumber: 15
   },
+
+  // Tier 1: Rare (Box 16-17)
+  {
+    id: 'enchanted_compass',
+    name: 'Enchanted Compass',
+    description: 'A compass that always finds the path to hidden treasure',
+    category: 'profile',
+    rarity: 'rare',
+    icon: '🧭',
+    type: 'cosmetic',
+    tier: 1,
+    mysteryBoxNumber: 16
+  },
+  {
+    id: 'moon_shard',
+    name: 'Moon Shard',
+    description: 'A shard of crystallized moonlight from the highest peak',
+    category: 'profile',
+    rarity: 'rare',
+    icon: '🌙',
+    type: 'cosmetic',
+    tier: 1,
+    mysteryBoxNumber: 17
+  },
+
+  // Tier 2: Epic (Box 18-20)
+  {
+    id: 'third_eye',
+    name: 'Third Eye',
+    description: 'Grants the power to see through any illusion',
+    category: 'profile',
+    rarity: 'epic',
+    icon: '👁️',
+    type: 'cosmetic',
+    tier: 2,
+    mysteryBoxNumber: 18
+  },
+  {
+    id: 'druid_leaf',
+    name: "Druid's Leaf",
+    description: 'An ancient leaf carrying the magic of primeval forests',
+    category: 'profile',
+    rarity: 'epic',
+    icon: '🌿',
+    type: 'cosmetic',
+    tier: 2,
+    mysteryBoxNumber: 19
+  },
+  {
+    id: 'storm_crystal',
+    name: 'Storm Crystal',
+    description: 'A crystal that crackles with trapped lightning energy',
+    category: 'profile',
+    rarity: 'epic',
+    icon: '⚡',
+    type: 'cosmetic',
+    tier: 2,
+    mysteryBoxNumber: 20
+  },
+
+  // Tier 3: Legendary (Box 21-25)
+  {
+    id: 'tide_stone',
+    name: 'Tide Stone',
+    description: 'A stone with the power to control the tides of fate',
+    category: 'profile',
+    rarity: 'legendary',
+    icon: '🌊',
+    type: 'cosmetic',
+    tier: 3,
+    mysteryBoxNumber: 21
+  },
+  {
+    id: 'mask_of_infinity',
+    name: 'Mask of Infinity',
+    description: 'A mask that reveals the true nature of all things',
+    category: 'profile',
+    rarity: 'legendary',
+    icon: '🎭',
+    type: 'cosmetic',
+    tier: 3,
+    mysteryBoxNumber: 22
+  },
+  {
+    id: 'skeleton_key',
+    name: 'Skeleton Key',
+    description: 'Opens any door across all known dimensions',
+    category: 'profile',
+    rarity: 'legendary',
+    icon: '🗝️',
+    type: 'cosmetic',
+    tier: 3,
+    mysteryBoxNumber: 23
+  },
+  {
+    id: 'solar_fragment',
+    name: 'Solar Fragment',
+    description: 'A piece of a dying star that still burns impossibly bright',
+    category: 'profile',
+    rarity: 'legendary',
+    icon: '☀️',
+    type: 'cosmetic',
+    tier: 3,
+    mysteryBoxNumber: 24
+  },
+  {
+    id: 'void_crystal',
+    name: 'Void Crystal',
+    description: 'Crystallized darkness forged before the universe began',
+    category: 'profile',
+    rarity: 'legendary',
+    icon: '🌌',
+    type: 'cosmetic',
+    tier: 3,
+    mysteryBoxNumber: 25
+  },
 ]
 
 // Helper function to get mystery item for specific box number

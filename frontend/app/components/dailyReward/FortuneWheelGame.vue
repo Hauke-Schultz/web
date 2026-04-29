@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 
-const emit = defineEmits(['game-complete'])
+const emit = defineEmits(['game-complete', 'spin-start'])
 const { t } = useI18n()
 
 // ── Wheel segments (8 × 45°, segment 0 = top) ────────────
@@ -54,6 +54,8 @@ const wheelStyle = computed(() => ({
 const spin = () => {
   if (phase.value !== 'idle') return
 
+  emit('spin-start')
+
   const winIndex   = Math.floor(Math.random() * SEGMENTS.length)
   const baseOffset = (360 - winIndex * 45) % 360
   const jitter     = (Math.random() - 0.5) * 28   // ±14° within segment
@@ -90,15 +92,15 @@ function rewardLabel(seg) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-5 items-center">
+  <div class="flex flex-col gap-3 items-center">
 
     <!-- Wheel -->
-    <div class="relative w-[240px] h-[240px]">
+    <div class="relative w-[180px] h-[180px]">
 
       <!-- Pointer -->
       <div
-        class="absolute top-0.5 left-1/2 -translate-x-1/2 z-20 text-yellow-400 text-2xl leading-none select-none"
-        style="filter: drop-shadow(0 0 8px #fbbf24);"
+        class="absolute top-0 left-1/2 -translate-x-1/2 z-20 text-yellow-400 text-xl leading-none select-none"
+        style="filter: drop-shadow(0 0 6px #fbbf24);"
       >▼</div>
 
       <!-- Spinning wheel -->
@@ -137,51 +139,33 @@ function rewardLabel(seg) {
       </div>
     </div>
 
-    <!-- Result label -->
-    <Transition name="fade">
-      <div
-        v-if="phase === 'result' && reward"
-        class="text-center font-bold text-lg text-white"
-      >{{ rewardLabel(reward) }}</div>
-    </Transition>
+    <!-- Result badges — always in DOM to prevent height jump -->
+    <div
+      class="flex items-center gap-1.5 justify-center transition-opacity duration-[250ms]"
+      :class="phase === 'result' && reward ? 'opacity-100' : 'opacity-0'"
+    >
+      <span class="bg-white/10 rounded-md px-2 py-0.5 text-white text-xs font-bold">💰 +{{ reward?.coins ?? 0 }}</span>
+      <span class="bg-white/10 rounded-md px-2 py-0.5 text-white text-xs font-bold">💎 +{{ reward?.diamonds ?? 0 }}</span>
+    </div>
 
-    <!-- Reward amounts -->
-    <Transition name="fade">
-      <div v-if="phase === 'result' && reward" class="flex gap-3 justify-center">
-        <div v-if="reward.coins > 0" class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[80px]">
-          <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.coins') }}</div>
-          <div class="text-xl font-bold">+{{ reward.coins }}</div>
-        </div>
-        <div v-if="reward.diamonds > 0" class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[80px]">
-          <div class="text-xs opacity-50 mb-0.5">{{ t('games.daily_reward.diamonds') }}</div>
-          <div class="text-xl font-bold">+{{ reward.diamonds }}</div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Buttons -->
+    <!-- Button — all variants same size, swap via v-if -->
     <button
       v-if="phase === 'idle'"
-      class="w-full py-4 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors text-lg"
+      class="w-full py-2.5 bg-primary hover:bg-primary-h text-white font-bold rounded-xl transition-colors"
       @click="spin"
     >{{ t('games.daily_reward.wheel_spin') }}</button>
 
     <button
       v-else-if="phase === 'spinning'"
       disabled
-      class="w-full py-4 bg-white/10 text-white/40 font-bold rounded-xl text-lg cursor-not-allowed"
+      class="w-full py-2.5 bg-white/10 text-white/40 font-bold rounded-xl cursor-not-allowed"
     >{{ t('games.daily_reward.wheel_spinning') }}</button>
 
     <button
       v-else-if="phase === 'result'"
-      class="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl transition-colors text-lg"
+      class="w-full py-2.5 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl transition-colors"
       @click="collect"
     >{{ t('games.daily_reward.collect') }}</button>
 
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
-.fade-enter-from,  .fade-leave-to      { opacity: 0; }
-</style>
