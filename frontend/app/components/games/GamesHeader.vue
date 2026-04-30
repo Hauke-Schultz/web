@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { loadHawk3Data } from '~/utils/localStores.js'
+import { formatCurrency } from '~/utils/format.js'
 
 const { t } = useI18n()
 const localePath = useLocalePath()
@@ -24,6 +25,7 @@ function refresh() {
   diamonds.value = data.player?.diamonds ?? 0
 }
 
+
 defineExpose({ refresh })
 </script>
 
@@ -44,8 +46,8 @@ defineExpose({ refresh })
 
     <!-- Currency -->
     <div class="flex items-center gap-2.5 shrink-0 min-w-[80px] justify-end text-sm font-semibold tabular-nums">
-      <span class="text-yellow-400">💰 {{ coins.toLocaleString() }}</span>
-      <span class="text-cyan-400">💎 {{ diamonds.toLocaleString() }}</span>
+      <span class="text-yellow-400">💰 {{ formatCurrency(coins) }}</span>
+      <span class="text-cyan-400">💎 {{ formatCurrency(diamonds) }}</span>
     </div>
   </div>
 </template>

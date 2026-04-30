@@ -142,8 +142,13 @@ Anzeige im Game-Over-Overlay. Werden direkt in `hawk3_game_data.player` gespeich
 - i18n (DE/EN)
 - Animierte Tile-Bewegung (CSS translate statt instant snap)
 
+### Done ✅ (Ergänzungen)
+- Undo-Button: macht genau 1 Zug rückgängig, verbraucht 1× `undo_move` aus dem Inventory
+  - Vor jedem Zug wird ein Snapshot (Tiles + Score + Countdown) gespeichert
+  - Button zeigt Anzahl verfügbarer Undos; kein Undo mehr → Link zum Shop (`/games/shop?tab=items`)
+  - Nach Undo ist kein weiterer Undo möglich bis zum nächsten Zug (kein Multi-Undo)
+
 ### Geplant / Ideen 🔲
 - Tile-Meilensteine mit Einmal-Belohnungen (64 / 128 / 256 / 512 / 1024 / 2048 / 4096)
 - Meilenstein-Anzeige im Spiel (Fortschrittsliste zum Abhaken)
 - Bestenliste / globale Highscores
-- Undo-Button (1 Zug zurück)

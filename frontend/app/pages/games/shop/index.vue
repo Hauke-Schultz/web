@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+const route = useRoute()
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
 import { SHOP_ITEMS, SHOP_CATEGORIES, RARITY } from '~/utils/shopConfig.js'
 import GamesHeader from '~/components/games/GamesHeader.vue'
@@ -9,6 +10,8 @@ definePageMeta({ hideHeader: true })
 useHead({ title: 'Shop' })
 
 // ── State ─────────────────────────────────────────────────
+const headerRef = ref(null)
+const listView  = ref(false)
 const coins     = ref(0)
 const diamonds  = ref(0)
 const inventory = ref({})   // player.inventory.items — object keyed by item id
@@ -21,6 +24,7 @@ onMounted(() => {
   coins.value     = data.player.coins               ?? 0
   diamonds.value  = data.player.diamonds            ?? 0
   inventory.value = data.player.inventory?.items    ?? {}
+  if (route.query.tab) activeTab.value = route.query.tab
 })
 
 // ── Filtered items ────────────────────────────────────────
@@ -84,6 +88,7 @@ function confirmBuy() {
   diamonds.value  = data.player.diamonds
   inventory.value = { ...data.player.inventory.items }
   modal.value     = { item, phase: 'success' }
+  headerRef.value?.refresh()
 }
 
 function closeModal() {
@@ -96,17 +101,33 @@ function closeModal() {
     <div class="max-w-[480px] mx-auto flex flex-col gap-5">
 
       <!-- Header -->
-      <GamesHeader :title="`🛒 ${t('games.shop.title')}`" />
+      <GamesHeader ref="headerRef" :title="`🛒 ${t('games.shop.title')}`" />
 
-      <!-- Balance -->
-      <div class="flex gap-3">
-        <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white text-center">
-          <div class="text-[10px] uppercase tracking-widest opacity-50 mb-0.5">{{ t('games.shop.coins') }}</div>
-          <div class="text-xl font-bold tabular-nums">💰 {{ coins.toLocaleString() }}</div>
+      <!-- Balance + View toggle -->
+      <div class="flex justify-between items-center">
+        <div class="flex gap-2">
+          <div class="bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-white flex items-center">
+            <span class="text-sm font-bold tabular-nums">💰 {{ coins.toLocaleString() }}</span>
+          </div>
+          <div class="bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-white flex items-center">
+            <span class="text-sm font-bold tabular-nums">💎 {{ diamonds.toLocaleString() }}</span>
+          </div>
         </div>
-        <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white text-center">
-          <div class="text-[10px] uppercase tracking-widest opacity-50 mb-0.5">{{ t('games.shop.diamonds') }}</div>
-          <div class="text-xl font-bold tabular-nums">💎 {{ diamonds.toLocaleString() }}</div>
+        <div class="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-1 shrink-0">
+          <button
+            class="p-1.5 rounded-md transition-colors"
+            :class="!listView ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'"
+            @click="listView = false"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="0" width="6" height="6" rx="1"/><rect x="8" y="0" width="6" height="6" rx="1"/><rect x="0" y="8" width="6" height="6" rx="1"/><rect x="8" y="8" width="6" height="6" rx="1"/></svg>
+          </button>
+          <button
+            class="p-1.5 rounded-md transition-colors"
+            :class="listView ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'"
+            @click="listView = true"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="1" width="14" height="2.5" rx="1"/><rect x="0" y="5.75" width="14" height="2.5" rx="1"/><rect x="0" y="10.5" width="14" height="2.5" rx="1"/></svg>
+          </button>
         </div>
       </div>
 
@@ -126,12 +147,12 @@ function closeModal() {
         </button>
       </div>
 
-      <!-- Item grid -->
-      <div class="grid grid-cols-2 gap-3">
+      <!-- Kachelansicht -->
+      <div v-if="!listView" class="grid grid-cols-3 gap-3">
         <button
           v-for="item in visibleItems"
           :key="item.id"
-          class="relative flex flex-col items-center gap-2 bg-surface border-2 rounded-2xl p-4 transition-all text-left"
+          class="relative flex flex-col items-center gap-2 bg-surface border-2 rounded-2xl p-3 transition-all text-left"
           :class="[
             rarityBorder(item.rarity),
             isCapped(item)
@@ -142,31 +163,19 @@ function closeModal() {
           ]"
           @click="openItem(item)"
         >
-          <!-- Owned / capped badge -->
           <span
             v-if="isCapped(item)"
             class="absolute top-2 right-2 text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full"
           >✓</span>
-
-          <!-- Quantity badge for stackable items -->
           <span
             v-else-if="getQuantity(item.id) > 0"
             class="absolute top-2 right-2 text-[10px] font-bold bg-white/10 text-white/60 px-1.5 py-0.5 rounded-full"
           >×{{ getQuantity(item.id) }}</span>
-
-          <!-- Icon -->
-          <span class="text-4xl leading-none">{{ item.icon }}</span>
-
-          <!-- Name + rarity -->
+          <span class="text-3xl leading-none">{{ item.icon }}</span>
           <div class="text-center w-full">
             <div class="text-white font-semibold text-sm leading-tight">{{ item.name }}</div>
-            <div class="text-[10px] font-bold uppercase tracking-widest mt-0.5" :class="rarityText(item.rarity)">
-              {{ rarityLabel(item.rarity) }}
-            </div>
           </div>
-
-          <!-- Price -->
-          <div v-if="!isCapped(item)" class="flex flex-col items-center gap-0.5 w-full mt-auto">
+          <div v-if="!isCapped(item)" class="flex flex-row items-center justify-center gap-2 w-full mt-auto">
             <span
               v-if="item.price.coins > 0"
               class="text-xs font-semibold"
@@ -180,6 +189,51 @@ function closeModal() {
           </div>
           <div v-else class="text-xs text-green-400 font-semibold mt-auto">
             {{ t('games.shop.owned') }}
+          </div>
+        </button>
+      </div>
+
+      <!-- Listenansicht -->
+      <div v-else class="flex flex-col gap-2">
+        <button
+          v-for="item in visibleItems"
+          :key="item.id"
+          class="relative flex flex-row items-center gap-3 bg-surface border-2 rounded-2xl px-3 py-3 transition-all text-left"
+          :class="[
+            rarityBorder(item.rarity),
+            isCapped(item)
+              ? 'opacity-60 cursor-default'
+              : canAfford(item)
+                ? 'hover:bg-white/5 cursor-pointer'
+                : 'cursor-pointer opacity-80',
+          ]"
+          @click="openItem(item)"
+        >
+          <span
+            v-if="isCapped(item)"
+            class="absolute top-2 right-2 text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full"
+          >✓</span>
+          <span
+            v-else-if="getQuantity(item.id) > 0"
+            class="absolute top-2 right-2 text-[10px] font-bold bg-white/10 text-white/60 px-1.5 py-0.5 rounded-full"
+          >×{{ getQuantity(item.id) }}</span>
+          <span class="text-2xl leading-none shrink-0">{{ item.icon }}</span>
+          <div class="flex-1 min-w-0 pr-8">
+            <div class="text-white font-semibold text-sm leading-tight">{{ item.name }}</div>
+            <div v-if="item.description" class="text-white/50 text-xs mt-0.5 leading-relaxed">{{ item.description }}</div>
+            <div v-if="!isCapped(item)" class="flex gap-2 mt-1">
+              <span
+                v-if="item.price.coins > 0"
+                class="text-xs font-semibold"
+                :class="coins >= item.price.coins ? 'text-yellow-400' : 'text-red-400'"
+              >💰 {{ item.price.coins.toLocaleString() }}</span>
+              <span
+                v-if="item.price.diamonds > 0"
+                class="text-xs font-semibold"
+                :class="diamonds >= item.price.diamonds ? 'text-cyan-400' : 'text-red-400'"
+              >💎 {{ item.price.diamonds }}</span>
+            </div>
+            <div v-else class="text-xs text-green-400 font-semibold mt-1">{{ t('games.shop.owned') }}</div>
           </div>
         </button>
       </div>

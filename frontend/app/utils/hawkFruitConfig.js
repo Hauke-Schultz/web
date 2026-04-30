@@ -1089,6 +1089,11 @@ export const BOMB_FRUIT_CONFIG = {
   }
 }
 
+export const HAMMER_CONFIG = {
+  fuseTime: 5000,              // 5 seconds countdown
+  screenShakeDuration: 600,
+}
+
 export const MOLD_FRUIT_CONFIG = {
   spawnChance: 0.05, // 5% chance per fruit drop in endless mode
   minSpawnDelay: 60000, // Minimum 1 minute between spawns

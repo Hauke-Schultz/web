@@ -53,6 +53,16 @@ Droppable: Index 1–5 only (Blueberry through Apple)
 - Never merges
 - Flashes as warning in the last 20 seconds
 
+### Fruit Hammer 🔨
+- Kaufbar im Shop (Item: `hammer_powerup` im Inventory)
+- Aktivierung: Button unterhalb des Boards klicken → Hammer-Modus wird aktiv
+- Im Hammer-Modus: nächster Klick auf eine Frucht → 5-Sekunden-Countdown erscheint über der Frucht
+- Zweiter Klick auf dieselbe Frucht während des Countdowns → Countdown wird abgebrochen
+- Nach 5 Sekunden: Frucht explodiert mit Partikeleffekt + Screen-Shake und verschwindet
+- Verbraucht 1× Hammer aus Inventory (`hammer_powerup.quantity -= 1`)
+- Drop-Preview wird im Hammer-Modus ausgeblendet
+- Hammer-Modus kann auch durch erneutes Klicken des Buttons abgebrochen werden
+
 ### Rainbow Fruit 🌈
 - 3% spawn chance, max. 1 at a time, min. 90s cooldown
 - Can merge with any fruit type (universal merger)
@@ -127,6 +137,7 @@ Anzeige: Panel unterhalb des Merge-Chain-Guides (kleine Fruit-Icons, erreichte g
 - Drop preview (ghost fruit + vertical guide line)
 - Next + next-next fruit display
 - Bomb Fruit: fuse timer, explosion radius, screen shake
+- Fruit Hammer: Hammer-Modus, 5s Countdown, Cancel per zweitem Klick, Explosion + Screen-Shake
 - Mold Fruit: shrinking, shrink on hit, lifespan
 - Rainbow Fruit: spawn in rotation, universal merge
 - Game over detection (fruits above danger line)

@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
-import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG, RAINBOW_FRUIT_CONFIG, FRUIT_MILESTONE_TYPES, FRUIT_MILESTONE_REWARDS } from '~/utils/hawkFruitConfig.js'
+import { FRUIT_TYPES, PHYSICS_CONFIG, BOMB_FRUIT_CONFIG, MOLD_FRUIT_CONFIG, RAINBOW_FRUIT_CONFIG, HAMMER_CONFIG, FRUIT_MILESTONE_TYPES, FRUIT_MILESTONE_REWARDS } from '~/utils/hawkFruitConfig.js'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
+import { formatCurrency } from '~/utils/format.js'
 import GamesHeader from '~/components/games/GamesHeader.vue'
-const { locale } = useI18n()
+const { locale, t } = useI18n()
+const localePath = useLocalePath()
 
 definePageMeta({ hideHeader: true })
 
@@ -44,6 +46,13 @@ const bombFuseEnd     = ref(0)
 const bombFuseLeft    = ref(0)   // seconds remaining, for display
 const moldTimeLeft    = ref(0)   // ms remaining, for arc display
 const screenShaking   = ref(false)
+
+// ── Hammer state ──────────────────────────────────────────
+const hammerCount     = ref(0)   // items in inventory
+const hammerMode      = ref(false)
+const hammerTargetId  = ref(null)
+const hammerFuseEnd   = ref(0)
+const hammerFuseLeft  = ref(0)
 
 // ── Rainbow state ─────────────────────────────────────────
 const rainbowActive = ref(false)
@@ -106,7 +115,7 @@ const COMBO_COLORS = ['#feca57', '#ff9f43', '#ff6b6b', '#ff9ff3', '#48dbfb', '#1
 
 const COMBO_TEXTS = {
   de: {
-    1:  ['Lecker! 🍓', 'Frisch! 🍋', 'Saftig! 🍊', 'Süß! 🍇', 'Knackig! 🍎', 'Yummy! 🫐', 'Frucht! 🍑', 'Reif! 🍌'],
+    1:  [],
     3:  ['Combo! 🎯', 'Doppelt hält! ✌️', 'Mehr davon! 🔥', 'Weiter so! 💪', 'Heiß! 🌶️', 'Treffer! 💥'],
     5:  ['5x Combo! 🔥', 'On Fire! 🌶️', 'Saftig heiß! 🍓🔥', 'Wahnsinn! ⚡', 'Fruchtig! 🍊💥', 'Bombe! 💣'],
     8:  ['8x COMBO! 🚀', 'Mega Ernte! 🌽', 'Frucht-Gott! 🍉', 'Unaufhaltsam! ⚡', 'Fantastisch! 🌟', 'Stark! 💪'],
@@ -116,7 +125,7 @@ const COMBO_TEXTS = {
     30: ['30x GÖTTLICH! 🌌', 'UNFASSBAR! 🐉', 'Frucht-Meister! 🦄', 'LEGENDÄR! 👼', 'KOSMISCH! 🌠', 'DER BESTE! 👑'],
   },
   en: {
-    1:  ['Tasty! 🍓', 'Fresh! 🍋', 'Juicy! 🍊', 'Sweet! 🍇', 'Crispy! 🍎', 'Yummy! 🫐', 'Fruity! 🍑', 'Ripe! 🍌'],
+    1:  [],
     3:  ['Combo! 🎯', 'Double up! ✌️', 'More! 🔥', 'Keep going! 💪', 'Hot! 🌶️', 'Hit! 💥'],
     5:  ['5x Combo! 🔥', 'On Fire! 🌶️', 'Juicy hot! 🍓🔥', 'Insane! ⚡', 'Fruity! 🍊💥', 'Bomb! 💣'],
     8:  ['8x COMBO! 🚀', 'Mega Harvest! 🌽', 'Fruit God! 🍉', 'Unstoppable! ⚡', 'Fantastic! 🌟', 'Strong! 💪'],
@@ -226,6 +235,12 @@ const removeFruit = (id) => {
     lastMoldTime     = Date.now()
     moldHitCooldown.delete(id)
   }
+  if (id === hammerTargetId.value) {
+    hammerMode.value     = false
+    hammerTargetId.value = null
+    hammerFuseEnd.value  = 0
+    hammerFuseLeft.value = 0
+  }
   bodyMap.delete(f.body.id)
   M.Composite.remove(engine.world, f.body)
   fruits.value = fruits.value.filter(f2 => f2.id !== id)
@@ -240,7 +255,7 @@ const drop = () => {
   if (!canDrop.value || gameState.value !== 'playing') return
   canDrop.value = false
   const cfg = nextFruitType.value
-  const x   = clamp(dropX.value, cfg.radius + WALL_T, BOARD_W - cfg.radius - WALL_T)
+  const x   = clamp(dropX.value, cfg.radius, BOARD_W - cfg.radius)
   const typeName = cfg.type
   const id  = spawnFruit(typeName, x, DROP_Y)
   wakeAllFruits()
@@ -327,6 +342,46 @@ const explodeBomb = () => {
   wakeAllFruits()
 
   triggerScreenShake()
+}
+
+// ── Hammer ────────────────────────────────────────────────
+const toggleHammer = () => {
+  if (gameState.value !== 'playing') return
+  if (hammerMode.value) {
+    hammerMode.value     = false
+    hammerTargetId.value = null
+    hammerFuseEnd.value  = 0
+    hammerFuseLeft.value = 0
+  } else if (hammerCount.value > 0) {
+    hammerMode.value     = true
+    hammerTargetId.value = null
+  }
+}
+
+const explodeHammer = () => {
+  const targetId = hammerTargetId.value
+  hammerMode.value     = false
+  hammerTargetId.value = null
+  hammerFuseEnd.value  = 0
+  hammerFuseLeft.value = 0
+
+  const f = fruits.value.find(f => f.id === targetId)
+  if (!f) return
+  spawnMergeEffect(f.x, f.y, '#FF8C00', f.radius * 1.5)
+  spawnMergeEffect(f.x, f.y, '#FFD700', f.radius * 0.8)
+  removeFruit(f.id)
+  wakeAllFruits()
+  triggerScreenShake()
+
+  const data = loadHawk3Data()
+  const item = data.player.inventory.items['hammer_powerup']
+  if (item) {
+    item.quantity = Math.max(0, item.quantity - 1)
+    if (item.quantity === 0) delete data.player.inventory.items['hammer_powerup']
+  }
+  hammerCount.value = Math.max(0, hammerCount.value - 1)
+  saveHawk3Data(data)
+  headerRef.value?.refresh()
 }
 
 // ── Mold shrink ───────────────────────────────────────────
@@ -508,6 +563,13 @@ const gameLoop = () => {
     if (remaining <= 0) explodeBomb()
   }
 
+  // Hammer countdown
+  if (hammerTargetId.value !== null) {
+    const remaining = hammerFuseEnd.value - Date.now()
+    hammerFuseLeft.value = Math.max(0, Math.ceil(remaining / 1000))
+    if (remaining <= 0) explodeHammer()
+  }
+
   // Mold lifespan countdown
   if (moldActive.value) {
     const mf = fruits.value.find(f => f.isMold)
@@ -521,7 +583,9 @@ const headerRef  = ref(null)
 const lastReward = ref(null)   // { coins, diamonds }
 
 const triggerGameOver = () => {
-  gameState.value = 'gameover'
+  gameState.value      = 'gameover'
+  hammerMode.value     = false
+  hammerTargetId.value = null
   M.Runner.stop(runner)
 
   const data = loadHawk3Data()
@@ -577,13 +641,19 @@ const restart = () => {
   bombActive.value    = false
   bombId.value        = null
   bombFuseLeft.value  = 0
-  lastBombTime        = -Infinity
+  lastBombTime        = Date.now()
   rainbowActive.value = false
   lastRainbowTime     = -Infinity
   moldActive.value    = false
   moldTimeLeft.value  = 0
-  lastMoldTime        = -Infinity
+  lastMoldTime        = Date.now()
   moldHitCooldown.clear()
+  hammerMode.value     = false
+  hammerTargetId.value = null
+  hammerFuseEnd.value  = 0
+  hammerFuseLeft.value = 0
+  const freshData = loadHawk3Data()
+  hammerCount.value = freshData.player.inventory?.items?.['hammer_powerup']?.quantity ?? 0
   score.value        = 0
   _sessionMerges     = 0
   _sessionMaxCombo   = 0
@@ -604,16 +674,79 @@ const toBoard = (clientX) => {
   return (clientX - rect.left) * scale
 }
 
+const toBoardY = (clientY) => {
+  if (!boardEl.value) return BOARD_H / 2
+  const rect  = boardEl.value.getBoundingClientRect()
+  const scale = BOARD_H / rect.height
+  return (clientY - rect.top) * scale
+}
+
+const getFruitAtPoint = (bx, by) =>
+  fruits.value.find(f => {
+    const dx = f.x - bx, dy = f.y - by
+    return dx * dx + dy * dy <= f.radius * f.radius
+  })
+
 const onMouseMove  = (e) => { isHovering.value = true;  dropX.value = toBoard(e.clientX) }
 const onMouseLeave = ()  => { isHovering.value = false }
-const onClick      = (e) => { dropX.value = toBoard(e.clientX); drop() }
-const onTouchMove  = (e) => { if (gameState.value !== 'playing') return; e.preventDefault(); isTouching.value = true; dropX.value = toBoard(e.touches[0].clientX) }
-const onTouchEnd   = (e) => { if (gameState.value !== 'playing') return; e.preventDefault(); isTouching.value = false; dropX.value = toBoard(e.changedTouches[0].clientX); drop() }
+
+const onClick = (e) => {
+  if (gameState.value !== 'playing') return
+  const bx = toBoard(e.clientX)
+  const by = toBoardY(e.clientY)
+  if (hammerMode.value) {
+    const hit = getFruitAtPoint(bx, by)
+    if (!hit) return
+    if (hammerTargetId.value === hit.id) {
+      hammerMode.value     = false
+      hammerTargetId.value = null
+      hammerFuseEnd.value  = 0
+      hammerFuseLeft.value = 0
+    } else if (hammerTargetId.value === null) {
+      hammerTargetId.value = hit.id
+      hammerFuseEnd.value  = Date.now() + HAMMER_CONFIG.fuseTime
+    }
+    return
+  }
+  dropX.value = bx
+  drop()
+}
+
+const onTouchMove = (e) => {
+  if (gameState.value !== 'playing') return
+  e.preventDefault()
+  isTouching.value = true
+  dropX.value = toBoard(e.touches[0].clientX)
+}
+
+const onTouchEnd = (e) => {
+  if (gameState.value !== 'playing') return
+  e.preventDefault()
+  isTouching.value = false
+  const bx = toBoard(e.changedTouches[0].clientX)
+  const by = toBoardY(e.changedTouches[0].clientY)
+  if (hammerMode.value) {
+    const hit = getFruitAtPoint(bx, by)
+    if (!hit) return
+    if (hammerTargetId.value === hit.id) {
+      hammerMode.value     = false
+      hammerTargetId.value = null
+      hammerFuseEnd.value  = 0
+      hammerFuseLeft.value = 0
+    } else if (hammerTargetId.value === null) {
+      hammerTargetId.value = hit.id
+      hammerFuseEnd.value  = Date.now() + HAMMER_CONFIG.fuseTime
+    }
+    return
+  }
+  dropX.value = bx
+  drop()
+}
 
 // ── Computed ──────────────────────────────────────────────
 const previewX = computed(() => {
   const r = nextFruitType.value?.radius ?? 20
-  return clamp(dropX.value, r + WALL_T, BOARD_W - r - WALL_T)
+  return clamp(dropX.value, r, BOARD_W - r)
 })
 
 // ── Save / Restore board state ────────────────────────────
@@ -693,8 +826,9 @@ const restoreGameState = (saved) => {
 // ── Lifecycle ─────────────────────────────────────────────
 onMounted(async () => {
   const initData  = loadHawk3Data()
-  highScore.value      = initData.games.hawkFruit.highScore  ?? 0
+  highScore.value       = initData.games.hawkFruit.highScore  ?? 0
   fruitMilestones.value = initData.games.hawkFruit.milestones ?? {}
+  hammerCount.value     = initData.player.inventory?.items?.['hammer_powerup']?.quantity ?? 0
   const savedGame = initData.games.hawkFruit.savedGame ?? null
 
   M = await import('matter-js')
@@ -708,6 +842,8 @@ onMounted(async () => {
   runner = M.Runner.create()
 
   buildWalls()
+  lastBombTime = Date.now()
+  lastMoldTime = Date.now()
   M.Events.on(engine, 'collisionStart', onCollision)
   M.Runner.run(runner, engine)
   if (savedGame) restoreGameState(savedGame)
@@ -734,12 +870,12 @@ onUnmounted(() => {
       <!-- Score -->
       <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-1 text-white">
         <div class="text-[10px] uppercase tracking-widest opacity-60">Score</div>
-        <div class="text-l font-bold tabular-nums">{{ score.toLocaleString() }}</div>
+        <div class="text-l font-bold tabular-nums">{{ formatCurrency(score) }}</div>
       </div>
       <!-- Best -->
       <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-1 text-white">
         <div class="text-[10px] uppercase tracking-widest opacity-60">Best</div>
-        <div class="text-l font-bold tabular-nums">{{ Math.max(score, highScore).toLocaleString() }}</div>
+        <div class="text-l font-bold tabular-nums">{{ formatCurrency(Math.max(score, highScore)) }}</div>
       </div>
       <!-- Combo badge (only when active) -->
       <Transition name="combo-pop">
@@ -766,7 +902,7 @@ onUnmounted(() => {
       ref="boardEl"
       class="relative bg-[#0d0d1a] border-2 border-white/10 rounded-2xl overflow-hidden touch-none"
       :class="[
-        gameState === 'playing' ? 'cursor-crosshair' : 'cursor-default',
+        hammerMode ? 'cursor-pointer' : gameState === 'playing' ? 'cursor-crosshair' : 'cursor-default',
         screenShaking ? 'screen-shake' : '',
       ]"
       style="width: 320px; height: 480px;"
@@ -783,7 +919,7 @@ onUnmounted(() => {
       />
 
       <!-- Drop preview -->
-      <template v-if="canDrop && gameState === 'playing' && nextFruitType">
+      <template v-if="canDrop && gameState === 'playing' && nextFruitType && !hammerMode">
         <!-- Vertical guide line -->
         <div
           class="absolute w-px pointer-events-none z-10"
@@ -838,6 +974,49 @@ onUnmounted(() => {
                 zIndex: 12,
               }"
             >{{ bombFuseLeft }}</div>
+          </template>
+        </template>
+      </template>
+
+      <!-- Hammer mode: fruit highlight + countdown -->
+      <template v-if="hammerMode">
+        <!-- Hint when no fruit selected yet -->
+        <div
+          v-if="hammerTargetId === null"
+          class="absolute inset-x-0 pointer-events-none text-center text-orange-300 text-xs font-bold"
+          style="top: 8px; z-index: 14; text-shadow: 0 0 8px #ff990088;"
+        >🔨 Frucht antippen</div>
+        <!-- Overlay per targeted fruit -->
+        <template v-if="hammerTargetId !== null">
+          <template v-for="f in fruits" :key="`hammer-overlay-${f.id}`">
+            <template v-if="f.id === hammerTargetId">
+              <!-- Highlight ring -->
+              <div
+                class="absolute rounded-full pointer-events-none border-2 border-dashed border-orange-400"
+                :style="{
+                  left:      `${f.x}px`,
+                  top:       `${f.y}px`,
+                  width:     `${f.radius * 2 + 10}px`,
+                  height:    `${f.radius * 2 + 10}px`,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 13,
+                  animation: 'danger-pulse 0.5s ease-in-out infinite',
+                }"
+              />
+              <!-- Countdown number -->
+              <div
+                class="absolute pointer-events-none font-black text-center leading-none"
+                :class="hammerFuseLeft <= 2 ? 'text-red-400' : 'text-orange-300'"
+                :style="{
+                  left:       `${f.x}px`,
+                  top:        `${f.y - f.radius - 20}px`,
+                  transform:  'translateX(-50%)',
+                  fontSize:   '18px',
+                  textShadow: hammerFuseLeft <= 2 ? '0 0 12px #ff444488' : '0 0 8px #ff990088',
+                  zIndex: 14,
+                }"
+              >🔨 {{ hammerFuseLeft }}</div>
+            </template>
           </template>
         </template>
       </template>
@@ -992,6 +1171,32 @@ onUnmounted(() => {
           </button>
         </div>
       </Transition>
+    </div>
+
+    <!-- Powerup buttons -->
+    <div class="mt-2 flex justify-center gap-2 w-full max-w-[320px]">
+      <!-- Hammer active -->
+      <button
+        v-if="hammerCount > 0 || hammerMode"
+        class="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm transition-all border"
+        :class="hammerMode
+          ? 'bg-orange-500/80 border-orange-400 text-white shadow-lg shadow-orange-500/40'
+          : 'bg-white/10 border-white/10 text-white hover:bg-white/20'"
+        @click.stop="toggleHammer"
+      >
+        <span>🔨</span>
+        <span>{{ hammerCount }}×</span>
+        <span class="text-xs opacity-70">{{ hammerMode ? 'Abbrechen' : 'Hammer' }}</span>
+      </button>
+      <!-- No hammer → shop link -->
+      <NuxtLink
+        v-else
+        :to="localePath('/games/shop') + '?tab=items'"
+        class="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm border border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80 transition-all no-underline"
+      >
+        <span>🔨</span>
+        <span class="text-xs">{{ t('games.shop.buy') }}</span>
+      </NuxtLink>
     </div>
 
     <!-- Fruit milestones -->

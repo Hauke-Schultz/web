@@ -68,6 +68,9 @@ const rarityGlow = (rarity) => ({
   uncommon:  '34, 197, 94',
 })[rarity] ?? '255, 255, 255'
 
+// ── View mode ─────────────────────────────────────────────
+const listView = ref(false)
+
 // ── Sorting ───────────────────────────────────────────────
 const tierOrder = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 }
 
@@ -329,7 +332,25 @@ onUnmounted(() => {
 
       <!-- ── Inventory ───────────────────────────────────── -->
       <div class="flex flex-col gap-4">
-        <h2 class="text-white font-bold text-base">{{ t('games.profile.inventory_title') }}</h2>
+        <div class="flex items-center justify-between">
+          <h2 class="text-white font-bold text-base">{{ t('games.profile.inventory_title') }}</h2>
+          <div class="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
+            <button
+              class="p-1.5 rounded-md transition-colors"
+              :class="!listView ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'"
+              @click="listView = false"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="0" width="6" height="6" rx="1"/><rect x="8" y="0" width="6" height="6" rx="1"/><rect x="0" y="8" width="6" height="6" rx="1"/><rect x="8" y="8" width="6" height="6" rx="1"/></svg>
+            </button>
+            <button
+              class="p-1.5 rounded-md transition-colors"
+              :class="listView ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'"
+              @click="listView = true"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="1" width="14" height="2.5" rx="1"/><rect x="0" y="5.75" width="14" height="2.5" rx="1"/><rect x="0" y="10.5" width="14" height="2.5" rx="1"/></svg>
+            </button>
+          </div>
+        </div>
 
         <!-- Empty state -->
         <div
@@ -349,32 +370,45 @@ onUnmounted(() => {
           <!-- Mystery Items -->
           <div v-if="sortedMysteryItems.length > 0" class="flex flex-col gap-2">
             <div class="text-white/40 text-xs uppercase tracking-widest font-semibold">{{ t('games.profile.mystery_section') }}</div>
-            <div
-              v-for="item in sortedMysteryItems"
-              :key="item.id"
-              class="flex items-center gap-4 border rounded-2xl p-4 mystery-glow"
-              :class="rarityBg(item.rarity)"
-              :style="{
-                '--glow': rarityGlow(item.rarity),
-                animationDelay:    item.glowDelay    + 's',
-                animationDuration: item.glowDuration + 's',
-              }"
-            >
-              <!-- Icon -->
+            <!-- Kachelansicht -->
+            <div v-if="!listView" class="grid grid-cols-3 gap-3">
               <div
-                class="w-14 h-14 rounded-xl border flex items-center justify-center text-4xl shrink-0"
+                v-for="item in sortedMysteryItems"
+                :key="item.id"
+                class="relative flex flex-col items-center gap-2 border-2 rounded-2xl p-3 mystery-glow-inset"
                 :class="rarityBg(item.rarity)"
-              >{{ item.icon }}</div>
-
-              <!-- Info -->
-              <div class="flex flex-col gap-1 min-w-0 flex-1">
-                <div class="text-white font-bold text-sm leading-tight">{{ item.name }}</div>
-                <div class="text-white/50 text-xs leading-relaxed line-clamp-2">{{ item.description }}</div>
+                :style="{
+                  '--glow': rarityGlow(item.rarity),
+                  animationDelay:    item.glowDelay    + 's',
+                  animationDuration: item.glowDuration + 's',
+                }"
+              >
+                <div v-if="item.purchasedAt" class="absolute top-1.5 right-2 text-[10px] text-white/40 tabular-nums">{{ formatDate(item.purchasedAt) }}</div>
+                <span class="text-4xl">{{ item.icon }}</span>
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm leading-tight">{{ item.name }}</div>
+                </div>
               </div>
-
-              <!-- Date badge -->
-              <div v-if="item.purchasedAt" class="shrink-0 text-right">
-                <div class="text-xs text-white/40 tabular-nums whitespace-nowrap">{{ t('games.profile.received_on', { date: formatDate(item.purchasedAt) }) }}</div>
+            </div>
+            <!-- Listenansicht -->
+            <div v-else class="flex flex-col gap-2">
+              <div
+                v-for="item in sortedMysteryItems"
+                :key="item.id"
+                class="relative flex flex-row items-center gap-3 border-2 rounded-2xl px-3 py-3 mystery-glow-inset"
+                :class="rarityBg(item.rarity)"
+                :style="{
+                  '--glow': rarityGlow(item.rarity),
+                  animationDelay:    item.glowDelay    + 's',
+                  animationDuration: item.glowDuration + 's',
+                }"
+              >
+                <div v-if="item.purchasedAt" class="absolute top-2 right-3 text-[10px] text-white/40 tabular-nums">{{ formatDate(item.purchasedAt) }}</div>
+                <span class="text-4xl shrink-0">{{ item.icon }}</span>
+                <div class="flex-1 min-w-0 pr-14">
+                  <div class="text-white font-semibold text-sm leading-tight">{{ item.name }}</div>
+                  <div v-if="item.description" class="text-white/60 text-xs mt-0.5 leading-relaxed">{{ item.description }}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -382,25 +416,41 @@ onUnmounted(() => {
           <!-- Shop Items -->
           <div v-if="sortedShopItems.length > 0" class="flex flex-col gap-2">
             <div class="text-white/40 text-xs uppercase tracking-widest font-semibold">{{ t('games.profile.items_section') }}</div>
-            <div
-              v-for="item in sortedShopItems"
-              :key="item.id"
-              class="flex items-center gap-4 border rounded-2xl p-4"
-              :class="rarityBg(item.rarity)"
-            >
-              <!-- Emoji icon -->
+            <!-- Kachelansicht -->
+            <div v-if="!listView" class="grid grid-cols-3 gap-3">
               <div
-                class="w-14 h-14 rounded-xl border flex items-center justify-center text-4xl shrink-0"
+                v-for="item in sortedShopItems"
+                :key="item.id"
+                class="relative flex flex-col items-center gap-2 border-2 rounded-2xl p-3"
                 :class="rarityBg(item.rarity)"
-              >{{ item.icon }}</div>
-
-              <!-- Info -->
-              <div class="flex flex-col gap-1 min-w-0 flex-1">
-                <div class="text-white font-bold text-sm leading-tight">
-                  {{ item.name }}
-                  <span v-if="item.quantity > 1" class="text-white/40 font-normal text-xs ml-1">×{{ item.quantity }}</span>
+              >
+                <span
+                  v-if="item.quantity > 1"
+                  class="absolute top-2 right-2 text-[10px] font-bold bg-white/10 text-white/60 px-1.5 py-0.5 rounded-full"
+                >×{{ item.quantity }}</span>
+                <span class="text-4xl">{{ item.icon }}</span>
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm leading-tight">{{ item.name }}</div>
                 </div>
-                <div class="text-white/50 text-xs leading-relaxed line-clamp-2">{{ item.description }}</div>
+              </div>
+            </div>
+            <!-- Listenansicht -->
+            <div v-else class="flex flex-col gap-2">
+              <div
+                v-for="item in sortedShopItems"
+                :key="item.id"
+                class="relative flex flex-row items-center gap-3 border-2 rounded-2xl px-3 py-3"
+                :class="rarityBg(item.rarity)"
+              >
+                <span
+                  v-if="item.quantity > 1"
+                  class="absolute top-2 right-2 text-[10px] font-bold bg-white/10 text-white/60 px-1.5 py-0.5 rounded-full"
+                >×{{ item.quantity }}</span>
+                <span class="text-4xl shrink-0">{{ item.icon }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-white font-semibold text-sm leading-tight">{{ item.name }}</div>
+                  <div v-if="item.description" class="text-white/60 text-xs mt-0.5 leading-relaxed">{{ item.description }}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -416,9 +466,9 @@ onUnmounted(() => {
 .picker-enter-active, .picker-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
 .picker-enter-from, .picker-leave-to       { opacity: 0; transform: translateY(-4px) scale(0.97); }
 
-@keyframes mysteryGlow {
-  0%, 100% { box-shadow: 0 0 6px 1px rgba(var(--glow), 0.15); }
-  50%       { box-shadow: 0 0 12px 5px rgba(var(--glow), 0.50); }
+@keyframes mysteryGlowInset {
+  0%, 100% { box-shadow: inset 0 0 8px 2px rgba(var(--glow), 0.15); }
+  50%       { box-shadow: inset 0 0 18px 5px rgba(var(--glow), 0.45); }
 }
-.mystery-glow { animation: mysteryGlow ease-in-out infinite; }
+.mystery-glow-inset { animation: mysteryGlowInset ease-in-out infinite; }
 </style>

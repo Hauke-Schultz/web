@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { loadHawk3Data, saveHawk3Data } from '~/utils/localStores.js'
+import { formatCurrency } from '~/utils/format.js'
 import GamesHeader from '~/components/games/GamesHeader.vue'
 
 const { t } = useI18n()
+const localePath = useLocalePath()
 
 definePageMeta({ hideHeader: true })
 
@@ -127,12 +129,17 @@ const countdown        = ref(null)  // ID of the active countdown tile, or null
 const isAnimating      = ref(false)
 const countdownDefeats = ref(0)     // 7-tiles defeated this round
 
+// ── Undo state ────────────────────────────────────────────
+const undoCount    = ref(0)   // items in inventory
+const undoSnapshot = ref(null) // { tiles, score, countdownId } | null
+
 // ── Load ──────────────────────────────────────────────────
 onMounted(() => {
   const data = loadHawk3Data()
   highScore.value   = data.games.hawkDoubleUp.highScore   ?? 0
   gamesPlayed.value = data.games.hawkDoubleUp.gamesPlayed ?? 0
   milestones.value  = data.games.hawkDoubleUp.milestones  ?? {}
+  undoCount.value   = data.player.inventory?.items?.['undo_move']?.quantity ?? 0
 
   const saved = data.games.hawkDoubleUp.savedGame
   if (saved?.grid) {
@@ -189,6 +196,36 @@ function addRandomTile() {
   setTimeout(() => {
     displayTiles.value = displayTiles.value.map(t => t.id === id ? { ...t, isNew: false } : t)
   }, 250)
+}
+
+// ── Undo ──────────────────────────────────────────────────
+function saveSnapshot() {
+  undoSnapshot.value = {
+    tiles:      displayTiles.value.map(t => ({ ...t })),
+    score:      score.value,
+    countdownId: countdown.value,
+  }
+}
+
+function undoMove() {
+  if (!undoSnapshot.value || undoCount.value <= 0 || phase.value !== 'playing') return
+  const snap = undoSnapshot.value
+  undoSnapshot.value = null
+
+  displayTiles.value = snap.tiles.map(t => ({ ...t, isNew: false, merging: false }))
+  nextId = Math.max(...snap.tiles.map(t => t.id)) + 1
+  score.value = snap.score
+  countdown.value = snap.countdownId
+
+  const data = loadHawk3Data()
+  const item = data.player.inventory.items['undo_move']
+  if (item) {
+    item.quantity = Math.max(0, item.quantity - 1)
+    if (item.quantity === 0) delete data.player.inventory.items['undo_move']
+  }
+  undoCount.value = Math.max(0, undoCount.value - 1)
+  saveHawk3Data(data)
+  saveGame()
 }
 
 // ── Move logic ────────────────────────────────────────────
@@ -254,6 +291,7 @@ function move(dir) {
 
   if (!moved) return
 
+  saveSnapshot()
   score.value += totalGained
   isAnimating.value = true
 
@@ -371,6 +409,9 @@ function startGame() {
   newMilestone.value     = null
   isAnimating.value      = false
   countdownDefeats.value = 0
+  undoSnapshot.value     = null
+  const freshData = loadHawk3Data()
+  undoCount.value = freshData.player.inventory?.items?.['undo_move']?.quantity ?? 0
   phase.value        = 'playing'
   addRandomTile()
   addRandomTile()
@@ -447,13 +488,13 @@ function handleKeyDown(e) {
         <!-- Score -->
         <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-2 text-white text-center">
           <div class="text-[10px] uppercase tracking-widest opacity-50 mb-0.5">{{ t('games.doubleUp.score') }}</div>
-          <div class="text-xl font-bold tabular-nums">{{ score.toLocaleString() }}</div>
+          <div class="text-xl font-bold tabular-nums">{{ formatCurrency(score) }}</div>
         </div>
 
         <!-- Best -->
         <div class="flex-1 bg-white/10 border border-white/10 rounded-xl px-2 py-2 text-white text-center">
           <div class="text-[10px] uppercase tracking-widest opacity-50 mb-0.5">{{ t('games.doubleUp.best') }}</div>
-          <div class="text-xl font-bold tabular-nums">{{ highScore.toLocaleString() }}</div>
+          <div class="text-xl font-bold tabular-nums">{{ formatCurrency(highScore) }}</div>
         </div>
 
         <!-- 7er defeated -->
@@ -548,6 +589,7 @@ function handleKeyDown(e) {
               <div class="text-xs uppercase tracking-widest opacity-60">{{ t('games.doubleUp.score') }}</div>
               <div class="text-5xl font-bold tabular-nums">{{ score.toLocaleString() }}</div>
               <div class="text-sm opacity-50 pt-1">{{ t('games.doubleUp.best') }}: {{ Math.max(score, highScore).toLocaleString() }}</div>
+
             </div>
             <div v-if="lastReward" class="flex gap-3">
               <div class="bg-white/10 rounded-xl px-4 py-2 text-white text-center min-w-[72px]">
@@ -567,6 +609,30 @@ function handleKeyDown(e) {
         </Transition>
       </div>
 
+
+	    <!-- Action buttons while playing -->
+	    <div v-if="phase === 'playing'" class="flex justify-center gap-2">
+		    <!-- Undo: available -->
+		    <button
+				    v-if="undoCount > 0 && undoSnapshot"
+				    class="py-2 px-5 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5"
+				    @click="undoMove"
+		    >↩ {{ undoCount }}×</button>
+		    <!-- Undo: has items but nothing to undo yet -->
+		    <button
+				    v-else-if="undoCount > 0"
+				    class="py-2 px-5 bg-white/10 text-white/30 text-sm font-bold rounded-xl cursor-not-allowed flex items-center gap-1.5"
+				    disabled
+		    >↩ {{ undoCount }}×</button>
+		    <!-- Undo: no items → shop link -->
+		    <NuxtLink
+				    v-else
+				    :to="localePath('/games/shop') + '?tab=items'"
+				    class="py-2 px-5 bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10 text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5 no-underline"
+		    >↩ {{ t('games.shop.buy') }}</NuxtLink>
+
+	    </div>
+
       <!-- Milestones -->
       <div class="bg-white/5 border border-white/10 rounded-2xl p-4">
         <div class="text-[10px] uppercase tracking-widest text-white/40 mb-3">{{ t('games.doubleUp.milestones_title') }}</div>
@@ -584,15 +650,6 @@ function handleKeyDown(e) {
           </div>
         </div>
       </div>
-
-      <!-- Restart button while playing -->
-      <div v-if="phase === 'playing'" class="flex justify-center">
-        <button
-          class="py-2 px-6 bg-white/10 hover:bg-white/20 text-white/60 hover:text-white text-sm font-medium rounded-xl transition-colors"
-          @click="startGame"
-        >↺ {{ t('games.doubleUp.restart') }}</button>
-      </div>
-
     </div>
   </div>
 
