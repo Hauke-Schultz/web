@@ -204,7 +204,7 @@ const setConversionCount = (bId, idx, val) => {
                 :class="{ 'hs-btn-build--disabled': !canBuild(bDef.id) }"
                 :disabled="!canBuild(bDef.id)"
                 @click.stop="startBuild(bDef.id)"
-              >{{ getLevel(bDef.id) === 0 ? t('hawkStar.tile.btnBuild') : t('hawkStar.tile.btnUpgrade') }}</button>
+              >{{ BUILDINGS[bDef.id]?.global ? t('hawkStar.tile.btnResearch') : getLevel(bDef.id) === 0 ? t('hawkStar.tile.btnBuild') : t('hawkStar.tile.btnUpgrade') }}</button>
               <span class="hs-build-time">⏱ {{ formatTime(Math.ceil(nextLevelDef(bDef.id).buildTime * buildTimeFactor)) }}</span>
               <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">{{ t('hawkStar.tile.needPower') }}</span>
               <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">{{ t('hawkStar.tile.needStaff') }}</span>

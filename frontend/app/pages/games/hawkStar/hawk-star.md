@@ -6,13 +6,13 @@ A browser-based multiplayer space strategy game. Each player starts on a single 
 
 ## Views
 
-The game has three nested views, each unlocked progressively via the Star Map building:
+The game has three nested views, each unlocked progressively via the Star Map global research:
 
 | View | Unlock condition | Shows |
 |------|-----------------|-------|
 | **Planet** | Always available | The active planet's 3×3 building grid |
-| **Solar System** | Star Map Lv1 | All planets in the home system |
-| **Galaxy Map** | Star Map Lv1+ | Star systems on a canvas — all systems always visible |
+| **Solar System** | Star Map Lv1 (global research) | All planets in the home system |
+| **Galaxy Map** | Star Map Lv2 (global research) | Star systems on a canvas — all systems always visible |
 
 The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also renders `HsPlanetHeader` as its first item (planet name + type), which doubles as the planet-view button.
 
@@ -25,7 +25,7 @@ The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also rend
 ```
 [ Planet Info ][ Activity  ][            ]   ← panel tiles (row 1, 3rd cell empty)
 [ Defense     ][ Mining    ][ Space Base ]   ← planet slots (rows 2–5)
-[ Energy      ][ Base      ][ Research   ]
+[ Energy      ][ Base      ][ Comm Center]
 [ Agri        ][ Tech Ctr  ][ High-Tech  ]
 [ Dock        ][ Warship Bay][ Orbit     ]
 ```
@@ -52,7 +52,7 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | `mining` | Raw resource extraction (Metal, Crystal) |
 | `energy` | Power generation — Energy is a utility, not stockpiled |
 | `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory |
-| `research` | Global research — researched once, applied across all planets |
+| `comm_center` | Comm Center — global research tile. Technologies researched here apply across all planets |
 | `spacebase` | Launch pad for probes, colony ships, warships, freighters |
 | `agriculture` | Reserved — no buildings yet (planned for later) |
 | `defense` | Planetary shields and weapons platforms |
@@ -180,7 +180,7 @@ A `power_cell` in the drive slot adds +20 shield and +4 speed on top of the base
 A rough progression arc for a single player:
 
 1. **Colony Phase** — Build up the home planet: unlock slots, raise Metal/Crystal income, balance Energy.
-2. **Expansion** — Unlock the Star Map, scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
+2. **Expansion** — Research the Star Map in the Comm Center (global, unlocks on all planets), scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
 3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four refined resources (`super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`).
 4. **Military** — Research the Weapons Building, produce ship components (`power_cell`, `kinetic_round`, `plasma_cell`), assemble and equip Hawk Frigates.
 5. **Diplomacy & Conflict** — Encounter allied and enemy factions across the galaxy. Trade via Freighters or push into contested systems with a war fleet.
@@ -326,6 +326,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Dev mode — tick rate & build time factor      | ✅ Done |
 | Notification Panel                            | ✅ Done |
 | Localisation (i18n) — all components          | ✅ Done |
+| Research → Comm Center rename + Star Map global | ✅ Done |
 | Backend — User login & registration           | ⬜ Planned |
 | Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
 | Backend — Handel & Kommunikation (Phase 2)    | ⬜ Planned |
@@ -341,10 +342,9 @@ See `hawk-star-backend.md` for the full backend & multiplayer concept.
 Das Agriculture-Tile existiert, ist freigeschaltet (slot 7), aber hat null Gebäude. Ocean-Planeten sind als "Farming paradise, enormous population potential" beschrieben — das
 wäre der Ort für Bevölkerungs-/Food-Gebäude.
 
-# Research-Gebäude-Effekte implementieren
+# Comm Center — Weitere Global-Forschungen
 
-star_map, command_center und andere Research-Gebäude haben effect-Felder wie "+50% research speed", aber diese Werte fließen nirgendwo ein — sie sind nur Text. Entweder die
-Effekte tatsächlich implementieren oder die irreführenden effect-Strings entfernen/korrigieren.
+Das Comm Center ist jetzt der Ort für alle globalen Technologien (star_map u.a.). Weitere geplante Forschungen könnten hier hinzugefügt werden (z.B. schnellere Schiffe, verbesserte Sichtweite). Das `global: true`-Flag in hawkStarConfig.js genügt, damit eine Technologie automatisch global behandelt wird.
 
 # Balancing-Pass
 

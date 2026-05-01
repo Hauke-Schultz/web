@@ -8,6 +8,7 @@
       "dismiss": "Schließen",
 
       "buildComplete": "{name} Lv{level} fertig",
+      "researchComplete": "{name} Lv{level} erforscht",
       "droneReady": "Recon Drone bereit",
       "probeReady": "Galaxy Probe bereit",
       "colonyReady": "Colony Ship bereit",
@@ -35,8 +36,8 @@
       "planet": "Planet",
       "system": "System",
       "galaxy": "Galaxie",
-      "unlockStarMap1": "Star Map Lv1 bauen zum Freischalten",
-      "unlockStarMap2": "Star Map Lv2 bauen zum Freischalten"
+      "unlockStarMap1": "Star Map Lv1 erforschen zum Freischalten",
+      "unlockStarMap2": "Star Map Lv2 erforschen zum Freischalten"
     },
 
     "tile": {
@@ -46,6 +47,7 @@
       "statusMax": "MAX",
       "btnBuild": "Bauen",
       "btnUpgrade": "Upgraden",
+      "btnResearch": "Erforschen",
       "maxLevel": "Maximale Stufe erreicht",
       "needPower": "⚡ Energie fehlt",
       "needStaff": "👥 Personal fehlt",
@@ -153,7 +155,7 @@
       "mining":      { "name": "Abbau",           "desc": "Rohstoffgewinnung" },
       "energy":      { "name": "Energie",         "desc": "Stromerzeugung" },
       "techcenter":  { "name": "Techzentrum",     "desc": "Technologieforschung" },
-      "research":    { "name": "Forschung",       "desc": "Globale Technologien — einmal erforscht, auf allen Planeten aktiv" },
+      "comm_center": { "name": "Komm-Zentrum",    "desc": "Globale Technologien — einmal erforscht, auf allen Planeten aktiv" },
       "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Sonden, Kolonisierungsschiffe und Frachter" },
       "agriculture": { "name": "Landwirtschaft",  "desc": "Reserviert — noch keine Gebäude" },
       "defense":     { "name": "Verteidigung",    "desc": "Planetarische Schilde, Waffenplattformen und Frühwarnsysteme" },

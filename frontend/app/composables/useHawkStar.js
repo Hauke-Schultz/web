@@ -41,6 +41,15 @@ const buildTimeFactor = ref(1)
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
 
+// ── Global research (built once, applies to all planets) ───
+const globalResearch = ref(
+  Object.fromEntries(
+    Object.values(BUILDINGS)
+      .filter(b => b.global)
+      .map(b => [b.id, { level: 0, buildEndsAt: null, buildStartedAt: null }])
+  )
+)
+
 // ── Notifications (persistent done-events) ────────────────
 const notifications = ref([])
 
@@ -95,7 +104,10 @@ const setActivePlanet = (planetId) => {
 
 // Computed aliases — Vue tracks nested mutations through these
 const playerSlots     = computed(() => allPlanetStates.value[activePlanetId.value]?.slots ?? [])
-const playerBuildings = computed(() => allPlanetStates.value[activePlanetId.value]?.buildings ?? {})
+const playerBuildings = computed(() => {
+  const pb = allPlanetStates.value[activePlanetId.value]?.buildings ?? {}
+  return { ...pb, ...globalResearch.value }
+})
 const planetType      = computed(() => allPlanetStates.value[activePlanetId.value]?.planetType ?? 'terrestrial')
 const planetName      = computed(() => allPlanetStates.value[activePlanetId.value]?.planetName ?? '')
 
@@ -246,10 +258,7 @@ const researchCenterBuilt = computed(() => playerBuildings.value['command_center
 
 // Space facilities always read from home planet
 const homeBuilding = (id) => allPlanetStates.value[homePlanetId.value]?.buildings[id]
-const starMapLevel = computed(() => {
-  const state = homeBuilding('star_map')
-  return state ? effectiveLevel(state) : 0
-})
+const starMapLevel = computed(() => effectiveLevel(globalResearch.value.star_map ?? { level: 0, buildEndsAt: null }))
 const spaceTechLevel = computed(() => {
   const state = homeBuilding('space_tech')
   return state ? effectiveLevel(state) : 0
@@ -295,8 +304,13 @@ const startBuild = (id) => {
     res[r] -= amt
   }
   const _buildMs = next.buildTime * buildTimeFactor.value * 1000
-  allPlanetStates.value[activePlanetId.value].buildings[id].buildStartedAt = Date.now()
-  allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt = Date.now() + _buildMs
+  if (BUILDINGS[id]?.global) {
+    globalResearch.value[id].buildStartedAt = Date.now()
+    globalResearch.value[id].buildEndsAt    = Date.now() + _buildMs
+  } else {
+    allPlanetStates.value[activePlanetId.value].buildings[id].buildStartedAt = Date.now()
+    allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt    = Date.now() + _buildMs
+  }
 }
 
 const currentLevelDef = (id) => {
@@ -936,7 +950,7 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 16
+const SAVE_VERSION = 17
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -962,6 +976,7 @@ const saveGame = () => {
     playerProbedSystems:    playerProbedSystems.value,
     playerColonizedPlanets: playerColonizedPlanets.value,
     notifications:          notifications.value,
+    globalResearch:         globalResearch.value,
   }))
 }
 
@@ -1038,6 +1053,11 @@ const loadGame = () => {
     if (Array.isArray(data.playerProbedSystems))     playerProbedSystems.value    = data.playerProbedSystems
     if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
     if (Array.isArray(data.notifications))           notifications.value          = data.notifications
+    if (data.globalResearch) {
+      for (const id of Object.keys(globalResearch.value)) {
+        if (data.globalResearch[id]) globalResearch.value[id] = data.globalResearch[id]
+      }
+    }
 
     // Offline production — apply missed ticks since last save
     if (data.savedAt) {
@@ -1260,8 +1280,9 @@ const tick = () => {
     const pb = pstate.buildings
     const pr = pstate.resources
 
-    // Complete builds
+    // Complete builds (skip global buildings — handled separately)
     for (const [id, state] of Object.entries(pb)) {
+      if (BUILDINGS[id]?.global) continue
       if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
       state.level += 1
       state.buildEndsAt = null
@@ -1324,6 +1345,26 @@ const tick = () => {
         pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
       }
     }
+  }
+
+  // Complete global research (star_map and any future global buildings)
+  for (const [id, state] of Object.entries(globalResearch.value)) {
+    if (!state.buildEndsAt || state.buildEndsAt > now.value) continue
+    state.level += 1
+    state.buildEndsAt    = null
+    state.buildStartedAt = null
+    notifications.value.push({
+      id:         `notif_${Date.now()}_research_${id}`,
+      type:       'building_done',
+      icon:       '🔭',
+      planetId:   null,
+      planetName: null,
+      buildingId: id,
+      level:      state.level,
+      labelKey:    'hawkStar.notifications.researchComplete',
+      labelParams: { name: BUILDINGS[id]?.name ?? id, level: state.level },
+      timestamp:  Date.now(),
+    })
   }
 
   saveGame()

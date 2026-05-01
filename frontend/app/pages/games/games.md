@@ -7,7 +7,7 @@ Entwicklungsreferenz für alle Spiele, den Shop und die gemeinsame Datenschicht.
 ## Altes System → Neues System
 
 Das alte System liegt in `frontend/app/oldPageSrc/gamingHub/`. Dort liegen:
-- **Spiele** in `games/`: `dailyReward/`, `hawkdoubleup/`, `hawkdungeon/`, `hawkfruit/`, `hawktower/`, `memory/`
+- **Spiele** in `games/`: `dailyReward/`, `hawkdoubleup/`, `hawkfruit/`, `hawktower/`
 - **Views**: `Gaming.vue`, `Profile.vue`, `Shop.vue`, `Trophy.vue`
 - **Composables**: `useLocalStorage.js`, `useShop.js`, `useInventory.js`, `useComboSystem.js`
 - **Config**: `shopConfig.js` (Shop-Items und Kategorien)
@@ -116,9 +116,7 @@ hawk3_game_data (JSON, version "1.1")
 ├── games
 │   ├── hawkFruit        ← aktiv (siehe unten)
 │   ├── hawkDoubleUp     ← aktiv (siehe unten)
-│   ├── hawkTower        ← aktiv (siehe unten)
-│   ├── memory           ← Platzhalter
-│   └── hawkDungeon      ← Platzhalter
+│   └── hawkTower        ← aktiv (siehe unten)
 ├── settings             ← nicht aktiv
 ├── achievements         ← nicht aktiv
 └── version              "1.1"

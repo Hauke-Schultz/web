@@ -7,6 +7,7 @@
       "empty": "No active operations",
       "dismiss": "Dismiss",
       "buildComplete": "{name} Lv{level} complete",
+      "researchComplete": "{name} Lv{level} researched",
       "droneReady": "Recon Drone ready",
       "probeReady": "Galaxy Probe ready",
       "colonyReady": "Colony Ship ready",
@@ -31,8 +32,8 @@
       "planet": "Planet",
       "system": "System",
       "galaxy": "Galaxy",
-      "unlockStarMap1": "Build Star Map Lv1 to unlock",
-      "unlockStarMap2": "Build Star Map Lv2 to unlock"
+      "unlockStarMap1": "Research Star Map Lv1 to unlock",
+      "unlockStarMap2": "Research Star Map Lv2 to unlock"
     },
 
     "tile": {
@@ -42,6 +43,7 @@
       "statusMax": "MAX",
       "btnBuild": "Build",
       "btnUpgrade": "Upgrade",
+      "btnResearch": "Research",
       "maxLevel": "Max level reached",
       "needPower": "⚡ Need power",
       "needStaff": "👥 Need staff",
@@ -149,7 +151,7 @@
       "mining":      { "name": "Mining",      "desc": "Raw resource extraction" },
       "energy":      { "name": "Energy",      "desc": "Power generation" },
       "techcenter":  { "name": "Tech Center", "desc": "Technology research" },
-      "research":    { "name": "Research",    "desc": "Global technologies — researched once, applied across all planets" },
+      "comm_center": { "name": "Comm Center",  "desc": "Global technologies — researched once, applied across all planets" },
       "spacebase":   { "name": "Space Base",  "desc": "Launch pad for probes, colony ships and freighters" },
       "agriculture": { "name": "Agriculture", "desc": "Reserved — no buildings yet" },
       "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
