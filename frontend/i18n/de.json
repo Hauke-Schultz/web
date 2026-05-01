@@ -77,7 +77,16 @@
       "mole_great": "🎉 Super!",
       "mole_good": "👍 Gut!",
       "mole_ok": "Nicht schlecht!",
-      "mole_consolation": "🥲 Üb weiter!"
+      "mole_consolation": "🥲 Üb weiter!",
+      "mole_hits": "Treffer",
+      "attempts": "Versuche",
+      "extra_title": "Extra Runde",
+      "extra_available": "{coins} 💰 verfügbar",
+      "extra_not_enough": "Zu wenig Coins — brauchst {cost} 💰",
+      "extra_pick_game": "Spiel auswählen ↑",
+      "extra_play_btn": "{emoji} {label} — {cost} 💰 einwerfen",
+      "extra_header": "Extra Runde · {emoji} {label}",
+      "extra_deducted": "-{cost} 💰"
     },
     "shop": {
       "title": "Shop",

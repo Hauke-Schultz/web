@@ -88,7 +88,7 @@ const collect = () => {
       class="flex items-center gap-3 transition-opacity duration-200"
       :class="phase === 'playing' ? 'opacity-100' : 'opacity-0 pointer-events-none'"
     >
-      <span class="text-[11px] text-white/40 uppercase tracking-widest">Treffer</span>
+      <span class="text-[11px] text-white/40 uppercase tracking-widest">{{ t('games.daily_reward.mole_hits') }}</span>
       <div class="flex gap-1">
         <div
           v-for="i in TOTAL_ROUNDS"

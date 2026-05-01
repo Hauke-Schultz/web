@@ -275,10 +275,10 @@ const claimMysteryBox = () => {
       <div class="flex flex-col gap-2 border-t border-white/5 pt-2.5">
 
         <div class="flex items-center gap-1.5">
-          <span class="text-[10px] text-white/40 uppercase tracking-wider">Extra Runde</span>
+          <span class="text-[10px] text-white/40 uppercase tracking-wider">{{ t('games.daily_reward.extra_title') }}</span>
           <span class="ml-auto text-[10px] font-bold"
                 :class="canAffordExtra ? 'text-yellow-400/70' : 'text-red-400/70'">
-            {{ playerCoins }} 💰 verfügbar
+            {{ t('games.daily_reward.extra_available', { coins: playerCoins }) }}
           </span>
         </div>
 
@@ -305,9 +305,9 @@ const claimMysteryBox = () => {
           :disabled="!extraGame || !canAffordExtra"
           @click="startExtra"
         >
-          <template v-if="!canAffordExtra">Zu wenig Coins — brauchst {{ EXTRA_COST }} 💰</template>
-          <template v-else-if="!extraGame">Spiel auswählen ↑</template>
-          <template v-else>{{ extraGame.emoji }} {{ extraGame.label }} — {{ EXTRA_COST }} 💰 einwerfen</template>
+          <template v-if="!canAffordExtra">{{ t('games.daily_reward.extra_not_enough', { cost: EXTRA_COST }) }}</template>
+          <template v-else-if="!extraGame">{{ t('games.daily_reward.extra_pick_game') }}</template>
+          <template v-else>{{ t('games.daily_reward.extra_play_btn', { emoji: extraGame.emoji, label: extraGame.label, cost: EXTRA_COST }) }}</template>
         </button>
 
       </div>
@@ -318,8 +318,8 @@ const claimMysteryBox = () => {
     <template v-else>
 
       <div class="flex items-center justify-between text-[10px] uppercase tracking-wider">
-        <span class="text-white/40">Extra Runde · {{ extraGame.emoji }} {{ extraGame.label }}</span>
-        <span class="text-yellow-400/60">-{{ EXTRA_COST }} 💰</span>
+        <span class="text-white/40">{{ t('games.daily_reward.extra_header', { emoji: extraGame.emoji, label: extraGame.label }) }}</span>
+        <span class="text-yellow-400/60">{{ t('games.daily_reward.extra_deducted', { cost: EXTRA_COST }) }}</span>
       </div>
 
       <div class="bg-white/5 border border-white/10 rounded-xl p-4">

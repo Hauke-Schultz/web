@@ -203,7 +203,7 @@ const collect = () => {
 
     <!-- Attempts indicator -->
     <div class="flex items-center justify-center gap-2">
-      <span class="text-[10px] text-white/30 uppercase tracking-widest font-medium">Versuche</span>
+      <span class="text-[10px] text-white/30 uppercase tracking-widest font-medium">{{ t('games.daily_reward.attempts') }}</span>
       <div class="flex gap-1.5">
         <div
           v-for="i in MAX_ATTEMPTS"
