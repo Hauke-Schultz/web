@@ -5,6 +5,7 @@ import { calculateMysteryBoxReward, getMysteryBoxProgress, canClaimMysteryBox, M
 import SlotMachineGame  from './SlotMachineGame.vue'
 import FortuneWheelGame from './FortuneWheelGame.vue'
 import ThreeShellsGame  from './ThreeShellsGame.vue'
+import WhackAMoleGame   from './WhackAMoleGame.vue'
 
 const { t } = useI18n()
 
@@ -15,9 +16,10 @@ const today = new Date().toISOString().split('T')[0]
 
 // Daily game rotation — add new game components here when ready
 const DAILY_GAMES = [
-  { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
-  { key: 'wheel',  label: 'Fortune Wheel', emoji: '🎡', component: FortuneWheelGame },
-  { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
+  // { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
+  // { key: 'wheel',  label: 'Fortune Wheel', emoji: '🎡', component: FortuneWheelGame },
+  // { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
+  { key: 'mole',   label: 'Whack-a-Mole', emoji: '🐭', component: WhackAMoleGame   },
 ]
 const dayIndex  = Math.floor(Date.now() / 86400000)
 const todayGame = DAILY_GAMES[dayIndex % DAILY_GAMES.length]
@@ -52,8 +54,10 @@ onMounted(() => {
   phase.value              = claimedToday ? 'claimed' : 'idle'
 
   if (claimedToday) {
-    lastReward.value = data.currency.dailyRewards.lastReward                ?? null
-    claimedBox.value = data.currency.mysteryBoxes.lastClaimedBox            ?? null
+    lastReward.value = data.currency.dailyRewards.lastReward ?? null
+    claimedBox.value = data.currency.mysteryBoxes.lastClaimed === today
+      ? (data.currency.mysteryBoxes.lastClaimedBox ?? null)
+      : null
   }
 })
 
@@ -94,7 +98,7 @@ const onGameComplete = ({ coins: c, diamonds: d, label }) => {
     autoClaimed = box
   }
 
-  data.currency.dailyRewards.lastReward = { coins: c, diamonds: d }
+  data.currency.dailyRewards.lastReward = { coins: c, diamonds: d, label }
   saveHawk3Data(data)
 
   counter.value            = newCounter
@@ -183,15 +187,11 @@ const claimMysteryBox = () => {
     </div>
 
     <!-- No mystery box: just reward row -->
-    <div v-else-if="lastReward" class="flex gap-2">
-      <div class="flex-1 bg-white/5 rounded-xl px-3 py-2 text-white text-center">
-        <div class="text-[10px] opacity-50 mb-0.5">{{ t('games.daily_reward.coins') }}</div>
-        <div class="text-base font-bold tabular-nums">+{{ lastReward.coins }}</div>
-      </div>
-      <div class="flex-1 bg-white/5 rounded-xl px-3 py-2 text-white text-center">
-        <div class="text-[10px] opacity-50 mb-0.5">{{ t('games.daily_reward.diamonds') }}</div>
-        <div class="text-base font-bold tabular-nums">+{{ lastReward.diamonds }}</div>
-      </div>
+    <div v-else-if="lastReward" class="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2.5">
+      <span class="text-lg leading-none shrink-0">{{ todayGame.emoji }}</span>
+      <span class="text-sm font-semibold text-white/60 flex-1 truncate">{{ lastReward.label ?? todayGame.label }}</span>
+      <span class="text-sm font-bold text-yellow-400 tabular-nums shrink-0">💰 +{{ lastReward.coins }}</span>
+      <span class="text-sm font-bold text-sky-400 tabular-nums shrink-0">💎 +{{ lastReward.diamonds }}</span>
     </div>
 
     <!-- Fallback: pending box from old session (manual collect) -->

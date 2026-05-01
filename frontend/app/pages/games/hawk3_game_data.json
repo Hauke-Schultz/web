@@ -6,8 +6,8 @@
     "experience": 100,
     "totalScore": 38791,
     "gamesPlayed": 8,
-    "coins": 10388,
-    "diamonds": 120,
+    "coins": 9073,
+    "diamonds": 195,
     "createdAt": "2026-04-06",
     "lastPlayed": "2026-04-24",
     "inventory": {
@@ -30,15 +30,6 @@
           "rarity": "rare",
           "name": "Friendship Ring"
         },
-        "hammer_powerup": {
-          "id": "hammer_powerup",
-          "quantity": 1,
-          "purchasedAt": "2026-04-06T21:28:20.418Z",
-          "type": "consumable",
-          "category": "items",
-          "rarity": "common",
-          "name": "Fruit Hammer"
-        },
         "magic_hat": {
           "id": "magic_hat",
           "quantity": 1,
@@ -60,6 +51,55 @@
           "category": "gifts",
           "rarity": "uncommon",
           "name": "Friendship Bracelet"
+        },
+        "crystal_orb": {
+          "id": "crystal_orb",
+          "quantity": 1,
+          "purchasedAt": "2026-04-29T21:57:17.949Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "rare",
+          "name": "Crystal Orb",
+          "icon": "🔮",
+          "description": "A glowing orb that reveals hidden secrets",
+          "tier": 1,
+          "mysteryBoxNumber": 2
+        },
+        "hammer_powerup": {
+          "id": "hammer_powerup",
+          "quantity": 3,
+          "purchasedAt": "2026-04-30T23:15:44.802Z",
+          "type": "consumable",
+          "category": "items",
+          "rarity": "common",
+          "name": "Fruit Hammer"
+        },
+        "undo_move": {
+          "id": "undo_move",
+          "quantity": 2,
+          "purchasedAt": "2026-04-30T22:12:27.826Z",
+          "type": "consumable",
+          "category": "items",
+          "rarity": "common",
+          "name": "Undo Move"
+        },
+        "cap": {
+          "id": "cap",
+          "quantity": 1,
+          "purchasedAt": "2026-04-30T23:14:07.187Z",
+          "type": "cosmetic",
+          "category": "profile",
+          "rarity": "common",
+          "name": "Baseball Cap"
+        },
+        "love_letter": {
+          "id": "love_letter",
+          "quantity": 1,
+          "purchasedAt": "2026-04-30T23:17:26.631Z",
+          "type": "cosmetic",
+          "category": "gifts",
+          "rarity": "common",
+          "name": "Love Letter"
         }
       },
       "equipped": {
@@ -625,20 +665,36 @@
       }
     ],
     "dailyRewards": {
-      "lastClaimed": "2026-04-24",
-      "counter": 9,
+      "lastClaimed": "2026-04-22",
+      "counter": 12,
       "selectedGame": null,
       "lastReward": {
-        "coins": 100,
-        "diamonds": 3
+        "coins": 80,
+        "diamonds": 2
       }
     },
     "mysteryBoxes": {
-      "lastClaimed": "2026-04-14",
-      "totalClaimed": 1,
-      "lastClaimedCounter": 5,
+      "lastClaimed": "2026-04-27",
+      "totalClaimed": 2,
+      "lastClaimedCounter": 10,
       "pendingMysteryBox": null,
-      "lastClaimedBox": null
+      "lastClaimedBox": {
+        "item": {
+          "id": "crystal_orb",
+          "name": "Crystal Orb",
+          "description": "A glowing orb that reveals hidden secrets",
+          "category": "profile",
+          "rarity": "rare",
+          "icon": "🔮",
+          "type": "cosmetic",
+          "tier": 1,
+          "mysteryBoxNumber": 2
+        },
+        "type": "mystery_box",
+        "mysteryBoxNumber": 2,
+        "isSpecial": false,
+        "message": "Crystal Orb discovered!"
+      }
     },
     "milestones": {
       "achievementCategories": {
@@ -755,12 +811,12 @@
       }
     },
     "hawkFruit": {
-      "highScore": 27242,
-      "totalScore": 73043,
-      "gamesPlayed": 6,
+      "highScore": 55025,
+      "totalScore": 177561,
+      "gamesPlayed": 11,
       "maxLevel": 3,
-      "totalMerges": 119,
-      "maxCombo": 15,
+      "totalMerges": 393,
+      "maxCombo": 45,
       "stars": 2,
       "completedLevels": 3,
       "levels": {
@@ -811,28 +867,21 @@
         },
         "6": {
           "completed": true,
-          "highScore": 27242,
+          "highScore": 55025,
           "bestTime": 68,
-          "bestMoves": 102,
-          "stars": 2,
-          "attempts": 2,
+          "bestMoves": 33,
+          "stars": 3,
+          "attempts": 7,
           "bestPerformance": {
-            "score": 27242,
-            "time": 68,
-            "moves": 102,
-            "stars": 2,
-            "performanceScore": 16478.199999999997,
-            "achievedAt": "2026-04-06T21:21:22.792Z"
+            "score": 55025,
+            "moves": 33,
+            "stars": 3,
+            "performanceScore": 33081,
+            "achievedAt": "2026-04-30T21:57:25.668Z"
           }
         }
       },
-      "savedGame": {
-        "score": 0,
-        "nextFruit": "APPLE",
-        "nextNextFruit": "BLUEBERRY",
-        "fruits": [],
-        "savedAt": "2026-04-29T21:25:43.666Z"
-      },
+      "savedGame": null,
       "milestones": {
         "GRAPEFRUIT": true,
         "STRAWBERRY": true,
@@ -840,13 +889,16 @@
         "APPLE": true,
         "PINEAPPLE": true,
         "ORANGE": true,
-        "COCONUT": true
+        "COCONUT": true,
+        "MELON": true,
+        "DRAGON_FRUIT": true,
+        "WATERMELON": true
       }
     },
     "hawkDoubleUp": {
       "highScore": 4274,
       "totalScore": 4274,
-      "gamesPlayed": 1,
+      "gamesPlayed": 2,
       "maxLevel": 1,
       "totalMerges": 73,
       "maxCombo": 73,
@@ -872,44 +924,46 @@
       "savedGame": {
         "grid": [
           [
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
             2,
-            null,
-            null,
-            null
-          ],
-          [
-            16,
-            4,
-            null,
-            null
-          ],
-          [
-            4,
-            8,
-            null,
-            4
-          ],
-          [
-            64,
-            16,
-            8,
             2
           ]
         ],
-        "score": 416,
+        "score": 0,
         "countdown": null
       },
       "milestones": {
         "8": true,
         "16": true,
         "32": true,
-        "64": true
+        "64": true,
+        "128": true,
+        "256": true
       }
     },
     "hawkTower": {
-      "highScore": 0,
+      "highScore": 31,
       "totalScore": 0,
-      "gamesPlayed": 0,
+      "gamesPlayed": 1,
       "maxLevel": 1,
       "totalStacks": 0,
       "totalPerfectStacks": 0,
@@ -918,7 +972,7 @@
       "stars": 0,
       "completedLevels": 0,
       "levels": {},
-      "maxHeight": 0
+      "maxHeight": 4
     },
     "hawkDungeon": {
       "highScore": 0,

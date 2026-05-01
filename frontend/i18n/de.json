@@ -58,7 +58,7 @@
       "slot_triple_coins": "💰💰💰 Triple Coins!",
       "slot_double_diamonds": "💎💎 Double Diamonds!",
       "slot_double_coins": "💰💰 Double Coins!",
-      "slot_mixed": "🎰 Gemischt!",
+      "slot_mixed": "Gemischt!",
       "shells_start": "🐚 Spiel starten",
       "shells_watch": "Merke dir die Muschel mit dem Diamanten!",
       "shells_shuffling": "Konzentrier dich…",
@@ -71,7 +71,13 @@
       "wheel_jackpot": "🌟 Jackpot!",
       "wheel_coins": "💰 {n} Coins gewonnen!",
       "wheel_diamonds": "💎 {n} Diamonds gewonnen!",
-      "badge_claimed": "✅ Abgeholt"
+      "badge_claimed": "✅ Abgeholt",
+      "mole_start": "🐭 Moles jagen!",
+      "mole_jackpot": "🏆 Perfekt!",
+      "mole_great": "🎉 Super!",
+      "mole_good": "👍 Gut!",
+      "mole_ok": "Nicht schlecht!",
+      "mole_consolation": "🥲 Üb weiter!"
     },
     "shop": {
       "title": "Shop",

@@ -59,7 +59,7 @@
       "slot_triple_coins": "💰💰💰 Triple Coins!",
       "slot_double_diamonds": "💎💎 Double Diamonds!",
       "slot_double_coins": "💰💰 Double Coins!",
-      "slot_mixed": "🎰 Mixed symbols!",
+      "slot_mixed": "Mixed symbols!",
       "shells_start": "🐚 Start game",
       "shells_watch": "Remember which shell hides the diamond!",
       "shells_shuffling": "Stay focused…",
@@ -72,7 +72,13 @@
       "wheel_jackpot": "🌟 Jackpot!",
       "wheel_coins": "💰 {n} Coins won!",
       "wheel_diamonds": "💎 {n} Diamonds won!",
-      "badge_claimed": "✅ Claimed"
+      "badge_claimed": "✅ Claimed",
+      "mole_start": "🐭 Hunt Moles!",
+      "mole_jackpot": "🏆 Perfect!",
+      "mole_great": "🎉 Great!",
+      "mole_good": "👍 Good!",
+      "mole_ok": "Not bad!",
+      "mole_consolation": "🥲 Keep practicing!"
     },
     "shop": {
       "title": "Shop",

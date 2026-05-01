@@ -18,7 +18,8 @@
       "Bash(grep -v \"onMounted\\\\|onclick\\\\|//\")",
       "Bash(timeout 30 npx nuxt build)",
       "Bash(curl:*)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(dir \"C:\\\\Users\\\\hauke\\\\WebstormProjects\\\\web\\\\frontend\\\\app\\\\components\\\\dailyReward\")"
     ]
   }
 }

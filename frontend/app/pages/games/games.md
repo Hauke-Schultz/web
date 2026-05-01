@@ -18,10 +18,24 @@ Alle alten Spiele hatten **6 Level** mit LevelSelection-Screen. Im neuen System 
 
 ## Daily Reward — Spiel-Rotation
 
-Jeden Tag wechselt das Minispiel automatisch. Drei Spiele rotieren per Day-Index:
-- 🎰 Slot Machine (`SlotMachineGame.vue`)
-- 🎡 Fortune Wheel (`FortuneWheelGame.vue`)
-- 🐚 Three Shells (`ThreeShellsGame.vue`)
+Jeden Tag wechselt das Minispiel automatisch. Vier Spiele rotieren per Day-Index:
+- 🎰 Slot Machine (`SlotMachineGame.vue`) — 5 Versuche, Lever-Steuerung
+- 🎡 Fortune Wheel (`FortuneWheelGame.vue`) — 5 Versuche, Lever-Steuerung
+- 🐚 Three Shells (`ThreeShellsGame.vue`) — 1 Runde, Shell-Tipp-Mechanik
+- 🐭 Whack-a-Mole (`WhackAMoleGame.vue`) — 9 Moles, Reaktionsspiel
+
+### Whack-a-Mole — Design
+
+9 Löcher (3×3 Grid). Nacheinander taucht je eine Maus zufällig auf (max. 1000 ms sichtbar). Klickt der Spieler rechtzeitig → 🔨 Hit (+1 Punkt). Reagiert er zu langsam → 💨 Miss. Nach 9 Runden erscheint das Ergebnis mit inline Claim-Button.
+
+**Reward-Staffelung:**
+| Treffer | Coins | Diamonds | Label |
+|---------|-------|----------|-------|
+| 8–9     | 150   | 6        | 🏆 Perfekt! |
+| 6–7     | 100   | 3        | 🎉 Super! |
+| 4–5     | 70    | 2        | 👍 Gut! |
+| 2–3     | 40    | 1        | Nicht schlecht! |
+| 0–1     | 20    | 0        | 🥲 Üb weiter! |
 
 Die Logik liegt in `components/dailyReward/DailyRewardCard.vue` (eingebettet auf `/games`) und `pages/games/dailyReward/index.vue` (standalone Seite).
 
@@ -182,7 +196,7 @@ Save-Format: `hawk3_game_data.games.hawkCoin`
 |------|--------|
 | `hawk3_game_data` helpers in `localStores.js` | ✅ Fertig |
 | Games Overview Page (`/games`) | ✅ Fertig |
-| Daily Reward (3 rotierende Spiele) | ✅ Fertig |
+| Daily Reward (4 rotierende Spiele) | ✅ Fertig |
 | Hawk Fruit (Endless Mode + Rewards) | ✅ Fertig |
 | Hawk Double-Up (Endless Mode + Rewards) | ✅ Fertig |
 | Hawk Tower (Endless Mode + Rewards) | ✅ Fertig |
