@@ -24,6 +24,12 @@ Jeden Tag wechselt das Minispiel automatisch. Vier Spiele rotieren per Day-Index
 - 🐚 Three Shells (`ThreeShellsGame.vue`) — 1 Runde, Shell-Tipp-Mechanik
 - 🐭 Whack-a-Mole (`WhackAMoleGame.vue`) — 9 Moles, Reaktionsspiel
 
+### Extra Play — Einwurf-Slot
+
+Wer heute schon gespielt hat, kann für **50 Coins** eine Extra-Runde kaufen. Der Spieler wählt aus allen 4 täglichen Spielen frei aus. Der Gewinn (Coins + Diamonds) wird gutgeschrieben, aber der `dailyRewards.counter` wird **nicht** erhöht — kein Mystery-Box-Fortschritt. Coins-Check und Abzug erfolgen vor dem Start. Nach dem Spiel kehrt die Karte zum compakten Claimed-View zurück.
+
+UI: Separator-Linie → Coins-Anzeige (grün/rot je nach Guthaben) → 4 Emoji-Buttons (Spiel wählen) → gelber "Einwerfen"-Button.
+
 ### Whack-a-Mole — Design
 
 9 Löcher (3×3 Grid). Nacheinander taucht je eine Maus zufällig auf (max. 1000 ms sichtbar). Klickt der Spieler rechtzeitig → 🔨 Hit (+1 Punkt). Reagiert er zu langsam → 💨 Miss. Nach 9 Runden erscheint das Ergebnis mit inline Claim-Button.
