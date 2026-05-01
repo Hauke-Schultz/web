@@ -121,20 +121,7 @@ Each planet type produces exactly **one** refined resource in its High-Tech buil
 
 ### Ship Components
 
-Components are produced in specialized labs and equipped on warships before deployment.
-
-**Drive slot** (1 per ship) — boosts base stats:
-
-| Component | Produced in | Effect |
-|-----------|-------------|--------|
-| `power_cell` | Power Cell Lab | +20 Shield · +4 Speed |
-
-**Weapon slots** (2 per ship) — define combat output:
-
-| Component | Produced in | Damage | Accuracy | Armor Piercing |
-|-----------|-------------|--------|----------|----------------|
-| `kinetic_round` | Weapon Lab | 25 | 85% | 5 |
-| `plasma_cell` | Weapon Lab | 40 | 70% | 15 |
+Ship component resources (`power_cell`, `kinetic_round`, `plasma_cell`) are defined in config and produced by tech labs, but are **not yet used** — the equip/slot system has been removed in favor of a simpler warship model. They may return when the combat system is fleshed out.
 
 ---
 
@@ -160,18 +147,18 @@ Units are built at the Space Base tile and consumed on missions. Build time scal
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
 | **Galaxy Probe** | 100 Metal · 50 Crystal | Reveals planet count in a remote star system |
 | **Colony Ship** | 300 Metal · 150 Crystal | Colonizes a scanned uncolonized planet |
-| **Warship** | 600 Metal · 300 Crystal | Combat vessel — see Warship Classes below |
+| **Warship** | 600 Metal · 300 Crystal | One combat vessel per planet — attack target coming in Phase 4 |
 | **Freighter** | 400 Metal · 200 Crystal | Inter-system resource transport |
 
-### Warship Classes
+### Warship Model (simplified)
 
-Defined in `WARSHIP_CLASSES`. Each built warship gets a snapshot of its class stats plus empty slots that the player fills with components before deployment.
+One warship per planet, built in the Warship Bay. No drive or weapon slots — stats come directly from the ship class.
 
-| Class | Hull | Shield | Speed | Drive Slots | Weapon Slots |
-|-------|------|--------|-------|-------------|--------------|
-| **Hawk Frigate** | 150 | 30 | 8 | 1 | 2 |
+| Class | Hull | Shield | Speed |
+|-------|------|--------|-------|
+| **Hawk Frigate** | 150 | 30 | 8 |
 
-A `power_cell` in the drive slot adds +20 shield and +4 speed on top of the base stats.
+The warship sits in the hangar after construction. The **Attack** button (sending it to a target planet and receiving it back after combat) is a placeholder for Phase 4. Drive/weapon slot complexity has been removed — equipment can be reintroduced once the combat system is designed end-to-end with the backend.
 
 ---
 
@@ -182,7 +169,7 @@ A rough progression arc for a single player:
 1. **Colony Phase** — Build up the home planet: unlock slots, raise Metal/Crystal income, balance Energy.
 2. **Expansion** — Research the Star Map in the Comm Center (global, unlocks on all planets), scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
 3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four refined resources (`super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`).
-4. **Military** — Research the Weapons Building, produce ship components (`power_cell`, `kinetic_round`, `plasma_cell`), assemble and equip Hawk Frigates.
+4. **Military** — Build a Hawk Frigate in the Warship Bay. Send it to attack enemy planets once Phase 4 is implemented.
 5. **Diplomacy & Conflict** — Encounter allied and enemy factions across the galaxy. Trade via Freighters or push into contested systems with a war fleet.
 
 ---
@@ -319,7 +306,8 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Recon Drones                                  | ✅ Done |
 | Galaxy Probes                                 | ✅ Done |
 | Colony Ships                                  | ✅ Done |
-| Warships (Hawk Frigate, Drive + Weapon slots) | ✅ Done |
+| Warship (Hawk Frigate, one per planet, hangar) | ✅ Done |
+| Warship attack mission (Phase 4)               | ⬜ Planned |
 | Freighter transport                           | ✅ Done |
 | Galaxy Map (simplified, all systems visible)  | ✅ Done |
 | Solar System view                             | ✅ Done |

@@ -71,8 +71,7 @@ const freshDock = () => ({
   colonyShipInventory:    0,
   colonyShipBuild:        null,
   activeColonyMissions:   [],
-  warships:               [],   // ships in hangar (built, not deployed)
-  fleet:                  [],   // ships in orbit (deployed, ready to fly)
+  warship:                null, // single ship in hangar
   warshipBuild:           null,
   freighterInventory:     0,
   freighterBuild:         null,
@@ -613,11 +612,9 @@ const colonyShipBuildProgressStyle = computed(() => {
   return { width: `${pct}%` }
 })
 
-// ── Warships ───────────────────────────────────────────────
-// Per-planet dock aliases
-const warships         = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warships ?? [])
-const warshipInventory = computed(() => warships.value.length)
-const warshipBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipBuild ?? null)
+// ── Warship (single ship per planet) ──────────────────────
+const warship      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warship ?? null)
+const warshipBuild = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipBuild ?? null)
 
 const warshipBuildTime = computed(() =>
   Math.ceil(UNIT_COSTS.warship.buildTimeBase / Math.max(1, warshipBayLevel.value) * buildTimeFactor.value)
@@ -626,7 +623,7 @@ const warshipBuildTime = computed(() =>
 const canBuildWarship = computed(() =>
   warshipBayLevel.value > 0 &&
   !warshipBuild.value &&
-  warshipInventory.value < warshipBayLevel.value &&
+  !warship.value &&
   canAfford(UNIT_COSTS.warship.cost)
 )
 
@@ -640,92 +637,6 @@ const buildWarship = () => {
   }
   const cls = WARSHIP_CLASSES.frigate
   dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000, classId: cls.id, startedAt: Date.now() }
-}
-
-const equipDrive = (shipId, resId) => {
-  const resDef = RESOURCES[resId]
-  if (!resDef?.drive) return
-  const ps = allPlanetStates.value[activePlanetId.value]
-  if (!ps) return
-  if ((ps.resources[resId] ?? 0) < 1) return
-  const ship = ps.dock?.warships?.find(s => s.id === shipId)
-  if (!ship) return
-  if (!ship.drive) ship.drive = [null]
-  const old = ship.drive[0]
-  if (old?.resourceId) {
-    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
-  }
-  ps.resources[resId] -= 1
-  const comp = SHIP_COMPONENTS[resId]
-  ship.drive[0] = { resourceId: resId, icon: resDef.icon, name: resDef.name, shield: comp?.shield ?? 0, speed: comp?.speed ?? 0 }
-}
-
-const unequipDrive = (shipId) => {
-  const ps = allPlanetStates.value[activePlanetId.value]
-  if (!ps) return
-  const ship = ps.dock?.warships?.find(s => s.id === shipId)
-  if (!ship?.drive?.[0]) return
-  const old = ship.drive[0]
-  if (old?.resourceId) {
-    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
-  }
-  ship.drive[0] = null
-}
-
-const equipWeapon = (shipId, slotIndex, weaponResId) => {
-  const resDef = RESOURCES[weaponResId]
-  if (!resDef?.weapon || resDef.drive) return
-  const ps = allPlanetStates.value[activePlanetId.value]
-  if (!ps) return
-  if ((ps.resources[weaponResId] ?? 0) < 1) return
-  const ship = ps.dock?.warships?.find(s => s.id === shipId)
-  if (!ship || slotIndex < 0 || slotIndex >= ship.weapons.length) return
-  const old = ship.weapons[slotIndex]
-  if (old?.resourceId) {
-    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
-  }
-  ps.resources[weaponResId] -= 1
-  const comp = SHIP_COMPONENTS[weaponResId]
-  ship.weapons[slotIndex] = { resourceId: weaponResId, icon: resDef.icon, name: resDef.name, damage: comp?.damage ?? 0, accuracy: comp?.accuracy ?? 0, armorPiercing: comp?.armorPiercing ?? 0 }
-}
-
-const unequipWeapon = (shipId, slotIndex) => {
-  const ps = allPlanetStates.value[activePlanetId.value]
-  if (!ps) return
-  const ship = ps.dock?.warships?.find(s => s.id === shipId)
-  if (!ship || slotIndex < 0 || slotIndex >= ship.weapons.length) return
-  const old = ship.weapons[slotIndex]
-  if (!old) return
-  if (old.resourceId) {
-    ps.resources[old.resourceId] = (ps.resources[old.resourceId] ?? 0) + 1
-  }
-  ship.weapons[slotIndex] = null
-}
-
-const fleetInOrbit = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.fleet ?? [])
-
-const shipHasPowerCell = (ship) => ship.drive?.[0]?.resourceId === 'power_cell'
-
-const deployToOrbit = (shipId) => {
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  const idx = dock.warships.findIndex(s => s.id === shipId)
-  if (idx === -1) return
-  const ship = dock.warships[idx]
-  if (!shipHasPowerCell(ship)) return
-  dock.warships.splice(idx, 1)
-  if (!dock.fleet) dock.fleet = []
-  dock.fleet.push(ship)
-}
-
-const recallFromOrbit = (shipId) => {
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock?.fleet) return
-  const idx = dock.fleet.findIndex(s => s.id === shipId)
-  if (idx === -1) return
-  const ship = dock.fleet.splice(idx, 1)[0]
-  if (!dock.warships) dock.warships = []
-  dock.warships.push(ship)
 }
 
 const warshipBuildProgressStyle = computed(() => {
@@ -950,7 +861,7 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 17
+const SAVE_VERSION = 18
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -1018,21 +929,7 @@ const loadGame = () => {
             activeGalaxyProbes:     Array.isArray(savedDock.activeGalaxyProbes)     ? savedDock.activeGalaxyProbes     : [],
             activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
             activeFreighterMissions: Array.isArray(savedDock.activeFreighterMissions) ? savedDock.activeFreighterMissions : [],
-            fleet: (Array.isArray(savedDock.fleet) ? savedDock.fleet : []).map(s => {
-              if (Array.isArray(s.drive)) return s
-              const driveItem = (s.weapons ?? []).find(w => w?.resourceId === 'power_cell') ?? null
-              const cleanWeapons = (s.weapons ?? []).filter(w => w?.resourceId !== 'power_cell')
-              while (cleanWeapons.length < 2) cleanWeapons.push(null)
-              return { ...s, drive: [driveItem], weapons: cleanWeapons.slice(0, 2) }
-            }),
-            warships: (Array.isArray(savedDock.warships) ? savedDock.warships : []).map(s => {
-              if (Array.isArray(s.drive)) return s
-              // migrate old saves: move power_cell from weapons → drive
-              const driveItem = (s.weapons ?? []).find(w => w?.resourceId === 'power_cell') ?? null
-              const cleanWeapons = (s.weapons ?? []).filter(w => w?.resourceId !== 'power_cell')
-              while (cleanWeapons.length < 2) cleanWeapons.push(null)
-              return { ...s, drive: [driveItem], weapons: cleanWeapons.slice(0, 2) }
-            }),
+            warship: savedDock.warship ?? null,
           },
           conversionQueues: Array.isArray(ps.conversionQueues) ? ps.conversionQueues : [],
         }
@@ -1231,9 +1128,8 @@ const tick = () => {
       }
       // Warship build
       if (dock.warshipBuild && dock.warshipBuild.endsAt <= now.value) {
-        if (!dock.warships) dock.warships = []
         const cls = WARSHIP_CLASSES[dock.warshipBuild.classId] ?? WARSHIP_CLASSES.frigate
-        dock.warships.push({
+        dock.warship = {
           id:        `ws_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           classId:   cls.id,
           name:      cls.name,
@@ -1243,9 +1139,7 @@ const tick = () => {
           shield:    cls.shield,
           shieldMax: cls.shield,
           speed:     cls.speed,
-          drive:     Array(cls.driveSlots ?? 1).fill(null),
-          weapons:   Array(cls.weaponSlots).fill(null),
-        })
+        }
         notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_warship`, type: 'unit_done', icon: '⚔️', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.warshipReady', labelParams: { name: cls.name }, timestamp: Date.now() })
         dock.warshipBuild = null
       }
@@ -1482,22 +1376,13 @@ export function useHawkStar() {
     colonyProgressStyle,
     colonyShipBuildProgressStyle,
     colonyFlightTimeBetween,
-    // warships
-    warships,
-    warshipInventory,
+    // warship
+    warship,
     warshipBuild,
     warshipBuildTime,
     canBuildWarship,
     buildWarship,
     warshipBuildProgressStyle,
-    equipDrive,
-    unequipDrive,
-    equipWeapon,
-    unequipWeapon,
-    fleetInOrbit,
-    shipHasPowerCell,
-    deployToOrbit,
-    recallFromOrbit,
     // freighters
     freighterBayLevel,
     freighterInventory,

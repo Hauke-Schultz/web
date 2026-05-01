@@ -162,14 +162,15 @@ missions (
 warships (
   id        INT AUTO_INCREMENT PRIMARY KEY,
   player_id INT NOT NULL,
-  planet_id INT NOT NULL,
+  planet_id INT NOT NULL,      -- home planet (one warship per planet)
   name      VARCHAR(128),
   class_id  VARCHAR(64) DEFAULT 'frigate',
   hull      INT,
   shield    INT,
-  drive     JSON NULL,
-  weapons   JSON NULL,
-  in_orbit  TINYINT(1) DEFAULT 0
+  speed     INT,
+  status    ENUM('hangar','in_flight','returning') DEFAULT 'hangar'
+  -- Note: drive/weapon slots intentionally omitted for now.
+  -- Equipment system can be added when combat is designed end-to-end.
 )
 
 conversion_queues (
@@ -215,11 +216,12 @@ GET  /game/missions            → all active missions for player
 GET  /galaxy                   → all systems + planet ownership (all players)
 GET  /galaxy/system/:id        → system detail
 
--- Fleet (Phase 1: build & equip only, no combat yet)
+-- Warship (Phase 1: build only)
 POST /game/warship/build       { planetId }
-POST /game/warship/equip       { warshipId, slot, componentId }
-POST /game/warship/orbit       { warshipId }
-POST /game/warship/recall      { warshipId }
+
+-- Warship (Phase 4: combat)
+POST /game/warship/attack      { fromPlanetId, toPlanetId }
+GET  /game/warship/status      → warship state (hangar / in_flight / returning)
 ```
 
 ---
@@ -258,11 +260,36 @@ POST /game/warship/recall      { warshipId }
 
 ### Phase 4 — Kampf
 
-- Warships deployed to orbit can be sent on attack missions
-- Combat is resolved server-side, turn-based per engagement
-- Attacker sends fleet → server resolves combat on arrival using ship stats (hull, shield, weapons, accuracy, armor piercing)
-- Result: defender loses/keeps planet, ships take damage, destroyed ships are removed
-- Table: `combat_logs (id, attacker_id, defender_id, planet_id, result JSON, fought_at)`
+**Warship Model:** One warship per planet (no fleet concept for now). The ship sits in the hangar after construction. Drive/weapon slots are intentionally absent — a simpler stat-based combat keeps the scope manageable and the backend schema clean.
+
+**Attack Flow:**
+1. Player selects an enemy planet on the Galaxy Map → clicks "Attack"
+2. Frontend sends `POST /game/warship/attack { fromPlanetId, toPlanetId }`
+3. Server sets warship `status = 'in_flight'`, calculates `arrives_at` from ship speed
+4. On arrival, server resolves combat using attacker/defender hull+shield stats
+5. Result written to `combat_logs`, warship set to `status = 'returning'`
+6. After return flight, warship back in `'hangar'` — damaged hull is carried over
+
+**Combat Resolution (server-side):**
+- Attacker deals damage = ship hull × 0.6 (base formula, tunable)
+- Defender's planet defenses reduce incoming damage
+- If defender hull reaches 0 → attacker wins (planet ownership transfers or is raided)
+- Ships take damage regardless — no permanent destruction in Phase 4 (hull resets after return)
+
+**Tables:**
+```sql
+combat_logs (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  attacker_id  INT NOT NULL REFERENCES players(id),
+  defender_id  INT NOT NULL REFERENCES players(id),
+  planet_id    INT NOT NULL REFERENCES planets(id),
+  attacker_won TINYINT(1),
+  result       JSON,   -- hull remaining, damage dealt, resources raided
+  fought_at    DATETIME
+)
+```
+
+**Not in Phase 4:** Fleet battles (multiple ships), weapon loadouts, orbital bombardment — these depend on how the combat system feels in practice.
 
 ---
 
