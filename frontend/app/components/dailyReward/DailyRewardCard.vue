@@ -6,6 +6,7 @@ import SlotMachineGame  from './SlotMachineGame.vue'
 import FortuneWheelGame from './FortuneWheelGame.vue'
 import ThreeShellsGame  from './ThreeShellsGame.vue'
 import WhackAMoleGame   from './WhackAMoleGame.vue'
+import ScratchCardGame  from './ScratchCardGame.vue'
 
 const { t } = useI18n()
 
@@ -18,7 +19,8 @@ const DAILY_GAMES = [
   { key: 'slot',   label: 'Slot Machine',  emoji: '🎰', component: SlotMachineGame  },
   { key: 'wheel',  label: 'Fortune Wheel', emoji: '🎡', component: FortuneWheelGame },
   { key: 'shells', label: 'Three Shells',  emoji: '🐚', component: ThreeShellsGame  },
-  { key: 'mole',   label: 'Whack-a-Mole', emoji: '🐭', component: WhackAMoleGame   },
+  { key: 'mole',    label: 'Whack-a-Mole', emoji: '🐭', component: WhackAMoleGame   },
+  { key: 'scratch', label: 'Scratch Card', emoji: '🎟️', component: ScratchCardGame  },
 ]
 const dayIndex  = Math.floor(Date.now() / 86400000)
 const todayGame = DAILY_GAMES[dayIndex % DAILY_GAMES.length]

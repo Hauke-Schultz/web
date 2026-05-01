@@ -87,7 +87,13 @@
       "extra_pick_game": "Pick a game ↑",
       "extra_play_btn": "{emoji} {label} — insert {cost} 💰",
       "extra_header": "Extra Round · {emoji} {label}",
-      "extra_deducted": "-{cost} 💰"
+      "extra_deducted": "-{cost} 💰",
+      "scratch_start": "🎟️ Get Card",
+      "scratch_reveal_all": "Reveal All",
+      "scratch_line": "🎉 3 in a Row!",
+      "scratch_triple": "✨ Three of a Kind!",
+      "scratch_pair": "💫 Pair!",
+      "scratch_none": "🥲 No Match"
     },
     "shop": {
       "title": "Shop",

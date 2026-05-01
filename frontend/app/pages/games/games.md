@@ -18,11 +18,32 @@ Alle alten Spiele hatten **6 Level** mit LevelSelection-Screen. Im neuen System 
 
 ## Daily Reward — Spiel-Rotation
 
-Jeden Tag wechselt das Minispiel automatisch. Vier Spiele rotieren per Day-Index:
+Jeden Tag wechselt das Minispiel automatisch. Fünf Spiele rotieren per Day-Index:
 - 🎰 Slot Machine (`SlotMachineGame.vue`) — 5 Versuche, Lever-Steuerung
 - 🎡 Fortune Wheel (`FortuneWheelGame.vue`) — 5 Versuche, Lever-Steuerung
 - 🐚 Three Shells (`ThreeShellsGame.vue`) — 1 Runde, Shell-Tipp-Mechanik
 - 🐭 Whack-a-Mole (`WhackAMoleGame.vue`) — 9 Moles, Reaktionsspiel
+- 🎟️ Scratch Card (`ScratchCardGame.vue`) — 3×3 Kratzkarte, Symbole aufdecken
+
+### Scratch Card — Design
+
+3×3 Grid (9 Felder), alle verdeckt. Spieler tippt jedes Feld einzeln an um es aufzudecken, oder nutzt "Alle aufdecken" für eine sequenzielle Auto-Animation. Nach Aufdecken aller 9 Felder wird das Ergebnis anhand der Symbole bewertet.
+
+**Gewinn-Logik (Priorität absteigend):**
+1. 3 gleiche Symbole in einer Reihe/Spalte/Diagonale → **Line** (wie Tic-Tac-Toe)
+2. 3 gleiche Symbole irgendwo → **Triple**
+3. 2 gleiche Symbole → **Pair**
+4. Keine Übereinstimmung → **Trostpreis**
+
+**Reward-Staffelung:**
+| Ergebnis | Coins | Diamonds | Label |
+|----------|-------|----------|-------|
+| Line     | 180   | 7        | 🎉 3 in einer Reihe! |
+| Triple   | 110   | 4        | ✨ Drei Gleiche! |
+| Pair     | 55    | 1        | 💫 Pärchen! |
+| None     | 20    | 0        | 🥲 Kein Treffer |
+
+Gewinnende Felder werden grün hervorgehoben. Symbole: 💰 💎 ⭐ 🔔 🍀
 
 ### Extra Play — Einwurf-Slot
 

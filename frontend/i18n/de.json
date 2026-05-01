@@ -86,7 +86,13 @@
       "extra_pick_game": "Spiel auswählen ↑",
       "extra_play_btn": "{emoji} {label} — {cost} 💰 einwerfen",
       "extra_header": "Extra Runde · {emoji} {label}",
-      "extra_deducted": "-{cost} 💰"
+      "extra_deducted": "-{cost} 💰",
+      "scratch_start": "🎟️ Karte aufdecken",
+      "scratch_reveal_all": "Alle aufdecken",
+      "scratch_line": "🎉 3 in einer Reihe!",
+      "scratch_triple": "✨ Drei Gleiche!",
+      "scratch_pair": "💫 Pärchen!",
+      "scratch_none": "🥲 Kein Treffer"
     },
     "shop": {
       "title": "Shop",
