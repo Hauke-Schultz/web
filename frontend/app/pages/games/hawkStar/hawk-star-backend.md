@@ -173,6 +173,17 @@ warships (
   -- Equipment system can be added when combat is designed end-to-end.
 )
 
+-- One freighter per planet. No inventory count — boolean presence.
+-- When in transit the row is absent or status = 'in_flight'; on arrival it is recreated at the destination.
+-- Alternatively modelled as a nullable FK on planet_ownership and tracked via the missions table.
+freighters (
+  id        INT AUTO_INCREMENT PRIMARY KEY,
+  player_id INT NOT NULL,
+  planet_id INT NOT NULL,      -- current home planet (changes on arrival)
+  status    ENUM('hangar','in_flight') DEFAULT 'hangar',
+  UNIQUE (player_id, planet_id)
+)
+
 conversion_queues (
   id           INT AUTO_INCREMENT PRIMARY KEY,
   planet_id    INT NOT NULL,
@@ -241,7 +252,8 @@ GET  /game/warship/status      → warship state (hangar / in_flight / returning
 ### Phase 2 — Handel & Kommunikation
 
 **Freighter Trade:**
-- Freighters fly between your own colonies to redistribute resources
+- One freighter per planet (boolean hangar state — either present or in transit)
+- Freighters fly between your own colonies to redistribute resources; on arrival the freighter is available at the destination planet
 - Later: trade offers between players — a player posts an offer (X metal for Y crystal), another accepts
 - Trade routes are logged in a `trade_offers` table
 

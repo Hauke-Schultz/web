@@ -19,6 +19,7 @@
       "probeReturned": "Galaxy Probe zurückgekehrt",
       "colonyLanded": "Colony Ship gelandet",
       "freighterArrived": "Frachter angekommen",
+      "freighterReturned": "Frachter zurückgekehrt",
 
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone wird gebaut",
@@ -72,7 +73,7 @@
       "reconDroneDesc": "Erkunde Planeten in deinem Heimatsystem",
       "galaxyProbeDesc": "Erkunde entfernte Sternensysteme",
       "colonyShipDesc": "Kolonisiere unbewohnte Planeten",
-      "warshipDesc": "Schweres Kampfschiff. Benötigt Super-Legierung & Reinkristall.",
+      "warshipDesc": "Schweres Kampfschiff.",
       "freighterDesc": "Transportiert Ressourcen zwischen Kolonien · {capacity} Fracht",
       "drive": "Antrieb",
       "noDrive": "— kein Antrieb —",
@@ -346,10 +347,10 @@
       },
       "warship_bay": {
         "name": "Kriegsschiffwerft",
-        "desc": "Schwere Baudock für Kriegsschiffe. Benötigt Super-Legierung und Reinkristall.",
+        "desc": "Schwere Baudock für Kriegsschiffe.",
         "lv1": "Ermöglicht Kriegsschiffbau · 1 Kriegsschiffslot · 12 Energie · 5 Arbeiter",
-        "lv2": "2× Baugeschwindigkeit · 2 Slots · Feuerkraft +50% · 20 Energie · 8 Arbeiter",
-        "lv3": "4× Baugeschwindigkeit · 3 Slots · Feuerkraft +120% · 35 Energie · 14 Arbeiter"
+        "lv2": "2× Baugeschwindigkeit · 2 Slots · 20 Energie · 8 Arbeiter",
+        "lv3": "4× Baugeschwindigkeit · 3 Slots · 35 Energie · 14 Arbeiter"
       },
       "freighter_bay": {
         "name": "Frachterdock",

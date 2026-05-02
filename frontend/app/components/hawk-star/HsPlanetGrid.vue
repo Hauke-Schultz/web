@@ -60,7 +60,7 @@ const dockInfo = computed(() => {
   if ((dock.reconDroneInventory  ?? 0) > 0 || dock.reconDroneBuild)  inventory.push({ icon: '🛸', ...ship(dock.reconDroneInventory,  dock.reconDroneBuild) })
   if ((dock.galaxyProbeInventory ?? 0) > 0 || dock.galaxyProbeBuild) inventory.push({ icon: '🔭', ...ship(dock.galaxyProbeInventory, dock.galaxyProbeBuild) })
   if ((dock.colonyShipInventory  ?? 0) > 0 || dock.colonyShipBuild)  inventory.push({ icon: '🚀', ...ship(dock.colonyShipInventory,  dock.colonyShipBuild) })
-  if ((dock.freighterInventory   ?? 0) > 0 || dock.freighterBuild)   inventory.push({ icon: '🚢', ...ship(dock.freighterInventory,   dock.freighterBuild) })
+  if (dock.freighter || dock.freighterBuild)   inventory.push({ icon: '🚢', ...ship(dock.freighter ? 1 : 0, dock.freighterBuild) })
 
   const missions = (dock.activeDroneMissions?.length    ?? 0)
                  + (dock.activeGalaxyProbes?.length      ?? 0)

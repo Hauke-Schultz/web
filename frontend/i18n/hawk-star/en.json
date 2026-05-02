@@ -17,6 +17,7 @@
       "probeReturned": "Galaxy Probe returned",
       "colonyLanded": "Colony Ship landed",
       "freighterArrived": "Freighter arrived",
+      "freighterReturned": "Freighter returned",
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone building",
       "probeBuilding": "Galaxy Probe building",
@@ -68,7 +69,7 @@
       "reconDroneDesc": "Scout planets in your home system",
       "galaxyProbeDesc": "Scout distant star systems",
       "colonyShipDesc": "Colonize unoccupied planets",
-      "warshipDesc": "Heavy combat vessel. Requires Super Alloy & Pure Crystal.",
+      "warshipDesc": "Heavy combat vessel.",
       "freighterDesc": "Transport resources between colonies · {capacity} cargo",
       "drive": "Drive",
       "noDrive": "— no drive —",
@@ -160,7 +161,7 @@
       "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
       "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" },
       "dock":        { "name": "Dock",        "desc": "Ship management, missions and fleet operations" },
-      "warship_bay": { "name": "Warship Bay", "desc": "Heavy warship construction — placeholder" },
+      "warship_bay": { "name": "Warship Bay", "desc": "Heavy warship construction" },
       "orbit":       { "name": "Orbit",       "desc": "Orbital infrastructure — placeholder" }
     },
 
@@ -342,10 +343,10 @@
       },
       "warship_bay": {
         "name": "Warship Bay",
-        "desc": "Heavy construction dock for warships. Requires Super Alloy and Pure Crystal.",
+        "desc": "Heavy construction dock for warships.",
         "lv1": "Enables warship construction · 1 warship slot · uses 12 energy · 5 workers",
-        "lv2": "2× build speed · 2 warship slots · firepower +50% · uses 20 energy · 8 workers",
-        "lv3": "4× build speed · 3 warship slots · firepower +120% · uses 35 energy · 14 workers"
+        "lv2": "2× build speed · 2 warship slots · uses 20 energy · 8 workers",
+        "lv3": "4× build speed · 3 warship slots · uses 35 energy · 14 workers"
       },
       "freighter_bay": {
         "name": "Freighter Bay",

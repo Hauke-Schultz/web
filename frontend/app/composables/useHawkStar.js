@@ -73,7 +73,7 @@ const freshDock = () => ({
   activeColonyMissions:   [],
   warship:                null, // single ship in hangar
   warshipBuild:           null,
-  freighterInventory:     0,
+  freighter:              false, // single freighter in hangar (boolean)
   freighterBuild:         null,
   activeFreighterMissions: [],
 })
@@ -648,7 +648,7 @@ const warshipBuildProgressStyle = computed(() => {
 
 // ── Freighters (resource transport between colonies) ────────
 // Per-planet dock aliases
-const freighterInventory      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighterInventory ?? 0)
+const freighter               = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighter ?? false)
 const freighterBuild          = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighterBuild ?? null)
 const activeFreighterMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeFreighterMissions ?? [])
 const allActiveFreighterMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeFreighterMissions ?? []))
@@ -664,6 +664,7 @@ const freighterCargoCapacity = computed(() =>
 const canBuildFreighter = computed(() =>
   freighterBayLevel.value > 0 &&
   !freighterBuild.value &&
+  !freighter.value &&
   canAfford(UNIT_COSTS.freighter.cost)
 )
 
@@ -707,7 +708,7 @@ const planetHasDock = (planetId) =>
   (allPlanetStates.value[planetId]?.slots ?? []).some(s => s.tileType === 'dock' && s.unlocked)
 
 const canSendFreighter = (fromPlanetId, toPlanetId, cargo) => {
-  if (freighterInventory.value <= 0) return false
+  if (!freighter.value) return false
   if (!fromPlanetId || !toPlanetId || fromPlanetId === toPlanetId) return false
   if (!allPlanetStates.value[fromPlanetId] || !allPlanetStates.value[toPlanetId]) return false
   const total = Object.values(cargo).reduce((a, b) => a + b, 0)
@@ -727,16 +728,18 @@ const sendFreighter = (fromPlanetId, toPlanetId, cargo) => {
   for (const [r, amt] of Object.entries(cargo)) {
     if (amt > 0) fromRes[r] -= amt
   }
-  dock.freighterInventory -= 1
+  dock.freighter = false
   const ft = freighterFlightTimeBetween(fromPlanetId, toPlanetId)
   dock.activeFreighterMissions.push({
     id:           Date.now(),
+    homePlanetId: fromPlanetId,
     fromPlanetId,
     toPlanetId,
     cargo:        { ...cargo },
     endsAt:       Date.now() + ft * 1000,
     flightTime:   ft,
     startedAt:    Date.now(),
+    phase:        'outbound',
   })
 }
 
@@ -861,7 +864,7 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 18
+const SAVE_VERSION = 19
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -929,7 +932,8 @@ const loadGame = () => {
             activeGalaxyProbes:     Array.isArray(savedDock.activeGalaxyProbes)     ? savedDock.activeGalaxyProbes     : [],
             activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
             activeFreighterMissions: Array.isArray(savedDock.activeFreighterMissions) ? savedDock.activeFreighterMissions : [],
-            warship: savedDock.warship ?? null,
+            warship:    savedDock.warship ?? null,
+            freighter:  savedDock.freighter ?? false,
           },
           conversionQueues: Array.isArray(ps.conversionQueues) ? ps.conversionQueues : [],
         }
@@ -1145,14 +1149,17 @@ const tick = () => {
       }
       // Freighter build
       if (dock.freighterBuild && dock.freighterBuild.endsAt <= now.value) {
-        dock.freighterInventory += 1
+        dock.freighter = true
         dock.freighterBuild = null
         notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_freighter`, type: 'unit_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterReady', timestamp: Date.now() })
       }
-      // Freighter missions → deliver cargo
+      // Freighter missions → deliver cargo, then return to home planet
       for (let i = dock.activeFreighterMissions.length - 1; i >= 0; i--) {
         const m = dock.activeFreighterMissions[i]
-        if (m.endsAt <= now.value) {
+        if (m.endsAt > now.value) continue
+
+        if (m.phase !== 'returning') {
+          // Outbound leg arrived — deliver cargo
           const toPlanetState = allPlanetStates.value[m.toPlanetId]
           if (toPlanetState) {
             const caps = maxStorageForPlanet(m.toPlanetId)
@@ -1163,10 +1170,25 @@ const tick = () => {
                 ? Math.min((toPlanetState.resources[r] ?? 0) + amt, cap)
                 : (toPlanetState.resources[r] ?? 0) + amt
             }
-            toPlanetState.dock.freighterInventory += 1
           }
           const toName = allPlanetStates.value[m.toPlanetId]?.planetName ?? m.toPlanetId
           notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_freight_${m.id}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterArrived', details: `→ ${toName}`, timestamp: Date.now() })
+          // Start return trip
+          const homePId      = m.homePlanetId ?? m.fromPlanetId
+          const arrivedAt    = m.toPlanetId
+          m.phase            = 'returning'
+          m.fromPlanetId     = arrivedAt
+          m.toPlanetId       = homePId
+          m.cargo            = {}
+          m.startedAt        = now.value
+          m.endsAt           = now.value + m.flightTime * 1000
+        } else {
+          // Return leg arrived — freighter back in hangar
+          const homePId      = m.homePlanetId
+          const homeState    = allPlanetStates.value[homePId]
+          if (homeState) homeState.dock.freighter = true
+          const homeName     = homeState?.planetName ?? homePId
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_freight_ret_${m.id}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterReturned', details: `← ${homeName}`, timestamp: Date.now() })
           dock.activeFreighterMissions.splice(i, 1)
         }
       }
@@ -1385,7 +1407,7 @@ export function useHawkStar() {
     warshipBuildProgressStyle,
     // freighters
     freighterBayLevel,
-    freighterInventory,
+    freighter,
     freighterBuild,
     activeFreighterMissions,
     allActiveFreighterMissions,

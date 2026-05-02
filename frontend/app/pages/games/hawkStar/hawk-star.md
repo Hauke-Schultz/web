@@ -148,7 +148,7 @@ Units are built at the Space Base tile and consumed on missions. Build time scal
 | **Galaxy Probe** | 100 Metal · 50 Crystal | Reveals planet count in a remote star system |
 | **Colony Ship** | 300 Metal · 150 Crystal | Colonizes a scanned uncolonized planet |
 | **Warship** | 600 Metal · 300 Crystal | One combat vessel per planet — attack target coming in Phase 4 |
-| **Freighter** | 400 Metal · 200 Crystal | Inter-system resource transport |
+| **Freighter** | 400 Metal · 200 Crystal | One transport per planet — carries cargo between colonies |
 
 ### Warship Model (simplified)
 
@@ -159,6 +159,12 @@ One warship per planet, built in the Warship Bay. No drive or weapon slots — s
 | **Hawk Frigate** | 150 | 30 | 8 |
 
 The warship sits in the hangar after construction. The **Attack** button (sending it to a target planet and receiving it back after combat) is a placeholder for Phase 4. Drive/weapon slot complexity has been removed — equipment can be reintroduced once the combat system is designed end-to-end with the backend.
+
+### Freighter Model (simplified)
+
+One freighter per planet, built at the Freighter Bay. State is boolean — either the freighter is in the hangar (`freighter: true`) or it is in transit (`freighter: false`). There is no inventory count. Building a second freighter is blocked as long as one exists on the planet.
+
+When the freighter arrives at its destination, the destination planet's hangar flag is set to `true`. The player must then dispatch it from there or wait for it to return. Cargo capacity scales with Freighter Bay level.
 
 ---
 
@@ -308,7 +314,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Colony Ships                                  | ✅ Done |
 | Warship (Hawk Frigate, one per planet, hangar) | ✅ Done |
 | Warship attack mission (Phase 4)               | ⬜ Planned |
-| Freighter transport                           | ✅ Done |
+| Freighter (one per planet, boolean hangar state) | ✅ Done |
 | Galaxy Map (simplified, all systems visible)  | ✅ Done |
 | Solar System view                             | ✅ Done |
 | Dev mode — tick rate & build time factor      | ✅ Done |

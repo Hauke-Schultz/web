@@ -33,7 +33,7 @@ const {
   colonyShipBuildProgressStyle,
   // freighters
   freighterBayLevel,
-  freighterInventory,
+  freighter,
   freighterBuild,
   activeFreighterMissions,
   freighterBuildTime,
@@ -194,7 +194,7 @@ const hasMissions = computed(() =>
       <div class="hs-building-row">
         <div class="hs-building-icon-wrap">
           <span class="hs-building-icon">🚢</span>
-          <span v-if="freighterInventory > 0" class="hs-level-badge hs-level-badge--freighter">{{ freighterInventory }}</span>
+          <span v-if="freighter" class="hs-level-badge hs-level-badge--freighter">1</span>
         </div>
         <div class="hs-building-info">
           <div class="hs-building-name">{{ t('hawkStar.dock.freighter') }}</div>
@@ -254,7 +254,9 @@ const hasMissions = computed(() =>
       <div v-for="m in activeFreighterMissions" :key="m.id" class="hs-dock-mission-row">
         <span class="hs-dock-mission-icon">🚢</span>
         <div class="hs-dock-mission-info">
-          <span class="hs-dock-mission-label">{{ getPlanetLabel(m.fromPlanetId) }} → {{ getPlanetLabel(m.toPlanetId) }}</span>
+          <span class="hs-dock-mission-label">
+            {{ m.phase === 'returning' ? '← ' + getPlanetLabel(m.toPlanetId) : getPlanetLabel(m.fromPlanetId) + ' → ' + getPlanetLabel(m.toPlanetId) }}
+          </span>
           <div class="hs-dock-mission-cargo">
             <template v-for="(amt, resId) in m.cargo" :key="resId">
               <span v-if="amt > 0" class="hs-dock-cargo-tag">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
@@ -269,7 +271,7 @@ const hasMissions = computed(() =>
     </div>
 
     <!-- Freighter cargo -->
-    <div v-if="freighterInventory > 0" class="hs-freighter-cargo-panel">
+    <div v-if="freighter" class="hs-freighter-cargo-panel">
       <div class="hs-freighter-cargo-header">
         <span class="hs-freighter-cargo-title">🚢 {{ t('hawkStar.dock.loadFreighter') }}</span>
         <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>

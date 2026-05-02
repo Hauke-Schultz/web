@@ -25,19 +25,14 @@ const {
   playerResources,
   // warships
   warshipBayLevel,
-  warshipInventory,
-  warships,
-  fleetInOrbit,
-  shipHasPowerCell,
-  deployToOrbit,
-  recallFromOrbit,
+  warship,
   // galaxy probes
   galaxyProbeLevel,
   galaxyProbeInventory,
   activeGalaxyProbes,
   remainingProbeSec,
   // freighters
-  freighterInventory,
+  freighter,
   activeFreighterMissions, allActiveFreighterMissions,
   freighterCargoCapacity,
   sendFreighter,
@@ -84,6 +79,7 @@ const selectedIsOwn = computed(() => selectedPlanetId.value !== null)
 const tileClass = (planet) => [
   `hs-solar-tile--${effectivePlanetState(planet)}`,
   selectedPlanetId.value === planet.id ? 'hs-solar-tile--selected' : '',
+  planet.id === activePlanetId.value ? 'hs-solar-tile--active' : '',
 ]
 
 const flightTime = (targetPlanetId) =>
@@ -232,7 +228,6 @@ const doSendFreighter = () => {
           <span class="hs-solar-tile-state" :style="{ color: STATE_COLOR.own }">
             {{ playerName }}
           </span>
-	        <span v-if="planet.id === activePlanetId" class="hs-solar-active-tag">{{ t('hawkStar.solar.active') }}</span>
           <span v-if="planet.slots !== null" class="hs-solar-tile-slots">{{ planet.slots }} {{ t('hawkStar.solar.slots') }}</span>
           <!-- Unit counts when selected -->
           <div v-if="selectedPlanetId === planet.id" class="hs-solar-tile-units">
@@ -253,7 +248,7 @@ const doSendFreighter = () => {
             <span class="hs-solar-tile-freighter-timer">🚢 {{ formatTime(remainingFreighterSec(m.id)) }}</span>
           </div>
           <!-- Freighter destination + send buttons -->
-          <template v-if="freighterInventory > 0 && planet.id !== activePlanetId && planetHasDock(planet.id)">
+          <template v-if="freighter && planet.id !== activePlanetId && planetHasDock(planet.id)">
             <button
               class="hs-freighter-dest-btn"
               :class="{ 'hs-freighter-dest-btn--active': freighterDest === planet.id }"
@@ -365,7 +360,7 @@ const doSendFreighter = () => {
           @click="dockTab = dockTab === 'freighter' ? null : 'freighter'"
         >
           <span class="hs-dock-slot__icon">🚢</span>
-          <span class="hs-dock-slot__count">{{ freighterInventory }}</span>
+          <span class="hs-dock-slot__count">{{ freighter ? 1 : 0 }}</span>
           <span class="hs-dock-slot__name">{{ t('hawkStar.dock.freighter') }}</span>
         </button>
         <button
@@ -375,7 +370,7 @@ const doSendFreighter = () => {
           @click="dockTab = dockTab === 'warship' ? null : 'warship'"
         >
           <span class="hs-dock-slot__icon">⚔️</span>
-          <span class="hs-dock-slot__count">{{ warshipInventory }}<span v-if="fleetInOrbit.length" class="hs-dock-slot__orbit"> +{{ fleetInOrbit.length }}🛰</span></span>
+          <span class="hs-dock-slot__count">{{ warship ? 1 : 0 }}</span>
           <span class="hs-dock-slot__name">{{ t('hawkStar.dock.warship') }}</span>
         </button>
       </div>
@@ -402,7 +397,9 @@ const doSendFreighter = () => {
         </div>
         <div v-for="m in allActiveFreighterMissions" :key="m.id" class="hs-dock-mission-row hs-dock-mission-row--freighter">
           <span class="hs-dock-mission-icon">🚢</span>
-          <span class="hs-dock-mission-dest">→ {{ planets.find(p => p.id === m.toPlanetId)?.name ?? m.toPlanetId }}</span>
+          <span class="hs-dock-mission-dest">
+            {{ m.phase === 'returning' ? '← ' + (planets.find(p => p.id === m.toPlanetId)?.name ?? m.toPlanetId) : '→ ' + (planets.find(p => p.id === m.toPlanetId)?.name ?? m.toPlanetId) }}
+          </span>
           <span class="hs-dock-mission-timer">{{ formatTime(remainingFreighterSec(m.id)) }}</span>
         </div>
       </div>
@@ -504,16 +501,16 @@ const doSendFreighter = () => {
         </div>
       </div>
 
-      <!-- Warship build + hangar + orbit -->
+      <!-- Warship build + hangar -->
       <div v-if="dockTab === 'warship'" class="hs-dock-expand">
         <!-- Build row -->
         <div class="hs-dock-row hs-dock-row--warship">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">⚔️</span>
-            <span v-if="warshipInventory > 0" class="hs-dock-badge hs-dock-badge--warship">{{ warshipInventory }}</span>
+            <span v-if="warship" class="hs-dock-badge hs-dock-badge--warship">1</span>
           </div>
           <div class="hs-dock-info">
-            <div class="hs-dock-name">Warship <span class="hs-dock-count">× {{ warshipInventory }} / {{ warshipBayLevel }}</span></div>
+            <div class="hs-dock-name">{{ t('hawkStar.dock.warship') }}</div>
             <div class="hs-dock-cost-row">
               <span v-for="(amt, resId) in UNIT_COSTS.warship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
               <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
@@ -525,39 +522,18 @@ const doSendFreighter = () => {
           </div>
           <div class="hs-dock-action">
             <span v-if="warshipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+            <span v-else-if="warship" class="hs-status-ready">{{ t('hawkStar.dock.readyForDeployment') }}</span>
             <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">{{ t('hawkStar.dock.btnBuild') }}</button>
           </div>
         </div>
         <!-- Hangar -->
-        <div v-if="warships.length" class="hs-warship-section">
+        <div v-if="warship" class="hs-warship-section">
           <span class="hs-warship-section-label">🔧 {{ t('hawkStar.dock.sectionHangar') }}</span>
-          <div v-for="ship in warships" :key="ship.id" class="hs-warship-card-mini">
-            <span class="hs-warship-card-mini__icon">{{ ship.icon }}</span>
-            <span class="hs-warship-card-mini__name">{{ ship.name }}</span>
-            <span class="hs-warship-card-mini__slots">
-              <span class="hs-warship-card-mini__slot hs-warship-card-mini__slot--drive" :class="ship.drive?.[0] ? 'hs-warship-card-mini__slot--filled' : ''">{{ ship.drive?.[0]?.icon ?? '🔋' }}</span>
-              <span v-for="(w, idx) in ship.weapons" :key="idx" class="hs-warship-card-mini__slot" :class="w ? 'hs-warship-card-mini__slot--filled' : ''">{{ w ? w.icon : '·' }}</span>
-            </span>
-            <button
-              class="hs-orbit-btn"
-              :class="{ 'hs-orbit-btn--disabled': !shipHasPowerCell(ship) }"
-              :disabled="!shipHasPowerCell(ship)"
-              :title="shipHasPowerCell(ship) ? t('hawkStar.solar.toOrbit') : t('hawkStar.solar.needPowerCell')"
-              @click.stop="deployToOrbit(ship.id)"
-            >{{ t('hawkStar.solar.toOrbit') }}</button>
-          </div>
-        </div>
-        <!-- Orbit -->
-        <div v-if="fleetInOrbit.length" class="hs-warship-section hs-warship-section--orbit">
-          <span class="hs-warship-section-label">🛰 Orbit</span>
-          <div v-for="ship in fleetInOrbit" :key="ship.id" class="hs-warship-card-mini hs-warship-card-mini--orbit">
-            <span class="hs-warship-card-mini__icon">{{ ship.icon }}</span>
-            <span class="hs-warship-card-mini__name">{{ ship.name }}</span>
-            <span class="hs-warship-card-mini__slots">
-              <span class="hs-warship-card-mini__slot hs-warship-card-mini__slot--drive" :class="ship.drive?.[0] ? 'hs-warship-card-mini__slot--filled' : ''">{{ ship.drive?.[0]?.icon ?? '🔋' }}</span>
-              <span v-for="(w, idx) in ship.weapons" :key="idx" class="hs-warship-card-mini__slot" :class="w ? 'hs-warship-card-mini__slot--filled' : ''">{{ w ? w.icon : '·' }}</span>
-            </span>
-            <button class="hs-recall-btn" @click.stop="recallFromOrbit(ship.id)">{{ t('hawkStar.solar.hangar') }}</button>
+          <div class="hs-warship-card-mini">
+            <span class="hs-warship-card-mini__icon">{{ warship.icon }}</span>
+            <span class="hs-warship-card-mini__name">{{ warship.name }}</span>
+            <span class="hs-warship-card-mini__stats">🛡 {{ warship.hull }} ⚡ {{ warship.speed }}</span>
+            <span class="hs-warship-coming-soon">{{ t('hawkStar.dock.attackComingSoon') }}</span>
           </div>
         </div>
       </div>
@@ -567,7 +543,7 @@ const doSendFreighter = () => {
         <div class="hs-dock-row hs-dock-row--freighter">
           <div class="hs-dock-icon-wrap">
             <span class="hs-dock-icon">🚢</span>
-            <span v-if="freighterInventory > 0" class="hs-dock-badge hs-dock-badge--freighter">{{ freighterInventory }}</span>
+            <span v-if="freighter" class="hs-dock-badge hs-dock-badge--freighter">1</span>
           </div>
           <div class="hs-dock-info">
             <div class="hs-dock-name">{{ t('hawkStar.dock.freighter') }}</div>
@@ -586,7 +562,7 @@ const doSendFreighter = () => {
           </div>
         </div>
       </div>
-      <div v-if="dockTab === 'freighter' && freighterInventory > 0" class="hs-dock-cargo">
+      <div v-if="dockTab === 'freighter' && freighter" class="hs-dock-cargo">
         <div class="hs-freighter-cargo-header">
           <span class="hs-freighter-cargo-title">🚢 {{ t('hawkStar.solar.loadFreighter') }}</span>
           <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
@@ -701,6 +677,11 @@ const doSendFreighter = () => {
     outline-offset: -1px;
     background: rgba(96,165,250,0.12);
   }
+
+  &--active {
+    border-color: rgba(52,211,153,0.7);
+    box-shadow: 0 0 0 1px rgba(52,211,153,0.25);
+  }
 }
 
 // ── Mobile: aktive Tile expandiert, alle anderen bleiben schmal ───────────────
@@ -725,7 +706,6 @@ const doSendFreighter = () => {
 
     .hs-solar-tile-sub,
     .hs-solar-tile-state,
-    .hs-solar-active-tag,
     .hs-solar-tile-slots,
     .hs-solar-tile-owner,
     .hs-solar-tile-units,
@@ -789,15 +769,6 @@ const doSendFreighter = () => {
   font-weight: 700;
 }
 
-.hs-solar-active-tag {
-  font-size: 0.48rem;
-  background: rgba(52,211,153,0.25);
-  color: #34d399;
-  border: 1px solid rgba(52,211,153,0.4);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-weight: 700;
-}
 
 .hs-solar-tile-sub {
   font-size: 0.52rem;
@@ -1385,6 +1356,7 @@ const doSendFreighter = () => {
 }
 
 .hs-status-building { font-size: 0.65rem; font-weight: 600; color: var(--hs-warn); white-space: nowrap; }
+.hs-status-ready    { font-size: 0.65rem; font-weight: 600; color: #34d399; white-space: nowrap; }
 
 // ── Dock slot orbit badge ─────────────────────────────────────────────────────
 .hs-dock-slot__orbit {
@@ -1428,7 +1400,9 @@ const doSendFreighter = () => {
   }
 }
 
-.hs-warship-card-mini__icon { font-size: 0.9rem; line-height: 1; flex-shrink: 0; }
+.hs-warship-card-mini__icon  { font-size: 0.9rem; line-height: 1; flex-shrink: 0; }
+.hs-warship-card-mini__stats { font-size: 0.6rem; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.hs-warship-coming-soon      { font-size: 0.55rem; color: rgba(248,113,113,0.5); white-space: nowrap; flex-shrink: 0; }
 
 .hs-warship-card-mini__name {
   flex: 1;
