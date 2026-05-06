@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PLANET_TYPES, RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
-import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 
@@ -11,11 +10,11 @@ const {
 	reconDroneLevel, colonyShipLevel,
   playerScannedPlanets, playerColonizedPlanets,
   reconDroneInventory, colonyShipInventory,
-  activeDroneMissions, allActiveDroneMissions,
+  allActiveDroneMissions,
   canSendDrone, sendReconDrone,
   remainingDroneSec, droneProgressStyle,
   droneFlightTimeBetween,
-  activeColonyMissions, allActiveColonyMissions,
+  allActiveColonyMissions,
   canSendColonyShip, sendColonyShip,
   remainingColonySec, colonyProgressStyle,
   colonyFlightTimeBetween,
@@ -26,14 +25,9 @@ const {
   // warships
   warshipBayLevel,
   warship,
-  // galaxy probes
-  galaxyProbeLevel,
-  galaxyProbeInventory,
-  activeGalaxyProbes,
-  remainingProbeSec,
   // freighters
   freighter,
-  activeFreighterMissions, allActiveFreighterMissions,
+  allActiveFreighterMissions,
   freighterCargoCapacity,
   sendFreighter,
   freighterFlightTimeBetween,
@@ -42,13 +36,19 @@ const {
   planetHasDock,
   // build
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
-  galaxyProbeBuild, probeBuildTime, canBuildProbe, buildGalaxyProbe, probeBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
   warshipBuild, warshipBuildTime, canBuildWarship, buildWarship, warshipBuildProgressStyle,
   freighterBayLevel, freighterBuild, freighterBuildTime, canBuildFreighter, buildFreighter, freighterBuildProgressStyle,
 } = useHawkStar()
 
 const { t } = useI18n()
+
+const expandedBuildRow = ref(null)
+
+const toggleBuildRow = (row) => {
+  expandedBuildRow.value = expandedBuildRow.value === row ? null : row
+}
+const closeBuildRow = () => { expandedBuildRow.value = null }
 
 const planets = computed(() => homeSystem.value?.planets ?? [])
 
@@ -70,11 +70,10 @@ const selectedPlanetId = ref(activePlanetId.value)
 
 const toggleSelect = (planet) => {
   if (effectivePlanetState(planet) !== 'own') return
-  selectedPlanetId.value = selectedPlanetId.value === planet.id ? null : planet.id
+  selectedPlanetId.value = planet.id
   setActivePlanet(planet.id)
+  closeBuildRow()
 }
-
-const selectedIsOwn = computed(() => selectedPlanetId.value !== null)
 
 const tileClass = (planet) => [
   `hs-solar-tile--${effectivePlanetState(planet)}`,
@@ -82,15 +81,6 @@ const tileClass = (planet) => [
   planet.id === activePlanetId.value ? 'hs-solar-tile--active' : '',
 ]
 
-const flightTime = (targetPlanetId) =>
-  selectedPlanetId.value
-    ? droneFlightTimeBetween(selectedPlanetId.value, targetPlanetId)
-    : 0
-
-const colonyTime = (targetPlanetId) =>
-  selectedPlanetId.value
-    ? colonyFlightTimeBetween(selectedPlanetId.value, targetPlanetId)
-    : 0
 
 const planetTypeIcon = (type) => PLANET_TYPES[type]?.icon ?? '🪐'
 const starClassLabel = (cls) => t(`hawkStar.starClass.${cls}`, cls)
@@ -113,68 +103,24 @@ const planetIcon = (planet) => {
   return planetTypeIcon(planet.type)
 }
 
-// ── Galaxy system name lookup ─────────────────────────────────────────────────
-const galaxySystemName = (systemId) =>
-  GALAXY_SYSTEMS.find(s => s.id === systemId)?.name ?? systemId
-
 // ── Freighter helpers ────────────────────────────────────────────────────────
-const CARGO_EXCLUDED = ['population', 'energy']
-
 const freighterCargo = ref({})
-
-const loadableResources = computed(() =>
-  Object.values(RESOURCES).filter(r =>
-    !CARGO_EXCLUDED.includes(r.id) && (playerResources.value[r.id] ?? 0) > 0
-  )
-)
-
-const freighterCargoTotal = computed(() =>
-  Object.values(freighterCargo.value).reduce((s, v) => s + (Number(v) || 0), 0)
-)
-
-const cargoMax  = (resId) => Math.min(Math.floor(playerResources.value[resId] ?? 0), freighterCargoCapacity.value)
-const cargoStep = (resId) => cargoMax(resId) >= 20 ? 10 : 1
-const stepCargo = (resId, delta) => {
-  const cur       = freighterCargo.value[resId] ?? 0
-  const remaining = freighterCargoCapacity.value - freighterCargoTotal.value
-  const step      = delta > 0 ? Math.min(cargoStep(resId), remaining) : cargoStep(resId)
-  freighterCargo.value[resId] = Math.min(Math.max(0, cur + delta * step), cargoMax(resId))
-}
 
 const isFreighterEnRoute = (planetId) =>
   allActiveFreighterMissions.value.some(m => m.toPlanetId === planetId || m.fromPlanetId === planetId)
 
-const ownedPlanets = computed(() =>
-  (homeSystem.value?.planets ?? []).filter(p =>
-    p.id === homePlanetId.value || playerColonizedPlanets.value.includes(p.id)
-  )
-)
-
-const freighterDest = ref(null)
-
-// ── Dock panel ───────────────────────────────────────────────────────────────
-const dockTab = ref(null)
-
-const droneDests = computed(() =>
-  planets.value.filter(p => canSendDrone(p.id))
-)
-const colonyDests = computed(() =>
-  planets.value.filter(p => canSendColonyShip(p.id))
-)
-
-const doSendFreighter = () => {
-  if (!freighterDest.value) return
+const sendFreighterTo = (planetId) => {
   const cargo = Object.fromEntries(
     Object.entries(freighterCargo.value).filter(([, v]) => v > 0)
   )
-  sendFreighter(activePlanetId.value, freighterDest.value, cargo)
-  freighterDest.value  = null
+  sendFreighter(activePlanetId.value, planetId, cargo)
   freighterCargo.value = {}
 }
 </script>
 
 <template>
   <div class="hs-solar">
+    <div v-if="expandedBuildRow" class="hs-solar-expand-backdrop" @click="closeBuildRow()" />
     <div class="hs-solar-orbit">
 
       <!-- Sun tile -->
@@ -238,28 +184,15 @@ const doSendFreighter = () => {
           <span v-if="planetHasDock(planet.id)" class="hs-solar-tile-dock">🛠</span>
           <!-- Incoming freighter missions -->
           <div
-            v-for="m in allActiveFreighterMissions.filter(m => m.toPlanetId === planet.id)"
-            :key="m.id"
+            v-for="fm in allActiveFreighterMissions.filter(m => m.toPlanetId === planet.id)"
+            :key="fm.id"
             class="hs-solar-tile-freighter-mission"
           >
             <div class="hs-solar-tile-freighter-bar">
-              <div class="hs-solar-tile-freighter-bar-fill" :style="freighterProgressStyle(m.id)" />
+              <div class="hs-solar-tile-freighter-bar-fill" :style="freighterProgressStyle(fm.id)" />
             </div>
-            <span class="hs-solar-tile-freighter-timer">🚢 {{ formatTime(remainingFreighterSec(m.id)) }}</span>
+            <span class="hs-solar-tile-freighter-timer">🚢 {{ formatTime(remainingFreighterSec(fm.id)) }}</span>
           </div>
-          <!-- Freighter destination + send buttons -->
-          <template v-if="freighter && planet.id !== activePlanetId && planetHasDock(planet.id)">
-            <button
-              class="hs-freighter-dest-btn"
-              :class="{ 'hs-freighter-dest-btn--active': freighterDest === planet.id }"
-              @click.stop="freighterDest = freighterDest === planet.id ? null : planet.id"
-            >{{ freighterDest === planet.id ? t('hawkStar.solar.destConfirmed') : t('hawkStar.solar.dest') }}</button>
-            <button
-              v-if="freighterDest === planet.id"
-              class="hs-freighter-send-btn hs-freighter-send-btn--tile"
-              @click.stop="doSendFreighter"
-            >🚀 {{ formatTime(freighterFlightTimeBetween(activePlanetId, planet.id)) }}</button>
-          </template>
         </template>
 
         <!-- Colony ship en route -->
@@ -274,18 +207,6 @@ const doSendFreighter = () => {
             {{ stateLabel(planet.state) }}
           </span>
           <span v-if="planet.owner" class="hs-solar-tile-owner">{{ planet.owner }}</span>
-          <!-- Colonize button: only visible when a base is selected -->
-          <template v-if="selectedIsOwn && canSendColonyShip(planet.id)">
-            <button
-              class="hs-solar-action-btn hs-solar-action-btn--colony"
-              @click.stop="sendColonyShip(planet.id, selectedPlanetId)"
-            >🚀 {{ t('hawkStar.solar.colonize') }}</button>
-            <span class="hs-solar-tile-flight-time">{{ formatTime(colonyTime(planet.id)) }}</span>
-          </template>
-          <span
-            v-else-if="selectedIsOwn && planet.state === 'uncolonized' && colonyShipLevel > 0 && colonyShipInventory === 0"
-            class="hs-solar-tile-hint"
-          >{{ t('hawkStar.solar.buildColonyShip') }}</span>
         </template>
 
         <!-- Drone en route -->
@@ -294,312 +215,262 @@ const doSendFreighter = () => {
           <span class="hs-solar-tile-timer">{{ formatTime(remainingDroneSec(planet.id)) }}</span>
         </template>
 
-        <!-- Unknown: send drone button only visible when a base is selected -->
+        <!-- Unknown -->
         <template v-else>
           <span class="hs-solar-tile-unknown-label">{{ t('hawkStar.solar.unknown') }}</span>
-          <template v-if="selectedIsOwn && canSendDrone(planet.id)">
-            <button
-              class="hs-solar-action-btn hs-solar-action-btn--drone"
-              @click.stop="sendReconDrone(planet.id, selectedPlanetId)"
-            >🛸 {{ t('hawkStar.solar.sendDrone') }}</button>
-            <span class="hs-solar-tile-flight-time">{{ formatTime(flightTime(planet.id)) }}</span>
-          </template>
         </template>
 
       </div>
     </div>
 
-    <!-- ── Bottom row: Dock + Resources ────────────────────────────────── -->
-    <div class="hs-solar-bottom">
-
-	    <!-- Resource panel -->
-	    <HsAllResourcePanel class="hs-solar-res" />
-
-    <!-- Dock / Hangar -->
-    <div
-      v-if="reconDroneLevel > 0 || galaxyProbeLevel > 0 || colonyShipLevel > 0 || warshipBayLevel > 0 || freighterBayLevel > 0"
-      class="hs-dock-panel"
-    >
-
-      <!-- Hangar row: all ships visible at once -->
-      <div class="hs-dock-hangar">
-        <button
-          v-if="reconDroneLevel > 0"
-          class="hs-dock-slot hs-dock-slot--clickable"
-          :class="{ 'hs-dock-slot--active': dockTab === 'drone' }"
-          @click="dockTab = dockTab === 'drone' ? null : 'drone'"
-        >
-          <span class="hs-dock-slot__icon">🛸</span>
-          <span class="hs-dock-slot__count">{{ reconDroneInventory }}</span>
-          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.reconDrone') }}</span>
-        </button>
-        <button
-          v-if="galaxyProbeLevel > 0"
-          class="hs-dock-slot hs-dock-slot--clickable"
-          :class="{ 'hs-dock-slot--active': dockTab === 'probe' }"
-          @click="dockTab = dockTab === 'probe' ? null : 'probe'"
-        >
-          <span class="hs-dock-slot__icon">🔭</span>
-          <span class="hs-dock-slot__count">{{ galaxyProbeInventory }}</span>
-          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.galaxyProbe') }}</span>
-        </button>
-        <button
-          v-if="colonyShipLevel > 0"
-          class="hs-dock-slot hs-dock-slot--clickable"
-          :class="{ 'hs-dock-slot--active': dockTab === 'colony' }"
-          @click="dockTab = dockTab === 'colony' ? null : 'colony'"
-        >
-          <span class="hs-dock-slot__icon">🚀</span>
-          <span class="hs-dock-slot__count">{{ colonyShipInventory }}</span>
-          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.colonyShip') }}</span>
-        </button>
-        <button
-          v-if="freighterBayLevel > 0"
-          class="hs-dock-slot hs-dock-slot--clickable"
-          :class="{ 'hs-dock-slot--active': dockTab === 'freighter' }"
-          @click="dockTab = dockTab === 'freighter' ? null : 'freighter'"
-        >
-          <span class="hs-dock-slot__icon">🚢</span>
-          <span class="hs-dock-slot__count">{{ freighter ? 1 : 0 }}</span>
-          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.freighter') }}</span>
-        </button>
-        <button
-          v-if="warshipBayLevel > 0"
-          class="hs-dock-slot hs-dock-slot--clickable"
-          :class="{ 'hs-dock-slot--active': dockTab === 'warship' }"
-          @click="dockTab = dockTab === 'warship' ? null : 'warship'"
-        >
-          <span class="hs-dock-slot__icon">⚔️</span>
-          <span class="hs-dock-slot__count">{{ warship ? 1 : 0 }}</span>
-          <span class="hs-dock-slot__name">{{ t('hawkStar.dock.warship') }}</span>
-        </button>
+    <!-- ── Drone row ─────────────────────────────────────────────────────────── -->
+    <div v-if="reconDroneLevel > 0" class="hs-solar-drone-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'drone' }">
+      <div class="hs-solar-drone-label">
+        <div class="hs-solar-unit-label__icon-wrap">
+          <span class="hs-solar-unit-label__icon">🛸</span>
+          <span v-if="reconDroneInventory > 0" class="hs-solar-unit-label__badge">{{ reconDroneInventory }}</span>
+        </div>
+        <span class="hs-solar-unit-label__name">{{ t('hawkStar.dock.reconDrone') }}</span>
       </div>
-
-      <!-- Active missions -->
+      <div class="hs-solar-connector hs-solar-connector--phantom" aria-hidden="true" />
       <div
-        v-if="allActiveDroneMissions.length || activeGalaxyProbes.length || allActiveColonyMissions.length || allActiveFreighterMissions.length"
-        class="hs-dock-missions"
+        v-for="planet in planets"
+        :key="planet.id"
+        class="hs-solar-unit-cell hs-solar-drone-cell"
+        :class="{
+          'hs-solar-drone-cell--active': planet.id === activePlanetId,
+          'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
+          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id),
+        }"
       >
-        <div v-for="m in allActiveDroneMissions" :key="m.planetId" class="hs-dock-mission-row hs-dock-mission-row--drone">
-          <span class="hs-dock-mission-icon">🛸</span>
-          <span class="hs-dock-mission-dest">→ {{ planets.find(p => p.id === m.planetId)?.name ?? m.planetId }}</span>
-          <span class="hs-dock-mission-timer">{{ formatTime(remainingDroneSec(m.planetId)) }}</span>
-        </div>
-        <div v-for="p in activeGalaxyProbes" :key="p.systemId" class="hs-dock-mission-row hs-dock-mission-row--probe">
-          <span class="hs-dock-mission-icon">🔭</span>
-          <span class="hs-dock-mission-dest">→ {{ galaxySystemName(p.systemId) }}</span>
-          <span class="hs-dock-mission-timer">{{ formatTime(remainingProbeSec(p.systemId)) }}</span>
-        </div>
-        <div v-for="m in allActiveColonyMissions" :key="m.planetId" class="hs-dock-mission-row hs-dock-mission-row--colony">
-          <span class="hs-dock-mission-icon">🚀</span>
-          <span class="hs-dock-mission-dest">→ {{ planets.find(p => p.id === m.planetId)?.name ?? m.planetId }}</span>
-          <span class="hs-dock-mission-timer">{{ formatTime(remainingColonySec(m.planetId)) }}</span>
-        </div>
-        <div v-for="m in allActiveFreighterMissions" :key="m.id" class="hs-dock-mission-row hs-dock-mission-row--freighter">
-          <span class="hs-dock-mission-icon">🚢</span>
-          <span class="hs-dock-mission-dest">
-            {{ m.phase === 'returning' ? '← ' + (planets.find(p => p.id === m.toPlanetId)?.name ?? m.toPlanetId) : '→ ' + (planets.find(p => p.id === m.toPlanetId)?.name ?? m.toPlanetId) }}
-          </span>
-          <span class="hs-dock-mission-timer">{{ formatTime(remainingFreighterSec(m.id)) }}</span>
-        </div>
-      </div>
-
-      <!-- Recon Drone destinations + build -->
-      <div v-if="dockTab === 'drone'" class="hs-dock-expand">
-        <div class="hs-dock-row">
-          <div class="hs-dock-icon-wrap">
-            <span class="hs-dock-icon">🛸</span>
-            <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
-          </div>
-          <div class="hs-dock-info">
-            <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
-            <div class="hs-dock-cost-row">
-              <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-              <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
-            </div>
-            <div v-if="reconDroneBuild" class="hs-progress-row">
-              <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
-              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
-            </div>
-          </div>
-          <div class="hs-dock-action">
-            <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
-          </div>
-        </div>
-        <div v-if="droneDests.length > 0" class="hs-dock-dest-grid" style="margin-top: 0.4rem">
-          <button
-            v-for="p in droneDests"
-            :key="p.id"
-            class="hs-dock-dest-btn hs-dock-dest-btn--drone"
-            @click="sendReconDrone(p.id, activePlanetId)"
-          >
-            <span>{{ planetIcon(p) }} {{ p.name }}</span>
-            <span class="hs-dock-dest-btn__time">{{ formatTime(droneFlightTimeBetween(activePlanetId, p.id)) }}</span>
+        <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
+          <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('drone')">
+            <span class="hs-solar-unit-build-trigger__name">{{ reconDroneBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.reconDrone') }}</span>
+            <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
           </button>
-        </div>
+          <div v-if="expandedBuildRow === 'drone'" class="hs-solar-unit-build-expanded" @click.stop>
+            <div class="hs-dock-row">
+              <div class="hs-dock-icon-wrap">
+                <span class="hs-dock-icon">🛸</span>
+                <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
+              </div>
+              <div class="hs-dock-info">
+                <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
+                <div class="hs-dock-cost-row">
+                  <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+                  <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
+                </div>
+                <div v-if="reconDroneBuild" class="hs-progress-row">
+                  <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
+                  <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
+                </div>
+              </div>
+              <div class="hs-dock-action">
+                <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+                <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
+              </div>
+            </div>
+          </div>
+        </template>
+        <template v-else-if="canSendDrone(planet.id)">
+          <button class="hs-solar-action-btn hs-solar-action-btn--drone" @click.stop="sendReconDrone(planet.id, activePlanetId)">🛸 {{ t('hawkStar.solar.sendDrone') }}</button>
+          <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--drone">{{ formatTime(droneFlightTimeBetween(activePlanetId, planet.id)) }}</span>
+        </template>
+        <template v-else-if="isDroneEnRoute(planet.id)">
+          <div class="hs-solar-progress-bar hs-solar-progress-bar--drone" :style="droneProgressStyle(planet.id)" />
+          <span class="hs-solar-tile-timer">{{ formatTime(remainingDroneSec(planet.id)) }}</span>
+        </template>
       </div>
-
-      <!-- Galaxy Probe build -->
-      <div v-if="dockTab === 'probe'" class="hs-dock-expand">
-        <div class="hs-dock-row">
-          <div class="hs-dock-icon-wrap">
-            <span class="hs-dock-icon">🔭</span>
-            <span v-if="galaxyProbeInventory > 0" class="hs-dock-badge">{{ galaxyProbeInventory }}</span>
-          </div>
-          <div class="hs-dock-info">
-            <div class="hs-dock-name">{{ t('hawkStar.dock.galaxyProbe') }}</div>
-            <div class="hs-dock-cost-row">
-              <span v-for="(amt, resId) in UNIT_COSTS.galaxy_probe.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-              <span class="hs-unit-time-tag">⏱ {{ formatTime(probeBuildTime) }}</span>
-            </div>
-            <div v-if="galaxyProbeBuild" class="hs-progress-row">
-              <div class="hs-progress-track"><div :key="galaxyProbeBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="probeBuildProgressStyle" /></div>
-              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((galaxyProbeBuild.endsAt - Date.now()) / 1000))) }}</span>
-            </div>
-          </div>
-          <div class="hs-dock-action">
-            <span v-if="galaxyProbeBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildProbe }" :disabled="!canBuildProbe" @click.stop="buildGalaxyProbe()">{{ t('hawkStar.dock.btnBuild') }}</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Colony Ship destinations + build -->
-      <div v-if="dockTab === 'colony'" class="hs-dock-expand">
-        <div class="hs-dock-row">
-          <div class="hs-dock-icon-wrap">
-            <span class="hs-dock-icon">🚀</span>
-            <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
-          </div>
-          <div class="hs-dock-info">
-            <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
-            <div class="hs-dock-cost-row">
-              <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-              <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
-            </div>
-            <div v-if="colonyShipBuild" class="hs-progress-row">
-              <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
-              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
-            </div>
-          </div>
-          <div class="hs-dock-action">
-            <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
-          </div>
-        </div>
-        <div v-if="colonyDests.length > 0" class="hs-dock-dest-grid" style="margin-top: 0.4rem">
-          <button
-            v-for="p in colonyDests"
-            :key="p.id"
-            class="hs-dock-dest-btn hs-dock-dest-btn--colony"
-            @click="sendColonyShip(p.id, activePlanetId)"
-          >
-            <span>{{ planetIcon(p) }} {{ p.name }}</span>
-            <span class="hs-dock-dest-btn__time">{{ formatTime(colonyFlightTimeBetween(activePlanetId, p.id)) }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Warship build + hangar -->
-      <div v-if="dockTab === 'warship'" class="hs-dock-expand">
-        <!-- Build row -->
-        <div class="hs-dock-row hs-dock-row--warship">
-          <div class="hs-dock-icon-wrap">
-            <span class="hs-dock-icon">⚔️</span>
-            <span v-if="warship" class="hs-dock-badge hs-dock-badge--warship">1</span>
-          </div>
-          <div class="hs-dock-info">
-            <div class="hs-dock-name">{{ t('hawkStar.dock.warship') }}</div>
-            <div class="hs-dock-cost-row">
-              <span v-for="(amt, resId) in UNIT_COSTS.warship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-              <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
-            </div>
-            <div v-if="warshipBuild" class="hs-progress-row">
-              <div class="hs-progress-track"><div :key="warshipBuild.endsAt" class="hs-progress-fill hs-progress-fill--warship" :style="warshipBuildProgressStyle" /></div>
-              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((warshipBuild.endsAt - Date.now()) / 1000))) }}</span>
-            </div>
-          </div>
-          <div class="hs-dock-action">
-            <span v-if="warshipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-            <span v-else-if="warship" class="hs-status-ready">{{ t('hawkStar.dock.readyForDeployment') }}</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">{{ t('hawkStar.dock.btnBuild') }}</button>
-          </div>
-        </div>
-        <!-- Hangar -->
-        <div v-if="warship" class="hs-warship-section">
-          <span class="hs-warship-section-label">🔧 {{ t('hawkStar.dock.sectionHangar') }}</span>
-          <div class="hs-warship-card-mini">
-            <span class="hs-warship-card-mini__icon">{{ warship.icon }}</span>
-            <span class="hs-warship-card-mini__name">{{ warship.name }}</span>
-            <span class="hs-warship-card-mini__stats">🛡 {{ warship.hull }} ⚡ {{ warship.speed }}</span>
-            <span class="hs-warship-coming-soon">{{ t('hawkStar.dock.attackComingSoon') }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Freighter cargo panel (expands below hangar when freighter selected) -->
-      <div v-if="dockTab === 'freighter'" class="hs-dock-expand">
-        <div class="hs-dock-row hs-dock-row--freighter">
-          <div class="hs-dock-icon-wrap">
-            <span class="hs-dock-icon">🚢</span>
-            <span v-if="freighter" class="hs-dock-badge hs-dock-badge--freighter">1</span>
-          </div>
-          <div class="hs-dock-info">
-            <div class="hs-dock-name">{{ t('hawkStar.dock.freighter') }}</div>
-            <div class="hs-dock-cost-row">
-              <span v-for="(amt, resId) in UNIT_COSTS.freighter.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-              <span class="hs-unit-time-tag">⏱ {{ formatTime(freighterBuildTime) }}</span>
-            </div>
-            <div v-if="freighterBuild" class="hs-progress-row">
-              <div class="hs-progress-track"><div :key="freighterBuild.endsAt" class="hs-progress-fill hs-progress-fill--freighter" :style="freighterBuildProgressStyle" /></div>
-              <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((freighterBuild.endsAt - Date.now()) / 1000))) }}</span>
-            </div>
-          </div>
-          <div class="hs-dock-action">
-            <span v-if="freighterBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-            <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">{{ t('hawkStar.dock.btnBuild') }}</button>
-          </div>
-        </div>
-      </div>
-      <div v-if="dockTab === 'freighter' && freighter" class="hs-dock-cargo">
-        <div class="hs-freighter-cargo-header">
-          <span class="hs-freighter-cargo-title">🚢 {{ t('hawkStar.solar.loadFreighter') }}</span>
-          <span class="hs-freighter-cargo-cap" :class="freighterCargoTotal > freighterCargoCapacity ? 'hs-freighter-cargo-cap--over' : ''">{{ freighterCargoTotal }} / {{ freighterCargoCapacity }}</span>
-        </div>
-        <div v-if="loadableResources.length === 0" class="hs-freighter-cargo-empty">{{ t('hawkStar.solar.noResources') }}</div>
-        <div class="hs-freighter-cargo-grid">
-          <div v-for="res in loadableResources" :key="res.id" class="hs-freighter-cargo-tile" :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[res.id] ?? 0) > 0 }">
-            <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
-            <div class="hs-freighter-cargo-tile__info">
-              <span class="hs-freighter-cargo-tile__name">{{ res.name }}</span>
-              <span class="hs-freighter-cargo-tile__avail">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
-            </div>
-            <div class="hs-stepper hs-stepper--cargo">
-              <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) <= 0" @click.stop="stepCargo(res.id, -1)">−</button>
-              <span class="hs-stepper__val">{{ freighterCargo[res.id] ?? 0 }}</span>
-              <button class="hs-stepper__btn" :disabled="(freighterCargo[res.id] ?? 0) >= cargoMax(res.id) || freighterCargoTotal >= freighterCargoCapacity" @click.stop="stepCargo(res.id, 1)">+</button>
-            </div>
-          </div>
-        </div>
-        <div class="hs-freighter-dest-row">
-          <button
-            v-for="p in ownedPlanets.filter(op => op.id !== activePlanetId && planetHasDock(op.id))"
-            :key="p.id"
-            class="hs-freighter-dest-btn"
-            :class="{ 'hs-freighter-dest-btn--active': freighterDest === p.id }"
-            @click="freighterDest = freighterDest === p.id ? null : p.id"
-          >{{ p.name }}</button>
-        </div>
-        <button v-if="freighterDest" class="hs-freighter-send-btn" @click="doSendFreighter">
-          🚀 {{ t('hawkStar.solar.dispatch') }} {{ ownedPlanets.find(p => p.id === freighterDest)?.name }}
-          ({{ formatTime(freighterFlightTimeBetween(activePlanetId, freighterDest)) }})
-        </button>
-      </div>
-
     </div>
 
-    </div><!-- /.hs-solar-bottom -->
+    <!-- ── Colony Ship row ──────────────────────────────────────────────────── -->
+    <div v-if="colonyShipLevel > 0" class="hs-solar-colony-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'colony' }">
+      <div class="hs-solar-colony-label">
+        <div class="hs-solar-unit-label__icon-wrap">
+          <span class="hs-solar-unit-label__icon">🚀</span>
+          <span v-if="colonyShipInventory > 0" class="hs-solar-unit-label__badge hs-solar-unit-label__badge--colony">{{ colonyShipInventory }}</span>
+        </div>
+        <span class="hs-solar-unit-label__name">{{ t('hawkStar.dock.colonyShip') }}</span>
+      </div>
+      <div class="hs-solar-connector hs-solar-connector--phantom" aria-hidden="true" />
+      <div
+        v-for="planet in planets"
+        :key="planet.id"
+        class="hs-solar-unit-cell hs-solar-colony-cell"
+        :class="{
+          'hs-solar-colony-cell--active': planet.id === activePlanetId,
+          'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
+          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id),
+        }"
+      >
+        <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
+          <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('colony')">
+            <span class="hs-solar-unit-build-trigger__name">{{ colonyShipBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.colonyShip') }}</span>
+            <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
+          </button>
+          <div v-if="expandedBuildRow === 'colony'" class="hs-solar-unit-build-expanded" @click.stop>
+            <div class="hs-dock-row">
+              <div class="hs-dock-icon-wrap">
+                <span class="hs-dock-icon">🚀</span>
+                <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
+              </div>
+              <div class="hs-dock-info">
+                <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
+                <div class="hs-dock-cost-row">
+                  <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+                  <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
+                </div>
+                <div v-if="colonyShipBuild" class="hs-progress-row">
+                  <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
+                  <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
+                </div>
+              </div>
+              <div class="hs-dock-action">
+                <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+                <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
+              </div>
+            </div>
+          </div>
+        </template>
+        <template v-else-if="isColonizing(planet.id)">
+          <div class="hs-solar-progress-bar hs-solar-progress-bar--colony" :style="colonyProgressStyle(planet.id)" />
+          <span class="hs-solar-tile-timer" style="color:rgba(96,165,250,0.9)">{{ formatTime(remainingColonySec(planet.id)) }}</span>
+        </template>
+        <template v-else-if="canSendColonyShip(planet.id)">
+          <button class="hs-solar-action-btn hs-solar-action-btn--colony" @click.stop="sendColonyShip(planet.id, activePlanetId)">🚀 {{ t('hawkStar.solar.colonize') }}</button>
+          <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--colony">{{ formatTime(colonyFlightTimeBetween(activePlanetId, planet.id)) }}</span>
+        </template>
+      </div>
+    </div>
+
+    <!-- ── Freighter row ────────────────────────────────────────────────────── -->
+    <div v-if="freighterBayLevel > 0" class="hs-solar-freighter-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'freighter' }">
+      <div class="hs-solar-freighter-label">
+        <div class="hs-solar-unit-label__icon-wrap">
+          <span class="hs-solar-unit-label__icon">🚢</span>
+          <span v-if="freighter" class="hs-solar-unit-label__badge hs-solar-unit-label__badge--freighter">1</span>
+        </div>
+        <span class="hs-solar-unit-label__name">{{ t('hawkStar.dock.freighter') }}</span>
+      </div>
+      <div class="hs-solar-connector hs-solar-connector--phantom" aria-hidden="true" />
+      <div
+        v-for="planet in planets"
+        :key="planet.id"
+        class="hs-solar-unit-cell hs-solar-freighter-cell"
+        :class="{
+          'hs-solar-freighter-cell--active': planet.id === activePlanetId,
+          'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
+          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id) && !freighter,
+        }"
+      >
+        <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
+          <template v-if="!freighter">
+            <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('freighter')">
+              <span class="hs-solar-unit-build-trigger__name">{{ freighterBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.freighter') }}</span>
+              <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
+            </button>
+            <div v-if="expandedBuildRow === 'freighter'" class="hs-solar-unit-build-expanded" @click.stop>
+              <div class="hs-dock-row hs-dock-row--freighter">
+                <div class="hs-dock-icon-wrap">
+                  <span class="hs-dock-icon">🚢</span>
+                </div>
+                <div class="hs-dock-info">
+                  <div class="hs-dock-name">{{ t('hawkStar.dock.freighter') }}</div>
+                  <div class="hs-dock-cost-row">
+                    <span v-for="(amt, resId) in UNIT_COSTS.freighter.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+                    <span class="hs-unit-time-tag">⏱ {{ formatTime(freighterBuildTime) }}</span>
+                  </div>
+                  <div v-if="freighterBuild" class="hs-progress-row">
+                    <div class="hs-progress-track"><div :key="freighterBuild.endsAt" class="hs-progress-fill hs-progress-fill--freighter" :style="freighterBuildProgressStyle" /></div>
+                    <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((freighterBuild.endsAt - Date.now()) / 1000))) }}</span>
+                  </div>
+                </div>
+                <div class="hs-dock-action">
+                  <span v-if="freighterBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+                  <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">{{ t('hawkStar.dock.btnBuild') }}</button>
+                </div>
+              </div>
+            </div>
+          </template>
+          <span v-else class="hs-status-ready">🚢</span>
+        </template>
+        <template v-else-if="isFreighterEnRoute(planet.id)">
+          <div
+            v-for="fm in allActiveFreighterMissions.filter(m => m.toPlanetId === planet.id || (m.fromPlanetId === planet.id && m.phase === 'returning'))"
+            :key="fm.id"
+            class="hs-solar-freighter-mission-mini"
+          >
+            <div class="hs-solar-tile-freighter-bar">
+              <div class="hs-solar-tile-freighter-bar-fill" :style="freighterProgressStyle(fm.id)" />
+            </div>
+            <span class="hs-solar-tile-freighter-timer">{{ formatTime(remainingFreighterSec(fm.id)) }}</span>
+          </div>
+        </template>
+        <template v-else-if="freighter && effectivePlanetState(planet) === 'own' && planetHasDock(planet.id)">
+          <button
+            class="hs-freighter-send-btn hs-freighter-send-btn--tile"
+            @click.stop="sendFreighterTo(planet.id)"
+          >🚢 Send</button>
+          <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--freighter">{{ formatTime(freighterFlightTimeBetween(activePlanetId, planet.id)) }}</span>
+        </template>
+      </div>
+    </div>
+
+    <!-- ── Warship row (Platzhalter) ─────────────────────────────────────────── -->
+    <div v-if="warshipBayLevel > 0" class="hs-solar-warship-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'warship' }">
+      <div class="hs-solar-warship-label">
+        <div class="hs-solar-unit-label__icon-wrap">
+          <span class="hs-solar-unit-label__icon">⚔️</span>
+          <span v-if="warship" class="hs-solar-unit-label__badge hs-solar-unit-label__badge--warship">1</span>
+        </div>
+        <span class="hs-solar-unit-label__name">{{ t('hawkStar.dock.warship') }}</span>
+      </div>
+      <div class="hs-solar-connector hs-solar-connector--phantom" aria-hidden="true" />
+      <div
+        v-for="planet in planets"
+        :key="planet.id"
+        class="hs-solar-unit-cell hs-solar-warship-cell"
+        :class="{
+          'hs-solar-warship-cell--active': planet.id === activePlanetId,
+          'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
+          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id) && !warship,
+        }"
+      >
+        <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
+          <template v-if="!warship">
+            <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('warship')">
+              <span class="hs-solar-unit-build-trigger__name">{{ warshipBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.warship') }}</span>
+              <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
+            </button>
+            <div v-if="expandedBuildRow === 'warship'" class="hs-solar-unit-build-expanded" @click.stop>
+              <div class="hs-dock-row hs-dock-row--warship">
+                <div class="hs-dock-icon-wrap">
+                  <span class="hs-dock-icon">⚔️</span>
+                </div>
+                <div class="hs-dock-info">
+                  <div class="hs-dock-name">{{ t('hawkStar.dock.warship') }}</div>
+                  <div class="hs-dock-cost-row">
+                    <span v-for="(amt, resId) in UNIT_COSTS.warship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+                    <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
+                  </div>
+                  <div v-if="warshipBuild" class="hs-progress-row">
+                    <div class="hs-progress-track"><div :key="warshipBuild.endsAt" class="hs-progress-fill hs-progress-fill--warship" :style="warshipBuildProgressStyle" /></div>
+                    <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((warshipBuild.endsAt - Date.now()) / 1000))) }}</span>
+                  </div>
+                </div>
+                <div class="hs-dock-action">
+                  <span v-if="warshipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+                  <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">{{ t('hawkStar.dock.btnBuild') }}</button>
+                </div>
+              </div>
+            </div>
+          </template>
+          <span v-else class="hs-status-ready">⚔️ {{ t('hawkStar.dock.sectionHangar') }}</span>
+        </template>
+      </div>
+    </div>
+
+    <HsAllResourcePanel class="hs-solar-res" />
 
   </div>
 </template>
@@ -1487,6 +1358,240 @@ const doSendFreighter = () => {
   white-space: nowrap;
 
   &:hover { background: rgba(248,113,113,0.16); border-color: rgba(248,113,113,0.55); }
+}
+
+// ── Unit rows (drone / colony / freighter / warship) ─────────────────────────
+
+.hs-solar-drone-row,
+.hs-solar-colony-row,
+.hs-solar-freighter-row,
+.hs-solar-warship-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.375rem;
+
+  @media (min-width: 640px) {
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+}
+
+.hs-solar-connector--phantom {
+  background: transparent !important;
+}
+
+// ── Unit label (leftmost cell, same width as sun tile) ────────────────────────
+
+.hs-solar-drone-label,
+.hs-solar-colony-label,
+.hs-solar-freighter-label,
+.hs-solar-warship-label {
+  flex-shrink: 0;
+  width: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--hs-glass-sm);
+  border-radius: var(--hs-r-md);
+  padding: 0.4rem 0.25rem;
+
+  @media (min-width: 640px) { width: 5.5rem; }
+}
+
+.hs-solar-drone-label     { border: 1px solid rgba(251,191,36,0.15); }
+.hs-solar-colony-label    { border: 1px solid rgba(96,165,250,0.15); }
+.hs-solar-freighter-label { border: 1px solid rgba(52,211,153,0.15); }
+.hs-solar-warship-label   { border: 1px solid rgba(248,113,113,0.15); }
+
+// ── Shared label internals ────────────────────────────────────────────────────
+
+.hs-solar-unit-label__icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.hs-solar-unit-label__icon { font-size: 1rem; line-height: 1; }
+
+.hs-solar-unit-label__badge {
+  position: absolute;
+  bottom: -3px;
+  right: -5px;
+  font-size: 0.52rem;
+  font-weight: 700;
+  background: #f59e0b;
+  color: #000;
+  padding: 1px 3px;
+  border-radius: 4px;
+  line-height: 1.4;
+
+  &--colony    { background: #60a5fa; }
+  &--freighter { background: #34d399; }
+  &--warship   { background: #f87171; color: #fff; }
+}
+
+.hs-solar-unit-label__name {
+  font-size: 0.46rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: center;
+  line-height: 1.2;
+  opacity: 0.55;
+
+  @media (max-width: 639px) { display: none; }
+}
+
+// ── Shared planet cell ────────────────────────────────────────────────────────
+
+.hs-solar-unit-cell {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.5rem;
+  min-height: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0.2rem 0.1rem;
+  background: var(--hs-glass-sm);
+  border: 1px solid var(--hs-line-lg);
+  border-radius: var(--hs-r-md);
+  overflow: hidden;
+
+  @media (min-width: 640px) {
+    width: 5.5rem;
+    padding: 0.3rem 0.25rem;
+  }
+
+  &--build {
+    padding: 0;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 639px) {
+  .hs-solar-unit-cell--selected {
+    flex: 1;
+    width: auto;
+  }
+}
+
+.hs-solar-row--expanded {
+  @media (min-width: 640px) { overflow: visible; }
+}
+
+// ── Per-type active cell color ────────────────────────────────────────────────
+
+.hs-solar-drone-cell--active     { border-color: rgba(52,211,153,0.4);   background: rgba(52,211,153,0.04); }
+.hs-solar-colony-cell--active    { border-color: rgba(96,165,250,0.4);   background: rgba(96,165,250,0.04); }
+.hs-solar-freighter-cell--active { border-color: rgba(52,211,153,0.4);   background: rgba(52,211,153,0.04); }
+.hs-solar-warship-cell--active   { border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.03); }
+
+// ── Build accordion (shared) ─────────────────────────────────────────────────
+
+.hs-solar-unit-build-trigger {
+  width: 100%;
+  height: 100%;
+  min-height: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.35rem 0.25rem;
+  color: inherit;
+  border-radius: var(--hs-r-md);
+  transition: background 0.15s;
+
+  &:hover { background: rgba(255,255,255,0.05); }
+}
+
+.hs-solar-unit-build-trigger__name {
+  font-size: 0.52rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.hs-solar-unit-build-trigger__btn {
+  font-size: 0.52rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid rgba(52,211,153,0.35);
+  background: rgba(52,211,153,0.08);
+  color: rgba(52,211,153,0.9);
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.hs-solar-unit-build-trigger:hover .hs-solar-unit-build-trigger__btn {
+  background: rgba(52,211,153,0.18);
+  border-color: rgba(52,211,153,0.6);
+}
+
+.hs-solar-unit-build-expanded {
+  position: absolute;
+  z-index: 20;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(3 * 5.5rem);
+  background: #13141f;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: var(--hs-r-md);
+  padding: 0.45rem 0.5rem;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+
+  @media (max-width: 639px) {
+    width: calc(3 * 2.5rem + 0.75rem);
+    left: 0;
+    transform: none;
+  }
+}
+
+// ── Flight time labels ────────────────────────────────────────────────────────
+
+.hs-solar-unit-flight-time {
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+
+  &--drone     { color: rgba(251,191,36,0.75); }
+  &--colony    { color: rgba(96,165,250,0.75); }
+  &--freighter { color: rgba(52,211,153,0.75); }
+}
+
+// ── Freighter mission mini (en-route display in row) ──────────────────────────
+
+.hs-solar-freighter-mission-mini {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.hs-solar-expand-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
 }
 
 </style>
