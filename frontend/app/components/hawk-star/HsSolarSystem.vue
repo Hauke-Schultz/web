@@ -44,6 +44,7 @@ const {
 const { t } = useI18n()
 
 const expandedBuildRow = ref(null)
+const resOpen = ref(false)
 
 const toggleBuildRow = (row) => {
   expandedBuildRow.value = expandedBuildRow.value === row ? null : row
@@ -69,11 +70,23 @@ const effectivePlanetState = (planet) => {
 const selectedPlanetId = ref(activePlanetId.value)
 
 const toggleSelect = (planet) => {
-  if (effectivePlanetState(planet) !== 'own') return
   selectedPlanetId.value = planet.id
-  setActivePlanet(planet.id)
-  closeBuildRow()
+  if (effectivePlanetState(planet) === 'own') {
+    setActivePlanet(planet.id)
+    closeBuildRow()
+  }
 }
+
+const selectedPlanet = computed(() => planets.value.find(p => p.id === selectedPlanetId.value) ?? null)
+
+const stateColor = (state) => ({
+  own:        'rgba(96,165,250,0.9)',
+  uncolonized:'rgba(107,114,128,0.85)',
+  enemy:      'rgba(248,113,113,0.9)',
+  ally:       'rgba(52,211,153,0.9)',
+  scanning:   'rgba(251,191,36,0.85)',
+  colonizing: 'rgba(96,165,250,0.8)',
+})[state] ?? 'rgba(255,255,255,0.3)'
 
 const tileClass = (planet) => [
   `hs-solar-tile--${effectivePlanetState(planet)}`,
@@ -93,6 +106,9 @@ const stateLabel = (state) => ({
   uncolonized: t('hawkStar.solar.stateFree'),
   enemy:       t('hawkStar.solar.stateEnemy'),
   ally:        t('hawkStar.solar.stateAllied'),
+  scanning:    t('hawkStar.solar.droneEnRoute'),
+  colonizing:  t('hawkStar.solar.colonizing'),
+  unknown:     t('hawkStar.solar.unknown'),
 })[state] ?? state
 
 const planetIcon = (planet) => {
@@ -175,13 +191,6 @@ const sendFreighterTo = (planetId) => {
             {{ playerName }}
           </span>
           <span v-if="planet.slots !== null" class="hs-solar-tile-slots">{{ planet.slots }} {{ t('hawkStar.solar.slots') }}</span>
-          <!-- Unit counts when selected -->
-          <div v-if="selectedPlanetId === planet.id" class="hs-solar-tile-units">
-            <span v-if="reconDroneLevel > 0">🛸 {{ reconDroneInventory }}</span>
-            <span v-if="colonyShipLevel > 0">🚀 {{ colonyShipInventory }}</span>
-          </div>
-          <!-- Dock indicator -->
-          <span v-if="planetHasDock(planet.id)" class="hs-solar-tile-dock">🛠</span>
           <!-- Incoming freighter missions -->
           <div
             v-for="fm in allActiveFreighterMissions.filter(m => m.toPlanetId === planet.id)"
@@ -221,6 +230,61 @@ const sendFreighterTo = (planetId) => {
         </template>
 
       </div>
+    </div>
+
+    <!-- ── Planet info panel ──────────────────────────────────────────────── -->
+    <div v-if="selectedPlanet" class="hs-solar-planet-panel">
+      <div class="hs-solar-planet-panel__top">
+        <span class="hs-solar-planet-panel__icon">{{ planetIcon(selectedPlanet) }}</span>
+        <div class="hs-solar-planet-panel__body">
+          <span class="hs-solar-planet-panel__name">{{ selectedPlanet.name }}</span>
+          <div class="hs-solar-planet-panel__tags">
+            <span
+              v-if="isScanned(selectedPlanet.id) || effectivePlanetState(selectedPlanet) === 'own'"
+              class="hs-solar-planet-panel__tag"
+            >{{ PLANET_TYPES[selectedPlanet.type]?.icon }} {{ selectedPlanet.type }}</span>
+            <span
+              class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--state"
+              :style="{ color: stateColor(effectivePlanetState(selectedPlanet)), borderColor: stateColor(effectivePlanetState(selectedPlanet)) + '33' }"
+            >{{ stateLabel(effectivePlanetState(selectedPlanet)) }}</span>
+            <span
+              v-if="effectivePlanetState(selectedPlanet) === 'own'"
+              class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--owner"
+            >{{ playerName }}</span>
+            <span
+              v-else-if="selectedPlanet.owner"
+              class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--owner"
+            >{{ selectedPlanet.owner }}</span>
+            <span
+              v-if="selectedPlanet.slots !== null && (isScanned(selectedPlanet.id) || effectivePlanetState(selectedPlanet) === 'own')"
+              class="hs-solar-planet-panel__tag"
+            >{{ selectedPlanet.slots }} {{ t('hawkStar.solar.slots') }}</span>
+            <span
+              v-if="planetHasDock(selectedPlanet.id) && effectivePlanetState(selectedPlanet) === 'own'"
+              class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--dock"
+            >🛠 Dock</span>
+            <span v-if="isDroneEnRoute(selectedPlanet.id)" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--timer">
+              ⏱ {{ formatTime(remainingDroneSec(selectedPlanet.id)) }}
+            </span>
+            <span v-else-if="isColonizing(selectedPlanet.id)" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--timer">
+              ⏱ {{ formatTime(remainingColonySec(selectedPlanet.id)) }}
+            </span>
+          </div>
+        </div>
+        <div v-if="effectivePlanetState(selectedPlanet) === 'own'" class="hs-solar-planet-panel__units">
+          <span v-if="reconDroneLevel > 0">🛸 {{ reconDroneInventory }}</span>
+          <span v-if="colonyShipLevel > 0">🚀 {{ colonyShipInventory }}</span>
+        </div>
+      </div>
+      <template v-if="effectivePlanetState(selectedPlanet) === 'own'">
+        <button class="hs-solar-planet-panel__res-toggle" @click.stop="resOpen = !resOpen">
+          <span>📦 Resources</span>
+          <span class="hs-solar-planet-panel__res-chevron">{{ resOpen ? '▲' : '▼' }}</span>
+        </button>
+        <div :class="['hs-solar-planet-panel__res', { 'hs-solar-planet-panel__res--open': resOpen }]">
+          <HsAllResourcePanel />
+        </div>
+      </template>
     </div>
 
     <!-- ── Drone row ─────────────────────────────────────────────────────────── -->
@@ -273,7 +337,10 @@ const sendFreighterTo = (planetId) => {
           </div>
         </template>
         <template v-else-if="canSendDrone(planet.id)">
-          <button class="hs-solar-action-btn hs-solar-action-btn--drone" @click.stop="sendReconDrone(planet.id, activePlanetId)">🛸 {{ t('hawkStar.solar.sendDrone') }}</button>
+          <button class="hs-solar-action-btn hs-solar-action-btn--drone" @click.stop="sendReconDrone(planet.id, activePlanetId)">
+            <span class="hs-solar-action-btn__mobile">Send</span>
+            <span class="hs-solar-action-btn__full">🛸 {{ t('hawkStar.solar.sendDrone') }}</span>
+          </button>
           <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--drone">{{ formatTime(droneFlightTimeBetween(activePlanetId, planet.id)) }}</span>
         </template>
         <template v-else-if="isDroneEnRoute(planet.id)">
@@ -337,7 +404,10 @@ const sendFreighterTo = (planetId) => {
           <span class="hs-solar-tile-timer" style="color:rgba(96,165,250,0.9)">{{ formatTime(remainingColonySec(planet.id)) }}</span>
         </template>
         <template v-else-if="canSendColonyShip(planet.id)">
-          <button class="hs-solar-action-btn hs-solar-action-btn--colony" @click.stop="sendColonyShip(planet.id, activePlanetId)">🚀 {{ t('hawkStar.solar.colonize') }}</button>
+          <button class="hs-solar-action-btn hs-solar-action-btn--colony" @click.stop="sendColonyShip(planet.id, activePlanetId)">
+            <span class="hs-solar-action-btn__mobile">Send</span>
+            <span class="hs-solar-action-btn__full">🚀 {{ t('hawkStar.solar.colonize') }}</span>
+          </button>
           <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--colony">{{ formatTime(colonyFlightTimeBetween(activePlanetId, planet.id)) }}</span>
         </template>
       </div>
@@ -470,8 +540,6 @@ const sendFreighterTo = (planetId) => {
       </div>
     </div>
 
-    <HsAllResourcePanel class="hs-solar-res" />
-
   </div>
 </template>
 
@@ -489,7 +557,7 @@ const sendFreighterTo = (planetId) => {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  gap: 0.375rem;
+  gap: 0.25rem;
 
   @media (min-width: 640px) {
     gap: 0;
@@ -521,13 +589,14 @@ const sendFreighterTo = (planetId) => {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 0.5rem 0.25rem;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-line-lg);
   border-radius: var(--hs-r-md);
   flex-shrink: 0;
-  width: 2.5rem;
+  width: 2.25rem;
+  padding: 0.4rem 0.1rem;
   transition: width 0.25s ease, flex 0.25s ease;
+  cursor: pointer;
 
   @media (min-width: 640px) {
     width: 5.5rem;
@@ -560,21 +629,13 @@ const sendFreighterTo = (planetId) => {
   .hs-solar-tile--selected {
     flex: 1;
     width: auto;
+    padding: 0.5rem 0.25rem;
   }
 
   .hs-solar-tile:not(.hs-solar-tile--selected) {
-    // Name immer sichtbar, aber tiny + truncated
-    .hs-solar-tile-name {
-      display: block;
-      font-size: 0.42rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 100%;
-      line-height: 1.2;
-      color: rgba(255,255,255,0.6);
-    }
+    .hs-solar-tile-icon { font-size: 1rem; }
 
+    .hs-solar-tile-name,
     .hs-solar-tile-sub,
     .hs-solar-tile-state,
     .hs-solar-tile-slots,
@@ -761,6 +822,111 @@ const sendFreighterTo = (planetId) => {
     color: rgba(96,165,250,0.9);
     &:hover { background: rgba(96,165,250,0.18); border-color: rgba(96,165,250,0.6); }
   }
+}
+
+.hs-solar-action-btn__mobile { @media (min-width: 640px) { display: none; } }
+.hs-solar-action-btn__full   { display: none; @media (min-width: 640px) { display: inline; } }
+
+// ── Planet info panel ─────────────────────────────────────────────────────────
+.hs-solar-planet-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--hs-glass-sm);
+  border: 1px solid var(--hs-line-lg);
+  border-radius: var(--hs-r-md);
+  overflow: hidden;
+}
+
+.hs-solar-planet-panel__top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.hs-solar-planet-panel__icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.hs-solar-planet-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.hs-solar-planet-panel__name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hs-solar-planet-panel__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.hs-solar-planet-panel__tag {
+  font-size: 0.56rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--hs-glass-lg);
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.07);
+  white-space: nowrap;
+
+  &--state { font-weight: 700; }
+  &--owner { color: rgba(255,255,255,0.6); }
+  &--dock  { color: rgba(255,255,255,0.5); }
+  &--timer { color: rgba(251,191,36,0.85); border-color: rgba(251,191,36,0.15); }
+}
+
+.hs-solar-planet-panel__units {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  text-align: right;
+}
+
+.hs-solar-planet-panel__res-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.3rem 0.75rem;
+  border: none;
+  border-top: 1px solid var(--hs-line-lg);
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); }
+}
+
+.hs-solar-planet-panel__res-chevron { font-size: 0.48rem; opacity: 0.7; }
+
+.hs-solar-planet-panel__res {
+  display: none;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--hs-line-lg);
+
+  &--open { display: block; }
 }
 
 // ── Bottom row ────────────────────────────────────────────────────────────────
@@ -1369,7 +1535,7 @@ const sendFreighterTo = (planetId) => {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  gap: 0.375rem;
+  gap: 0.25rem;
 
   @media (min-width: 640px) {
     gap: 0;
@@ -1390,7 +1556,7 @@ const sendFreighterTo = (planetId) => {
 .hs-solar-freighter-label,
 .hs-solar-warship-label {
   flex-shrink: 0;
-  width: 2.5rem;
+  width: 1.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1398,9 +1564,9 @@ const sendFreighterTo = (planetId) => {
   gap: 4px;
   background: var(--hs-glass-sm);
   border-radius: var(--hs-r-md);
-  padding: 0.4rem 0.25rem;
+  padding: 0.4rem 0.1rem;
 
-  @media (min-width: 640px) { width: 5.5rem; }
+  @media (min-width: 640px) { width: 5.5rem; padding: 0.4rem 0.25rem; }
 }
 
 .hs-solar-drone-label     { border: 1px solid rgba(251,191,36,0.15); }
@@ -1419,7 +1585,9 @@ const sendFreighterTo = (planetId) => {
   height: 1.6rem;
 }
 
-.hs-solar-unit-label__icon { font-size: 1rem; line-height: 1; }
+.hs-solar-unit-label__icon { font-size: 1rem; line-height: 1;
+  @media (max-width: 639px) { font-size: 0.875rem; }
+}
 
 .hs-solar-unit-label__badge {
   position: absolute;
@@ -1455,14 +1623,14 @@ const sendFreighterTo = (planetId) => {
 .hs-solar-unit-cell {
   position: relative;
   flex-shrink: 0;
-  width: 2.5rem;
+  width: 2.25rem;
   min-height: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 0.2rem 0.1rem;
+  padding: 0.2rem 0.05rem;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-line-lg);
   border-radius: var(--hs-r-md);
@@ -1560,7 +1728,7 @@ const sendFreighterTo = (planetId) => {
   box-shadow: 0 4px 24px rgba(0,0,0,0.6);
 
   @media (max-width: 639px) {
-    width: calc(3 * 2.5rem + 0.75rem);
+    width: min(90vw, 20rem);
     left: 0;
     transform: none;
   }

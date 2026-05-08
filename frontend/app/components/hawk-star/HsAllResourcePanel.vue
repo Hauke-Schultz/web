@@ -43,24 +43,20 @@ const allResources = computed(() =>
 <style lang="scss" scoped>
 .hs-res-panel {
   width: 100%;
-  background: var(--hs-glass-sm);
-  border: 1px solid var(--hs-line-md);
-  border-radius: var(--hs-r-md);
-  padding: 0.5rem 0.75rem;
-	max-width: 320px;
 }
 
 .hs-res-panel__row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
 }
 
 .hs-res-panel__item {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  position: relative;
+  flex: 1;
+  min-width: 5rem;
 }
 
 .hs-res-panel__icon {
