@@ -136,7 +136,7 @@ const sendFreighterTo = (planetId) => {
 
 const cargoableResources = computed(() =>
   Object.entries(RESOURCES).filter(([resId, res]) =>
-    !res.weapon && !res.drive &&
+    resId !== 'population' && resId !== 'energy' &&
     ((playerResources.value[resId] ?? 0) > 0 || (freighterCargo.value[resId] ?? 0) > 0)
   )
 )
@@ -315,7 +315,7 @@ const adjustCargo = (resId, delta) => {
     </div>
 
     <!-- ── Drone row ─────────────────────────────────────────────────────────── -->
-    <div v-if="reconDroneLevel > 0" class="hs-solar-drone-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'drone' }">
+    <div v-if="reconDroneLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-drone-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'drone' }">
       <div class="hs-solar-drone-label">
         <div class="hs-solar-unit-label__icon-wrap">
           <span class="hs-solar-unit-label__icon">🛸</span>
@@ -378,7 +378,7 @@ const adjustCargo = (resId, delta) => {
     </div>
 
     <!-- ── Colony Ship row ──────────────────────────────────────────────────── -->
-    <div v-if="colonyShipLevel > 0" class="hs-solar-colony-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'colony' }">
+    <div v-if="colonyShipLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-colony-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'colony' }">
       <div class="hs-solar-colony-label">
         <div class="hs-solar-unit-label__icon-wrap">
           <span class="hs-solar-unit-label__icon">🚀</span>
@@ -441,7 +441,7 @@ const adjustCargo = (resId, delta) => {
     </div>
 
     <!-- ── Freighter row ────────────────────────────────────────────────────── -->
-    <div v-if="freighterBayLevel > 0" class="hs-solar-freighter-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'freighter' || expandedBuildRow === 'freighter-cargo' }">
+    <div v-if="freighterBayLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-freighter-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'freighter' || expandedBuildRow === 'freighter-cargo' }">
       <div class="hs-solar-freighter-label">
         <div class="hs-solar-unit-label__icon-wrap">
           <span class="hs-solar-unit-label__icon">🚢</span>
@@ -557,7 +557,7 @@ const adjustCargo = (resId, delta) => {
     </div>
 
     <!-- ── Warship row (Platzhalter) ─────────────────────────────────────────── -->
-    <div v-if="warshipBayLevel > 0" class="hs-solar-warship-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'warship' }">
+    <div v-if="warshipBayLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-warship-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'warship' }">
       <div class="hs-solar-warship-label">
         <div class="hs-solar-unit-label__icon-wrap">
           <span class="hs-solar-unit-label__icon">⚔️</span>
@@ -1784,7 +1784,7 @@ const adjustCargo = (resId, delta) => {
   top: -1px;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(3 * 5.5rem);
+  width: 18.5rem;
   background: #13141f;
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: var(--hs-r-md);

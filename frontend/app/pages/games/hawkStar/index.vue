@@ -235,12 +235,12 @@ watchEffect(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 0.75rem 1rem;
+  padding: 0 0.75rem 8rem;
   color: #fff;
   user-select: none;
 
   @media (min-width: 640px) {
-    padding: 0 1rem 1.5rem;
+    padding: 0 1rem 8rem;
   }
 }
 
