@@ -81,6 +81,7 @@
       "buildColonyShip": "build colony ship",
       "droneEnRoute": "Drone en route…",
       "unknown": "Unknown",
+      "uninhabitable": "Uninhabitable",
       "sendDrone": "Send Drone",
       "colonize": "Colonize",
       "dest": "Dest",
@@ -153,7 +154,8 @@
       "terrestrial": { "name": "Terrestrial", "desc": "Balanced planet. All standard buildings available, no special bonuses." },
       "volcanic":    { "name": "Volcanic",    "desc": "Rich in metal. Special mining & energy buildings, limited agriculture." },
       "frozen":      { "name": "Frozen",      "desc": "Crystal-rich permafrost. Special excavators and cryo research." },
-      "ocean":       { "name": "Ocean",       "desc": "Farming paradise. Enormous population potential, weak mining." }
+      "ocean":         { "name": "Ocean",         "desc": "Farming paradise. Enormous population potential, weak mining." },
+      "uninhabitable": { "name": "Uninhabitable", "desc": "Hostile or barren — colonization not possible." }
     },
 
     "buildings": {

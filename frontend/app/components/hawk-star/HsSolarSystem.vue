@@ -76,12 +76,13 @@ const toggleSelect = (planet) => {
 const selectedPlanet = computed(() => planets.value.find(p => p.id === selectedPlanetId.value) ?? null)
 
 const stateColor = (state) => ({
-  own:        'rgba(96,165,250,0.9)',
-  uncolonized:'rgba(107,114,128,0.85)',
-  enemy:      'rgba(248,113,113,0.9)',
-  ally:       'rgba(52,211,153,0.9)',
-  scanning:   'rgba(251,191,36,0.85)',
-  colonizing: 'rgba(96,165,250,0.8)',
+  own:          'rgba(96,165,250,0.9)',
+  uncolonized:  'rgba(107,114,128,0.85)',
+  enemy:        'rgba(248,113,113,0.9)',
+  ally:         'rgba(52,211,153,0.9)',
+  scanning:     'rgba(251,191,36,0.85)',
+  colonizing:   'rgba(96,165,250,0.8)',
+  uninhabitable:'rgba(75,75,75,0.7)',
 })[state] ?? 'rgba(255,255,255,0.3)'
 
 const tileClass = (planet) => [
@@ -95,16 +96,17 @@ const planetTypeIcon = (type) => PLANET_TYPES[type]?.icon ?? '🪐'
 const starClassLabel = (cls) => t(`hawkStar.starClass.${cls}`, cls)
 
 const STATE_COLOR = {
-  own: '#60a5fa', uncolonized: '#6b7280', enemy: '#f87171', ally: '#34d399',
+  own: '#60a5fa', uncolonized: '#6b7280', enemy: '#f87171', ally: '#34d399', uninhabitable: '#4b4b4b',
 }
 const stateLabel = (state) => ({
-  own:         t('hawkStar.solar.stateOwn'),
-  uncolonized: t('hawkStar.solar.stateFree'),
-  enemy:       t('hawkStar.solar.stateEnemy'),
-  ally:        t('hawkStar.solar.stateAllied'),
-  scanning:    t('hawkStar.solar.droneEnRoute'),
-  colonizing:  t('hawkStar.solar.colonizing'),
-  unknown:     t('hawkStar.solar.unknown'),
+  own:          t('hawkStar.solar.stateOwn'),
+  uncolonized:  t('hawkStar.solar.stateFree'),
+  enemy:        t('hawkStar.solar.stateEnemy'),
+  ally:         t('hawkStar.solar.stateAllied'),
+  scanning:     t('hawkStar.solar.droneEnRoute'),
+  colonizing:   t('hawkStar.solar.colonizing'),
+  unknown:      t('hawkStar.solar.unknown'),
+  uninhabitable:t('hawkStar.solar.uninhabitable'),
 })[state] ?? state
 
 const planetIcon = (planet) => {
@@ -210,7 +212,6 @@ const adjustCargo = (resId, delta) => {
           <span class="hs-solar-tile-state" :style="{ color: STATE_COLOR.own }">
             {{ playerName }}
           </span>
-          <span v-if="planet.slots !== null" class="hs-solar-tile-slots">{{ planet.slots }} {{ t('hawkStar.solar.slots') }}</span>
           <!-- Incoming freighter missions -->
           <div
             v-for="fm in allActiveFreighterMissions.filter(m => m.toPlanetId === planet.id)"
@@ -619,10 +620,11 @@ const adjustCargo = (resId, delta) => {
   &--own         { border-color: rgba(96,165,250,0.6);   background: rgba(96,165,250,0.07);  cursor: pointer; }
   &--enemy       { border-color: rgba(248,113,113,0.6);  background: rgba(248,113,113,0.07); }
   &--ally        { border-color: rgba(52,211,153,0.6);   background: rgba(52,211,153,0.06);  cursor: pointer; }
-  &--uncolonized { border-color: rgba(255,255,255,0.18); }
-  &--unknown     { border-color: rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); }
-  &--scanning    { border-color: rgba(251,191,36,0.6);   background: rgba(251,191,36,0.05);  }
-  &--colonizing  { border-color: rgba(96,165,250,0.55);  background: rgba(96,165,250,0.06);  }
+  &--uncolonized  { border-color: rgba(255,255,255,0.18); }
+  &--unknown      { border-color: rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); }
+  &--scanning     { border-color: rgba(251,191,36,0.6);   background: rgba(251,191,36,0.05);  }
+  &--colonizing   { border-color: rgba(96,165,250,0.55);  background: rgba(96,165,250,0.06);  }
+  &--uninhabitable{ border-color: rgba(75,75,75,0.35);    background: rgba(30,30,30,0.12);    opacity: 0.6; }
 
   &--selected {
     outline: 2px solid var(--hs-active-border) !important;

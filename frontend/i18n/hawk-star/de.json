@@ -85,6 +85,7 @@
       "buildColonyShip": "Colony Ship bauen",
       "droneEnRoute": "Drohne unterwegs…",
       "unknown": "Unbekannt",
+      "uninhabitable": "Unbewohnbar",
       "sendDrone": "Drohne schicken",
       "colonize": "Kolonisieren",
       "dest": "Ziel",
@@ -157,7 +158,8 @@
       "terrestrial": { "name": "Terrestrisch", "desc": "Ausgewogener Planet. Alle Standardgebäude verfügbar, keine Spezialvorteile." },
       "volcanic":    { "name": "Vulkanisch",   "desc": "Metallreich. Spezielle Abbau- & Energiegebäude, eingeschränkte Landwirtschaft." },
       "frozen":      { "name": "Gefroren",     "desc": "Kristallreicher Permafrost. Spezielle Ausgräber und Kryoforschung." },
-      "ocean":       { "name": "Ozean",        "desc": "Landwirtschaftsparadies. Enormes Bevölkerungspotenzial, schwacher Bergbau." }
+      "ocean":         { "name": "Ozean",        "desc": "Landwirtschaftsparadies. Enormes Bevölkerungspotenzial, schwacher Bergbau." },
+      "uninhabitable": { "name": "Unbewohnbar",  "desc": "Feindselig oder karg — Kolonisierung nicht möglich." }
     },
 
     "buildings": {

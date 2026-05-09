@@ -127,7 +127,7 @@ Ship component resources (`power_cell`, `kinetic_round`, `plasma_cell`) are defi
 
 ## Planet Types
 
-The planet type is assigned on colonization and restricts or enables certain buildings. Types map from raw galaxy mock data (`rock/gas/lava/ice/ocean`) via `MOCK_TYPE_TO_PLANET_TYPE`.
+The planet type is assigned on colonization and restricts or enables certain buildings.
 
 | Type | Icon | Traits |
 |------|------|--------|
@@ -135,6 +135,7 @@ The planet type is assigned on colonization and restricts or enables certain bui
 | **Volcanic** | 🌋 | Metal-rich — `geothermal_tap`; limited agriculture · `obsidian_foundry` (High-Tech) |
 | **Frozen** | 🧊 | Crystal-rich — `cryo_extractor`, `cryo_reactor` · `cryo_refinery` (High-Tech) |
 | **Ocean** | 🌊 | Population paradise — `tidal_generator`; weak mining · `bio_lab` (High-Tech) |
+| **Uninhabitable** | 🌑 | Hostile or barren — colonization not possible, shown as locked in the solar system |
 
 ---
 
@@ -171,19 +172,28 @@ A rough progression arc for a single player:
 
 ## Galaxy
 
-The galaxy (`hawkStarGalaxyMock.js`) contains 9 star systems arranged at percentage-based x/y coordinates on a canvas. Each system has:
+Each player receives their own private galaxy — no enemies are present at the start. The galaxy (`hawkStarGalaxyMock.js`) contains 9 star systems arranged at percentage-based x/y coordinates on a canvas.
 
-- `starClass` (cosmetic), 4–8 planets
+### Home System
+
+The home system (Kepler) always contains exactly one planet of each habitable type:
+
+- 🌍 Terrestrial, 🌋 Volcanic, 🧊 Frozen, 🌊 Ocean — all `uncolonized` at session start
+- 3 additional 🌑 Uninhabitable planets (state `uninhabitable`, cannot be colonized)
+
+The player starts on a **randomly chosen habitable planet** from the home system (`buildStartPool()` in `useHawkStar.js` picks from habitable planets in the home system only).
+
+### Other Systems
+
+The remaining 8 systems each contain a mix of habitable (`uncolonized`) and uninhabitable planets. No owners, no factions. They become reachable via Colony Ships after scanning with a Galaxy Probe.
 
 ### Visibility
 
 All 9 systems are always visible in the Galaxy Map. Solar System view shows the home system.
 
-### Star vs Planet States
+### Planet States
 
-**Stars** are displayed neutrally. 
-
-**Planets** carry individual states: `own` · `uncolonized` · `enemy` · `ally`
+**Planets** carry individual states: `own` · `uncolonized` · `uninhabitable` · `scanning` · `colonizing` · `unknown`
 
 The displayed planet state is derived at runtime: if `playerColonizedPlanets` (from `useHawkStar`) contains the planet ID, the state is shown as `own` regardless of the mock value.
 

@@ -2,23 +2,22 @@ import { ref, computed } from 'vue'
 import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, FREIGHTER_CARGO_CAPACITY } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
-// ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
+// ── Starting planet pool — pick a random uninhabited system ──────────────────
+const HABITABLE_TYPES = new Set(['terrestrial', 'volcanic', 'frozen', 'ocean'])
 const buildStartPool = () => {
-  const pool = []
-  for (const sys of GALAXY_SYSTEMS) {
-    for (const planet of sys.planets) {
-      if (planet.state === 'uncolonized') {
-        pool.push({
-          system:     sys.name,
-          systemId:   sys.id,
-          planet:     planet.name,
-          planetId:   planet.id,
-          planetType: planet.type,
-        })
-      }
-    }
-  }
-  return pool
+  // Only consider systems where no planet has an owner (no NPC inhabitants)
+  const emptySystems = GALAXY_SYSTEMS.filter(sys => sys.planets.every(p => !p.owner))
+  if (emptySystems.length === 0) return []
+  const sys = emptySystems[Math.floor(Math.random() * emptySystems.length)]
+  return sys.planets
+    .filter(p => HABITABLE_TYPES.has(p.type) && p.state === 'uncolonized')
+    .map(p => ({
+      system:     sys.name,
+      systemId:   sys.id,
+      planet:     p.name,
+      planetId:   p.id,
+      planetType: p.type,
+    }))
 }
 
 const randomStartConfig = () => {
@@ -569,7 +568,7 @@ const canSendColonyShip = (planetId) => {
   return (
     colonyShipInventory.value > 0 &&
     !!planet &&
-    !planet.isHome &&
+    planetId !== homePlanetId.value &&
     planet.state === 'uncolonized' &&
     playerScannedPlanets.value.includes(planetId) &&
     !playerColonizedPlanets.value.includes(planetId) &&

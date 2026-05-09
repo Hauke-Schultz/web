@@ -55,6 +55,12 @@ export const PLANET_TYPES = {
     icon:        '🌊',
     description: 'Farming paradise. Enormous population potential, weak mining.',
   },
+  uninhabitable: {
+    id:          'uninhabitable',
+    name:        'Uninhabitable',
+    icon:        '🌑',
+    description: 'Hostile or barren — colonization not possible.',
+  },
 }
 
 // ── Resources ─────────────────────────────────────────────────────────────────
