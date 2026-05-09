@@ -146,6 +146,7 @@ function rewardLabel(seg) {
         style="width: 36px; flex-shrink: 0; height: 180px"
         :class="canSpin ? 'cursor-pointer' : 'cursor-not-allowed'"
         :style="{ opacity: canSpin ? 1 : 0.4 }"
+        @touchstart.prevent="pullLever"
         @click="pullLever"
       >
         <!-- Handle ball -->

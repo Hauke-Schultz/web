@@ -7,9 +7,9 @@ import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 
 const {
 	playerName,
-	reconDroneLevel, colonyShipLevel,
+	reconDroneLevel, colonyShipLevel, galaxyProbeLevel,
   playerScannedPlanets, playerColonizedPlanets,
-  reconDroneInventory, colonyShipInventory,
+  reconDroneInventory, colonyShipInventory, galaxyProbeInventory,
   allActiveDroneMissions,
   canSendDrone, sendReconDrone,
   remainingDroneSec, droneProgressStyle,
@@ -131,6 +131,30 @@ const sendFreighterTo = (planetId) => {
   )
   sendFreighter(activePlanetId.value, planetId, cargo)
   freighterCargo.value = {}
+  expandedBuildRow.value = null
+}
+
+const cargoableResources = computed(() =>
+  Object.entries(RESOURCES).filter(([resId, res]) =>
+    !res.weapon && !res.drive &&
+    ((playerResources.value[resId] ?? 0) > 0 || (freighterCargo.value[resId] ?? 0) > 0)
+  )
+)
+
+const cargoTotalLoaded = computed(() =>
+  Object.values(freighterCargo.value).reduce((sum, v) => sum + v, 0)
+)
+
+const adjustCargo = (resId, delta) => {
+  const current = freighterCargo.value[resId] ?? 0
+  const avail = playerResources.value[resId] ?? 0
+  if (delta > 0) {
+    if (cargoTotalLoaded.value >= freighterCargoCapacity.value || current >= avail) return
+    freighterCargo.value = { ...freighterCargo.value, [resId]: current + 1 }
+  } else {
+    if (current <= 0) return
+    freighterCargo.value = { ...freighterCargo.value, [resId]: current - 1 }
+  }
 }
 </script>
 
@@ -269,11 +293,14 @@ const sendFreighterTo = (planetId) => {
             <span v-else-if="isColonizing(selectedPlanet.id)" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--timer">
               ⏱ {{ formatTime(remainingColonySec(selectedPlanet.id)) }}
             </span>
+            <template v-if="effectivePlanetState(selectedPlanet) === 'own'">
+              <span v-if="reconDroneLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🛸 {{ reconDroneInventory }}</span>
+              <span v-if="galaxyProbeLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🔭 {{ galaxyProbeInventory }}</span>
+              <span v-if="colonyShipLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🚀 {{ colonyShipInventory }}</span>
+              <span v-if="freighterBayLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🚢 {{ freighter ? 1 : 0 }}</span>
+              <span v-if="warshipBayLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">⚔️ {{ warship ? 1 : 0 }}</span>
+            </template>
           </div>
-        </div>
-        <div v-if="effectivePlanetState(selectedPlanet) === 'own'" class="hs-solar-planet-panel__units">
-          <span v-if="reconDroneLevel > 0">🛸 {{ reconDroneInventory }}</span>
-          <span v-if="colonyShipLevel > 0">🚀 {{ colonyShipInventory }}</span>
         </div>
       </div>
       <template v-if="effectivePlanetState(selectedPlanet) === 'own'">
@@ -414,7 +441,7 @@ const sendFreighterTo = (planetId) => {
     </div>
 
     <!-- ── Freighter row ────────────────────────────────────────────────────── -->
-    <div v-if="freighterBayLevel > 0" class="hs-solar-freighter-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'freighter' }">
+    <div v-if="freighterBayLevel > 0" class="hs-solar-freighter-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'freighter' || expandedBuildRow === 'freighter-cargo' }">
       <div class="hs-solar-freighter-label">
         <div class="hs-solar-unit-label__icon-wrap">
           <span class="hs-solar-unit-label__icon">🚢</span>
@@ -430,7 +457,7 @@ const sendFreighterTo = (planetId) => {
         :class="{
           'hs-solar-freighter-cell--active': planet.id === activePlanetId,
           'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
-          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id) && !freighter,
+          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id),
         }"
       >
         <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
@@ -462,7 +489,50 @@ const sendFreighterTo = (planetId) => {
               </div>
             </div>
           </template>
-          <span v-else class="hs-status-ready">🚢</span>
+          <template v-else>
+            <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('freighter-cargo')">
+              <span class="hs-solar-unit-build-trigger__name">
+                {{ cargoTotalLoaded > 0 ? `${cargoTotalLoaded}/${freighterCargoCapacity}` : t('hawkStar.dock.freighter') }}
+              </span>
+              <span class="hs-solar-unit-build-trigger__btn">📦</span>
+            </button>
+            <div v-if="expandedBuildRow === 'freighter-cargo'" class="hs-solar-unit-build-expanded hs-freighter-cargo-panel" @click.stop>
+              <div class="hs-freighter-cargo-header">
+                <span class="hs-freighter-cargo-title">📦 Cargo</span>
+                <span class="hs-freighter-cargo-cap" :class="{ 'hs-freighter-cargo-cap--over': cargoTotalLoaded > freighterCargoCapacity }">
+                  {{ cargoTotalLoaded }} / {{ freighterCargoCapacity }}
+                </span>
+              </div>
+              <div v-if="cargoableResources.length === 0" class="hs-freighter-cargo-empty">No resources available</div>
+              <div v-else class="hs-freighter-cargo-grid">
+                <div
+                  v-for="[resId, res] in cargoableResources"
+                  :key="resId"
+                  class="hs-freighter-cargo-tile"
+                  :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[resId] ?? 0) > 0 }"
+                >
+                  <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
+                  <div class="hs-freighter-cargo-tile__info">
+                    <span class="hs-freighter-cargo-tile__name">{{ res.name }}</span>
+                    <span class="hs-freighter-cargo-tile__avail">{{ playerResources[resId] ?? 0 }}</span>
+                  </div>
+                  <div class="hs-stepper hs-stepper--cargo">
+                    <button
+                      class="hs-stepper__btn"
+                      :disabled="(freighterCargo[resId] ?? 0) <= 0"
+                      @click.stop="adjustCargo(resId, -1)"
+                    >−</button>
+                    <span class="hs-stepper__val">{{ freighterCargo[resId] ?? 0 }}</span>
+                    <button
+                      class="hs-stepper__btn"
+                      :disabled="cargoTotalLoaded >= freighterCargoCapacity || (freighterCargo[resId] ?? 0) >= (playerResources[resId] ?? 0)"
+                      @click.stop="adjustCargo(resId, 1)"
+                    >+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
         </template>
         <template v-else-if="isFreighterEnRoute(planet.id)">
           <div
@@ -613,9 +683,9 @@ const sendFreighterTo = (planetId) => {
   &--colonizing  { border-color: rgba(96,165,250,0.55);  background: rgba(96,165,250,0.06);  }
 
   &--selected {
-    outline: 2px solid rgba(96,165,250,0.85);
+    outline: 2px solid var(--hs-active-border) !important;
+	  box-shadow: 0 0 20px var(--hs-active-glow) !important;
     outline-offset: -1px;
-    background: rgba(96,165,250,0.12);
   }
 
   &--active {
@@ -888,17 +958,11 @@ const sendFreighterTo = (planetId) => {
   &--owner { color: rgba(255,255,255,0.6); }
   &--dock  { color: rgba(255,255,255,0.5); }
   &--timer { color: rgba(251,191,36,0.85); border-color: rgba(251,191,36,0.15); }
-}
-
-.hs-solar-planet-panel__units {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  flex-shrink: 0;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.55);
-  text-align: right;
+  &--unit  {
+    color: rgba(255,255,255,0.7);
+    border-color: rgba(255,255,255,0.12);
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 .hs-solar-planet-panel__res-toggle {

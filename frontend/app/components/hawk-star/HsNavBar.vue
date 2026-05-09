@@ -73,7 +73,7 @@ const { starMapLevel } = useHawkStar()
   gap: 2px;
   flex: 1;
   padding: 0.25rem 0.15rem;
-  border-radius: var(--hs-r-md);
+  border-radius: var(--hs-r-sm);
   border: 1px solid var(--hs-line-sm);
   background: var(--hs-glass-sm);
   color: rgba(255, 255, 255, 0.45);
@@ -83,13 +83,14 @@ const { starMapLevel } = useHawkStar()
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 
   &:hover:not(:disabled) {
-    background: var(--hs-glass-md);
+	  border-color: var(--hs-active-border) !important;
     color: rgba(255, 255, 255, 0.8);
   }
 
   &--active {
-    background: var(--hs-glass-lg);
-    border-color: var(--hs-glass-2xl);
+	  background: var(--hs-active-bg) !important;
+	  border-color: var(--hs-active-border) !important;
+	  box-shadow: 0 0 20px var(--hs-active-glow) !important;
     color: #fff;
   }
 

@@ -39,20 +39,19 @@ const { t } = useI18n()
   width: 100%;
   border: 1px solid var(--hs-line-sm);
   background: var(--hs-glass-sm);
-  border-radius: var(--hs-r-md);
+  border-radius: var(--hs-r-sm);
   padding: 0.15rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 
   &:hover {
-    background: var(--hs-glass-md);
-    border-color: var(--hs-line-lg);
+	  border-color: var(--hs-active-border) !important;
   }
 
   &--active {
-    background: var(--hs-glass-xl);
-    border-color: var(--hs-active-border);
-    box-shadow: 0 0 20px var(--hs-active-glow);
+	  background: var(--hs-active-bg) !important;
+	  border-color: var(--hs-active-border) !important;
+	  box-shadow: 0 0 20px var(--hs-active-glow) !important;
   }
 }
 

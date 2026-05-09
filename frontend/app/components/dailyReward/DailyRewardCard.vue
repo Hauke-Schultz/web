@@ -74,7 +74,12 @@ onMounted(() => {
 
 // ── Scroll to card top when game starts ──────────────────
 const onSpinStart = () => {
-  cardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const el = cardRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  if (rect.top < 0 || rect.bottom > window.innerHeight) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 }
 
 // ── Handle game-complete from child (daily, counts toward box) ──
