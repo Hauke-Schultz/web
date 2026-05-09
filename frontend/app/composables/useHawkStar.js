@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, FREIGHTER_CARGO_CAPACITY, WARSHIP_CLASSES, SHIP_COMPONENTS } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, FREIGHTER_CARGO_CAPACITY } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — alle unkolonisierten Planeten aus dem Mock ─────────
@@ -71,8 +71,6 @@ const freshDock = () => ({
   colonyShipInventory:    0,
   colonyShipBuild:        null,
   activeColonyMissions:   [],
-  warship:                null, // single ship in hangar
-  warshipBuild:           null,
   freighter:              false, // single freighter in hangar (boolean)
   freighterBuild:         null,
   activeFreighterMissions: [],
@@ -272,10 +270,6 @@ const galaxyProbeLevel = computed(() => {
 })
 const colonyShipLevel = computed(() => {
   const state = playerBuildings.value['colony_ship']
-  return state?.level ?? 0
-})
-const warshipBayLevel = computed(() => {
-  const state = playerBuildings.value['warship_bay']
   return state?.level ?? 0
 })
 const freighterBayLevel = computed(() => {
@@ -612,40 +606,6 @@ const colonyShipBuildProgressStyle = computed(() => {
   return { width: `${pct}%` }
 })
 
-// ── Warship (single ship per planet) ──────────────────────
-const warship      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warship ?? null)
-const warshipBuild = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.warshipBuild ?? null)
-
-const warshipBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.warship.buildTimeBase / Math.max(1, warshipBayLevel.value) * buildTimeFactor.value)
-)
-
-const canBuildWarship = computed(() =>
-  warshipBayLevel.value > 0 &&
-  !warshipBuild.value &&
-  !warship.value &&
-  canAfford(UNIT_COSTS.warship.cost)
-)
-
-const buildWarship = () => {
-  if (!canBuildWarship.value) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  const res = allPlanetStates.value[activePlanetId.value].resources
-  for (const [r, amt] of Object.entries(UNIT_COSTS.warship.cost)) {
-    res[r] -= amt
-  }
-  const cls = WARSHIP_CLASSES.frigate
-  dock.warshipBuild = { endsAt: Date.now() + warshipBuildTime.value * 1000, classId: cls.id, startedAt: Date.now() }
-}
-
-const warshipBuildProgressStyle = computed(() => {
-  const build = warshipBuild.value
-  if (!build) return {}
-  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
-  return { width: `${pct}%` }
-})
-
 // ── Freighters (resource transport between colonies) ────────
 // Per-planet dock aliases
 const freighter               = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighter ?? false)
@@ -932,7 +892,6 @@ const loadGame = () => {
             activeGalaxyProbes:     Array.isArray(savedDock.activeGalaxyProbes)     ? savedDock.activeGalaxyProbes     : [],
             activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
             activeFreighterMissions: Array.isArray(savedDock.activeFreighterMissions) ? savedDock.activeFreighterMissions : [],
-            warship:    savedDock.warship ?? null,
             freighter:  savedDock.freighter ?? false,
           },
           conversionQueues: Array.isArray(ps.conversionQueues) ? ps.conversionQueues : [],
@@ -1129,23 +1088,6 @@ const tick = () => {
           notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_colony_${m.planetId}`, type: 'mission_done', icon: '🌍', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.colonyLanded', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeColonyMissions.splice(i, 1)
         }
-      }
-      // Warship build
-      if (dock.warshipBuild && dock.warshipBuild.endsAt <= now.value) {
-        const cls = WARSHIP_CLASSES[dock.warshipBuild.classId] ?? WARSHIP_CLASSES.frigate
-        dock.warship = {
-          id:        `ws_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          classId:   cls.id,
-          name:      cls.name,
-          icon:      cls.icon,
-          hull:      cls.hull,
-          hullMax:   cls.hull,
-          shield:    cls.shield,
-          shieldMax: cls.shield,
-          speed:     cls.speed,
-        }
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_warship`, type: 'unit_done', icon: '⚔️', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.warshipReady', labelParams: { name: cls.name }, timestamp: Date.now() })
-        dock.warshipBuild = null
       }
       // Freighter build
       if (dock.freighterBuild && dock.freighterBuild.endsAt <= now.value) {
@@ -1351,7 +1293,6 @@ export function useHawkStar() {
     reconDroneLevel,
     galaxyProbeLevel,
     colonyShipLevel,
-    warshipBayLevel,
     // recon drones
     playerScannedPlanets,
     reconDroneInventory,
@@ -1398,13 +1339,6 @@ export function useHawkStar() {
     colonyProgressStyle,
     colonyShipBuildProgressStyle,
     colonyFlightTimeBetween,
-    // warship
-    warship,
-    warshipBuild,
-    warshipBuildTime,
-    canBuildWarship,
-    buildWarship,
-    warshipBuildProgressStyle,
     // freighters
     freighterBayLevel,
     freighter,

@@ -149,15 +149,3 @@ export const GALAXY_SYSTEMS = [
   },
 ]
 
-// Trade routes (defined but not rendered in current Galaxy Map view)
-export const TRADE_ROUTES = [
-  ['kepler', 'vega9'],
-  ['kepler', 'nebula3'],
-  ['kepler', 'tartus'],
-  ['kepler', 'helix7'],
-  ['vega9',  'arix'],
-  ['vega9',  'tartus'],
-  ['arix',   'kronos'],
-  ['nebula3', 'kronos'],
-  ['helix7',  'nova'],
-]

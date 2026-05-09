@@ -19,7 +19,8 @@
       "Bash(timeout 30 npx nuxt build)",
       "Bash(curl:*)",
       "Bash(xargs ls *)",
-      "Bash(dir \"C:\\\\Users\\\\hauke\\\\WebstormProjects\\\\web\\\\frontend\\\\app\\\\components\\\\dailyReward\")"
+      "Bash(dir \"C:\\\\Users\\\\hauke\\\\WebstormProjects\\\\web\\\\frontend\\\\app\\\\components\\\\dailyReward\")",
+      "Bash(Remove-Item *)"
     ]
   }
 }

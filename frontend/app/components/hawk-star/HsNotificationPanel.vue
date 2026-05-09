@@ -64,7 +64,6 @@ const inProgressItems = computed(() => {
         { key: 'reconDroneBuild',  labelKey: 'hawkStar.notifications.droneBuilding',    icon: '🛸' },
         { key: 'galaxyProbeBuild', labelKey: 'hawkStar.notifications.probeBuilding',    icon: '🔭' },
         { key: 'colonyShipBuild',  labelKey: 'hawkStar.notifications.colonyBuilding',   icon: '🚀' },
-        { key: 'warshipBuild',     labelKey: 'hawkStar.notifications.warshipBuilding',  icon: '⚔️' },
         { key: 'freighterBuild',   labelKey: 'hawkStar.notifications.freighterBuilding',icon: '📦' },
       ]
       for (const { key, labelKey, icon } of shipBuilds) {

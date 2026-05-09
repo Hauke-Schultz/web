@@ -22,9 +22,6 @@ const {
   activePlanetId, setActivePlanet,
   formatTime,
   playerResources,
-  // warships
-  warshipBayLevel,
-  warship,
   // freighters
   freighter,
   allActiveFreighterMissions,
@@ -37,7 +34,6 @@ const {
   // build
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
-  warshipBuild, warshipBuildTime, canBuildWarship, buildWarship, warshipBuildProgressStyle,
   freighterBayLevel, freighterBuild, freighterBuildTime, canBuildFreighter, buildFreighter, freighterBuildProgressStyle,
 } = useHawkStar()
 
@@ -298,7 +294,6 @@ const adjustCargo = (resId, delta) => {
               <span v-if="galaxyProbeLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🔭 {{ galaxyProbeInventory }}</span>
               <span v-if="colonyShipLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🚀 {{ colonyShipInventory }}</span>
               <span v-if="freighterBayLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🚢 {{ freighter ? 1 : 0 }}</span>
-              <span v-if="warshipBayLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">⚔️ {{ warship ? 1 : 0 }}</span>
             </template>
           </div>
         </div>
@@ -556,59 +551,6 @@ const adjustCargo = (resId, delta) => {
       </div>
     </div>
 
-    <!-- ── Warship row (Platzhalter) ─────────────────────────────────────────── -->
-    <div v-if="warshipBayLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-warship-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'warship' }">
-      <div class="hs-solar-warship-label">
-        <div class="hs-solar-unit-label__icon-wrap">
-          <span class="hs-solar-unit-label__icon">⚔️</span>
-          <span v-if="warship" class="hs-solar-unit-label__badge hs-solar-unit-label__badge--warship">1</span>
-        </div>
-        <span class="hs-solar-unit-label__name">{{ t('hawkStar.dock.warship') }}</span>
-      </div>
-      <div class="hs-solar-connector hs-solar-connector--phantom" aria-hidden="true" />
-      <div
-        v-for="planet in planets"
-        :key="planet.id"
-        class="hs-solar-unit-cell hs-solar-warship-cell"
-        :class="{
-          'hs-solar-warship-cell--active': planet.id === activePlanetId,
-          'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
-          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id) && !warship,
-        }"
-      >
-        <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
-          <template v-if="!warship">
-            <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('warship')">
-              <span class="hs-solar-unit-build-trigger__name">{{ warshipBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.warship') }}</span>
-              <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
-            </button>
-            <div v-if="expandedBuildRow === 'warship'" class="hs-solar-unit-build-expanded" @click.stop>
-              <div class="hs-dock-row hs-dock-row--warship">
-                <div class="hs-dock-icon-wrap">
-                  <span class="hs-dock-icon">⚔️</span>
-                </div>
-                <div class="hs-dock-info">
-                  <div class="hs-dock-name">{{ t('hawkStar.dock.warship') }}</div>
-                  <div class="hs-dock-cost-row">
-                    <span v-for="(amt, resId) in UNIT_COSTS.warship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                    <span class="hs-unit-time-tag">⏱ {{ formatTime(warshipBuildTime) }}</span>
-                  </div>
-                  <div v-if="warshipBuild" class="hs-progress-row">
-                    <div class="hs-progress-track"><div :key="warshipBuild.endsAt" class="hs-progress-fill hs-progress-fill--warship" :style="warshipBuildProgressStyle" /></div>
-                    <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((warshipBuild.endsAt - Date.now()) / 1000))) }}</span>
-                  </div>
-                </div>
-                <div class="hs-dock-action">
-                  <span v-if="warshipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-                  <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildWarship }" :disabled="!canBuildWarship" @click.stop="buildWarship()">{{ t('hawkStar.dock.btnBuild') }}</button>
-                </div>
-              </div>
-            </div>
-          </template>
-          <span v-else class="hs-status-ready">⚔️ {{ t('hawkStar.dock.sectionHangar') }}</span>
-        </template>
-      </div>
-    </div>
 
   </div>
 </template>
@@ -958,7 +900,7 @@ const adjustCargo = (resId, delta) => {
   &--owner { color: rgba(255,255,255,0.6); }
   &--dock  { color: rgba(255,255,255,0.5); }
   &--timer { color: rgba(251,191,36,0.85); border-color: rgba(251,191,36,0.15); }
-  &--unit  {
+  &--unit {
     color: rgba(255,255,255,0.7);
     border-color: rgba(255,255,255,0.12);
     font-variant-numeric: tabular-nums;
@@ -1359,7 +1301,6 @@ const adjustCargo = (resId, delta) => {
   border-radius: var(--hs-r-md);
   padding: 0.45rem 0.5rem;
 
-  &--warship  { border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.04); }
   &--freighter { border-color: rgba(52,211,153,0.2); background: rgba(52,211,153,0.03); }
 }
 
@@ -1389,8 +1330,7 @@ const adjustCargo = (resId, delta) => {
   border-radius: 4px;
   line-height: 1.4;
 
-  &--colony   { background: #60a5fa; color: #000; }
-  &--warship  { background: #f87171; color: #fff; }
+  &--colony    { background: #60a5fa; color: #000; }
   &--freighter { background: #34d399; color: #000; }
 }
 
@@ -1428,9 +1368,8 @@ const adjustCargo = (resId, delta) => {
   transform-origin: left;
   animation: hs-bar-fill linear forwards;
 
-  &--unit     { background: #f59e0b; }
-  &--colony   { background: #60a5fa; }
-  &--warship  { background: #f87171; }
+  &--unit      { background: #f59e0b; }
+  &--colony    { background: #60a5fa; }
   &--freighter { background: #34d399; }
 }
 
@@ -1464,92 +1403,6 @@ const adjustCargo = (resId, delta) => {
   font-size: 0.6rem;
   color: rgba(167,139,250,0.85);
   font-weight: 700;
-}
-
-// ── Warship hangar / orbit sections ─────────────────────────────────────────
-.hs-warship-section {
-  margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-
-  &--orbit { margin-top: 0.35rem; }
-}
-
-.hs-warship-section-label {
-  font-size: 0.55rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.3);
-  padding-bottom: 0.15rem;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.hs-warship-card-mini {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.4rem;
-  background: rgba(248,113,113,0.06);
-  border: 1px solid rgba(248,113,113,0.2);
-  border-radius: var(--hs-r-sm);
-
-  &--orbit {
-    background: rgba(167,139,250,0.06);
-    border-color: rgba(167,139,250,0.25);
-  }
-}
-
-.hs-warship-card-mini__icon  { font-size: 0.9rem; line-height: 1; flex-shrink: 0; }
-.hs-warship-card-mini__stats { font-size: 0.6rem; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.hs-warship-coming-soon      { font-size: 0.55rem; color: rgba(248,113,113,0.5); white-space: nowrap; flex-shrink: 0; }
-
-.hs-warship-card-mini__name {
-  flex: 1;
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.7);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hs-warship-card-mini__slots {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.hs-warship-card-mini__slot {
-  width: 1.2rem;
-  height: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6rem;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.25);
-
-  &--filled {
-    background: rgba(248,113,113,0.12);
-    border-color: rgba(248,113,113,0.35);
-    color: rgba(248,113,113,0.9);
-  }
-
-  &--drive {
-    border-color: rgba(251,191,36,0.2);
-    opacity: 0.45;
-
-    &.hs-warship-card-mini__slot--filled {
-      background: rgba(251,191,36,0.12);
-      border-color: rgba(251,191,36,0.45);
-      color: rgba(251,191,36,0.9);
-      opacity: 1;
-    }
-  }
 }
 
 // ── Orbit / Recall buttons ────────────────────────────────────────────────────
@@ -1590,12 +1443,11 @@ const adjustCargo = (resId, delta) => {
   &:hover { background: rgba(248,113,113,0.16); border-color: rgba(248,113,113,0.55); }
 }
 
-// ── Unit rows (drone / colony / freighter / warship) ─────────────────────────
+// ── Unit rows (drone / colony / freighter) ───────────────────────────────────
 
 .hs-solar-drone-row,
 .hs-solar-colony-row,
-.hs-solar-freighter-row,
-.hs-solar-warship-row {
+.hs-solar-freighter-row {
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -1617,8 +1469,7 @@ const adjustCargo = (resId, delta) => {
 
 .hs-solar-drone-label,
 .hs-solar-colony-label,
-.hs-solar-freighter-label,
-.hs-solar-warship-label {
+.hs-solar-freighter-label {
   flex-shrink: 0;
   width: 1.25rem;
   display: flex;
@@ -1636,7 +1487,6 @@ const adjustCargo = (resId, delta) => {
 .hs-solar-drone-label     { border: 1px solid rgba(251,191,36,0.15); }
 .hs-solar-colony-label    { border: 1px solid rgba(96,165,250,0.15); }
 .hs-solar-freighter-label { border: 1px solid rgba(52,211,153,0.15); }
-.hs-solar-warship-label   { border: 1px solid rgba(248,113,113,0.15); }
 
 // ── Shared label internals ────────────────────────────────────────────────────
 
@@ -1667,7 +1517,6 @@ const adjustCargo = (resId, delta) => {
 
   &--colony    { background: #60a5fa; }
   &--freighter { background: #34d399; }
-  &--warship   { background: #f87171; color: #fff; }
 }
 
 .hs-solar-unit-label__name {
@@ -1727,7 +1576,6 @@ const adjustCargo = (resId, delta) => {
 .hs-solar-drone-cell--active     { border-color: rgba(52,211,153,0.4);   background: rgba(52,211,153,0.04); }
 .hs-solar-colony-cell--active    { border-color: rgba(96,165,250,0.4);   background: rgba(96,165,250,0.04); }
 .hs-solar-freighter-cell--active { border-color: rgba(52,211,153,0.4);   background: rgba(52,211,153,0.04); }
-.hs-solar-warship-cell--active   { border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.03); }
 
 // ── Build accordion (shared) ─────────────────────────────────────────────────
 

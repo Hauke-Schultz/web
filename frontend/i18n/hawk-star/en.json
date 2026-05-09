@@ -11,7 +11,6 @@
       "droneReady": "Recon Drone ready",
       "probeReady": "Galaxy Probe ready",
       "colonyReady": "Colony Ship ready",
-      "warshipReady": "{name} ready",
       "freighterReady": "Freighter ready",
       "droneReturned": "Recon Drone returned",
       "probeReturned": "Galaxy Probe returned",
@@ -22,7 +21,6 @@
       "droneBuilding": "Recon Drone building",
       "probeBuilding": "Galaxy Probe building",
       "colonyBuilding": "Colony Ship building",
-      "warshipBuilding": "Hawk Frigate building",
       "freighterBuilding": "Freighter building",
       "missionFrom": "from {planet}",
       "shipDock": "{planet} · Dock",
@@ -64,25 +62,11 @@
       "reconDrone": "Recon Drone",
       "galaxyProbe": "Galaxy Probe",
       "colonyShip": "Colony Ship",
-      "warship": "Warship",
       "freighter": "Freighter",
       "reconDroneDesc": "Scout planets in your home system",
       "galaxyProbeDesc": "Scout distant star systems",
       "colonyShipDesc": "Colonize unoccupied planets",
-      "warshipDesc": "Heavy combat vessel.",
       "freighterDesc": "Transport resources between colonies · {capacity} cargo",
-      "drive": "Drive",
-      "noDrive": "— no drive —",
-      "weapons": "Weapons",
-      "emptySlot": "— empty —",
-      "toOrbit": "↑ Orbit",
-      "needPowerCell": "Power Cell required",
-      "totalDamage": "Total damage (all weapons)",
-      "sectionHangar": "Hangar",
-      "readyForDeployment": "Ready",
-      "attackComingSoon": "⚔️ Attack — coming soon",
-      "slotsFull": "Ship already in hangar",
-      "hangar": "↓ Hangar",
       "loadFreighter": "Load Freighter",
       "noResources": "No resources available",
       "dispatch": "Dispatch →"
@@ -161,7 +145,7 @@
       "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
       "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" },
       "dock":        { "name": "Dock",        "desc": "Ship management, missions and fleet operations" },
-      "warship_bay": { "name": "Warship Bay", "desc": "Heavy warship construction" },
+      "warship_bay": { "name": "Warship Bay", "desc": "Placeholder — no buildings yet" },
       "orbit":       { "name": "Orbit",       "desc": "Orbital infrastructure — placeholder" }
     },
 
@@ -170,13 +154,6 @@
       "volcanic":    { "name": "Volcanic",    "desc": "Rich in metal. Special mining & energy buildings, limited agriculture." },
       "frozen":      { "name": "Frozen",      "desc": "Crystal-rich permafrost. Special excavators and cryo research." },
       "ocean":       { "name": "Ocean",       "desc": "Farming paradise. Enormous population potential, weak mining." }
-    },
-
-    "warships": {
-      "frigate": {
-        "name": "Hawk Frigate",
-        "desc": "Light combat vessel. Fast and agile with 1 drive + 2 weapon slots."
-      }
     },
 
     "buildings": {
@@ -340,13 +317,6 @@
         "lv1": "Colonize 1 uncolonized planet in home system · uses 8 energy · 4 workers",
         "lv2": "Colonize planets in adjacent star systems · uses 14 energy · 7 workers",
         "lv3": "Mass colonization fleet · reach distant systems · uses 24 energy · 12 workers"
-      },
-      "warship_bay": {
-        "name": "Warship Bay",
-        "desc": "Heavy construction dock for warships.",
-        "lv1": "Enables warship construction · 1 warship slot · uses 12 energy · 5 workers",
-        "lv2": "2× build speed · 2 warship slots · uses 20 energy · 8 workers",
-        "lv3": "4× build speed · 3 warship slots · uses 35 energy · 14 workers"
       },
       "freighter_bay": {
         "name": "Freighter Bay",

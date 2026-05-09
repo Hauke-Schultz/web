@@ -255,7 +255,6 @@ GET  /game/warship/status      → warship state (hangar / in_flight / returning
 - One freighter per planet (boolean hangar state — either present or in transit)
 - Freighters fly between your own colonies to redistribute resources; on arrival the freighter is available at the destination planet
 - Later: trade offers between players — a player posts an offer (X metal for Y crystal), another accepts
-- Trade routes are logged in a `trade_offers` table
 
 **Kommunikation:**
 - In-game message system between players

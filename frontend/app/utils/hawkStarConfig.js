@@ -22,57 +22,11 @@ export const UNIT_COSTS = {
   recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 30  },
   galaxy_probe: { cost: { metal: 100, crystal: 50  }, buildTimeBase: 40  },
   colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 60  },
-  warship:      { cost: { metal: 600, crystal: 300 }, buildTimeBase: 120 },
   freighter:    { cost: { metal: 400, crystal: 200 }, buildTimeBase: 90  },
 }
 
 // Cargo capacity per freighter bay level (in resource units)
 export const FREIGHTER_CARGO_CAPACITY = [0, 200, 500, 1000]
-
-// ── Warship classes ───────────────────────────────────────────────────────────
-// Each warship built gets a snapshot of its class stats + empty weapon slots.
-export const WARSHIP_CLASSES = {
-  frigate: {
-    id:          'frigate',
-    name:        'Hawk Frigate',
-    icon:        '🛡️',
-    hull:        150,
-    shield:      30,
-    speed:       8,
-    driveSlots:  1,
-    weaponSlots: 2,
-    description: 'Light combat vessel. Fast and agile with 1 drive + 2 weapon slots.',
-  },
-}
-
-// ── Ship components ───────────────────────────────────────────────────────────
-// Stats that a component provides when equipped in a ship slot.
-// Drive components boost the ship's base shield and speed.
-// Weapon components define combat output per shot.
-export const SHIP_COMPONENTS = {
-  // ── Drive slot ───────────────────────────────────────────────────────────────
-  power_cell: {
-    id:           'power_cell',
-    type:         'drive',
-    shield:       20,   // added on top of the ship's base shield
-    speed:        4,    // added on top of the ship's base speed
-  },
-  // ── Weapon slots ─────────────────────────────────────────────────────────────
-  kinetic_round: {
-    id:           'kinetic_round',
-    type:         'weapon',
-    damage:       25,   // raw damage per shot before armor/shield reduction
-    accuracy:     0.85, // hit chance 0–1
-    armorPiercing: 5,   // flat reduction applied to target shield before damage
-  },
-  plasma_cell: {
-    id:           'plasma_cell',
-    type:         'weapon',
-    damage:       40,
-    accuracy:     0.70,
-    armorPiercing: 15,
-  },
-}
 
 // ── Planet types ──────────────────────────────────────────────────────────────
 // Each type unlocks or restricts certain buildings.
@@ -136,7 +90,7 @@ export const TILE_TYPES = {
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
   dock:          { id: 'dock',          name: 'Dock',          icon: '🛸', description: 'Ship management, missions and fleet operations' },
-  warship_bay:   { id: 'warship_bay',   name: 'Warship Bay',   icon: '⚔️', description: 'Heavy warship construction — placeholder' },
+  warship_bay:   { id: 'warship_bay',   name: 'Warship Bay',   icon: '⚔️', description: 'Placeholder — no buildings yet' },
   orbit:         { id: 'orbit',         name: 'Orbit',         icon: '🛰️', description: 'Orbital infrastructure — placeholder' },
 }
 
@@ -1133,46 +1087,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 24,
         staffDrain:  12,
-      },
-    ],
-  },
-
-  warship_bay: {
-    id:               'warship_bay',
-    name:             'Warship Bay',
-    tileType:         'spacebase',
-    icon:             '⚔️',
-    description:      'Heavy construction dock for warships. Requires Super Alloy and Pure Crystal. Needs Space Technology Lv 2.',
-    requiresBuilding: 'space_building',
-    requiresLevel:    2,
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 800, crystal: 400 },
-        buildTime:   60,
-        effect:      'Unlocks Warship Bay tile · 1 warship slot · uses 12 energy · 5 workers',
-        production:  {},
-        energyDrain: 12,
-        staffDrain:  5,
-        unlocks:     [{ slot: 11 }],
-      },
-      {
-        level:       2,
-        cost:        { metal: 1800, crystal: 900, nano_alloy: 50, pure_crystal: 25 },
-        buildTime:   180,
-        effect:      '2× build speed · 2 warship slots · firepower +50% · uses 20 energy · 8 workers',
-        production:  {},
-        energyDrain: 20,
-        staffDrain:  8,
-      },
-      {
-        level:       3,
-        cost:        { metal: 4000, crystal: 2000, nano_alloy: 120, pure_crystal: 60 },
-        buildTime:   200,
-        effect:      '4× build speed · 3 warship slots · firepower +120% · uses 35 energy · 14 workers',
-        production:  {},
-        energyDrain: 35,
-        staffDrain:  14,
       },
     ],
   },

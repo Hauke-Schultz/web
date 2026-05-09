@@ -37,7 +37,7 @@ const inProgressCount = computed(() => {
     }
     const dock = pstate.dock
     if (dock) {
-      const shipKeys = ['reconDroneBuild','galaxyProbeBuild','colonyShipBuild','warshipBuild','freighterBuild']
+      const shipKeys = ['reconDroneBuild','galaxyProbeBuild','colonyShipBuild','freighterBuild']
       for (const key of shipKeys) { if (dock[key]) count++ }
       count += (dock.activeDroneMissions?.length ?? 0)
       count += (dock.activeGalaxyProbes?.length ?? 0)

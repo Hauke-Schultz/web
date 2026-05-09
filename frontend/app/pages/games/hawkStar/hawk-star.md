@@ -58,7 +58,7 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | `defense` | Planetary shields and weapons platforms |
 | `hightech` | Advanced material refinement (planet-exclusive) |
 | `dock` | Ship management, missions and fleet operations — unlocked by Space Technology Lv 1; clicking opens `HsDockPanel` |
-| `warship_bay` | Heavy warship construction — placeholder |
+| `warship_bay` | Placeholder — no buildings yet |
 | `orbit` | Orbital infrastructure — placeholder |
 
 Each tile can hold one or more buildings. Buildings have up to 3 upgrade levels. Only one building per tile can be under construction at a time.
@@ -74,7 +74,7 @@ All buildings are defined in `BUILDINGS` (`hawkStarConfig.js`). Each building en
   - `cost` — one-time resource cost to queue the build
   - `buildTime` — seconds until completion
   - `production` — resources added per tick while active
-  - `energyDrain` — energy consumed per tick
+  - `energyDrain` — energy consumed
   - `staffDrain` — population workers permanently assigned
   - `storageCapacity` — adds to the resource storage cap
   - `unlocks` — planet slots unlocked on completion
@@ -147,18 +147,7 @@ Units are built at the Space Base tile and consumed on missions. Build time scal
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
 | **Galaxy Probe** | 100 Metal · 50 Crystal | Reveals planet count in a remote star system |
 | **Colony Ship** | 300 Metal · 150 Crystal | Colonizes a scanned uncolonized planet |
-| **Warship** | 600 Metal · 300 Crystal | One combat vessel per planet — attack target coming in Phase 4 |
 | **Freighter** | 400 Metal · 200 Crystal | One transport per planet — carries cargo between colonies |
-
-### Warship Model (simplified)
-
-One warship per planet, built in the Warship Bay. No drive or weapon slots — stats come directly from the ship class.
-
-| Class | Hull | Shield | Speed |
-|-------|------|--------|-------|
-| **Hawk Frigate** | 150 | 30 | 8 |
-
-The warship sits in the hangar after construction. The **Attack** button (sending it to a target planet and receiving it back after combat) is a placeholder for Phase 4. Drive/weapon slot complexity has been removed — equipment can be reintroduced once the combat system is designed end-to-end with the backend.
 
 ### Freighter Model (simplified)
 
@@ -175,8 +164,8 @@ A rough progression arc for a single player:
 1. **Colony Phase** — Build up the home planet: unlock slots, raise Metal/Crystal income, balance Energy.
 2. **Expansion** — Research the Star Map in the Comm Center (global, unlocks on all planets), scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
 3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four refined resources (`super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`).
-4. **Military** — Build a Hawk Frigate in the Warship Bay. Send it to attack enemy planets once Phase 4 is implemented.
-5. **Diplomacy & Conflict** — Encounter allied and enemy factions across the galaxy. Trade via Freighters or push into contested systems with a war fleet.
+4. **Trade** — Transport resources between colonies via Freighters.
+5. **Diplomacy & Conflict** — Encounter allied and enemy factions across the galaxy (Phase 4).
 
 ---
 
@@ -197,10 +186,6 @@ All 9 systems are always visible in the Galaxy Map. Solar System view shows the 
 **Planets** carry individual states: `own` · `uncolonized` · `enemy` · `ally`
 
 The displayed planet state is derived at runtime: if `playerColonizedPlanets` (from `useHawkStar`) contains the planet ID, the state is shown as `own` regardless of the mock value.
-
-### Trade Routes
-
-`TRADE_ROUTES` is defined in the mock file but not rendered in the current Galaxy Map view.
 
 ---
 
@@ -237,8 +222,8 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `pages/hawk-star/index.vue` | Page root — layout, view switching |
 | `pages/hawk-star/hawk-star.md` | This file — game concept & technical reference |
 | `composables/useHawkStar.js` | Central singleton state — all game logic & player data |
-| `utils/hawkStarConfig.js` | Static game data: `PLANET_TYPES`, `BUILDINGS`, `RESOURCES`, `WARSHIP_CLASSES`, `SHIP_COMPONENTS`, `UNIT_COSTS` |
-| `utils/hawkStarGalaxyMock.js` | Galaxy data: `GALAXY_SYSTEMS`, `TRADE_ROUTES` |
+| `utils/hawkStarConfig.js` | Static game data: `PLANET_TYPES`, `BUILDINGS`, `RESOURCES`, `UNIT_COSTS` |
+| `utils/hawkStarGalaxyMock.js` | Galaxy data: `GALAXY_SYSTEMS` |
 
 ### Components
 
@@ -312,8 +297,6 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Recon Drones                                  | ✅ Done |
 | Galaxy Probes                                 | ✅ Done |
 | Colony Ships                                  | ✅ Done |
-| Warship (Hawk Frigate, one per planet, hangar) | ✅ Done |
-| Warship attack mission (Phase 4)               | ⬜ Planned |
 | Freighter (one per planet, boolean hangar state) | ✅ Done |
 | Galaxy Map (simplified, all systems visible)  | ✅ Done |
 | Solar System view                             | ✅ Done |
@@ -349,11 +332,6 @@ sich "richtig" anfühlen — sonst baut das Backend auf unbalancierten Daten auf
 
 Galaxy Map zeigt aktuell alle 9 Systeme immer vollständig. Das Konzept sieht eigentlich vor, dass man Systeme erst sondieren muss. Das könnte lokal vollständig umgesetzt werden,
 bevor der Backend-State das übernimmt.
-
-# Einfaches lokales Kampfsystem
-
-Warships werden gebaut, ausgerüstet — aber es passiert nichts mit ihnen. Zumindest ein simpulierter PvE-Kampf (Angriff auf Mock-Enemy-Planeten) würde den Gameplay-Loop schließen
-und das Kampfsystem vor dem Backend definieren.
 
 # Colony Projects (Queue kleiner Aufgaben)                                                                                                                                      
 
