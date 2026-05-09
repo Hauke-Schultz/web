@@ -37,12 +37,10 @@ const inProgressCount = computed(() => {
     }
     const dock = pstate.dock
     if (dock) {
-      const shipKeys = ['reconDroneBuild','galaxyProbeBuild','colonyShipBuild','freighterBuild']
+      const shipKeys = ['reconDroneBuild','colonyShipBuild']
       for (const key of shipKeys) { if (dock[key]) count++ }
       count += (dock.activeDroneMissions?.length ?? 0)
-      count += (dock.activeGalaxyProbes?.length ?? 0)
       count += (dock.activeColonyMissions?.length ?? 0)
-      count += (dock.activeFreighterMissions?.length ?? 0)
     }
     count += (pstate.conversionQueues?.length ?? 0)
   }
@@ -58,14 +56,10 @@ const dockInfo = computed(() => {
   const ship = (count, building) => ({ count: count ?? 0, building: !!building })
   const inventory = []
   if ((dock.reconDroneInventory  ?? 0) > 0 || dock.reconDroneBuild)  inventory.push({ icon: '🛸', ...ship(dock.reconDroneInventory,  dock.reconDroneBuild) })
-  if ((dock.galaxyProbeInventory ?? 0) > 0 || dock.galaxyProbeBuild) inventory.push({ icon: '🔭', ...ship(dock.galaxyProbeInventory, dock.galaxyProbeBuild) })
   if ((dock.colonyShipInventory  ?? 0) > 0 || dock.colonyShipBuild)  inventory.push({ icon: '🚀', ...ship(dock.colonyShipInventory,  dock.colonyShipBuild) })
-  if (dock.freighter || dock.freighterBuild)   inventory.push({ icon: '🚢', ...ship(dock.freighter ? 1 : 0, dock.freighterBuild) })
 
   const missions = (dock.activeDroneMissions?.length    ?? 0)
-                 + (dock.activeGalaxyProbes?.length      ?? 0)
                  + (dock.activeColonyMissions?.length    ?? 0)
-                 + (dock.activeFreighterMissions?.length ?? 0)
   const dots = Array.from({ length: missions }, () => 'mission')
 
   return { inventory, dots }

@@ -7,9 +7,9 @@ import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 
 const {
 	playerName,
-	reconDroneLevel, colonyShipLevel, galaxyProbeLevel,
+	reconDroneLevel, colonyShipLevel,
   playerScannedPlanets, playerColonizedPlanets,
-  reconDroneInventory, colonyShipInventory, galaxyProbeInventory,
+  reconDroneInventory, colonyShipInventory,
   allActiveDroneMissions,
   canSendDrone, sendReconDrone,
   remainingDroneSec, droneProgressStyle,
@@ -22,19 +22,10 @@ const {
   activePlanetId, setActivePlanet,
   formatTime,
   playerResources,
-  // freighters
-  freighter,
-  allActiveFreighterMissions,
-  freighterCargoCapacity,
-  sendFreighter,
-  freighterFlightTimeBetween,
-  remainingFreighterSec,
-  freighterProgressStyle,
   planetHasDock,
   // build
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
-  freighterBayLevel, freighterBuild, freighterBuildTime, canBuildFreighter, buildFreighter, freighterBuildProgressStyle,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -117,43 +108,6 @@ const planetIcon = (planet) => {
   return planetTypeIcon(planet.type)
 }
 
-// ── Freighter helpers ────────────────────────────────────────────────────────
-const freighterCargo = ref({})
-
-const isFreighterEnRoute = (planetId) =>
-  allActiveFreighterMissions.value.some(m => m.toPlanetId === planetId || m.fromPlanetId === planetId)
-
-const sendFreighterTo = (planetId) => {
-  const cargo = Object.fromEntries(
-    Object.entries(freighterCargo.value).filter(([, v]) => v > 0)
-  )
-  sendFreighter(activePlanetId.value, planetId, cargo)
-  freighterCargo.value = {}
-  expandedBuildRow.value = null
-}
-
-const cargoableResources = computed(() =>
-  Object.entries(RESOURCES).filter(([resId, res]) =>
-    resId !== 'population' && resId !== 'energy' &&
-    ((playerResources.value[resId] ?? 0) > 0 || (freighterCargo.value[resId] ?? 0) > 0)
-  )
-)
-
-const cargoTotalLoaded = computed(() =>
-  Object.values(freighterCargo.value).reduce((sum, v) => sum + v, 0)
-)
-
-const adjustCargo = (resId, delta) => {
-  const current = freighterCargo.value[resId] ?? 0
-  const avail = playerResources.value[resId] ?? 0
-  if (delta > 0) {
-    if (cargoTotalLoaded.value >= freighterCargoCapacity.value || current >= avail) return
-    freighterCargo.value = { ...freighterCargo.value, [resId]: current + 1 }
-  } else {
-    if (current <= 0) return
-    freighterCargo.value = { ...freighterCargo.value, [resId]: current - 1 }
-  }
-}
 </script>
 
 <template>
@@ -193,12 +147,6 @@ const adjustCargo = (resId, delta) => {
           :style="colonyProgressStyle(planet.id)"
         />
 
-        <!-- Freighter en-route indicator -->
-        <div
-          v-else-if="isFreighterEnRoute(planet.id)"
-          class="hs-solar-progress-bar hs-solar-progress-bar--freighter"
-        />
-
         <!-- Icon -->
         <span class="hs-solar-tile-icon">{{ planetIcon(planet) }}</span>
 
@@ -212,17 +160,6 @@ const adjustCargo = (resId, delta) => {
           <span class="hs-solar-tile-state" :style="{ color: STATE_COLOR.own }">
             {{ playerName }}
           </span>
-          <!-- Incoming freighter missions -->
-          <div
-            v-for="fm in allActiveFreighterMissions.filter(m => m.toPlanetId === planet.id)"
-            :key="fm.id"
-            class="hs-solar-tile-freighter-mission"
-          >
-            <div class="hs-solar-tile-freighter-bar">
-              <div class="hs-solar-tile-freighter-bar-fill" :style="freighterProgressStyle(fm.id)" />
-            </div>
-            <span class="hs-solar-tile-freighter-timer">🚢 {{ formatTime(remainingFreighterSec(fm.id)) }}</span>
-          </div>
         </template>
 
         <!-- Colony ship en route -->
@@ -292,9 +229,7 @@ const adjustCargo = (resId, delta) => {
             </span>
             <template v-if="effectivePlanetState(selectedPlanet) === 'own'">
               <span v-if="reconDroneLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🛸 {{ reconDroneInventory }}</span>
-              <span v-if="galaxyProbeLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🔭 {{ galaxyProbeInventory }}</span>
               <span v-if="colonyShipLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🚀 {{ colonyShipInventory }}</span>
-              <span v-if="freighterBayLevel > 0" class="hs-solar-planet-panel__tag hs-solar-planet-panel__tag--unit">🚢 {{ freighter ? 1 : 0 }}</span>
             </template>
           </div>
         </div>
@@ -436,122 +371,6 @@ const adjustCargo = (resId, delta) => {
       </div>
     </div>
 
-    <!-- ── Freighter row ────────────────────────────────────────────────────── -->
-    <div v-if="freighterBayLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-freighter-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'freighter' || expandedBuildRow === 'freighter-cargo' }">
-      <div class="hs-solar-freighter-label">
-        <div class="hs-solar-unit-label__icon-wrap">
-          <span class="hs-solar-unit-label__icon">🚢</span>
-          <span v-if="freighter" class="hs-solar-unit-label__badge hs-solar-unit-label__badge--freighter">1</span>
-        </div>
-        <span class="hs-solar-unit-label__name">{{ t('hawkStar.dock.freighter') }}</span>
-      </div>
-      <div class="hs-solar-connector hs-solar-connector--phantom" aria-hidden="true" />
-      <div
-        v-for="planet in planets"
-        :key="planet.id"
-        class="hs-solar-unit-cell hs-solar-freighter-cell"
-        :class="{
-          'hs-solar-freighter-cell--active': planet.id === activePlanetId,
-          'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
-          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id),
-        }"
-      >
-        <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
-          <template v-if="!freighter">
-            <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('freighter')">
-              <span class="hs-solar-unit-build-trigger__name">{{ freighterBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.freighter') }}</span>
-              <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
-            </button>
-            <div v-if="expandedBuildRow === 'freighter'" class="hs-solar-unit-build-expanded" @click.stop>
-              <div class="hs-dock-row hs-dock-row--freighter">
-                <div class="hs-dock-icon-wrap">
-                  <span class="hs-dock-icon">🚢</span>
-                </div>
-                <div class="hs-dock-info">
-                  <div class="hs-dock-name">{{ t('hawkStar.dock.freighter') }}</div>
-                  <div class="hs-dock-cost-row">
-                    <span v-for="(amt, resId) in UNIT_COSTS.freighter.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                    <span class="hs-unit-time-tag">⏱ {{ formatTime(freighterBuildTime) }}</span>
-                  </div>
-                  <div v-if="freighterBuild" class="hs-progress-row">
-                    <div class="hs-progress-track"><div :key="freighterBuild.endsAt" class="hs-progress-fill hs-progress-fill--freighter" :style="freighterBuildProgressStyle" /></div>
-                    <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((freighterBuild.endsAt - Date.now()) / 1000))) }}</span>
-                  </div>
-                </div>
-                <div class="hs-dock-action">
-                  <span v-if="freighterBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-                  <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildFreighter }" :disabled="!canBuildFreighter" @click.stop="buildFreighter()">{{ t('hawkStar.dock.btnBuild') }}</button>
-                </div>
-              </div>
-            </div>
-          </template>
-          <template v-else>
-            <button class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('freighter-cargo')">
-              <span class="hs-solar-unit-build-trigger__name">
-                {{ cargoTotalLoaded > 0 ? `${cargoTotalLoaded}/${freighterCargoCapacity}` : t('hawkStar.dock.freighter') }}
-              </span>
-              <span class="hs-solar-unit-build-trigger__btn">📦</span>
-            </button>
-            <div v-if="expandedBuildRow === 'freighter-cargo'" class="hs-solar-unit-build-expanded hs-freighter-cargo-panel" @click.stop>
-              <div class="hs-freighter-cargo-header">
-                <span class="hs-freighter-cargo-title">📦 Cargo</span>
-                <span class="hs-freighter-cargo-cap" :class="{ 'hs-freighter-cargo-cap--over': cargoTotalLoaded > freighterCargoCapacity }">
-                  {{ cargoTotalLoaded }} / {{ freighterCargoCapacity }}
-                </span>
-              </div>
-              <div v-if="cargoableResources.length === 0" class="hs-freighter-cargo-empty">No resources available</div>
-              <div v-else class="hs-freighter-cargo-grid">
-                <div
-                  v-for="[resId, res] in cargoableResources"
-                  :key="resId"
-                  class="hs-freighter-cargo-tile"
-                  :class="{ 'hs-freighter-cargo-tile--loaded': (freighterCargo[resId] ?? 0) > 0 }"
-                >
-                  <span class="hs-freighter-cargo-tile__icon">{{ res.icon }}</span>
-                  <div class="hs-freighter-cargo-tile__info">
-                    <span class="hs-freighter-cargo-tile__name">{{ res.name }}</span>
-                    <span class="hs-freighter-cargo-tile__avail">{{ playerResources[resId] ?? 0 }}</span>
-                  </div>
-                  <div class="hs-stepper hs-stepper--cargo">
-                    <button
-                      class="hs-stepper__btn"
-                      :disabled="(freighterCargo[resId] ?? 0) <= 0"
-                      @click.stop="adjustCargo(resId, -1)"
-                    >−</button>
-                    <span class="hs-stepper__val">{{ freighterCargo[resId] ?? 0 }}</span>
-                    <button
-                      class="hs-stepper__btn"
-                      :disabled="cargoTotalLoaded >= freighterCargoCapacity || (freighterCargo[resId] ?? 0) >= (playerResources[resId] ?? 0)"
-                      @click.stop="adjustCargo(resId, 1)"
-                    >+</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-        </template>
-        <template v-else-if="isFreighterEnRoute(planet.id)">
-          <div
-            v-for="fm in allActiveFreighterMissions.filter(m => m.toPlanetId === planet.id || (m.fromPlanetId === planet.id && m.phase === 'returning'))"
-            :key="fm.id"
-            class="hs-solar-freighter-mission-mini"
-          >
-            <div class="hs-solar-tile-freighter-bar">
-              <div class="hs-solar-tile-freighter-bar-fill" :style="freighterProgressStyle(fm.id)" />
-            </div>
-            <span class="hs-solar-tile-freighter-timer">{{ formatTime(remainingFreighterSec(fm.id)) }}</span>
-          </div>
-        </template>
-        <template v-else-if="freighter && effectivePlanetState(planet) === 'own' && planetHasDock(planet.id)">
-          <button
-            class="hs-freighter-send-btn hs-freighter-send-btn--tile"
-            @click.stop="sendFreighterTo(planet.id)"
-          >🚢 Send</button>
-          <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--freighter">{{ formatTime(freighterFlightTimeBetween(activePlanetId, planet.id)) }}</span>
-        </template>
-      </div>
-    </div>
-
 
   </div>
 </template>
@@ -656,15 +475,12 @@ const adjustCargo = (resId, delta) => {
     .hs-solar-tile-owner,
     .hs-solar-tile-units,
     .hs-solar-tile-dock,
-    .hs-solar-tile-freighter-mission,
     .hs-solar-tile-scanning-label,
     .hs-solar-tile-timer,
     .hs-solar-tile-hint,
     .hs-solar-tile-flight-time,
     .hs-solar-tile-unknown-label,
-    .hs-solar-action-btn,
-    .hs-freighter-dest-btn,
-    .hs-freighter-send-btn { display: none; }
+    .hs-solar-action-btn { display: none; }
   }
 }
 
@@ -678,9 +494,8 @@ const adjustCargo = (resId, delta) => {
   transform-origin: left;
   animation: hs-bar-fill linear forwards;
 
-  &--drone     { background: rgba(251,191,36,0.5); }
-  &--colony   { background: rgba(96,165,250,0.5); }
-  &--freighter { background: rgba(52,211,153,0.4); }
+  &--drone   { background: rgba(251,191,36,0.5); }
+  &--colony  { background: rgba(96,165,250,0.5); }
 }
 
 @keyframes hs-bar-fill {
@@ -739,38 +554,6 @@ const adjustCargo = (resId, delta) => {
   font-size: 0.65rem;
   line-height: 1;
   opacity: 0.7;
-}
-
-.hs-solar-tile-freighter-mission {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-}
-
-.hs-solar-tile-freighter-bar {
-  position: relative;
-  width: 100%;
-  height: 2px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.hs-solar-tile-freighter-bar-fill {
-  position: absolute;
-  inset: 0;
-  background: rgba(52,211,153,0.5);
-  transform-origin: left;
-  animation: hs-bar-fill linear forwards;
-}
-
-.hs-solar-tile-freighter-timer {
-  font-size: 0.48rem;
-  color: rgba(52,211,153,0.85);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
 }
 
 .hs-solar-tile-unknown-label {
@@ -1034,10 +817,9 @@ const adjustCargo = (resId, delta) => {
   padding: 2px 0.25rem;
   border-radius: var(--hs-r-sm);
 
-  &--drone     { color: rgba(251,191,36,0.85); }
-  &--probe     { color: rgba(167,139,250,0.85); }
-  &--colony    { color: rgba(96,165,250,0.85); }
-  &--freighter { color: rgba(52,211,153,0.85); }
+  &--drone   { color: rgba(251,191,36,0.85); }
+  &--probe   { color: rgba(167,139,250,0.85); }
+  &--colony  { color: rgba(96,165,250,0.85); }
 }
 
 .hs-dock-mission-icon { font-size: 0.75rem; line-height: 1; flex-shrink: 0; }
@@ -1118,181 +900,6 @@ const adjustCargo = (resId, delta) => {
   gap: 0.35rem;
 }
 
-// ── Freighter cargo ────────────────────────────────────────────────────────────
-
-.hs-freighter-cargo-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.hs-freighter-cargo-title {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.7);
-}
-
-.hs-freighter-cargo-cap {
-  font-size: 0.65rem;
-  font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.35);
-
-  &--over { color: var(--hs-danger); }
-}
-
-.hs-freighter-cargo-empty {
-  font-size: 0.68rem;
-  opacity: 0.3;
-  font-style: italic;
-  text-align: center;
-  padding: 0.4rem 0;
-}
-
-.hs-freighter-cargo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.375rem;
-}
-
-.hs-freighter-cargo-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 0.4rem 0.3rem 0.35rem;
-  background: var(--hs-glass-lg);
-  border: 1px solid var(--hs-line-sm);
-  border-radius: var(--hs-r-sm);
-  transition: border-color 0.15s, background 0.15s;
-
-  &--loaded {
-    border-color: rgba(52,211,153,0.4);
-    background: rgba(52,211,153,0.07);
-  }
-}
-
-.hs-freighter-cargo-tile__icon { font-size: 1.05rem; line-height: 1; }
-
-.hs-freighter-cargo-tile__info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-}
-
-.hs-freighter-cargo-tile__name {
-  font-size: 0.52rem;
-  opacity: 0.45;
-  text-transform: capitalize;
-  line-height: 1;
-  text-align: center;
-}
-
-.hs-freighter-cargo-tile__avail {
-  font-size: 0.68rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-// ── Stepper control ───────────────────────────────────────────────────────────
-.hs-stepper {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  border: 1px solid var(--hs-line-sm);
-  border-radius: 6px;
-  overflow: hidden;
-
-  &--cargo {
-    width: 100%;
-    margin-top: 2px;
-    border-color: rgba(52,211,153,0.25);
-  }
-}
-
-.hs-stepper__btn {
-  flex-shrink: 0;
-  width: 1.5rem;
-  height: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--hs-glass-lg);
-  border: none;
-  color: rgba(255,255,255,0.7);
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-  user-select: none;
-
-  &:hover:not(:disabled) { background: var(--hs-glass-xl); color: #fff; }
-  &:disabled { opacity: 0.25; cursor: not-allowed; }
-}
-
-.hs-stepper__val {
-  flex: 1;
-  text-align: center;
-  font-size: 0.65rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--hs-glass-sm);
-  padding: 0 2px;
-  line-height: 1.5rem;
-  min-width: 1.5rem;
-}
-
-// ── Freighter dest row + send ─────────────────────────────────────────────────
-.hs-freighter-dest-row {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.hs-freighter-dest-btn {
-  padding: 2px 8px;
-  border-radius: var(--hs-r-sm);
-  font-size: 0.52rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.55);
-  transition: background 0.15s, border-color 0.15s;
-
-  &:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
-
-  &--active {
-    border-color: rgba(52,211,153,0.5);
-    background: rgba(52,211,153,0.1);
-    color: rgba(52,211,153,0.95);
-  }
-}
-
-.hs-freighter-send-btn {
-  align-self: flex-start;
-  padding: 3px 10px;
-  border-radius: var(--hs-r-sm);
-  font-size: 0.52rem;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid rgba(52,211,153,0.4);
-  background: rgba(52,211,153,0.1);
-  color: rgba(52,211,153,0.95);
-  transition: background 0.15s, border-color 0.15s;
-
-  &:hover { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.7); }
-
-  &--tile {
-    align-self: center;
-    padding: 2px 6px;
-    font-size: 0.48rem;
-    white-space: nowrap;
-  }
-}
-
 // ── Dock build rows ────────────────────────────────────────────────────────────
 .hs-dock-row {
   display: flex;
@@ -1303,7 +910,6 @@ const adjustCargo = (resId, delta) => {
   border-radius: var(--hs-r-md);
   padding: 0.45rem 0.5rem;
 
-  &--freighter { border-color: rgba(52,211,153,0.2); background: rgba(52,211,153,0.03); }
 }
 
 .hs-dock-icon-wrap {
@@ -1332,8 +938,7 @@ const adjustCargo = (resId, delta) => {
   border-radius: 4px;
   line-height: 1.4;
 
-  &--colony    { background: #60a5fa; color: #000; }
-  &--freighter { background: #34d399; color: #000; }
+  &--colony { background: #60a5fa; color: #000; }
 }
 
 .hs-dock-info    { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -1370,9 +975,8 @@ const adjustCargo = (resId, delta) => {
   transform-origin: left;
   animation: hs-bar-fill linear forwards;
 
-  &--unit      { background: #f59e0b; }
-  &--colony    { background: #60a5fa; }
-  &--freighter { background: #34d399; }
+  &--unit   { background: #f59e0b; }
+  &--colony { background: #60a5fa; }
 }
 
 .hs-progress-time { font-size: 0.55rem; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.4); flex-shrink: 0; }
@@ -1445,11 +1049,10 @@ const adjustCargo = (resId, delta) => {
   &:hover { background: rgba(248,113,113,0.16); border-color: rgba(248,113,113,0.55); }
 }
 
-// ── Unit rows (drone / colony / freighter) ───────────────────────────────────
+// ── Unit rows (drone / colony) ────────────────────────────────────────────────
 
 .hs-solar-drone-row,
-.hs-solar-colony-row,
-.hs-solar-freighter-row {
+.hs-solar-colony-row {
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -1470,8 +1073,7 @@ const adjustCargo = (resId, delta) => {
 // ── Unit label (leftmost cell, same width as sun tile) ────────────────────────
 
 .hs-solar-drone-label,
-.hs-solar-colony-label,
-.hs-solar-freighter-label {
+.hs-solar-colony-label {
   flex-shrink: 0;
   width: 1.25rem;
   display: flex;
@@ -1486,9 +1088,8 @@ const adjustCargo = (resId, delta) => {
   @media (min-width: 640px) { width: 5.5rem; padding: 0.4rem 0.25rem; }
 }
 
-.hs-solar-drone-label     { border: 1px solid rgba(251,191,36,0.15); }
-.hs-solar-colony-label    { border: 1px solid rgba(96,165,250,0.15); }
-.hs-solar-freighter-label { border: 1px solid rgba(52,211,153,0.15); }
+.hs-solar-drone-label  { border: 1px solid rgba(251,191,36,0.15); }
+.hs-solar-colony-label { border: 1px solid rgba(96,165,250,0.15); }
 
 // ── Shared label internals ────────────────────────────────────────────────────
 
@@ -1517,8 +1118,7 @@ const adjustCargo = (resId, delta) => {
   border-radius: 4px;
   line-height: 1.4;
 
-  &--colony    { background: #60a5fa; }
-  &--freighter { background: #34d399; }
+  &--colony { background: #60a5fa; }
 }
 
 .hs-solar-unit-label__name {
@@ -1575,9 +1175,8 @@ const adjustCargo = (resId, delta) => {
 
 // ── Per-type active cell color ────────────────────────────────────────────────
 
-.hs-solar-drone-cell--active     { border-color: rgba(52,211,153,0.4);   background: rgba(52,211,153,0.04); }
-.hs-solar-colony-cell--active    { border-color: rgba(96,165,250,0.4);   background: rgba(96,165,250,0.04); }
-.hs-solar-freighter-cell--active { border-color: rgba(52,211,153,0.4);   background: rgba(52,211,153,0.04); }
+.hs-solar-drone-cell--active  { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+.hs-solar-colony-cell--active { border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.04); }
 
 // ── Build accordion (shared) ─────────────────────────────────────────────────
 
@@ -1655,19 +1254,8 @@ const adjustCargo = (resId, delta) => {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 
-  &--drone     { color: rgba(251,191,36,0.75); }
-  &--colony    { color: rgba(96,165,250,0.75); }
-  &--freighter { color: rgba(52,211,153,0.75); }
-}
-
-// ── Freighter mission mini (en-route display in row) ──────────────────────────
-
-.hs-solar-freighter-mission-mini {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
+  &--drone   { color: rgba(251,191,36,0.75); }
+  &--colony  { color: rgba(96,165,250,0.75); }
 }
 
 .hs-solar-expand-backdrop {

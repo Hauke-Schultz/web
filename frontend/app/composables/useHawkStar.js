@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, FREIGHTER_CARGO_CAPACITY } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — pick a random uninhabited system ──────────────────
@@ -57,22 +57,16 @@ const dismissNotification = (id) => {
   if (idx !== -1) notifications.value.splice(idx, 1)
 }
 
-const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, power_cell: 0, quantum_warhead: 0 }
-const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, kinetic_round: 0, plasma_cell: 0, power_cell: 0, quantum_warhead: 0 }
+const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
+const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
 
 const freshDock = () => ({
   reconDroneInventory:    0,
   reconDroneBuild:        null,
   activeDroneMissions:    [],
-  galaxyProbeInventory:   0,
-  galaxyProbeBuild:       null,
-  activeGalaxyProbes:     [],
   colonyShipInventory:    0,
   colonyShipBuild:        null,
   activeColonyMissions:   [],
-  freighter:              false, // single freighter in hangar (boolean)
-  freighterBuild:         null,
-  activeFreighterMissions: [],
 })
 
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
@@ -263,19 +257,10 @@ const reconDroneLevel = computed(() => {
   const state = playerBuildings.value['recon_drone']
   return state?.level ?? 0
 })
-const galaxyProbeLevel = computed(() => {
-  const state = playerBuildings.value['galaxy_probe']
-  return state?.level ?? 0
-})
 const colonyShipLevel = computed(() => {
   const state = playerBuildings.value['colony_ship']
   return state?.level ?? 0
 })
-const freighterBayLevel = computed(() => {
-  const state = playerBuildings.value['freighter_bay']
-  return state?.level ?? 0
-})
-
 const isBuildingLocked = (id) => {
   const req = BUILDINGS[id]?.requiresBuilding
   if (!req) return false
@@ -438,88 +423,6 @@ const droneBuildProgressStyle = computed(() => {
   return { width: `${pct}%` }
 })
 
-// ── Galaxy Probes (remote system scouting) ─────────────────
-const PROBE_SPEED = 0.4 // map-units per second at level 1
-
-const playerProbedSystems = ref([homeSystemId.value])
-// Per-planet dock aliases
-const galaxyProbeInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.galaxyProbeInventory ?? 0)
-const galaxyProbeBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.galaxyProbeBuild ?? null)
-const activeGalaxyProbes   = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeGalaxyProbes ?? [])
-
-const probeBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.galaxy_probe.buildTimeBase / Math.max(1, galaxyProbeLevel.value) * buildTimeFactor.value)
-)
-
-const probeFlightTime = (systemId) => {
-  const sys = GALAXY_SYSTEMS.find(s => s.id === systemId)
-  if (!sys || sys.id === homeSystemId.value) return 0
-  const dx   = sys.x - (homeSystem.value?.x ?? 50)
-  const dy   = sys.y - (homeSystem.value?.y ?? 50)
-  const dist = Math.sqrt(dx * dx + dy * dy)
-  return Math.ceil(dist / (PROBE_SPEED * Math.max(1, galaxyProbeLevel.value)))
-}
-
-const probeFlightTimeBetween = (fromId, toId) => {
-  const from = GALAXY_SYSTEMS.find(s => s.id === fromId)
-  const to   = GALAXY_SYSTEMS.find(s => s.id === toId)
-  if (!from || !to || fromId === toId) return 0
-  const dx   = to.x - from.x
-  const dy   = to.y - from.y
-  const dist = Math.sqrt(dx * dx + dy * dy)
-  return Math.ceil(dist / (PROBE_SPEED * Math.max(1, galaxyProbeLevel.value)))
-}
-
-const canBuildProbe = computed(() =>
-  galaxyProbeLevel.value > 0 &&
-  !galaxyProbeBuild.value &&
-  canAfford(UNIT_COSTS.galaxy_probe.cost)
-)
-
-const buildGalaxyProbe = () => {
-  if (!canBuildProbe.value) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  const res = allPlanetStates.value[activePlanetId.value].resources
-  for (const [r, amt] of Object.entries(UNIT_COSTS.galaxy_probe.cost)) {
-    res[r] -= amt
-  }
-  dock.galaxyProbeBuild = { endsAt: Date.now() + probeBuildTime.value * 1000, startedAt: Date.now() }
-}
-
-const canSendProbe = (systemId) =>
-  galaxyProbeInventory.value > 0 &&
-  !playerProbedSystems.value.includes(systemId) &&
-  !activeGalaxyProbes.value.find(p => p.systemId === systemId) &&
-  activeGalaxyProbes.value.length < galaxyProbeLevel.value
-
-const sendGalaxyProbe = (systemId, fromSystemId) => {
-  if (!canSendProbe(systemId)) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  dock.galaxyProbeInventory -= 1
-  const ft = fromSystemId ? probeFlightTimeBetween(fromSystemId, systemId) : probeFlightTime(systemId)
-  dock.activeGalaxyProbes.push({ systemId, endsAt: Date.now() + ft * 1000, startedAt: Date.now() })
-}
-
-const remainingProbeSec = (systemId) => {
-  const probe = activeGalaxyProbes.value.find(p => p.systemId === systemId)
-  return probe ? Math.max(0, Math.ceil((probe.endsAt - now.value) / 1000)) : 0
-}
-
-const probeProgressStyle = (systemId) => {
-  const probe = activeGalaxyProbes.value.find(p => p.systemId === systemId)
-  if (!probe) return {}
-  const ft      = probeFlightTime(systemId)
-  return { animationDuration: `${ft}s` }
-}
-
-const probeBuildProgressStyle = computed(() => {
-  const build = galaxyProbeBuild.value
-  if (!build) return {}
-  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
-  return { width: `${pct}%` }
-})
 
 // ── Colony Ships (home system colonization) ────────────────
 const playerColonizedPlanets = ref([homePlanetId.value])
@@ -605,47 +508,6 @@ const colonyShipBuildProgressStyle = computed(() => {
   return { width: `${pct}%` }
 })
 
-// ── Freighters (resource transport between colonies) ────────
-// Per-planet dock aliases
-const freighter               = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighter ?? false)
-const freighterBuild          = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.freighterBuild ?? null)
-const activeFreighterMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeFreighterMissions ?? [])
-const allActiveFreighterMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeFreighterMissions ?? []))
-
-const freighterBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.freighter.buildTimeBase / Math.max(1, freighterBayLevel.value) * buildTimeFactor.value)
-)
-
-const freighterCargoCapacity = computed(() =>
-  FREIGHTER_CARGO_CAPACITY[freighterBayLevel.value] ?? 0
-)
-
-const canBuildFreighter = computed(() =>
-  freighterBayLevel.value > 0 &&
-  !freighterBuild.value &&
-  !freighter.value &&
-  canAfford(UNIT_COSTS.freighter.cost)
-)
-
-const buildFreighter = () => {
-  if (!canBuildFreighter.value) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  const res = allPlanetStates.value[activePlanetId.value].resources
-  for (const [r, amt] of Object.entries(UNIT_COSTS.freighter.cost)) {
-    res[r] -= amt
-  }
-  dock.freighterBuild = { endsAt: Date.now() + freighterBuildTime.value * 1000, startedAt: Date.now() }
-}
-
-const freighterFlightTimeBetween = (fromId, toId) => {
-  const ps = homeSystem.value?.planets ?? []
-  const fi = ps.findIndex(p => p.id === fromId)
-  const ti = ps.findIndex(p => p.id === toId)
-  const dist = Math.max(1, Math.abs(fi - ti))
-  return Math.ceil(120 * dist / Math.max(1, freighterBayLevel.value))
-}
-
 // Helper: storage caps for any planet (used when delivering cargo)
 const maxStorageForPlanet = (planetId) => {
   const pb = allPlanetStates.value[planetId]?.buildings ?? {}
@@ -666,59 +528,6 @@ const getPlanetResources = (planetId) => allPlanetStates.value[planetId]?.resour
 const planetHasDock = (planetId) =>
   (allPlanetStates.value[planetId]?.slots ?? []).some(s => s.tileType === 'dock' && s.unlocked)
 
-const canSendFreighter = (fromPlanetId, toPlanetId, cargo) => {
-  if (!freighter.value) return false
-  if (!fromPlanetId || !toPlanetId || fromPlanetId === toPlanetId) return false
-  if (!allPlanetStates.value[fromPlanetId] || !allPlanetStates.value[toPlanetId]) return false
-  const total = Object.values(cargo).reduce((a, b) => a + b, 0)
-  if (total > freighterCargoCapacity.value) return false
-  const fromRes = allPlanetStates.value[fromPlanetId].resources
-  for (const [r, amt] of Object.entries(cargo)) {
-    if (amt > 0 && (fromRes[r] ?? 0) < amt) return false
-  }
-  return true
-}
-
-const sendFreighter = (fromPlanetId, toPlanetId, cargo) => {
-  if (!canSendFreighter(fromPlanetId, toPlanetId, cargo)) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  const fromRes = allPlanetStates.value[fromPlanetId].resources
-  for (const [r, amt] of Object.entries(cargo)) {
-    if (amt > 0) fromRes[r] -= amt
-  }
-  dock.freighter = false
-  const ft = freighterFlightTimeBetween(fromPlanetId, toPlanetId)
-  dock.activeFreighterMissions.push({
-    id:           Date.now(),
-    homePlanetId: fromPlanetId,
-    fromPlanetId,
-    toPlanetId,
-    cargo:        { ...cargo },
-    endsAt:       Date.now() + ft * 1000,
-    flightTime:   ft,
-    startedAt:    Date.now(),
-    phase:        'outbound',
-  })
-}
-
-const remainingFreighterSec = (missionId) => {
-  const m = allActiveFreighterMissions.value.find(m => m.id === missionId)
-  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
-}
-
-const freighterProgressStyle = (missionId) => {
-  const m = allActiveFreighterMissions.value.find(m => m.id === missionId)
-  if (!m) return {}
-  return { animationDuration: `${m.flightTime}s` }
-}
-
-const freighterBuildProgressStyle = computed(() => {
-  const build = freighterBuild.value
-  if (!build) return {}
-  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
-  return { width: `${pct}%` }
-})
 
 // ── Conversion Queues (High-Tech / Refinery) ───────────────
 // Per-planet array of independent running jobs.
@@ -823,7 +632,7 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 19
+const SAVE_VERSION = 21
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -846,7 +655,6 @@ const saveGame = () => {
       }])
     ),
     playerScannedPlanets:   playerScannedPlanets.value,
-    playerProbedSystems:    playerProbedSystems.value,
     playerColonizedPlanets: playerColonizedPlanets.value,
     notifications:          notifications.value,
     globalResearch:         globalResearch.value,
@@ -888,10 +696,7 @@ const loadGame = () => {
             ...freshDock(),
             ...savedDock,
             activeDroneMissions:    Array.isArray(savedDock.activeDroneMissions)    ? savedDock.activeDroneMissions    : [],
-            activeGalaxyProbes:     Array.isArray(savedDock.activeGalaxyProbes)     ? savedDock.activeGalaxyProbes     : [],
             activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
-            activeFreighterMissions: Array.isArray(savedDock.activeFreighterMissions) ? savedDock.activeFreighterMissions : [],
-            freighter:  savedDock.freighter ?? false,
           },
           conversionQueues: Array.isArray(ps.conversionQueues) ? ps.conversionQueues : [],
         }
@@ -909,7 +714,6 @@ const loadGame = () => {
       activePlanetId.value = data.activePlanetId
     }
     if (Array.isArray(data.playerScannedPlanets))   playerScannedPlanets.value   = data.playerScannedPlanets
-    if (Array.isArray(data.playerProbedSystems))     playerProbedSystems.value    = data.playerProbedSystems
     if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
     if (Array.isArray(data.notifications))           notifications.value          = data.notifications
     if (data.globalResearch) {
@@ -1049,22 +853,6 @@ const tick = () => {
           dock.activeDroneMissions.splice(i, 1)
         }
       }
-      // Galaxy probe build
-      if (dock.galaxyProbeBuild && dock.galaxyProbeBuild.endsAt <= now.value) {
-        dock.galaxyProbeInventory += 1
-        dock.galaxyProbeBuild = null
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_probe`, type: 'unit_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.probeReady', timestamp: Date.now() })
-      }
-      // Galaxy probes → reveal system
-      for (let i = dock.activeGalaxyProbes.length - 1; i >= 0; i--) {
-        const probe = dock.activeGalaxyProbes[i]
-        if (probe.endsAt <= now.value) {
-          if (!playerProbedSystems.value.includes(probe.systemId)) playerProbedSystems.value.push(probe.systemId)
-          const tgt = GALAXY_SYSTEMS.find(s => s.id === probe.systemId)?.name ?? probe.systemId
-          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_probe_${probe.systemId}`, type: 'mission_done', icon: '🔭', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.probeReturned', details: `→ ${tgt}`, timestamp: Date.now() })
-          dock.activeGalaxyProbes.splice(i, 1)
-        }
-      }
       // Colony ship build
       if (dock.colonyShipBuild && dock.colonyShipBuild.endsAt <= now.value) {
         dock.colonyShipInventory += 1
@@ -1086,51 +874,6 @@ const tick = () => {
           const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
           notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_colony_${m.planetId}`, type: 'mission_done', icon: '🌍', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.colonyLanded', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeColonyMissions.splice(i, 1)
-        }
-      }
-      // Freighter build
-      if (dock.freighterBuild && dock.freighterBuild.endsAt <= now.value) {
-        dock.freighter = true
-        dock.freighterBuild = null
-        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_freighter`, type: 'unit_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterReady', timestamp: Date.now() })
-      }
-      // Freighter missions → deliver cargo, then return to home planet
-      for (let i = dock.activeFreighterMissions.length - 1; i >= 0; i--) {
-        const m = dock.activeFreighterMissions[i]
-        if (m.endsAt > now.value) continue
-
-        if (m.phase !== 'returning') {
-          // Outbound leg arrived — deliver cargo
-          const toPlanetState = allPlanetStates.value[m.toPlanetId]
-          if (toPlanetState) {
-            const caps = maxStorageForPlanet(m.toPlanetId)
-            for (const [r, amt] of Object.entries(m.cargo)) {
-              if (amt <= 0) continue
-              const cap = caps[r]
-              toPlanetState.resources[r] = cap !== undefined
-                ? Math.min((toPlanetState.resources[r] ?? 0) + amt, cap)
-                : (toPlanetState.resources[r] ?? 0) + amt
-            }
-          }
-          const toName = allPlanetStates.value[m.toPlanetId]?.planetName ?? m.toPlanetId
-          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_freight_${m.id}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterArrived', details: `→ ${toName}`, timestamp: Date.now() })
-          // Start return trip
-          const homePId      = m.homePlanetId ?? m.fromPlanetId
-          const arrivedAt    = m.toPlanetId
-          m.phase            = 'returning'
-          m.fromPlanetId     = arrivedAt
-          m.toPlanetId       = homePId
-          m.cargo            = {}
-          m.startedAt        = now.value
-          m.endsAt           = now.value + m.flightTime * 1000
-        } else {
-          // Return leg arrived — freighter back in hangar
-          const homePId      = m.homePlanetId
-          const homeState    = allPlanetStates.value[homePId]
-          if (homeState) homeState.dock.freighter = true
-          const homeName     = homeState?.planetName ?? homePId
-          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_freight_ret_${m.id}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.freighterReturned', details: `← ${homeName}`, timestamp: Date.now() })
-          dock.activeFreighterMissions.splice(i, 1)
         }
       }
     }
@@ -1290,7 +1033,6 @@ export function useHawkStar() {
     // space tech
     spaceTechLevel,
     reconDroneLevel,
-    galaxyProbeLevel,
     colonyShipLevel,
     // recon drones
     playerScannedPlanets,
@@ -1308,20 +1050,6 @@ export function useHawkStar() {
     droneProgressStyle,
     droneBuildProgressStyle,
     droneFlightTimeBetween,
-    // galaxy probes
-    playerProbedSystems,
-    galaxyProbeInventory,
-    galaxyProbeBuild,
-    activeGalaxyProbes,
-    probeBuildTime,
-    canBuildProbe,
-    buildGalaxyProbe,
-    canSendProbe,
-    sendGalaxyProbe,
-    remainingProbeSec,
-    probeProgressStyle,
-    probeBuildProgressStyle,
-    probeFlightTimeBetween,
     // colony ships
     playerColonizedPlanets,
     colonyShipInventory,
@@ -1338,22 +1066,6 @@ export function useHawkStar() {
     colonyProgressStyle,
     colonyShipBuildProgressStyle,
     colonyFlightTimeBetween,
-    // freighters
-    freighterBayLevel,
-    freighter,
-    freighterBuild,
-    activeFreighterMissions,
-    allActiveFreighterMissions,
-    freighterBuildTime,
-    freighterCargoCapacity,
-    canBuildFreighter,
-    buildFreighter,
-    canSendFreighter,
-    sendFreighter,
-    freighterFlightTimeBetween,
-    remainingFreighterSec,
-    freighterProgressStyle,
-    freighterBuildProgressStyle,
     getPlanetName,
     getPlanetResources,
     planetHasDock,

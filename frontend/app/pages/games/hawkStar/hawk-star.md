@@ -53,7 +53,7 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | `energy` | Power generation — Energy is a utility, not stockpiled |
 | `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory |
 | `comm_center` | Comm Center — global research tile. Technologies researched here apply across all planets |
-| `spacebase` | Launch pad for probes, colony ships, warships, freighters |
+| `spacebase` | Launch pad for drones and colony ships |
 | `agriculture` | Reserved — no buildings yet (planned for later) |
 | `defense` | Planetary shields and weapons platforms |
 | `hightech` | Advanced material refinement (planet-exclusive) |
@@ -110,7 +110,7 @@ Each planet type produces one exclusive raw resource from its High-Tech tile:
 
 ### Refined Resources
 
-Each planet type produces exactly **one** refined resource in its High-Tech building. The other three must be acquired via trade or freighter transport.
+Each planet type produces exactly **one** refined resource in its High-Tech building. The other three must be acquired via trade.
 
 | Planet Type | High-Tech Building | Produces | Input |
 |-------------|-------------------|----------|-------|
@@ -119,9 +119,6 @@ Each planet type produces exactly **one** refined resource in its High-Tech buil
 | Frozen | `cryo_refinery` | `pure_crystal` | Crystal + Cryonite |
 | Ocean | `bio_lab` | `nano_alloy` | Metal + Biomass |
 
-### Ship Components
-
-Ship component resources (`power_cell`, `kinetic_round`, `plasma_cell`) are defined in config and produced by tech labs, but are **not yet used** — the equip/slot system has been removed in favor of a simpler warship model. They may return when the combat system is fleshed out.
 
 ---
 
@@ -146,15 +143,7 @@ Units are built at the Space Base tile and consumed on missions. Build time scal
 | Unit | Cost | Purpose |
 |------|------|---------|
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
-| **Galaxy Probe** | 100 Metal · 50 Crystal | Reveals planet count in a remote star system |
 | **Colony Ship** | 300 Metal · 150 Crystal | Colonizes a scanned uncolonized planet |
-| **Freighter** | 400 Metal · 200 Crystal | One transport per planet — carries cargo between colonies |
-
-### Freighter Model (simplified)
-
-One freighter per planet, built at the Freighter Bay. State is boolean — either the freighter is in the hangar (`freighter: true`) or it is in transit (`freighter: false`). There is no inventory count. Building a second freighter is blocked as long as one exists on the planet.
-
-When the freighter arrives at its destination, the destination planet's hangar flag is set to `true`. The player must then dispatch it from there or wait for it to return. Cargo capacity scales with Freighter Bay level.
 
 ---
 
@@ -165,7 +154,7 @@ A rough progression arc for a single player:
 1. **Colony Phase** — Build up the home planet: unlock slots, raise Metal/Crystal income, balance Energy.
 2. **Expansion** — Research the Star Map in the Comm Center (global, unlocks on all planets), scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
 3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four refined resources (`super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`).
-4. **Trade** — Transport resources between colonies via Freighters.
+4. **Trade** — Inter-colony resource exchange (to be designed).
 5. **Diplomacy & Conflict** — Encounter allied and enemy factions across the galaxy (Phase 4).
 
 ---
@@ -185,7 +174,7 @@ The player starts on a **randomly chosen habitable planet** from the home system
 
 ### Other Systems
 
-The remaining 8 systems each contain a mix of habitable (`uncolonized`) and uninhabitable planets. No owners, no factions. They become reachable via Colony Ships after scanning with a Galaxy Probe.
+The remaining 8 systems each contain a mix of habitable (`uncolonized`) and uninhabitable planets. No owners, no factions. They become reachable via Colony Ships.
 
 ### Visibility
 
@@ -243,7 +232,7 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `HsResourceBar` | Compact resource bar shown at top of all views |
 | `HsPlanetGrid` | 4×3 unified tile grid — 3 panel tiles (row 1) + 9 planet building slots (rows 2–4). Manages single active-tile state across all 12 tiles. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
-| `HsDockPanel` | Space Base panel — build & manage all ship types (drones, probes, colony ships, warships, freighters) + active missions |
+| `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — all planets, drone & colony actions |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
@@ -305,9 +294,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Resources + storage caps                      | ✅ Done |
 | High-Tech conversions                         | ✅ Done |
 | Recon Drones                                  | ✅ Done |
-| Galaxy Probes                                 | ✅ Done |
 | Colony Ships                                  | ✅ Done |
-| Freighter (one per planet, boolean hangar state) | ✅ Done |
 | Galaxy Map (simplified, all systems visible)  | ✅ Done |
 | Solar System view                             | ✅ Done |
 | Dev mode — tick rate & build time factor      | ✅ Done |

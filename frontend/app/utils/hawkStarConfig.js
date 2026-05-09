@@ -20,13 +20,8 @@
 // Cost to build ONE unit (drone / probe / ship). Building level divides buildTimeBase.
 export const UNIT_COSTS = {
   recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 30  },
-  galaxy_probe: { cost: { metal: 100, crystal: 50  }, buildTimeBase: 40  },
   colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 60  },
-  freighter:    { cost: { metal: 400, crystal: 200 }, buildTimeBase: 90  },
 }
-
-// Cargo capacity per freighter bay level (in resource units)
-export const FREIGHTER_CARGO_CAPACITY = [0, 200, 500, 1000]
 
 // ── Planet types ──────────────────────────────────────────────────────────────
 // Each type unlocks or restricts certain buildings.
@@ -78,10 +73,7 @@ export const RESOURCES = {
   super_alloy:   { id: 'super_alloy',   name: 'Super Alloy',   icon: '🔩',  color: '#e2e8f0', refined: true },
   quantum_shard: { id: 'quantum_shard', name: 'Quantum Shard', icon: '💠',  color: '#818cf8', refined: true },
   nano_alloy:    { id: 'nano_alloy',    name: 'Nano Alloy',    icon: '🔧',  color: '#93c5fd', refined: true },
-  // ── Weapon ordnance & ship modules (equipped on warships) ───────────────────
-  kinetic_round:   { id: 'kinetic_round',   name: 'Kinetic Round',   icon: '🔹',  color: '#94a3b8', weapon: true },
-  plasma_cell:     { id: 'plasma_cell',     name: 'Plasma Cell',     icon: '🔴',  color: '#f87171', weapon: true },
-  power_cell:      { id: 'power_cell',      name: 'Power Cell',      icon: '🔋',  color: '#fbbf24', drive: true },
+  power_cell:      { id: 'power_cell',      name: 'Power Cell',      icon: '🔋',  color: '#fbbf24' },
 }
 
 // ── Tile types ────────────────────────────────────────────────────────────────
@@ -91,7 +83,7 @@ export const TILE_TYPES = {
   energy:        { id: 'energy',        name: 'Energy',        icon: '🔋', description: 'Power generation' },
   techcenter:    { id: 'techcenter',    name: 'Tech Center',   icon: '🔬', description: 'Tech Center' },
   comm_center:   { id: 'comm_center',   name: 'Comm Center',   icon: '📡', description: 'Global technologies — researched once, applied across all planets' },
-  spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for probes, colony ships and freighters' },
+  spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for drones and colony ships' },
   agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Reserved — no buildings yet' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
@@ -913,43 +905,6 @@ export const BUILDINGS = {
     ],
   },
 
-  galaxy_probe: {
-    id:          'galaxy_probe',
-    name:        'Galaxy Probe',
-    tileType:    'spacebase',
-    icon:        '🔭',
-    description: 'Launches long-range probes to distant star systems. Reveals planet count on arrival.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 180, crystal: 120 },
-        buildTime:   35,
-        effect:      'Send 1 probe at a time — reveals planet count on arrival · uses 4 energy · 2 workers',
-        production:  {},
-        energyDrain: 4,
-        staffDrain:  2,
-      },
-      {
-        level:       2,
-        cost:        { metal: 420, crystal: 280 },
-        buildTime:   50,
-        effect:      'Send 2 probes simultaneously · 2× travel speed · uses 7 energy · 3 workers',
-        production:  {},
-        energyDrain: 7,
-        staffDrain:  3,
-      },
-      {
-        level:       3,
-        cost:        { metal: 900, crystal: 600 },
-        buildTime:   160,
-        effect:      'Send 3 probes simultaneously · 3× travel speed · uses 12 energy · 5 workers',
-        production:  {},
-        energyDrain: 12,
-        staffDrain:  5,
-      },
-    ],
-  },
-
   star_map: {
     id:          'star_map',
     name:        'Star Map',
@@ -1093,45 +1048,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 24,
         staffDrain:  12,
-      },
-    ],
-  },
-
-  freighter_bay: {
-    id:               'freighter_bay',
-    name:             'Freighter Bay',
-    tileType:         'spacebase',
-    icon:             '🚢',
-    description:      'Cargo dock for building freighters. Transport resources between your colonies. Needs Space Technology Lv 1.',
-    requiresBuilding: 'space_building',
-    requiresLevel:    1,
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 500, crystal: 250 },
-        buildTime:   60,
-        effect:      'Build freighters · 200 cargo capacity · uses 10 energy · 5 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  5,
-      },
-      {
-        level:       2,
-        cost:        { metal: 1200, crystal: 600 },
-        buildTime:   180,
-        effect:      '500 cargo capacity · 2× build speed · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
-      },
-      {
-        level:       3,
-        cost:        { metal: 2800, crystal: 1400 },
-        buildTime:   200,
-        effect:      '1000 cargo capacity · 4× build speed · uses 28 energy · 14 workers',
-        production:  {},
-        energyDrain: 28,
-        staffDrain:  14,
       },
     ],
   },
@@ -1502,37 +1418,4 @@ export const BUILDINGS = {
     ],
   },
 
-  // ── Weapon Lab (hightech tile) ─────────────────────────────────────────────
-
-  weapon_lab: {
-    id:               'weapon_lab',
-    name:             'Weapon Lab',
-    tileType:         'hightech',
-    icon:             '🔬',
-    description:      'Military research facility. Synthesises weapon ordnance that can be equipped on warships.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 500, crystal: 250 },
-        buildTime:   50,
-        effect:      'Unlocks Kinetic Round production · uses 8 energy · 4 workers',
-        production:  {},
-        energyDrain: 8,
-        staffDrain:  4,
-      },
-      {
-        level:       2,
-        cost:        { metal: 1200, crystal: 600 },
-        buildTime:   170,
-        effect:      '2× throughput · unlocks Plasma Cell production · uses 16 energy · 7 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  7,
-      },
-    ],
-    conversions: [
-      { input: { metal: 20, pure_crystal: 3 }, output: { kinetic_round: 1 }, durationBase: 30, requiresLevel: 1 },
-      { input: { metal: 20, quantum_shard: 3 }, output: { plasma_cell: 1 }, durationBase: 30, requiresLevel: 1 },
-    ],
-  },
 }

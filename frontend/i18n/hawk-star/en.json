@@ -9,19 +9,12 @@
       "buildComplete": "{name} Lv{level} complete",
       "researchComplete": "{name} Lv{level} researched",
       "droneReady": "Recon Drone ready",
-      "probeReady": "Galaxy Probe ready",
       "colonyReady": "Colony Ship ready",
-      "freighterReady": "Freighter ready",
       "droneReturned": "Recon Drone returned",
-      "probeReturned": "Galaxy Probe returned",
       "colonyLanded": "Colony Ship landed",
-      "freighterArrived": "Freighter arrived",
-      "freighterReturned": "Freighter returned",
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone building",
-      "probeBuilding": "Galaxy Probe building",
       "colonyBuilding": "Colony Ship building",
-      "freighterBuilding": "Freighter building",
       "missionFrom": "from {planet}",
       "shipDock": "{planet} · Dock",
       "conversionRemaining": "×{n} remaining"
@@ -60,14 +53,9 @@
       "statusBuilding": "Building…",
       "btnBuild": "Build",
       "reconDrone": "Recon Drone",
-      "galaxyProbe": "Galaxy Probe",
       "colonyShip": "Colony Ship",
-      "freighter": "Freighter",
       "reconDroneDesc": "Scout planets in your home system",
-      "galaxyProbeDesc": "Scout distant star systems",
       "colonyShipDesc": "Colonize unoccupied planets",
-      "freighterDesc": "Transport resources between colonies · {capacity} cargo",
-      "loadFreighter": "Load Freighter",
       "noResources": "No resources available",
       "dispatch": "Dispatch →"
     },
@@ -130,8 +118,6 @@
       "super_alloy": "Super Alloy",
       "quantum_shard": "Quantum Shard",
       "nano_alloy": "Nano Alloy",
-      "kinetic_round": "Kinetic Round",
-      "plasma_cell": "Plasma Cell",
       "power_cell": "Power Cell"
     },
 
@@ -141,7 +127,7 @@
       "energy":      { "name": "Energy",      "desc": "Power generation" },
       "techcenter":  { "name": "Tech Center", "desc": "Technology research" },
       "comm_center": { "name": "Comm Center",  "desc": "Global technologies — researched once, applied across all planets" },
-      "spacebase":   { "name": "Space Base",  "desc": "Launch pad for probes, colony ships and freighters" },
+      "spacebase":   { "name": "Space Base",  "desc": "Launch pad for drones and colony ships" },
       "agriculture": { "name": "Agriculture", "desc": "Reserved — no buildings yet" },
       "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
       "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" },
@@ -282,13 +268,6 @@
         "lv2": "Scout 2 planets simultaneously · 2× speed · uses 8 energy · 3 workers",
         "lv3": "Scout 3 planets simultaneously · 3× speed · uses 14 energy · 5 workers"
       },
-      "galaxy_probe": {
-        "name": "Galaxy Probe",
-        "desc": "Launches long-range probes to distant star systems.",
-        "lv1": "Send 1 probe at a time · reveals planet count · uses 4 energy · 2 workers",
-        "lv2": "Send 2 probes simultaneously · 2× travel speed · uses 7 energy · 3 workers",
-        "lv3": "Send 3 probes simultaneously · 3× travel speed · uses 12 energy · 5 workers"
-      },
       "star_map": {
         "name": "Star Map",
         "desc": "Charts the known galaxy. Required for interplanetary navigation.",
@@ -319,13 +298,6 @@
         "lv1": "Colonize 1 uncolonized planet in home system · uses 8 energy · 4 workers",
         "lv2": "Colonize planets in adjacent star systems · uses 14 energy · 7 workers",
         "lv3": "Mass colonization fleet · reach distant systems · uses 24 energy · 12 workers"
-      },
-      "freighter_bay": {
-        "name": "Freighter Bay",
-        "desc": "Cargo dock for building freighters. Needs Space Technology Lv 1.",
-        "lv1": "Build freighters · 200 cargo capacity · uses 10 energy · 5 workers",
-        "lv2": "500 cargo capacity · 2× build speed · uses 16 energy · 8 workers",
-        "lv3": "1000 cargo capacity · 4× build speed · uses 28 energy · 14 workers"
       },
       "geothermal_tap": {
         "name": "Geothermal Tap",
@@ -390,12 +362,6 @@
         "lv2": "Resonant shield — absorbs 85% incoming damage · uses 30 energy · 6 workers",
         "lv3": "Phase matrix — absorbs 95% · reflects 20% back · uses 50 energy · 10 workers"
       },
-      "weapon_lab": {
-        "name": "Weapon Lab",
-        "desc": "Military research facility. Synthesises weapon ordnance for warships.",
-        "lv1": "Unlocks Kinetic Round production · uses 8 energy · 4 workers",
-        "lv2": "2× throughput · unlocks Plasma Cell production · uses 16 energy · 7 workers"
-      }
     }
   }
 }

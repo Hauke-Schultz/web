@@ -61,10 +61,8 @@ const inProgressItems = computed(() => {
     if (dock) {
       // Ship builds
       const shipBuilds = [
-        { key: 'reconDroneBuild',  labelKey: 'hawkStar.notifications.droneBuilding',    icon: '🛸' },
-        { key: 'galaxyProbeBuild', labelKey: 'hawkStar.notifications.probeBuilding',    icon: '🔭' },
-        { key: 'colonyShipBuild',  labelKey: 'hawkStar.notifications.colonyBuilding',   icon: '🚀' },
-        { key: 'freighterBuild',   labelKey: 'hawkStar.notifications.freighterBuilding',icon: '📦' },
+        { key: 'reconDroneBuild',  labelKey: 'hawkStar.notifications.droneBuilding',  icon: '🛸' },
+        { key: 'colonyShipBuild',  labelKey: 'hawkStar.notifications.colonyBuilding', icon: '🚀' },
       ]
       for (const { key, labelKey, icon } of shipBuilds) {
         const build = dock[key]
@@ -95,38 +93,12 @@ const inProgressItems = computed(() => {
         })
       }
 
-      for (const m of dock.activeGalaxyProbes ?? []) {
-        items.push({
-          id:       `prog_probe_${pid}_${m.systemId}`,
-          type:     'mission',
-          icon:     '🔭',
-          title:    `Galaxy Probe → ${systemName(m.systemId)}`,
-          subtitle: t('hawkStar.notifications.missionFrom', { planet: pname }),
-          remSec:   remSec(m.endsAt),
-          pct:      pct(m.startedAt, m.endsAt),
-          priority: 1,
-        })
-      }
-
       for (const m of dock.activeColonyMissions ?? []) {
         items.push({
           id:       `prog_colony_${pid}_${m.planetId}`,
           type:     'mission',
           icon:     '🚀',
           title:    `Colony Ship → ${planetName(m.planetId)}`,
-          subtitle: t('hawkStar.notifications.missionFrom', { planet: pname }),
-          remSec:   remSec(m.endsAt),
-          pct:      pct(m.startedAt, m.endsAt),
-          priority: 1,
-        })
-      }
-
-      for (const m of dock.activeFreighterMissions ?? []) {
-        items.push({
-          id:       `prog_freight_${pid}_${m.id}`,
-          type:     'mission',
-          icon:     '📦',
-          title:    `Freighter → ${planetName(m.toPlanetId)}`,
           subtitle: t('hawkStar.notifications.missionFrom', { planet: pname }),
           remSec:   remSec(m.endsAt),
           pct:      pct(m.startedAt, m.endsAt),

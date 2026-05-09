@@ -10,21 +10,12 @@
       "buildComplete": "{name} Lv{level} fertig",
       "researchComplete": "{name} Lv{level} erforscht",
       "droneReady": "Recon Drone bereit",
-      "probeReady": "Galaxy Probe bereit",
       "colonyReady": "Colony Ship bereit",
-      "freighterReady": "Frachter bereit",
-
       "droneReturned": "Recon Drone zurückgekehrt",
-      "probeReturned": "Galaxy Probe zurückgekehrt",
       "colonyLanded": "Colony Ship gelandet",
-      "freighterArrived": "Frachter angekommen",
-      "freighterReturned": "Frachter zurückgekehrt",
-
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone wird gebaut",
-      "probeBuilding": "Galaxy Probe wird gebaut",
       "colonyBuilding": "Colony Ship wird gebaut",
-      "freighterBuilding": "Frachter wird gebaut",
 
       "missionFrom": "von {planet}",
       "shipDock": "{planet} · Dock",
@@ -64,14 +55,9 @@
       "statusBuilding": "Baut…",
       "btnBuild": "Bauen",
       "reconDrone": "Recon Drone",
-      "galaxyProbe": "Galaxy Probe",
       "colonyShip": "Colony Ship",
-      "freighter": "Frachter",
       "reconDroneDesc": "Erkunde Planeten in deinem Heimatsystem",
-      "galaxyProbeDesc": "Erkunde entfernte Sternensysteme",
       "colonyShipDesc": "Kolonisiere unbewohnte Planeten",
-      "freighterDesc": "Transportiert Ressourcen zwischen Kolonien · {capacity} Fracht",
-      "loadFreighter": "Frachter beladen",
       "noResources": "Keine Ressourcen verfügbar",
       "dispatch": "Abschicken →"
     },
@@ -96,7 +82,6 @@
       "hangar": "↓ Hangar",
       "active": "aktiv",
       "slots": "Felder",
-      "loadFreighter": "Frachter beladen",
       "dispatch": "Abschicken →"
     },
 
@@ -134,8 +119,6 @@
       "super_alloy": "Super-Legierung",
       "quantum_shard": "Quantumsplitter",
       "nano_alloy": "Nano-Legierung",
-      "kinetic_round": "Kinetikgeschoss",
-      "plasma_cell": "Plasmakammer",
       "power_cell": "Power Cell"
     },
 
@@ -145,7 +128,7 @@
       "energy":      { "name": "Energie",         "desc": "Stromerzeugung" },
       "techcenter":  { "name": "Techzentrum",     "desc": "Technologieforschung" },
       "comm_center": { "name": "Komm-Zentrum",    "desc": "Globale Technologien — einmal erforscht, auf allen Planeten aktiv" },
-      "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Sonden, Kolonisierungsschiffe und Frachter" },
+      "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Drohnen und Kolonisierungsschiffe" },
       "agriculture": { "name": "Landwirtschaft",  "desc": "Reserviert — noch keine Gebäude" },
       "defense":     { "name": "Verteidigung",    "desc": "Planetarische Schilde, Waffenplattformen und Frühwarnsysteme" },
       "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" },
@@ -286,13 +269,6 @@
         "lv2": "2 Planeten gleichzeitig · 2× Geschwindigkeit · 8 Energie · 3 Arbeiter",
         "lv3": "3 Planeten gleichzeitig · 3× Geschwindigkeit · 14 Energie · 5 Arbeiter"
       },
-      "galaxy_probe": {
-        "name": "Galaxy Probe",
-        "desc": "Startet Langstreckensonden zu entfernten Sternensystemen.",
-        "lv1": "1 Sonde gleichzeitig · zeigt Planetenanzahl · 4 Energie · 2 Arbeiter",
-        "lv2": "2 Sonden gleichzeitig · 2× Reisegeschwindigkeit · 7 Energie · 3 Arbeiter",
-        "lv3": "3 Sonden gleichzeitig · 3× Reisegeschwindigkeit · 12 Energie · 5 Arbeiter"
-      },
       "star_map": {
         "name": "Sternenkarte",
         "desc": "Kartografiert die bekannte Galaxie. Erforderlich für interplanetare Navigation.",
@@ -323,13 +299,6 @@
         "lv1": "Kolonisiere 1 unbesiedelten Planeten im Heimatsystem · 8 Energie · 4 Arbeiter",
         "lv2": "Kolonisiere Planeten in angrenzenden Sternensystemen · 14 Energie · 7 Arbeiter",
         "lv3": "Massenkolonisierungsflotte · erreiche entfernte Systeme · 24 Energie · 12 Arbeiter"
-      },
-      "freighter_bay": {
-        "name": "Frachterdock",
-        "desc": "Frachterdock zum Bau von Transportschiffen. Benötigt Raumfahrttechnologie Lv 1.",
-        "lv1": "Frachter bauen · 200 Frachtraum · 10 Energie · 5 Arbeiter",
-        "lv2": "500 Frachtraum · 2× Baugeschwindigkeit · 16 Energie · 8 Arbeiter",
-        "lv3": "1000 Frachtraum · 4× Baugeschwindigkeit · 28 Energie · 14 Arbeiter"
       },
       "geothermal_tap": {
         "name": "Geothermiezapfstelle",
@@ -394,12 +363,6 @@
         "lv2": "Resonanzschild — absorbiert 85% eingehenden Schaden · 30 Energie · 6 Arbeiter",
         "lv3": "Phasenmatrix — absorbiert 95% · reflektiert 20% zurück · 50 Energie · 10 Arbeiter"
       },
-      "weapon_lab": {
-        "name": "Waffenlabor",
-        "desc": "Militärische Forschungsanlage. Synthetisiert Waffenmunition für Kriegsschiffe.",
-        "lv1": "Schaltet Kinetikgeschoss-Produktion frei · 8 Energie · 4 Arbeiter",
-        "lv2": "2× Durchsatz · schaltet Plasmakammer-Produktion frei · 16 Energie · 7 Arbeiter"
-      }
     }
   }
 }
