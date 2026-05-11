@@ -137,12 +137,14 @@ The planet type is assigned on colonization and restricts or enables certain bui
 
 ## Units
 
-Units are built at the Space Base tile and consumed on missions. Build time scales with building level (`buildTimeBase / level`). Simultaneous missions are capped by building level (1/2/3).
+Units are built at the Space Base tile and consumed on missions. Each unit type has exactly **one level** — no upgrades. Only **one active mission** per unit type at a time.
 
-| Unit | Cost | Purpose |
-|------|------|---------|
+| Unit | Build cost | Purpose |
+|------|-----------|---------|
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
 | **Colony Ship** | 300 Metal · 150 Crystal | Colonizes a scanned uncolonized planet |
+
+The `recon_drone` and `colony_ship` entries in `BUILDINGS` gate availability (the building must be constructed before units can be built). `UNIT_COSTS` holds the per-unit resource cost and `buildTimeBase`.
 
 ---
 
@@ -160,33 +162,35 @@ A rough progression arc for a single player:
 
 ## Galaxy
 
-Each player receives their own private galaxy — no enemies are present at the start. The galaxy (`hawkStarGalaxyMock.js`) contains 9 star systems arranged at percentage-based x/y coordinates on a canvas.
+Each player receives a **procedurally generated private galaxy** on first run. The galaxy is created by `generateGalaxy()` in `hawkStarGalaxyMock.js`, stored in the save, and restored on reload. It will be replaced by a real backend API in the multiplayer phase.
+
+### Generation
+
+`generateGalaxy()` returns **9 systems**: 2 fixed NPC systems + 7 randomly generated empty systems.
+
+Each generated system gets:
+- A name picked from a pool (e.g. "Arix System", "Vega System")
+- A position from a pre-defined spread of slots on the 0–100 % canvas
+- A random star class (G / K / M / F)
+- **6–8 planets**: exactly 4 habitable types (terrestrial, volcanic, frozen, ocean) + 2–4 uninhabitable, all shuffled
 
 ### Home System
 
-The home system (Kepler) always contains exactly one planet of each habitable type:
-
-- 🌍 Terrestrial, 🌋 Volcanic, 🧊 Frozen, 🌊 Ocean — all `uncolonized` at session start
-- 3 additional 🌑 Uninhabitable planets (state `uninhabitable`, cannot be colonized)
-
-The player starts on a **randomly chosen habitable planet** from the home system (`buildStartPool()` in `useHawkStar.js` picks from habitable planets in the home system only).
+`buildStartPool()` in `useHawkStar.js` picks from systems where no planet has an owner (i.e. all generated empty systems). The player starts on a **randomly chosen habitable planet** in that system. The home system is immediately marked `scanned` in `systemContacts` when setup completes.
 
 ### NPC Factions
 
-The galaxy contains pre-placed NPC factions. Currently in the mock:
+Two fixed NPC systems are always included for testing:
 
-| System | NPC | Planets | Disposition |
-|--------|-----|---------|-------------|
-| Kepler | Asha | kepler_prime (terrestrial) · kepler_iii (frozen) | `friendly` |
+| System | NPC | Owned planets | Disposition |
+|--------|-----|--------------|-------------|
+| Kepler | Asha 👩‍🚀 | Kepler I (terrestrial) · Kepler III (frozen) | `friendly` |
+| Vorn | Krath 💀 | Vorn I (volcanic) · Vorn II (terrestrial) | `hostile` |
 
-Each NPC has a **disposition** that determines how they respond to a contact signal:
-- `friendly` — always accepts an alliance offer
-- `neutral` — accepts or refuses randomly (or conditionally)
-- `hostile` — refuses alliance; may initiate attacks later
-
-### Other Systems
-
-The remaining uninhabited systems each contain a mix of habitable (`uncolonized`) and uninhabitable planets. They become reachable via Colony Ships.
+Each NPC has a **disposition** that determines auto-responses to comm signals:
+- `friendly` — responds with welcome/peace emojis
+- `neutral` — acknowledges
+- `hostile` — rejects; may initiate attacks later
 
 ### Visibility
 
@@ -416,7 +420,7 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `pages/hawk-star/hawk-star.md` | This file — game concept & technical reference |
 | `composables/useHawkStar.js` | Central singleton state — all game logic & player data |
 | `utils/hawkStarConfig.js` | Static game data: `PLANET_TYPES`, `BUILDINGS`, `RESOURCES`, `UNIT_COSTS` |
-| `utils/hawkStarGalaxyMock.js` | Galaxy data: `GALAXY_SYSTEMS` |
+| `utils/hawkStarGalaxyMock.js` | Galaxy generator: `generateGalaxy()` — 2 fixed NPC systems + 7 random systems |
 
 ### Components
 
@@ -425,21 +429,24 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `HsNavBar` | View switching (Planet / Solar System / Galaxy Map) + gate checks. First item is `HsPlanetHeader` (planet name + type, clickable to switch to planet view). |
 | `HsResourceBar` | Compact resource bar shown at top of all views |
 | `HsPlanetGrid` | 4×3 unified tile grid — 3 panel tiles (row 1) + 9 planet building slots (rows 2–4). Manages single active-tile state across all 12 tiles. |
-| `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
+| `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — all planets, drone & colony actions |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
 | `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |
+| `HsProfilePanel` | Commander profile editor — portrait picker (12 emoji options), editable name (max 12 chars), disposition selector (friendly / neutral / hostile). Shown at the top of the Activity panel. |
 | `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
 | `HsSettingsPanel` | Dev tuning controls (tick rate, build factor, game reset). Shown below `HsNotificationPanel` in the Activity view. |
 
 ### State & Persistence
 
 - **`useHawkStar.js`** is a singleton composable — all components read from and write to it directly, no props/emits for game state.
-- Player state is saved to **LocalStorage** under the key `hawkStarSave`. Includes: resources, slot unlocks, building levels & progress, ship inventory, missions.
-- A version guard discards outdated saves automatically.
+- Player state is saved to **LocalStorage** under the key `hawkStarSave`. Includes: resources, slot unlocks, building levels & progress, ship inventory, missions, galaxy layout, player profile.
+- A version guard discards outdated saves automatically (current: v23).
 - `allPlanetStates` is the core state object — keyed by `planetId`, each entry holds resources, buildings, dock, and conversion queues for that planet.
+- `galaxySystems` is a reactive ref holding the full galaxy array — generated once on first run via `generateGalaxy()`, then persisted and restored from save.
+- `playerPortrait` and `playerDisposition` are profile fields stored in the save. `playerDisposition` mirrors the NPC faction shape (`friendly` / `neutral` / `hostile`) and will be visible to other players in the multiplayer phase.
 
 ### Offline Production
 
@@ -471,6 +478,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | `hawkStar.solar.*` | HsSolarSystem — planet states, mission actions |
 | `hawkStar.galaxy.*` | HsGalaxyMap — planet states, star meta |
 | `hawkStar.comm.*` | HsGalaxyMap — scan states, message keys, NPC responses, comm log |
+| `hawkStar.profile.*` | HsProfilePanel — title, name placeholder, disposition labels |
 | `hawkStar.starClass.*` | Star class labels (G/K/M/F) |
 | `hawkStar.tiles.*` | Tile display names + descriptions |
 | `hawkStar.planetTypes.*` | Planet type names + descriptions |
@@ -507,6 +515,10 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Predefined messages + `commLog` + NPC auto-response | ✅ Done |
 | Comm log in Galaxy Map view | ✅ Done |
 | i18n — `hawkStar.comm.*` + `hawkStar.buildings.interstellar_comm` | ✅ Done |
+| Procedural galaxy generator (`generateGalaxy()`) — per-player, persisted in save | ✅ Done |
+| Two NPC factions — Asha (friendly) + Krath (hostile) | ✅ Done |
+| `recon_drone` + `colony_ship` simplified to 1 level, 1 active mission at a time | ✅ Done |
+| Commander profile — portrait picker, name edit, disposition selector (`HsProfilePanel`) | ✅ Done |
 | Backend — User login & registration           | ⬜ Planned |
 | Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
 | Backend — Kommunikation & Diplomatie (Phase 2) | ⬜ Planned |

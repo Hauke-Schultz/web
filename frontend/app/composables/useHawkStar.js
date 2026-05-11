@@ -1,12 +1,16 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, NPC_RESPONSES, SIGNAL_SPEED_BASE } from '~/utils/hawkStarConfig.js'
-import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
+import { generateGalaxy } from '~/utils/hawkStarGalaxyMock.js'
+
+// ── Galaxy state (generated on first run, persisted in save) ─────────────────
+const galaxySystems = ref([])
+galaxySystems.value = generateGalaxy()
 
 // ── Starting planet pool — pick a random uninhabited system ──────────────────
 const HABITABLE_TYPES = new Set(['terrestrial', 'volcanic', 'frozen', 'ocean'])
 const buildStartPool = () => {
   // Only consider systems where no planet has an owner (no NPC inhabitants)
-  const emptySystems = GALAXY_SYSTEMS.filter(sys => sys.planets.every(p => !p.owner))
+  const emptySystems = galaxySystems.value.filter(sys => sys.planets.every(p => !p.owner))
   if (emptySystems.length === 0) return []
   const sys = emptySystems[Math.floor(Math.random() * emptySystems.length)]
   return sys.planets
@@ -26,7 +30,9 @@ const randomStartConfig = () => {
 }
 
 // ── Singleton state ────────────────────────────────────────
-const playerName   = ref('')
+const playerName        = ref('')
+const playerPortrait    = ref('👨‍🚀')
+const playerDisposition = ref('neutral')
 const homeConfig   = ref(randomStartConfig())
 const systemName   = ref(homeConfig.value.system)
 const homeSystemId = ref(homeConfig.value.systemId)
@@ -57,7 +63,7 @@ const notifications = ref([])
 // commLog: all sent/received messages (newest first)
 const systemContacts = ref(
   Object.fromEntries(
-    GALAXY_SYSTEMS.map(s => [s.id, { scanState: 'unscanned', scanEndsAt: null }])
+    galaxySystems.value.map(s => [s.id, { scanState: 'unscanned', scanEndsAt: null }])
   )
 )
 const commLog = ref([])
@@ -112,7 +118,7 @@ const planetType      = computed(() => allPlanetStates.value[activePlanetId.valu
 const planetName      = computed(() => allPlanetStates.value[activePlanetId.value]?.planetName ?? '')
 
 // ── Home system (reactive, drives Solar System + Galaxy views) ─────────────
-const homeSystem = computed(() => GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value))
+const homeSystem = computed(() => galaxySystems.value.find(s => s.id === homeSystemId.value))
 
 // Per-planet resource aliases
 const playerResources = computed(() => allPlanetStates.value[activePlanetId.value]?.resources ?? {})
@@ -443,12 +449,12 @@ const activeColonyMissions    = computed(() => allPlanetStates.value[activePlane
 const allActiveColonyMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeColonyMissions ?? []))
 
 const colonyShipBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.colony_ship.buildTimeBase / Math.max(1, colonyShipLevel.value) * buildTimeFactor.value)
+  Math.ceil(UNIT_COSTS.colony_ship.buildTimeBase * buildTimeFactor.value)
 )
 
 const colonyFlightTime = (planetId) => {
   const idx = homeSystem.value?.planets.findIndex(p => p.id === planetId) ?? 0
-  return Math.ceil(120 * (idx + 1) / Math.max(1, colonyShipLevel.value))
+  return Math.ceil(120 * (idx + 1))
 }
 
 const colonyFlightTimeBetween = (fromId, toId) => {
@@ -456,7 +462,7 @@ const colonyFlightTimeBetween = (fromId, toId) => {
   const fi = ps.findIndex(p => p.id === fromId)
   const ti = ps.findIndex(p => p.id === toId)
   const dist = Math.max(1, Math.abs(fi - ti))
-  return Math.ceil(120 * dist / Math.max(1, colonyShipLevel.value))
+  return Math.ceil(120 * dist)
 }
 
 const canBuildColonyShip = computed(() =>
@@ -486,7 +492,7 @@ const canSendColonyShip = (planetId) => {
     playerScannedPlanets.value.includes(planetId) &&
     !playerColonizedPlanets.value.includes(planetId) &&
     !activeColonyMissions.value.find(m => m.planetId === planetId) &&
-    activeColonyMissions.value.length < Math.max(1, colonyShipLevel.value)
+    activeColonyMissions.value.length < 1
   )
 }
 
@@ -548,8 +554,8 @@ const interstellarCommLevel = computed(() =>
 // Signal travel time in seconds between the player's home system and a target system.
 // Distance is Euclidean on the 0–100 coordinate grid.
 const signalTravelTime = (targetSystemId) => {
-  const home = GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value)
-  const target = GALAXY_SYSTEMS.find(s => s.id === targetSystemId)
+  const home = galaxySystems.value.find(s => s.id === homeSystemId.value)
+  const target = galaxySystems.value.find(s => s.id === targetSystemId)
   if (!home || !target) return SIGNAL_SPEED_BASE
   const dist = Math.sqrt(Math.pow(target.x - home.x, 2) + Math.pow(target.y - home.y, 2))
   const factor = interstellarCommLevel.value >= 2 ? 0.5 : 1
@@ -577,7 +583,7 @@ const canMessageSystem = (systemId) =>
 
 const sendMessage = (systemId, messageKey) => {
   if (!canMessageSystem(systemId)) return
-  const sys = GALAXY_SYSTEMS.find(s => s.id === systemId)
+  const sys = galaxySystems.value.find(s => s.id === systemId)
   if (!sys) return
   const travelSec = signalTravelTime(systemId)
   const id = `msg_${Date.now()}_${systemId}`
@@ -596,7 +602,7 @@ const sendMessage = (systemId, messageKey) => {
 
 // Called from the tick when a sent message's signal arrives.
 const _deliverMessage = (entry) => {
-  const sys = GALAXY_SYSTEMS.find(s => s.id === entry.systemId)
+  const sys = galaxySystems.value.find(s => s.id === entry.systemId)
   const factions = sys?.factions ?? []
   // Each faction sends a reply after the same travel time back
   for (const faction of factions) {
@@ -722,13 +728,15 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 22
+const SAVE_VERSION = 23
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
     version:               SAVE_VERSION,
     savedAt:               Date.now(),
     playerName:            playerName.value,
+    playerPortrait:        playerPortrait.value,
+    playerDisposition:     playerDisposition.value,
     systemName:            systemName.value,
     homeSystemId:          homeSystemId.value,
     homePlanetId:          homePlanetId.value,
@@ -749,6 +757,7 @@ const saveGame = () => {
     notifications:          notifications.value,
     globalResearch:         globalResearch.value,
     systemContacts:         systemContacts.value,
+    galaxySystems:          galaxySystems.value,
     commLog:                commLog.value,
   }))
 }
@@ -763,8 +772,10 @@ const loadGame = () => {
       localStorage.removeItem(SAVE_KEY)
       return
     }
-    if (data.playerName)   playerName.value   = data.playerName
-    if (data.systemName)   systemName.value   = data.systemName
+    if (data.playerName)        playerName.value        = data.playerName
+    if (data.playerPortrait)    playerPortrait.value    = data.playerPortrait
+    if (data.playerDisposition) playerDisposition.value = data.playerDisposition
+    if (data.systemName)        systemName.value        = data.systemName
     if (data.homeSystemId) homeSystemId.value = data.homeSystemId
     if (data.homePlanetId) homePlanetId.value = data.homePlanetId
     if (data.allPlanetStates) {
@@ -813,10 +824,11 @@ const loadGame = () => {
         if (data.globalResearch[id]) globalResearch.value[id] = data.globalResearch[id]
       }
     }
+    if (Array.isArray(data.galaxySystems) && data.galaxySystems.length > 0) {
+      galaxySystems.value = data.galaxySystems
+    }
     if (data.systemContacts) {
-      for (const [sysId, contact] of Object.entries(data.systemContacts)) {
-        if (systemContacts.value[sysId]) systemContacts.value[sysId] = contact
-      }
+      systemContacts.value = data.systemContacts
     }
     if (Array.isArray(data.commLog)) commLog.value = data.commLog
 
@@ -833,6 +845,8 @@ const loadGame = () => {
   }
 }
 
+watch([playerPortrait, playerDisposition], saveGame)
+
 export const resetGame = () => {
   localStorage.removeItem(SAVE_KEY)
   location.reload()
@@ -840,6 +854,9 @@ export const resetGame = () => {
 
 export const completeSetup = (name) => {
   playerName.value = name.trim()
+  if (systemContacts.value[homeSystemId.value]) {
+    systemContacts.value[homeSystemId.value].scanState = 'scanned'
+  }
   saveGame()
 }
 
@@ -992,6 +1009,9 @@ const tick = () => {
           if (s) s.unlocked = true
         }
       }
+      if (levelDef?.popBonus) {
+        pr.population += levelDef.popBonus
+      }
       notifications.value.push({
         id:         `notif_${Date.now()}_bld_${pid}_${id}`,
         type:       'building_done',
@@ -1068,7 +1088,7 @@ const tick = () => {
     if (contact.scanState === 'scanning' && contact.scanEndsAt <= now.value) {
       contact.scanState  = 'scanned'
       contact.scanEndsAt = null
-      const sys = GALAXY_SYSTEMS.find(s => s.id === sysId)
+      const sys = galaxySystems.value.find(s => s.id === sysId)
       notifications.value.push({
         id:        `notif_${Date.now()}_scan_${sysId}`,
         type:      'scan_done',
@@ -1107,12 +1127,15 @@ export function useHawkStar() {
   return {
     // state
     playerName,
+    playerPortrait,
+    playerDisposition,
     planetName,
     systemName,
     planetType,
     homeSystemId,
     homePlanetId,
     homeSystem,
+    galaxySystems,
     isFirstRun,
     activePlanetId,
     setActivePlanet,

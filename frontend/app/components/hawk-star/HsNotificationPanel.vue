@@ -3,8 +3,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { BUILDINGS } from '~/utils/hawkStarConfig.js'
-import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
-
 const { t } = useI18n()
 
 const {
@@ -14,6 +12,7 @@ const {
   now,
   formatTime,
   homeSystem,
+  galaxySystems,
 } = useHawkStar()
 
 // ── Helpers ────────────────────────────────────────────────
@@ -23,7 +22,7 @@ const planetName = (planetId) =>
   ?? planetId
 
 const systemName = (systemId) =>
-  GALAXY_SYSTEMS.find(s => s.id === systemId)?.name ?? systemId
+  galaxySystems.value.find(s => s.id === systemId)?.name ?? systemId
 
 const pct = (startedAt, endsAt) => {
   if (!startedAt || !endsAt) return 0

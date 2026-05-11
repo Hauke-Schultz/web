@@ -127,6 +127,14 @@
       }
     },
 
+    "profile": {
+      "title":      "Commander Profile",
+      "name":       "Name",
+      "friendly":   "Friendly",
+      "neutral":    "Neutral",
+      "hostile":    "Hostile"
+    },
+
     "panel": {
       "tabActivity": "Activity",
       "tabSettings": "Settings",

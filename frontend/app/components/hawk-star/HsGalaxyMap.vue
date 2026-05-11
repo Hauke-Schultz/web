@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsCommLog from '~/components/hawk-star/HsCommLog.vue'
 
@@ -14,15 +13,16 @@ const {
   systemContacts,
   canScanSystem,
   scanSystem,
+  galaxySystems,
 } = useHawkStar()
 
 const { t } = useI18n()
 
 // ── System order: home system always first ────────────────────────────────────
 const sortedSystems = computed(() => {
-  const home = GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value)
-  const rest = GALAXY_SYSTEMS.filter(s => s.id !== homeSystemId.value)
-  return home ? [home, ...rest] : [...GALAXY_SYSTEMS]
+  const home = galaxySystems.value.find(s => s.id === homeSystemId.value)
+  const rest = galaxySystems.value.filter(s => s.id !== homeSystemId.value)
+  return home ? [home, ...rest] : [...galaxySystems.value]
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ const ownedCount = (sys, factionName) =>
 
 // ── Selection — home system pre-selected ──────────────────────────────────────
 const selectedId = ref(homeSystemId.value)
-const selected   = computed(() => GALAXY_SYSTEMS.find(s => s.id === selectedId.value) ?? null)
+const selected   = computed(() => galaxySystems.value.find(s => s.id === selectedId.value) ?? null)
 
 const selectSystem = (sys) => {
   selectedId.value = selectedId.value === sys.id ? null : sys.id

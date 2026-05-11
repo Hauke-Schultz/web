@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const props = defineProps({
@@ -12,6 +11,7 @@ const { t } = useI18n()
 const {
   commLog, sendMessage, canMessageSystem,
   COMM_EMOJIS, now, formatTime,
+  galaxySystems,
 } = useHawkStar()
 
 // NPC response key → emoji
@@ -65,7 +65,7 @@ const hasOlder = computed(() =>
 )
 
 // Send controls
-const systemData  = computed(() => GALAXY_SYSTEMS.find(s => s.id === props.systemId))
+const systemData  = computed(() => galaxySystems.value.find(s => s.id === props.systemId))
 const hasFactions = computed(() => (systemData.value?.factions?.length ?? 0) > 0)
 const showSendBar = computed(() => hasFactions.value && canMessageSystem(props.systemId))
 
