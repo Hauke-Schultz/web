@@ -201,7 +201,7 @@ watch(() => props.systemId, () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 120px;
+  min-height: 270px;
   max-height: 340px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.08) transparent;
@@ -373,10 +373,10 @@ watch(() => props.systemId, () => {
   background: #12122a;
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: var(--hs-r-md);
-  padding: 0.5rem;
+  padding: 0.4rem;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
   box-shadow: 0 4px 28px rgba(0,0,0,0.6);
 }
 
@@ -385,9 +385,9 @@ watch(() => props.systemId, () => {
   border: 1px solid transparent;
   border-radius: var(--hs-r-sm);
   cursor: pointer;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   line-height: 1;
-  padding: 0.35rem 0.2rem;
+  padding: 0.28rem 0.1rem;
   text-align: center;
   transition: background 0.1s, transform 0.1s;
 

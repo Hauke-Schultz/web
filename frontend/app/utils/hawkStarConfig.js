@@ -1346,11 +1346,23 @@ export const BUILDINGS = {
 // ── Communication — emoji picker & NPC responses ──────────────────────────────
 
 export const COMM_EMOJIS = [
-  '👋', '🤝', '🌟', '✌️', '😊',
-  '🕊️', '🌿', '💫', '🌈', '💎',
-  '💰', '📦', '🔭', '📡', '🛸',
-  '⚠️', '🚧', '🔴', '🛑', '☠️',
-  '⚔️', '🛡️', '🚀', '💥', '🔱',
+  // Gestures & hands
+  '👋', '🤝', '✌️', '🫡', '👍', '👎',
+  '👏', '🙏', '✋', '🫶', '🤜', '🤛',
+  // Faces & emotions
+  '😊', '🥰', '😘', '💋', '😂', '😭',
+  '😤', '😡', '😱', '🤔', '😎', '🤩',
+  // Hearts & affection
+  '❤️', '💛', '💚', '🖤',
+  '💕', '💝', '💘', '🔥', '💫',
+  // Space & trade
+  '🌟', '🕊️', '💎', '🛸',
+  '🚀', '💰', '📦', '🌈', '🌿', '🪐',
+  // Warnings & conflict
+  '⚠️', '🛑', '☠️', '⚔️', '🛡️',
+  // Schimpfen & Chaos
+  '💩', '🤬', '🤡', '🐀', '🦠',
+  '🗑️', '💣',  '😈', '🤮',
 ]
 
 // Auto-responses keyed by NPC disposition. One is picked at random on arrival.

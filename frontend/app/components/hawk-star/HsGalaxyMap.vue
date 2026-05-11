@@ -6,6 +6,7 @@ import HsCommLog from '~/components/hawk-star/HsCommLog.vue'
 
 const {
   playerColonizedPlanets,
+  playerPortrait,
   homeSystemId,
   now,
   formatTime,
@@ -87,7 +88,7 @@ const tileClass = (sys) => {
       >
         <!-- HOME -->
         <template v-if="isHome(sys)">
-          <span class="hs-galaxy-tile-icon">{{ STAR_CLASS_ICON[sys.starClass] ?? '⭐' }}</span>
+          <span class="hs-galaxy-tile-icon">{{ playerPortrait }}</span>
           <span class="hs-galaxy-tile-name">{{ sys.name }}</span>
           <span class="hs-galaxy-tile-state hs-galaxy-tile-state--own">{{ t('hawkStar.galaxy.stateColony') }}</span>
         </template>
