@@ -88,7 +88,7 @@ watchEffect(() => {
             class="hs-setup-input"
             type="text"
             placeholder="Commander name…"
-            maxlength="24"
+            maxlength="12"
             autofocus
             @keydown.enter="submitSetup"
           />

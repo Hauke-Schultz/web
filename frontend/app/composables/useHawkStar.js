@@ -366,12 +366,12 @@ const activeDroneMissions    = computed(() => allPlanetStates.value[activePlanet
 const allActiveDroneMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeDroneMissions ?? []))
 
 const droneBuildTime = computed(() =>
-  Math.ceil(UNIT_COSTS.recon_drone.buildTimeBase / Math.max(1, reconDroneLevel.value) * buildTimeFactor.value)
+  Math.ceil(UNIT_COSTS.recon_drone.buildTimeBase * buildTimeFactor.value)
 )
 
 const droneFlightTime = (planetId) => {
   const idx = homeSystem.value?.planets.findIndex(p => p.id === planetId) ?? 0
-  return Math.ceil(60 * (idx + 1) / Math.max(1, reconDroneLevel.value))
+  return Math.ceil(60 * (idx + 1))
 }
 
 const droneFlightTimeBetween = (fromId, toId) => {
@@ -379,7 +379,7 @@ const droneFlightTimeBetween = (fromId, toId) => {
   const fi = ps.findIndex(p => p.id === fromId)
   const ti = ps.findIndex(p => p.id === toId)
   const dist = Math.max(1, Math.abs(fi - ti))
-  return Math.ceil(60 * dist / Math.max(1, reconDroneLevel.value))
+  return Math.ceil(60 * dist)
 }
 
 const canBuildDrone = computed(() =>
@@ -403,7 +403,7 @@ const canSendDrone = (planetId) =>
   reconDroneInventory.value > 0 &&
   !playerScannedPlanets.value.includes(planetId) &&
   !activeDroneMissions.value.find(m => m.planetId === planetId) &&
-  activeDroneMissions.value.length < reconDroneLevel.value
+  activeDroneMissions.value.length < 1
 
 const sendReconDrone = (planetId, fromPlanetId) => {
   if (!canSendDrone(planetId)) return
@@ -991,9 +991,6 @@ const tick = () => {
           const s = pstate.slots.find(ps => ps.slot === slot)
           if (s) s.unlocked = true
         }
-      }
-      if (levelDef?.popBonus) {
-        pr.population += levelDef.popBonus
       }
       notifications.value.push({
         id:         `notif_${Date.now()}_bld_${pid}_${id}`,

@@ -78,7 +78,6 @@ All buildings are defined in `BUILDINGS` (`hawkStarConfig.js`). Each building en
   - `staffDrain` — population workers permanently assigned
   - `storageCapacity` — adds to the resource storage cap
   - `unlocks` — planet slots unlocked on completion
-  - `popBonus` — flat max-population increase
 
 A building goes offline (stops producing) if energy is in deficit.
 
@@ -250,37 +249,31 @@ NPCs in `hawkStarGalaxyMock.js` get a `portrait` field (emoji or icon id) for di
 
 ---
 
-### Step 3 — Predefined Messages
+### Step 3 — Emoji Messages
 
-Once a system is `scanned`, the player can **send a message** to its inhabitants.
+Once a system is `scanned`, the player can **send an emoji** to its inhabitants.
 
 **How it works:**
 
-- A dropdown on the system card lists available predefined messages.
-- Player selects a message and clicks "Send".
-- The message travels (same signal time as the scan — distance-based).
-- On arrival, the NPC picks an auto-response from a predefined reply list based on their `disposition`.
-- Both the sent message and the response appear in the **Comm Log** (new panel or section in the Activity panel).
+- The Comm Log panel (right side of the Galaxy Map card) shows a **"📡 Nachricht senden ▾"** button at the bottom.
+- Clicking opens an emoji picker. Clicking an emoji **sends immediately** — no separate send button.
+- The emoji travels (same signal time as the scan — distance-based).
+- On arrival, the NPC picks an auto-response emoji from a predefined pool based on their `disposition`.
+- Both the sent emoji and the NPC response appear as chat bubbles in the **Comm Log**.
 
-**Predefined message pool (player → NPC):**
+**Sendable emoji pool (`COMM_EMOJIS` in `hawkStarConfig.js`):**
 
-| Key | Text (EN) |
-|-----|-----------|
-| `greet` | "Greetings from [player name]." |
-| `peace` | "We come in peace." |
-| `territory` | "This region is under our protection." |
-| `trade_interest` | "We are interested in future cooperation." |
-| `warning` | "Do not approach our colonies." |
+`👋 🤝 🌟 ✌️ 😊 🕊️ 🌿 💫 🌈 💎 💰 📦 🔭 📡 🛸 ⚠️ 💥 🔥`
 
-**NPC auto-response pool (keyed by `disposition`):**
+**NPC auto-response pool — displayed as emojis, keyed by `disposition`:**
 
-| Disposition | Possible responses |
-|-------------|-------------------|
-| `friendly` | "Welcome, traveler.", "We are glad to hear from you.", "Peace be with you." |
-| `neutral` | "Acknowledged.", "We have received your message.", "Noted." |
-| `hostile` | "Stay away.", "We are not interested in contact.", "This channel is closed." |
+| Disposition | Response keys | Displayed emoji |
+|-------------|--------------|-----------------|
+| `friendly` | `npc_welcome`, `npc_glad`, `npc_peace_back` | 👋, 😊, 🕊️ |
+| `neutral` | `npc_acknowledged`, `npc_received`, `npc_noted` | ✅, 📨, 📝 |
+| `hostile` | `npc_stay_away`, `npc_not_interested`, `npc_channel_closed` | ✋, 🚫, 🔒 |
 
-No free text. No choices after sending — the response is automatic and informational only. No game-state change results from messaging (that comes later).
+The emoji mapping lives in `HsCommLog.vue` (`NPC_EMOJI` constant). No free text, no game-state change from messaging (that comes later).
 
 ---
 
@@ -302,13 +295,15 @@ systemContacts: {
 ```js
 commLog: [
   {
-    id:         'msg_1234',
-    direction:  'sent' | 'received',
-    systemId:   'kepler',
-    factionName:'Asha',
-    messageKey: 'greet',           // predefined key
-    timestamp:  1234567890,
-    travelEndsAt: null | timestamp, // still in transit if set
+    id:          'msg_1234',
+    direction:   'sent' | 'received',
+    systemId:    'kepler',
+    systemName:  'Kepler',
+    factions:    [{ name: 'Asha', portrait: '🌺', disposition: 'friendly' }],
+    messageKey:  '👋',             // emoji string (sent) or NPC key e.g. 'npc_welcome' (received)
+    timestamp:   1234567890,
+    travelEndsAt: null | timestamp, // null once delivered
+    replyEndsAt:  null,
   }
 ]
 ```
@@ -326,24 +321,52 @@ New global building in the `comm_center` tile (alongside `star_map`). Two levels
 
 ---
 
-### Galaxy Map Changes
+### Galaxy Map Layout
 
-- `unscanned` systems with known inhabitants (from mock): show a **"?"** badge on the star node.
-- `scanning` systems: show a pulsing amber signal indicator + countdown.
-- `scanned` systems: show faction name/icon + planet count in the system card.
+The Galaxy Map shows two areas below the tile row:
+
+```
+[tile row: all systems]
+┌────────────────────────┬────────────────────┐
+│  System Card           │  Comm Log          │
+│  · system name/meta    │  · chat bubbles    │
+│  · faction list        │  · send bar        │
+│  · planet list         │                    │
+└────────────────────────┴────────────────────┘
+```
+
+- Side-by-side on desktop (≥640 px), stacked on mobile.
+- The home system is **pre-selected** when entering the Galaxy Map.
+- Clicking a system tile toggles its selection; clicking the selected tile deselects it.
+- The card + Comm Log only appear for home or fully `scanned` systems.
+
+**Tile states:**
+- `unscanned`: star icon + system name — no inhabitants shown.
+- `scanning`: pulsing amber 📶 + countdown.
+- `scanned` (inhabited): faction portrait + name.
+- `scanned` (empty): free/uncolonized label.
+- Home system: always shown as own colony (blue).
 - "Scan" button visible when: `interstellar_comm` Lv1+ researched + system is `unscanned`.
-- Message dropdown visible when: system is `scanned` + has inhabitants.
 
 ---
 
-### Comm Log Panel
+### `HsCommLog` Component (`components/hawk-star/HsCommLog.vue`)
 
-A new section in the Activity panel (or a dedicated tab) showing the `commLog` in reverse chronological order. Each entry shows:
+Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 
-- Direction icon (📤 sent / 📥 received)
-- Faction name + system
-- Message text (resolved from key via i18n)
-- "In transit…" label + countdown if `travelEndsAt` is in the future
+**Display:**
+- Messages filtered by `systemId`, sorted oldest → newest (top → bottom).
+- Consecutive messages from the same direction are **grouped into one row** and displayed as side-by-side emoji bubbles.
+- Always shows the last **10 rows** (groups). If more exist, a **"↑ Ältere Nachrichten anzeigen"** button appears at the top.
+- Sent messages: right-aligned, blue bubble.
+- Received messages: left-aligned, teal bubble, with faction avatar and faction name above the bubble row.
+- Messages in transit are shown at reduced opacity with a small countdown timer.
+- Auto-scrolls to the bottom on new messages.
+
+**Send bar** (visible when `canMessageSystem(systemId)` is true):
+- A single `📡 Nachricht senden ▾` button opens the emoji picker.
+- Clicking an emoji sends immediately — no separate send button.
+- Picker shows `COMM_EMOJIS` at `1.5rem` icon size.
 
 ---
 
