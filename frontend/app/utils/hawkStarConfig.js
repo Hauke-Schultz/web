@@ -937,6 +937,31 @@ export const BUILDINGS = {
     ],
   },
 
+  interstellar_comm: {
+    id:          'interstellar_comm',
+    name:        'Interstellar Communication',
+    tileType:    'comm_center',
+    icon:        '📶',
+    global:      true,
+    description: 'Deep-space signal array. Allows scanning inhabited systems and exchanging predefined messages with other civilizations.',
+    levels: [
+      {
+        level:      1,
+        cost:       { metal: 300, crystal: 400 },
+        buildTime:  180,
+        effect:     'Unlock system scanning and predefined messaging',
+        production: {},
+      },
+      {
+        level:      2,
+        cost:       { metal: 700, crystal: 900 },
+        buildTime:  300,
+        effect:     'Halve signal travel time',
+        production: {},
+      },
+    ],
+  },
+
   space_building: {
     id:          'space_building',
     name:        'Space Technology',
@@ -1374,48 +1399,25 @@ export const BUILDINGS = {
       },
     ],
   },
-
-  crystal_deflector: {
-    id:               'crystal_deflector',
-    name:             'Crystal Deflector Matrix',
-    tileType:         'defense',
-    icon:             '🔷',
-    description:      'Pure Crystal lattice that bends incoming energy away from the planet. Far superior to conventional shields.',
-    requiresBuilding: 'weapons_building',
-    requiresLevel:    2,
-    levels: [
-      {
-        level:        1,
-        cost:         { metal: 500, crystal: 300, pure_crystal: 8 },
-        buildTime:    50,
-        effect:       'Crystal shield — absorbs 70% incoming damage · uses 18 energy · 4 workers',
-        production:   {},
-        energyDrain:  18,
-        staffDrain:   4,
-        shieldStrength: 70,
-      },
-      {
-        level:        2,
-        cost:         { metal: 1200, crystal: 600, pure_crystal: 20 },
-        buildTime:    170,
-        effect:       'Resonant shield — absorbs 85% incoming damage · uses 30 energy · 6 workers',
-        production:   {},
-        energyDrain:  30,
-        staffDrain:   6,
-        shieldStrength: 85,
-      },
-      {
-        level:        3,
-        cost:         { metal: 2800, crystal: 1200, pure_crystal: 50 },
-        buildTime:    290,
-        effect:       'Phase matrix — absorbs 95% damage · reflects 20% back at attacker · uses 50 energy · 10 workers',
-        production:   {},
-        energyDrain:  50,
-        staffDrain:   10,
-        shieldStrength: 95,
-        damageReflect: 20,
-      },
-    ],
-  },
-
 }
+
+// ── Communication — emoji picker & NPC responses ──────────────────────────────
+
+export const COMM_EMOJIS = [
+  '👋', '🤝', '🌟', '✌️', '😊',
+  '🕊️', '🌿', '💫', '🌈', '💎',
+  '💰', '📦', '🔭', '📡', '🛸',
+  '⚠️', '🚧', '🔴', '🛑', '☠️',
+  '⚔️', '🛡️', '🚀', '💥', '🔱',
+]
+
+// Auto-responses keyed by NPC disposition. One is picked at random on arrival.
+export const NPC_RESPONSES = {
+  friendly: ['npc_welcome', 'npc_glad',         'npc_peace_back'],
+  neutral:  ['npc_acknowledged', 'npc_received', 'npc_noted'],
+  hostile:  ['npc_stay_away', 'npc_not_interested', 'npc_channel_closed'],
+}
+
+// Base signal travel time in seconds per galaxy-distance unit.
+// Halved at interstellar_comm Lv2.
+export const SIGNAL_SPEED_BASE = 120

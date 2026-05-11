@@ -39,6 +39,9 @@ export const GALAXY_SYSTEMS = [
   {
     id: 'kepler', name: 'Kepler System', x: 50, y: 49,
     starClass: 'G',
+    factions: [
+      { name: 'Asha', portrait: '👩‍🚀', disposition: 'friendly' },
+    ],
     planets: [
       { id: 'kepler_prime', name: 'Kepler Prime', type: 'terrestrial',  state: 'ally',          owner: 'Asha', },
       { id: 'kepler_ii',   name: 'Kepler II',    type: 'volcanic',      state: 'uncolonized',   owner: null,   },

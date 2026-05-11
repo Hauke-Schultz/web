@@ -1,6 +1,6 @@
 # Hawk-Star
 
-A browser-based multiplayer space strategy game. Each player starts on a single planet, builds up a civilization, expands through a galaxy of star systems, and eventually interacts with other players through trade, alliances, or conflict.
+A browser-based multiplayer space strategy game. Each player starts on a single planet, builds up a civilization, expands through a galaxy of star systems, and eventually interacts with other players and NPC factions through diplomacy, alliances, or conflict.
 
 ---
 
@@ -154,8 +154,8 @@ A rough progression arc for a single player:
 1. **Colony Phase** — Build up the home planet: unlock slots, raise Metal/Crystal income, balance Energy.
 2. **Expansion** — Research the Star Map in the Comm Center (global, unlocks on all planets), scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
 3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four refined resources (`super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`).
-4. **Trade** — Inter-colony resource exchange (to be designed).
-5. **Diplomacy & Conflict** — Encounter allied and enemy factions across the galaxy (Phase 4).
+4. **Contact & Diplomacy** — Research Interstellar Communication in the Comm Center, send signals to inhabited systems, negotiate Friend or Foe relationships with NPC factions and other players.
+5. **Conflict** — Hostile factions may attack; allied factions open future trade and coordination options (Phase 4+).
 
 ---
 
@@ -172,9 +172,22 @@ The home system (Kepler) always contains exactly one planet of each habitable ty
 
 The player starts on a **randomly chosen habitable planet** from the home system (`buildStartPool()` in `useHawkStar.js` picks from habitable planets in the home system only).
 
+### NPC Factions
+
+The galaxy contains pre-placed NPC factions. Currently in the mock:
+
+| System | NPC | Planets | Disposition |
+|--------|-----|---------|-------------|
+| Kepler | Asha | kepler_prime (terrestrial) · kepler_iii (frozen) | `friendly` |
+
+Each NPC has a **disposition** that determines how they respond to a contact signal:
+- `friendly` — always accepts an alliance offer
+- `neutral` — accepts or refuses randomly (or conditionally)
+- `hostile` — refuses alliance; may initiate attacks later
+
 ### Other Systems
 
-The remaining 8 systems each contain a mix of habitable (`uncolonized`) and uninhabitable planets. No owners, no factions. They become reachable via Colony Ships.
+The remaining uninhabited systems each contain a mix of habitable (`uncolonized`) and uninhabitable planets. They become reachable via Colony Ships.
 
 ### Visibility
 
@@ -185,6 +198,164 @@ All 9 systems are always visible in the Galaxy Map. Solar System view shows the 
 **Planets** carry individual states: `own` · `uncolonized` · `uninhabitable` · `scanning` · `colonizing` · `unknown`
 
 The displayed planet state is derived at runtime: if `playerColonizedPlanets` (from `useHawkStar`) contains the planet ID, the state is shown as `own` regardless of the mock value.
+
+---
+
+## Communication
+
+### Scope (current phase)
+
+No conflicts, no ally/enemy decisions. The goal of this phase is purely:
+
+1. **Scan** — discover who inhabits a system
+2. **See** — show inhabitants on the Galaxy Map
+3. **Message** — send and receive predefined messages via dropdown
+
+Everything else (alliances, declarations, conflict) is explicitly out of scope here.
+
+---
+
+### Step 1 — Scanning Systems
+
+All 9 systems are always visible on the Galaxy Map. However, **who lives there is hidden by default**. A system can be in one of two scan states:
+
+| Scan State | What the player sees |
+|------------|---------------------|
+| `unscanned` | Star + planet count only — inhabitants unknown |
+| `scanned` | Star + inhabitants revealed (name, number of planets owned) |
+
+**How scanning works:**
+
+- Research `interstellar_comm` Lv1 in the Comm Center (new global building, alongside `star_map`).
+- This unlocks a **"Scan System"** button on the Galaxy Map for any `unscanned` system.
+- Click → starts a **scan signal** (travel time based on distance, same formula as drone missions).
+- When the signal arrives, the system transitions to `scanned` and a notification fires.
+- The player's own home system is always `scanned` from the start.
+
+Scanning is one-way and permanent — a scanned system stays scanned.
+
+---
+
+### Step 2 — Seeing Inhabitants
+
+Once a system is `scanned`, its **system card** on the Galaxy Map shows:
+
+- Which planets are owned and by whom (NPC name or future: player name)
+- How many planets that faction controls in this system
+- The faction's portrait/icon placeholder (for NPCs: defined in `hawkStarGalaxyMock.js`)
+
+Example: Kepler system scanned → shows "Asha · 2 planets".
+
+NPCs in `hawkStarGalaxyMock.js` get a `portrait` field (emoji or icon id) for display.
+
+---
+
+### Step 3 — Predefined Messages
+
+Once a system is `scanned`, the player can **send a message** to its inhabitants.
+
+**How it works:**
+
+- A dropdown on the system card lists available predefined messages.
+- Player selects a message and clicks "Send".
+- The message travels (same signal time as the scan — distance-based).
+- On arrival, the NPC picks an auto-response from a predefined reply list based on their `disposition`.
+- Both the sent message and the response appear in the **Comm Log** (new panel or section in the Activity panel).
+
+**Predefined message pool (player → NPC):**
+
+| Key | Text (EN) |
+|-----|-----------|
+| `greet` | "Greetings from [player name]." |
+| `peace` | "We come in peace." |
+| `territory` | "This region is under our protection." |
+| `trade_interest` | "We are interested in future cooperation." |
+| `warning` | "Do not approach our colonies." |
+
+**NPC auto-response pool (keyed by `disposition`):**
+
+| Disposition | Possible responses |
+|-------------|-------------------|
+| `friendly` | "Welcome, traveler.", "We are glad to hear from you.", "Peace be with you." |
+| `neutral` | "Acknowledged.", "We have received your message.", "Noted." |
+| `hostile` | "Stay away.", "We are not interested in contact.", "This channel is closed." |
+
+No free text. No choices after sending — the response is automatic and informational only. No game-state change results from messaging (that comes later).
+
+---
+
+### Data Model
+
+**`systemContacts`** — stored in `useHawkStar.js`, persisted in save:
+
+```js
+systemContacts: {
+  [systemId]: {
+    scanState:  'unscanned' | 'scanning' | 'scanned',
+    scanEndsAt: null | timestamp,
+  }
+}
+```
+
+**`commLog`** — list of sent/received messages, stored in `useHawkStar.js`:
+
+```js
+commLog: [
+  {
+    id:         'msg_1234',
+    direction:  'sent' | 'received',
+    systemId:   'kepler',
+    factionName:'Asha',
+    messageKey: 'greet',           // predefined key
+    timestamp:  1234567890,
+    travelEndsAt: null | timestamp, // still in transit if set
+  }
+]
+```
+
+---
+
+### Research: `interstellar_comm`
+
+New global building in the `comm_center` tile (alongside `star_map`). Two levels for now:
+
+| Level | Effect |
+|-------|--------|
+| Lv1 | Unlock scanning + messaging for all visible systems |
+| Lv2 | Halve signal travel time |
+
+---
+
+### Galaxy Map Changes
+
+- `unscanned` systems with known inhabitants (from mock): show a **"?"** badge on the star node.
+- `scanning` systems: show a pulsing amber signal indicator + countdown.
+- `scanned` systems: show faction name/icon + planet count in the system card.
+- "Scan" button visible when: `interstellar_comm` Lv1+ researched + system is `unscanned`.
+- Message dropdown visible when: system is `scanned` + has inhabitants.
+
+---
+
+### Comm Log Panel
+
+A new section in the Activity panel (or a dedicated tab) showing the `commLog` in reverse chronological order. Each entry shows:
+
+- Direction icon (📤 sent / 📥 received)
+- Faction name + system
+- Message text (resolved from key via i18n)
+- "In transit…" label + countdown if `travelEndsAt` is in the future
+
+---
+
+### Files Changed
+
+| File | Change | Status |
+|------|--------|--------|
+| `hawkStarConfig.js` | Added `interstellar_comm` building (global, `comm_center`, 2 levels) + `COMM_MESSAGES`, `NPC_RESPONSES`, `SIGNAL_SPEED_BASE` exports | ✅ Done |
+| `hawkStarGalaxyMock.js` | Added `factions` array with `disposition` + `portrait` to Kepler system | ✅ Done |
+| `useHawkStar.js` | Added `systemContacts`, `commLog`, `interstellarCommLevel`, `scanSystem()`, `sendMessage()`, `canScanSystem()`, `canMessageSystem()`, `signalTravelTime()`, `_deliverMessage()`, signal tick loop | ✅ Done |
+| `HsGalaxyMap.vue` | Scan button, scanning indicator (pulsing badge), scanned faction display, message dropdown + Comm Log section | ✅ Done |
+| `en.json` / `de.json` | Added keys under `hawkStar.comm.*` and `hawkStar.buildings.interstellar_comm` | ✅ Done |
 
 ---
 
@@ -276,7 +447,12 @@ All Hawk-Star keys live under `hawkStar.*`:
 | `hawkStar.dock.*` | HsDockPanel — ship names, build buttons, slots |
 | `hawkStar.solar.*` | HsSolarSystem — planet states, mission actions |
 | `hawkStar.galaxy.*` | HsGalaxyMap — planet states, star meta |
+| `hawkStar.comm.*` | HsGalaxyMap — scan states, message keys, NPC responses, comm log |
 | `hawkStar.starClass.*` | Star class labels (G/K/M/F) |
+| `hawkStar.tiles.*` | Tile display names + descriptions |
+| `hawkStar.planetTypes.*` | Planet type names + descriptions |
+| `hawkStar.buildings.*` | Building names, descriptions, per-level effect text |
+| `hawkStar.res.*` | Resource display names |
 
 **In components:** `const { t } = useI18n()` → `t('hawkStar.nav.planet')`.
 
@@ -301,9 +477,16 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Notification Panel                            | ✅ Done |
 | Localisation (i18n) — all components          | ✅ Done |
 | Research → Comm Center rename + Star Map global | ✅ Done |
+| NPC factions in mock (Asha/Kepler, disposition) | ✅ Done |
+| `interstellar_comm` research (Comm Center, global) | ✅ Done |
+| System scanning — `systemContacts` state + scan signal tick | ✅ Done |
+| Galaxy Map — scan button, scanning indicator, scanned display | ✅ Done |
+| Predefined messages + `commLog` + NPC auto-response | ✅ Done |
+| Comm log in Galaxy Map view | ✅ Done |
+| i18n — `hawkStar.comm.*` + `hawkStar.buildings.interstellar_comm` | ✅ Done |
 | Backend — User login & registration           | ⬜ Planned |
 | Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
-| Backend — Handel & Kommunikation (Phase 2)    | ⬜ Planned |
+| Backend — Kommunikation & Diplomatie (Phase 2) | ⬜ Planned |
 | Backend — Ausspionieren (Phase 3)             | ⬜ Planned |
 | Backend — Kampf (Phase 4)                     | ⬜ Planned |
 
@@ -327,8 +510,7 @@ sich "richtig" anfühlen — sonst baut das Backend auf unbalancierten Daten auf
 
 # Fog of War / Sichtbarkeit
 
-Galaxy Map zeigt aktuell alle 9 Systeme immer vollständig. Das Konzept sieht eigentlich vor, dass man Systeme erst sondieren muss. Das könnte lokal vollständig umgesetzt werden,
-bevor der Backend-State das übernimmt.
+Systeme sind auf der Galaxy Map immer sichtbar (Name, Stern, Planetanzahl), aber **Bewohner sind versteckt** bis ein Scan-Signal eintrifft. Das ist die aktuelle Implementierung via `systemContacts`. Eine tiefere Dunkel-Schicht (System komplett unsichtbar bis erkundet) ist für einen späteren Phase geplant.
 
 # Colony Projects (Queue kleiner Aufgaben)                                                                                                                                      
 

@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, NPC_RESPONSES, SIGNAL_SPEED_BASE } from '~/utils/hawkStarConfig.js'
 import { GALAXY_SYSTEMS } from '~/utils/hawkStarGalaxyMock.js'
 
 // ── Starting planet pool — pick a random uninhabited system ──────────────────
@@ -51,6 +51,16 @@ const globalResearch = ref(
 
 // ── Notifications (persistent done-events) ────────────────
 const notifications = ref([])
+
+// ── Communication ─────────────────────────────────────────
+// systemContacts: per-system scan state
+// commLog: all sent/received messages (newest first)
+const systemContacts = ref(
+  Object.fromEntries(
+    GALAXY_SYSTEMS.map(s => [s.id, { scanState: 'unscanned', scanEndsAt: null }])
+  )
+)
+const commLog = ref([])
 
 const dismissNotification = (id) => {
   const idx = notifications.value.findIndex(n => n.id === id)
@@ -529,6 +539,86 @@ const planetHasDock = (planetId) =>
   (allPlanetStates.value[planetId]?.slots ?? []).some(s => s.tileType === 'dock' && s.unlocked)
 
 
+// ── Communication ─────────────────────────────────────────
+
+const interstellarCommLevel = computed(() =>
+  globalResearch.value['interstellar_comm']?.level ?? 0
+)
+
+// Signal travel time in seconds between the player's home system and a target system.
+// Distance is Euclidean on the 0–100 coordinate grid.
+const signalTravelTime = (targetSystemId) => {
+  const home = GALAXY_SYSTEMS.find(s => s.id === homeSystemId.value)
+  const target = GALAXY_SYSTEMS.find(s => s.id === targetSystemId)
+  if (!home || !target) return SIGNAL_SPEED_BASE
+  const dist = Math.sqrt(Math.pow(target.x - home.x, 2) + Math.pow(target.y - home.y, 2))
+  const factor = interstellarCommLevel.value >= 2 ? 0.5 : 1
+  return Math.max(10, Math.round(dist * factor * buildTimeFactor.value))
+}
+
+const canScanSystem = (systemId) => {
+  if (interstellarCommLevel.value < 1) return false
+  const contact = systemContacts.value[systemId]
+  return contact?.scanState === 'unscanned'
+}
+
+const scanSystem = (systemId) => {
+  if (!canScanSystem(systemId)) return
+  const travelSec = signalTravelTime(systemId)
+  systemContacts.value[systemId] = {
+    scanState:  'scanning',
+    scanEndsAt: Date.now() + travelSec * 1000,
+  }
+}
+
+const canMessageSystem = (systemId) =>
+  interstellarCommLevel.value >= 1 &&
+  systemContacts.value[systemId]?.scanState === 'scanned'
+
+const sendMessage = (systemId, messageKey) => {
+  if (!canMessageSystem(systemId)) return
+  const sys = GALAXY_SYSTEMS.find(s => s.id === systemId)
+  if (!sys) return
+  const travelSec = signalTravelTime(systemId)
+  const id = `msg_${Date.now()}_${systemId}`
+  commLog.value.unshift({
+    id,
+    direction:    'sent',
+    systemId,
+    systemName:   sys.name,
+    factions:     sys.factions ?? [],
+    messageKey,
+    timestamp:    Date.now(),
+    travelEndsAt: Date.now() + travelSec * 1000,
+    replyEndsAt:  null,
+  })
+}
+
+// Called from the tick when a sent message's signal arrives.
+const _deliverMessage = (entry) => {
+  const sys = GALAXY_SYSTEMS.find(s => s.id === entry.systemId)
+  const factions = sys?.factions ?? []
+  // Each faction sends a reply after the same travel time back
+  for (const faction of factions) {
+    const pool = NPC_RESPONSES[faction.disposition] ?? NPC_RESPONSES.neutral
+    const responseKey = pool[Math.floor(Math.random() * pool.length)]
+    const travelSec = signalTravelTime(entry.systemId)
+    commLog.value.unshift({
+      id:           `msg_${Date.now()}_reply_${faction.name}`,
+      direction:    'received',
+      systemId:     entry.systemId,
+      systemName:   sys.name,
+      factions:     [faction],
+      messageKey:   responseKey,
+      timestamp:    Date.now(),
+      travelEndsAt: Date.now() + travelSec * 1000,
+      replyEndsAt:  null,
+    })
+  }
+  entry.replyEndsAt = entry.travelEndsAt // mark delivered
+}
+
+
 // ── Conversion Queues (High-Tech / Refinery) ───────────────
 // Per-planet array of independent running jobs.
 // Each job: { buildingId, recipeIndex, planetId, endsAt, remaining }
@@ -632,7 +722,7 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 21
+const SAVE_VERSION = 22
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -658,6 +748,8 @@ const saveGame = () => {
     playerColonizedPlanets: playerColonizedPlanets.value,
     notifications:          notifications.value,
     globalResearch:         globalResearch.value,
+    systemContacts:         systemContacts.value,
+    commLog:                commLog.value,
   }))
 }
 
@@ -721,6 +813,12 @@ const loadGame = () => {
         if (data.globalResearch[id]) globalResearch.value[id] = data.globalResearch[id]
       }
     }
+    if (data.systemContacts) {
+      for (const [sysId, contact] of Object.entries(data.systemContacts)) {
+        if (systemContacts.value[sysId]) systemContacts.value[sysId] = contact
+      }
+    }
+    if (Array.isArray(data.commLog)) commLog.value = data.commLog
 
     // Offline production — apply missed ticks since last save
     if (data.savedAt) {
@@ -967,6 +1065,32 @@ const tick = () => {
     })
   }
 
+  // ── Communication tick ────────────────────────────────────
+  // Resolve completed scan signals
+  for (const [sysId, contact] of Object.entries(systemContacts.value)) {
+    if (contact.scanState === 'scanning' && contact.scanEndsAt <= now.value) {
+      contact.scanState  = 'scanned'
+      contact.scanEndsAt = null
+      const sys = GALAXY_SYSTEMS.find(s => s.id === sysId)
+      notifications.value.push({
+        id:        `notif_${Date.now()}_scan_${sysId}`,
+        type:      'scan_done',
+        icon:      '📶',
+        planetId:  null,
+        planetName: null,
+        labelKey:  'hawkStar.comm.scanComplete',
+        labelParams: { system: sys?.name ?? sysId },
+        timestamp: Date.now(),
+      })
+    }
+  }
+  // Deliver sent messages (signal arrived → queue NPC reply)
+  for (const entry of commLog.value) {
+    if (entry.direction === 'sent' && entry.replyEndsAt === null && entry.travelEndsAt <= now.value) {
+      _deliverMessage(entry)
+    }
+  }
+
   saveGame()
 }
 
@@ -1091,6 +1215,16 @@ export function useHawkStar() {
     allPlanetStates,
     notifications,
     dismissNotification,
+    // communication
+    interstellarCommLevel,
+    systemContacts,
+    commLog,
+    canScanSystem,
+    scanSystem,
+    canMessageSystem,
+    sendMessage,
+    signalTravelTime,
+    COMM_EMOJIS,
     // dev tuning
     tickRateMs,
     buildTimeFactor,

@@ -113,6 +113,7 @@ const planetIcon = (planet) => {
 <template>
   <div class="hs-solar">
     <div v-if="expandedBuildRow" class="hs-solar-expand-backdrop" @click="closeBuildRow()" />
+
     <div class="hs-solar-orbit">
 
       <!-- Sun tile -->
@@ -371,7 +372,6 @@ const planetIcon = (planet) => {
       </div>
     </div>
 
-
   </div>
 </template>
 
@@ -460,8 +460,7 @@ const planetIcon = (planet) => {
 // ── Mobile: aktive Tile expandiert, alle anderen bleiben schmal ───────────────
 @media (max-width: 639px) {
   .hs-solar-tile--selected {
-    flex: 1;
-    width: auto;
+    width: 5rem;
     padding: 0.5rem 0.25rem;
   }
 
@@ -1164,8 +1163,7 @@ const planetIcon = (planet) => {
 
 @media (max-width: 639px) {
   .hs-solar-unit-cell--selected {
-    flex: 1;
-    width: auto;
+    width: 5rem;
   }
 }
 

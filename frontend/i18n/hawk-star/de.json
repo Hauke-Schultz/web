@@ -93,6 +93,41 @@
       "starMeta": "{cls}-Klasse Stern · {n} Planeten"
     },
 
+    "comm": {
+      "scanSystem":     "System scannen",
+      "scanning":       "Scannt…",
+      "scanned":        "Gescannt",
+      "unscanned":      "Unbekannt",
+      "scanComplete":   "{system} gescannt",
+      "sendMessage":    "Nachricht senden",
+      "inTransit":      "Unterwegs…",
+      "commLog":        "Kommunikationslog",
+      "noMessages":     "Noch keine Nachrichten",
+      "olderMessages":  "Ältere Nachrichten anzeigen",
+      "send":           "Senden",
+      "sentLabel":      "Du → {system}",
+      "receivedLabel":  "{faction} ({system})",
+      "inhabitants":    "{n} Planet | {n} Planeten",
+      "msg": {
+        "greet":          "Grüße von unserer Zivilisation.",
+        "peace":          "Wir kommen in Frieden.",
+        "territory":      "Diese Region steht unter unserem Schutz.",
+        "trade_interest": "Wir sind an zukünftiger Zusammenarbeit interessiert.",
+        "warning":        "Nähert euch nicht unseren Kolonien."
+      },
+      "npc": {
+        "npc_welcome":         "Willkommen, Reisender.",
+        "npc_glad":            "Wir freuen uns, von euch zu hören.",
+        "npc_peace_back":      "Friede sei mit euch.",
+        "npc_acknowledged":    "Zur Kenntnis genommen.",
+        "npc_received":        "Wir haben eure Nachricht erhalten.",
+        "npc_noted":           "Notiert.",
+        "npc_stay_away":       "Haltet Abstand.",
+        "npc_not_interested":  "Wir haben kein Interesse an Kontakt.",
+        "npc_channel_closed":  "Dieser Kanal ist geschlossen."
+      }
+    },
+
     "panel": {
       "tabActivity": "Aktivitäten",
       "tabSettings": "Einstellungen",
@@ -276,6 +311,12 @@
         "lv2": "Schaltet Galaxieansicht frei · nahe Systeme sichtbar · 5 Energie · 3 Arbeiter",
         "lv3": "Vollständiger Galaxiescan — alle Systeme sichtbar · 9 Energie · 5 Arbeiter"
       },
+      "interstellar_comm": {
+        "name": "Interstellare Kommunikation",
+        "desc": "Scanne ferne Sternensysteme und kontaktiere ihre Bewohner. Einmal erforscht, galaxieweit aktiv.",
+        "lv1": "Schaltet Systemscans + vordefinierte Nachrichten frei · 4 Energie · 2 Arbeiter",
+        "lv2": "Signalreisezeit halbiert · 7 Energie · 3 Arbeiter"
+      },
       "space_building": {
         "name": "Raumfahrttechnologie",
         "desc": "Fördert Antrieb- und Navigationswissenschaft. Schaltet das Raumhafen-Feld frei.",
@@ -355,13 +396,6 @@
         "lv1": "Basisschild — absorbiert 20% eingehenden Schaden · 8 Energie · 3 Arbeiter",
         "lv2": "Verstärkter Schild — absorbiert 40% eingehenden Schaden · 15 Energie · 5 Arbeiter",
         "lv3": "Festungsschild — absorbiert 60% eingehenden Schaden · 25 Energie · 8 Arbeiter"
-      },
-      "crystal_deflector": {
-        "name": "Kristall-Deflektormatrix",
-        "desc": "Reinkristall-Gitter, das eingehende Energie vom Planeten ablenkt.",
-        "lv1": "Kristallschild — absorbiert 70% eingehenden Schaden · 18 Energie · 4 Arbeiter",
-        "lv2": "Resonanzschild — absorbiert 85% eingehenden Schaden · 30 Energie · 6 Arbeiter",
-        "lv3": "Phasenmatrix — absorbiert 95% · reflektiert 20% zurück · 50 Energie · 10 Arbeiter"
       },
     }
   }

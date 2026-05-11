@@ -92,6 +92,41 @@
       "starMeta": "{cls}-class star · {n} planets"
     },
 
+    "comm": {
+      "scanSystem":     "Scan System",
+      "scanning":       "Scanning…",
+      "scanned":        "Scanned",
+      "unscanned":      "Unknown",
+      "scanComplete":   "{system} scanned",
+      "sendMessage":    "Send Message",
+      "inTransit":      "In transit…",
+      "commLog":        "Comm Log",
+      "noMessages":     "No messages yet",
+      "olderMessages":  "Show older messages",
+      "send":           "Send",
+      "sentLabel":      "You → {system}",
+      "receivedLabel":  "{faction} ({system})",
+      "inhabitants":    "{n} planet | {n} planets",
+      "msg": {
+        "greet":          "Greetings from our civilization.",
+        "peace":          "We come in peace.",
+        "territory":      "This region is under our protection.",
+        "trade_interest": "We are interested in future cooperation.",
+        "warning":        "Do not approach our colonies."
+      },
+      "npc": {
+        "npc_welcome":         "Welcome, traveler.",
+        "npc_glad":            "We are glad to hear from you.",
+        "npc_peace_back":      "Peace be with you.",
+        "npc_acknowledged":    "Acknowledged.",
+        "npc_received":        "We have received your message.",
+        "npc_noted":           "Noted.",
+        "npc_stay_away":       "Stay away.",
+        "npc_not_interested":  "We are not interested in contact.",
+        "npc_channel_closed":  "This channel is closed."
+      }
+    },
+
     "panel": {
       "tabActivity": "Activity",
       "tabSettings": "Settings",
@@ -275,6 +310,12 @@
         "lv2": "Unlocks Galaxy view · nearby systems visible · uses 5 energy · 3 workers",
         "lv3": "Full galaxy scan — all systems visible · uses 9 energy · 5 workers"
       },
+      "interstellar_comm": {
+        "name": "Interstellar Communication",
+        "desc": "Scan distant star systems and contact their inhabitants. Researched once, applied galaxy-wide.",
+        "lv1": "Unlock system scanning + predefined messages · uses 4 energy · 2 workers",
+        "lv2": "Halve signal travel time · uses 7 energy · 3 workers"
+      },
       "space_building": {
         "name": "Space Technology",
         "desc": "Advances propulsion and navigation science. Unlocks the Space Base tile.",
@@ -354,13 +395,6 @@
         "lv1": "Basic shield — absorbs 20% incoming damage · uses 8 energy · 3 workers",
         "lv2": "Enhanced shield — absorbs 40% incoming damage · uses 15 energy · 5 workers",
         "lv3": "Fortress shield — absorbs 60% incoming damage · uses 25 energy · 8 workers"
-      },
-      "crystal_deflector": {
-        "name": "Crystal Deflector Matrix",
-        "desc": "Pure Crystal lattice that bends incoming energy away from the planet.",
-        "lv1": "Crystal shield — absorbs 70% incoming damage · uses 18 energy · 4 workers",
-        "lv2": "Resonant shield — absorbs 85% incoming damage · uses 30 energy · 6 workers",
-        "lv3": "Phase matrix — absorbs 95% · reflects 20% back · uses 50 energy · 10 workers"
       },
     }
   }

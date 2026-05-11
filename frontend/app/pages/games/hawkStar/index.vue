@@ -27,17 +27,6 @@ const currentView  = ref('planet')
 const activePanel  = ref('')
 const setupName    = ref('')
 const panelRef     = ref(null)
-const sentinelRef  = ref(null)
-const isSticky     = ref(false)
-
-onMounted(() => {
-  const observer = new IntersectionObserver(
-    ([entry]) => { isSticky.value = !entry.isIntersecting },
-    { threshold: 0 }
-  )
-  if (sentinelRef.value) observer.observe(sentinelRef.value)
-  onUnmounted(() => observer.disconnect())
-})
 
 const scrollToPanel = () => {
   if (window.innerWidth >= 640) return
@@ -66,8 +55,7 @@ watchEffect(() => {
 
 <template>
   <div class="hs-page">
-    <div ref="sentinelRef" class="hs-sticky-sentinel" />
-    <div class="hs-top-wrap" :class="{ 'hs-top-wrap--sticky': isSticky }">
+    <div class="hs-top-wrap">
       <div class="hs-top">
         <HsNavBar v-model:currentView="currentView" />
         <HsResourceBar />
@@ -244,15 +232,7 @@ watchEffect(() => {
   }
 }
 
-.hs-sticky-sentinel {
-  height: 1px;
-  margin-top: -1px;
-  pointer-events: none;
-}
-
 .hs-top-wrap {
-  position: sticky;
-  top: 0;
   z-index: 50;
   width: 100%;
   background: rgba(10, 10, 26, 0.92);
@@ -260,43 +240,10 @@ watchEffect(() => {
   border-bottom: 1px solid transparent;
   padding: 0.4rem 0;
   margin-bottom: 1rem;
-  transition: padding 0.2s, border-color 0.2s;
 
   @media (min-width: 640px) {
     padding: 0.5rem 0;
     margin-bottom: 1.5rem;
-  }
-
-  &--sticky {
-    padding: 0.2rem 0;
-    border-bottom-color: rgba(255,255,255,0.06);
-
-    :deep(.hs-nav) {
-      flex-direction: row;
-      width: auto;
-      gap: 0.25rem;
-    }
-    :deep(.hs-planet-header) {
-      flex-direction: row;
-      padding: 0.15rem 0.35rem;
-      gap: 0.3rem;
-      .hs-planet-type-badge { display: none; }
-    }
-    :deep(.hs-nav-tab) {
-      flex: none;
-      padding: 0.15rem 0.35rem;
-      span:not(.hs-nav-icon):not(.hs-nav-lock) { display: none; }
-    }
-    :deep(.hs-nav-icon) { font-size: 0.9rem; }
-
-    :deep(.hs-res-card) {
-      padding: 0.15rem 0.1rem;
-      gap: 0;
-    }
-    :deep(.hs-res-label),
-    :deep(.hs-res-prod) { display: none; }
-    :deep(.hs-res-icon)  { font-size: 0.85rem; }
-    :deep(.hs-res-value) { font-size: 0.72rem; }
   }
 }
 

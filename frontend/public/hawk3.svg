@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="512" height="512" xmlns:svg="http://www.w3.org/2000/svg"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><style>@media (prefers-color-scheme: light) { :root { filter: none; } }
 @media (prefers-color-scheme: dark) { :root { filter: none; } }</style><g class="layer">
   <title>Layer 1</title>
-  <g id="svg_3" transform="matrix(1 0 0 1 -11 0)">
+  <circle cx="157.35" cy="158.99" fill="#cccccc" id="svg_10" r="221.61" stroke="#cccccc" stroke-width="8" transform="matrix(1.07275 0 0 1.09234 92.1174 82.451)"></circle>
+  <g id="svg_3" transform="translate(1 0) translate(0 1) translate(-1 0) translate(-1 0) translate(-1 0) translate(-1 0) translate(1 0) translate(-1 0) translate(-1 0) translate(-1 0) translate(0 -1) translate(-1 0) translate(1 0) translate(0 1) translate(1 0) translate(0 -1) translate(0 1) translate(0 1) translate(0 1) translate(1 0) translate(1 0) translate(1 0) translate(1 0) translate(0 1) translate(0 1) translate(0 -1) translate(0 -1) translate(0 -1) translate(0 -1) translate(0 -1) translate(0 -1) translate(0 -1) translate(0 -1) translate(0 -1) matrix(0.838785 0 0 0.861514 31.3211 39.3282)">
    <svg height="512" id="svg_6" stroke="#000000" version="1.1" width="512" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
     <defs stroke="#000000">
      <!-- Neon glow filter -->
@@ -10,7 +11,7 @@
      <title stroke="#000000">Pacman Neon</title>
      <path d="m467.37,99.4c-46.96,-54.72 -116.61,-89.4 -194.37,-89.4c-141.38,0 -256,114.61 -256,256s114.62,256 256,256c77.76,0 147.41,-34.68 194.36,-89.4c-54.12,-55.53 -132.24,-110.07 -186.36,-165.6l186.37,-167.6z" fill="#4f46e5" filter="url(#neonGlow)" id="svg_9" stroke="#000000" stroke-width="22" transform="matrix(0.958312 0 0 0.958312 3.82516 13.7722)"></path>
      <!-- Black eye of the Pacman -->
-     <circle cx="320" cy="141.1" fill="#ffffff" id="svg_8" r="20" stroke="#000000" stroke-width="8" transform="matrix(2.30212 0 0 2.30212 -445.423 -201.713)"></circle>
+     <circle cx="320" cy="141.1" fill="#cccccc" id="svg_8" r="20" stroke="#000000" stroke-width="8" transform="matrix(2.30212 0 0 2.30212 -445.423 -201.713)"></circle>
     </g>
    </svg>
   </g>
