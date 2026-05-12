@@ -71,6 +71,8 @@
       "droneEnRoute": "Drone en route…",
       "unknown": "Unknown",
       "uninhabitable": "Uninhabitable",
+      "settleHint": "Planet colonized — start building your colony",
+      "settleBtn": "Go to Planet",
       "sendDrone": "Send Drone",
       "colonize": "Colonize",
       "dest": "Dest",

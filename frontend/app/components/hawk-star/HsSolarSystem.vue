@@ -28,6 +28,8 @@ const {
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
 } = useHawkStar()
 
+const emit = defineEmits(['go-planet'])
+
 const { t } = useI18n()
 
 const expandedBuildRow = ref(null)
@@ -38,7 +40,13 @@ const toggleBuildRow = (row) => {
 }
 const closeBuildRow = () => { expandedBuildRow.value = null }
 
-const planets = computed(() => homeSystem.value?.planets ?? [])
+const planets           = computed(() => homeSystem.value?.planets ?? [])
+const habitablePlanets  = computed(() => planets.value.filter(p => p.type !== 'uninhabitable'))
+
+const goToPlanet = (planetId) => {
+  setActivePlanet(planetId)
+  emit('go-planet')
+}
 
 const isScanned      = (id) => playerScannedPlanets.value.includes(id)
 const isColonized    = (id) => playerColonizedPlanets.value.includes(id)
@@ -235,6 +243,16 @@ const planetIcon = (planet) => {
           </div>
         </div>
       </div>
+      <div
+        v-if="effectivePlanetState(selectedPlanet) === 'own' && selectedPlanet.id !== homePlanetId"
+        class="hs-solar-settle-bar"
+      >
+        <span class="hs-solar-settle-hint">{{ t('hawkStar.solar.settleHint') }}</span>
+        <button class="hs-solar-settle-btn" @click.stop="goToPlanet(selectedPlanet.id)">
+          🏛️ {{ t('hawkStar.solar.settleBtn') }}
+        </button>
+      </div>
+
       <template v-if="effectivePlanetState(selectedPlanet) === 'own'">
         <button class="hs-solar-planet-panel__res-toggle" @click.stop="resOpen = !resOpen">
           <span>📦 Resources</span>
@@ -689,6 +707,38 @@ const planetIcon = (planet) => {
     border-color: rgba(255,255,255,0.12);
     font-variant-numeric: tabular-nums;
   }
+}
+
+.hs-solar-settle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-top: 1px solid rgba(96,165,250,0.15);
+  background: rgba(96,165,250,0.04);
+}
+
+.hs-solar-settle-hint {
+  font-size: 0.58rem;
+  color: rgba(96,165,250,0.6);
+  font-style: italic;
+}
+
+.hs-solar-settle-btn {
+  flex-shrink: 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(96,165,250,0.4);
+  background: rgba(96,165,250,0.1);
+  color: rgba(96,165,250,0.95);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+
+  &:hover { background: rgba(96,165,250,0.2); border-color: rgba(96,165,250,0.65); }
 }
 
 .hs-solar-planet-panel__res-toggle {

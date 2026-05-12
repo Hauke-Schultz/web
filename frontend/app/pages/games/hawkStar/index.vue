@@ -63,7 +63,7 @@ watchEffect(() => {
           <HsTilePanel :activePanel="activePanel" />
         </div>
       </template>
-      <HsSolarSystem v-else-if="currentView === 'solar-system'" />
+      <HsSolarSystem v-else-if="currentView === 'solar-system'" @go-planet="currentView = 'planet'" />
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
     </div>
 

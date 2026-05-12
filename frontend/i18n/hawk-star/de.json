@@ -73,6 +73,8 @@
       "droneEnRoute": "Drohne unterwegs…",
       "unknown": "Unbekannt",
       "uninhabitable": "Unbewohnbar",
+      "settleHint": "Planet kolonisiert — starte die Besiedlung",
+      "settleBtn": "Zum Planeten",
       "sendDrone": "Drohne schicken",
       "colonize": "Kolonisieren",
       "dest": "Ziel",
