@@ -105,4 +105,4 @@ function generateEmptySystems(count = 7) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export const generateGalaxy = () => [...NPC_SYSTEMS, ...generateEmptySystems()]
+export const generateGalaxy = () => [...NPC_SYSTEMS, ...generateEmptySystems(1)]

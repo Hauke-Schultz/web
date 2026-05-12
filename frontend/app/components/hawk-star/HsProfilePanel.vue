@@ -20,7 +20,11 @@ const selectPortrait = (p) => {
 
 <template>
   <div class="hs-profile">
-    <div class="hs-profile-header">👤 {{ t('hawkStar.profile.title') }}</div>
+
+    <div class="hs-panel-header">
+      <span class="hs-panel-icon">👤</span>
+      <h2 class="hs-panel-title">{{ t('hawkStar.profile.title') }}</h2>
+    </div>
 
     <div class="hs-profile-body">
       <!-- Portrait -->
@@ -67,21 +71,24 @@ const selectPortrait = (p) => {
 
 <style lang="scss" scoped>
 .hs-profile {
+  flex: 1;
+  min-width: 0;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-glass-2xl);
   border-radius: var(--hs-r-lg);
   overflow: visible;
 }
 
-.hs-profile-header {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.35);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+.hs-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--hs-line-sm);
 }
+
+.hs-panel-icon  { font-size: 1.25rem; }
+.hs-panel-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin: 0; flex: 1; }
 
 .hs-profile-body {
   display: flex;

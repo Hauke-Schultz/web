@@ -73,6 +73,8 @@ const dismissNotification = (id) => {
   if (idx !== -1) notifications.value.splice(idx, 1)
 }
 
+const dismissAllNotifications = () => { notifications.value = [] }
+
 const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
 const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
 
@@ -1235,6 +1237,7 @@ export function useHawkStar() {
     allPlanetStates,
     notifications,
     dismissNotification,
+    dismissAllNotifications,
     // communication
     interstellarCommLevel,
     systemContacts,

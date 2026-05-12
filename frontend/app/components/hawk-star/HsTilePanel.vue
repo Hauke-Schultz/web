@@ -91,9 +91,11 @@ const setConversionCount = (bId, idx, val) => {
 </script>
 
 <template>
+  <!-- Profile -->
+  <HsProfilePanel v-if="activePanel === 'profile'" />
+
   <!-- Activity + Settings -->
-  <template v-if="activePanel === 'notifications'">
-    <HsProfilePanel />
+  <template v-else-if="activePanel === 'notifications'">
     <HsNotificationPanel />
     <HsSettingsPanel />
   </template>

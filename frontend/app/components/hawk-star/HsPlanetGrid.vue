@@ -24,6 +24,8 @@ const {
   getLevel,
   allPlanetStates,
   notifications,
+  playerPortrait,
+  playerName,
 } = useHawkStar()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
@@ -95,9 +97,6 @@ const onSelectSlot = (slot) => {
 		    <div class="hs-tile-main">
 			    <span class="hs-tile-icon">{{ currentPlanetType?.icon ?? '🪐' }}</span>
 			    <span class="hs-tile-label">{{ planetName }}</span>
-			    <span v-if="currentPlanetType" class="hs-tile-type">
-            {{ t('hawkStar.planetTypes.' + planetType + '.name') }}
-          </span>
 		    </div>
 		    <div class="hs-tile-dots" />
 	    </div>
@@ -117,8 +116,20 @@ const onSelectSlot = (slot) => {
         </div>
       </div>
 
-      <!-- empty cell — keeps the 3-column panel row aligned -->
-      <div class="hs-tile hs-tile--empty" />
+      <!-- Profile tile -->
+      <div
+        class="hs-tile hs-tile--profile"
+        :class="{ 'hs-tile--active': activePanel === 'profile', 'hs-tile--unlocked': activePanel !== 'profile' }"
+        @click="togglePanel('profile')"
+      >
+        <div class="hs-tile-main hs-tile-main--profile">
+          <span class="hs-tile-icon">{{ playerPortrait }}</span>
+          <div class="hs-tile-profile-info">
+            <span class="hs-tile-label">{{ playerName || '—' }}</span>
+          </div>
+        </div>
+        <div class="hs-tile-dots" />
+      </div>
 
       <!-- Planet slots (rows 2–4) -->
       <div
@@ -243,6 +254,24 @@ const onSelectSlot = (slot) => {
   align-items: center;
   gap: 2px;
   flex: 1;
+}
+
+.hs-tile-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.hs-tile-profile-disp {
+  font-size: 0.52rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: capitalize;
+
+  &--friendly { color: #34d399; }
+  &--neutral  { color: #94a3b8; }
+  &--hostile  { color: #f87171; }
 }
 
 .hs-tile-icon  { font-size: 1.25rem; line-height: 1; }

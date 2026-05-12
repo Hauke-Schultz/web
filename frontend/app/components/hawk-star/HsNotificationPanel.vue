@@ -9,6 +9,7 @@ const {
   allPlanetStates,
   notifications,
   dismissNotification,
+  dismissAllNotifications,
   now,
   formatTime,
   homeSystem,
@@ -145,6 +146,15 @@ const totalCount    = computed(() => doneCount.value + progressCount.value)
 
 <template>
   <div class="hs-notif" :class="{ 'hs-notif--empty': totalCount === 0 }">
+
+    <div class="hs-panel-header">
+      <span class="hs-panel-icon">🔔</span>
+      <h2 class="hs-panel-title">{{ t('hawkStar.panel.tabActivity') }}</h2>
+      <button v-if="doneCount > 0" class="hs-notif-clear-btn" @click="dismissAllNotifications">
+        🗑️ {{ t('hawkStar.notifications.clearAll') }}
+      </button>
+    </div>
+
     <div class="hs-notif-body">
       <!-- Done notifications -->
       <div
@@ -192,14 +202,45 @@ const totalCount    = computed(() => doneCount.value + progressCount.value)
 
 <style lang="scss" scoped>
 .hs-notif {
-  width: 100%;
-  border-radius: var(--hs-r-md, 0.5rem);
-  border: 1px solid rgba(100, 130, 220, 0.15);
-  background: rgba(255, 255, 255, 0.03);
+  flex: 1;
+  min-width: 0;
+  background: var(--hs-glass-sm);
+  border: 1px solid var(--hs-glass-2xl);
+  border-radius: var(--hs-r-lg);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-  &--empty {
-    border-color: rgba(100, 130, 220, 0.08);
+.hs-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--hs-line-sm);
+  flex-shrink: 0;
+}
+
+.hs-panel-icon  { font-size: 1.25rem; }
+.hs-panel-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin: 0; flex: 1; }
+
+.hs-notif-clear-btn {
+  background: none;
+  border: 1px solid rgba(248,113,113,0.25);
+  border-radius: var(--hs-r-sm);
+  color: rgba(248,113,113,0.6);
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(248,113,113,0.1);
+    color: rgba(248,113,113,0.9);
+    border-color: rgba(248,113,113,0.5);
   }
 }
 

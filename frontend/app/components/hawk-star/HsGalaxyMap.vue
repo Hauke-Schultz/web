@@ -19,11 +19,11 @@ const {
 
 const { t } = useI18n()
 
-// ── System order: home system always first ────────────────────────────────────
+// ── System order: home first, then only inhabited (faction) systems ───────────
 const sortedSystems = computed(() => {
   const home = galaxySystems.value.find(s => s.id === homeSystemId.value)
-  const rest = galaxySystems.value.filter(s => s.id !== homeSystemId.value)
-  return home ? [home, ...rest] : [...galaxySystems.value]
+  const rest = galaxySystems.value.filter(s => s.id !== homeSystemId.value && (s.factions?.length ?? 0) > 0)
+  return home ? [home, ...rest] : rest
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

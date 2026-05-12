@@ -6,6 +6,7 @@
       "badgeDone": "done",
       "empty": "No active operations",
       "dismiss": "Dismiss",
+      "clearAll": "Clear all",
       "buildComplete": "{name} Lv{level} complete",
       "researchComplete": "{name} Lv{level} researched",
       "droneReady": "Recon Drone ready",

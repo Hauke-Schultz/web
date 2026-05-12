@@ -28,14 +28,6 @@ const activePanel  = ref('')
 const setupName    = ref('')
 const panelRef     = ref(null)
 
-const scrollToPanel = () => {
-  if (window.innerWidth >= 640) return
-  nextTick(() => panelRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-}
-
-watch(activePanel, scrollToPanel)
-watch(activeSlot,  scrollToPanel)
-
 const submitSetup = () => {
   const name = setupName.value.trim()
   if (!name) return

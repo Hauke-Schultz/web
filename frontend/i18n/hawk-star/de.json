@@ -6,6 +6,7 @@
       "badgeDone": "fertig",
       "empty": "Keine aktiven Operationen",
       "dismiss": "Schließen",
+      "clearAll": "Alle löschen",
 
       "buildComplete": "{name} Lv{level} fertig",
       "researchComplete": "{name} Lv{level} erforscht",
