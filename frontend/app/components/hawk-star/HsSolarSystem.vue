@@ -120,8 +120,6 @@ const planetIcon = (planet) => {
 
 <template>
   <div class="hs-solar">
-    <div v-if="expandedBuildRow" class="hs-solar-expand-backdrop" @click="closeBuildRow()" />
-
     <div class="hs-solar-orbit">
 
       <!-- Sun tile -->
@@ -253,6 +251,21 @@ const planetIcon = (planet) => {
         </button>
       </div>
 
+      <div
+        v-else-if="effectivePlanetState(selectedPlanet) === 'uncolonized'"
+        class="hs-solar-settle-bar hs-solar-settle-bar--colony"
+      >
+        <span class="hs-solar-settle-hint">{{ t('hawkStar.solar.colonizeHint') }}</span>
+        <button
+          class="hs-solar-settle-btn hs-solar-settle-btn--colony"
+          :class="{ 'hs-solar-settle-btn--disabled': !canSendColonyShip(selectedPlanet.id) }"
+          :disabled="!canSendColonyShip(selectedPlanet.id)"
+          @click.stop="sendColonyShip(selectedPlanet.id, activePlanetId)"
+        >
+          🚀 {{ t('hawkStar.solar.colonize') }}
+        </button>
+      </div>
+
       <template v-if="effectivePlanetState(selectedPlanet) === 'own'">
         <button class="hs-solar-planet-panel__res-toggle" @click.stop="resOpen = !resOpen">
           <span>📦 Resources</span>
@@ -265,7 +278,7 @@ const planetIcon = (planet) => {
     </div>
 
     <!-- ── Drone row ─────────────────────────────────────────────────────────── -->
-    <div v-if="reconDroneLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-drone-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'drone' }">
+    <div v-if="reconDroneLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-drone-row">
       <div class="hs-solar-drone-label">
         <div class="hs-solar-unit-label__icon-wrap">
           <span class="hs-solar-unit-label__icon">🛸</span>
@@ -281,7 +294,6 @@ const planetIcon = (planet) => {
         :class="{
           'hs-solar-drone-cell--active': planet.id === activePlanetId,
           'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
-          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id),
         }"
       >
         <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
@@ -289,29 +301,6 @@ const planetIcon = (planet) => {
             <span class="hs-solar-unit-build-trigger__name">{{ reconDroneBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.reconDrone') }}</span>
             <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
           </button>
-          <div v-if="expandedBuildRow === 'drone'" class="hs-solar-unit-build-expanded" @click.stop>
-            <div class="hs-dock-row">
-              <div class="hs-dock-icon-wrap">
-                <span class="hs-dock-icon">🛸</span>
-                <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
-              </div>
-              <div class="hs-dock-info">
-                <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
-                <div class="hs-dock-cost-row">
-                  <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                  <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
-                </div>
-                <div v-if="reconDroneBuild" class="hs-progress-row">
-                  <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
-                  <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
-                </div>
-              </div>
-              <div class="hs-dock-action">
-                <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-                <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
-              </div>
-            </div>
-          </div>
         </template>
         <template v-else-if="canSendDrone(planet.id)">
           <button class="hs-solar-action-btn hs-solar-action-btn--drone" @click.stop="sendReconDrone(planet.id, activePlanetId)">
@@ -327,8 +316,33 @@ const planetIcon = (planet) => {
       </div>
     </div>
 
+    <!-- Drone build expanded row -->
+    <div v-if="reconDroneLevel > 0 && planetHasDock(activePlanetId) && expandedBuildRow === 'drone'" class="hs-solar-build-expanded-row">
+      <div class="hs-dock-row">
+        <div class="hs-dock-icon-wrap">
+          <span class="hs-dock-icon">🛸</span>
+          <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
+        </div>
+        <div class="hs-dock-info">
+          <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
+          <div class="hs-dock-cost-row">
+            <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
+          </div>
+          <div v-if="reconDroneBuild" class="hs-progress-row">
+            <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
+            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
+          </div>
+        </div>
+        <div class="hs-dock-action">
+          <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Colony Ship row ──────────────────────────────────────────────────── -->
-    <div v-if="colonyShipLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-colony-row" :class="{ 'hs-solar-row--expanded': expandedBuildRow === 'colony' }">
+    <div v-if="colonyShipLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-colony-row">
       <div class="hs-solar-colony-label">
         <div class="hs-solar-unit-label__icon-wrap">
           <span class="hs-solar-unit-label__icon">🚀</span>
@@ -344,7 +358,6 @@ const planetIcon = (planet) => {
         :class="{
           'hs-solar-colony-cell--active': planet.id === activePlanetId,
           'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
-          'hs-solar-unit-cell--build': planet.id === activePlanetId && planetHasDock(planet.id),
         }"
       >
         <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
@@ -352,29 +365,6 @@ const planetIcon = (planet) => {
             <span class="hs-solar-unit-build-trigger__name">{{ colonyShipBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.colonyShip') }}</span>
             <span class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
           </button>
-          <div v-if="expandedBuildRow === 'colony'" class="hs-solar-unit-build-expanded" @click.stop>
-            <div class="hs-dock-row">
-              <div class="hs-dock-icon-wrap">
-                <span class="hs-dock-icon">🚀</span>
-                <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
-              </div>
-              <div class="hs-dock-info">
-                <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
-                <div class="hs-dock-cost-row">
-                  <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                  <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
-                </div>
-                <div v-if="colonyShipBuild" class="hs-progress-row">
-                  <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
-                  <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
-                </div>
-              </div>
-              <div class="hs-dock-action">
-                <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-                <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
-              </div>
-            </div>
-          </div>
         </template>
         <template v-else-if="isColonizing(planet.id)">
           <div class="hs-solar-progress-bar hs-solar-progress-bar--colony" :style="colonyProgressStyle(planet.id)" />
@@ -387,6 +377,31 @@ const planetIcon = (planet) => {
           </button>
           <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--colony">{{ formatTime(colonyFlightTimeBetween(activePlanetId, planet.id)) }}</span>
         </template>
+      </div>
+    </div>
+
+    <!-- Colony build expanded row -->
+    <div v-if="colonyShipLevel > 0 && planetHasDock(activePlanetId) && expandedBuildRow === 'colony'" class="hs-solar-build-expanded-row">
+      <div class="hs-dock-row">
+        <div class="hs-dock-icon-wrap">
+          <span class="hs-dock-icon">🚀</span>
+          <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
+        </div>
+        <div class="hs-dock-info">
+          <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
+          <div class="hs-dock-cost-row">
+            <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
+          </div>
+          <div v-if="colonyShipBuild" class="hs-progress-row">
+            <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
+            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
+          </div>
+        </div>
+        <div class="hs-dock-action">
+          <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
+        </div>
       </div>
     </div>
 
@@ -717,12 +732,19 @@ const planetIcon = (planet) => {
   padding: 0.4rem 0.75rem;
   border-top: 1px solid rgba(96,165,250,0.15);
   background: rgba(96,165,250,0.04);
+
+  &--colony {
+    border-top-color: rgba(52,211,153,0.15);
+    background: rgba(52,211,153,0.03);
+  }
 }
 
 .hs-solar-settle-hint {
   font-size: 0.58rem;
   color: rgba(96,165,250,0.6);
   font-style: italic;
+
+  .hs-solar-settle-bar--colony & { color: rgba(52,211,153,0.6); }
 }
 
 .hs-solar-settle-btn {
@@ -738,7 +760,16 @@ const planetIcon = (planet) => {
   transition: background 0.15s, border-color 0.15s;
   white-space: nowrap;
 
-  &:hover { background: rgba(96,165,250,0.2); border-color: rgba(96,165,250,0.65); }
+  &:hover:not(:disabled) { background: rgba(96,165,250,0.2); border-color: rgba(96,165,250,0.65); }
+
+  &--colony {
+    border-color: rgba(52,211,153,0.4);
+    background: rgba(52,211,153,0.08);
+    color: rgba(52,211,153,0.95);
+    &:hover:not(:disabled) { background: rgba(52,211,153,0.18); border-color: rgba(52,211,153,0.65); }
+  }
+
+  &--disabled, &:disabled { opacity: 0.35; cursor: not-allowed; }
 }
 
 .hs-solar-planet-panel__res-toggle {
@@ -1205,20 +1236,13 @@ const planetIcon = (planet) => {
     padding: 0.3rem 0.25rem;
   }
 
-  &--build {
-    padding: 0;
-    overflow: visible;
-  }
 }
+
 
 @media (max-width: 639px) {
   .hs-solar-unit-cell--selected {
     width: 5rem;
   }
-}
-
-.hs-solar-row--expanded {
-  @media (min-width: 640px) { overflow: visible; }
 }
 
 // ── Per-type active cell color ────────────────────────────────────────────────
@@ -1275,24 +1299,12 @@ const planetIcon = (planet) => {
   border-color: rgba(52,211,153,0.6);
 }
 
-.hs-solar-unit-build-expanded {
-  position: absolute;
-  z-index: 20;
-  top: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 18.5rem;
-  background: #13141f;
-  border: 1px solid rgba(255,255,255,0.14);
+.hs-solar-build-expanded-row {
+  align-self: flex-start;
+  background: var(--hs-glass-sm);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: var(--hs-r-md);
   padding: 0.45rem 0.5rem;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
-
-  @media (max-width: 639px) {
-    width: min(90vw, 20rem);
-    left: 0;
-    transform: none;
-  }
 }
 
 // ── Flight time labels ────────────────────────────────────────────────────────
@@ -1306,10 +1318,5 @@ const planetIcon = (planet) => {
   &--colony  { color: rgba(96,165,250,0.75); }
 }
 
-.hs-solar-expand-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 19;
-}
 
 </style>

@@ -73,6 +73,7 @@
       "uninhabitable": "Uninhabitable",
       "settleHint": "Planet colonized — start building your colony",
       "settleBtn": "Go to Planet",
+      "colonizeHint": "Free planet — send a colony ship to claim it",
       "sendDrone": "Send Drone",
       "colonize": "Colonize",
       "dest": "Dest",
