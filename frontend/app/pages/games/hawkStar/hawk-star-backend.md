@@ -3,11 +3,11 @@
 Stack: **PHP + MySQL 8** (Docker local, existing PHP server for prod).
 All game state lives in the database — no LocalStorage in multiplayer mode.
 
+Frontend is feature-complete for Phases 1 & 2. Backend implementation starts here.
+
 ---
 
 ## User Management
-
-Every player needs an account before entering the game.
 
 **Flow:**
 1. Player registers with username + email + password
@@ -23,6 +23,8 @@ players (
   username      VARCHAR(64) UNIQUE NOT NULL,
   email         VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  portrait      VARCHAR(16) DEFAULT '👨‍🚀',
+  disposition   ENUM('friendly','neutral','hostile') DEFAULT 'neutral',
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen_at  DATETIME
 )
@@ -39,7 +41,7 @@ sessions (
 **Endpoints:**
 
 ```
-POST /auth/register   { username, email, password }
+POST /auth/register   { username, email, password, portrait?, disposition? }
 POST /auth/login      { email, password } → { token, player }
 POST /auth/logout
 GET  /auth/me         → current player info
@@ -57,25 +59,28 @@ Resources are only computed when the player takes an action or opens the game. T
 
 Each planet stores a `resources_computed_at` timestamp. The server runs this delta calculation at the start of every write request (build, mission, etc.) and on the initial page load. The client gets fresh values as a response to its own actions — not from a background ticker.
 
-This means:
 - Server load is minimal — only active players generate requests
-- No WebSockets or background jobs needed for Phase 1
+- No WebSockets or background jobs needed for Phases 1 & 2
 - Resources are always accurate when returned
+- Energy is not stored — it is computed on-demand as `sum(production) - sum(drain)` across all buildings
 
 ---
 
 ## Shared Galaxy
 
-All players share one galaxy instance. Planet ownership is tracked per player. This is what makes real multiplayer possible — colonization, territory, conflict.
+All players share **one galaxy instance**. Planet ownership is tracked per player. This replaces the frontend's per-player procedurally generated galaxy.
 
-The galaxy is seeded once on first server setup from the static mock data (`GALAXY_SYSTEMS`). Later: multiple seasons or game instances are possible.
+The galaxy is seeded once on first server setup from `generateGalaxy()` output (or a fixed seed). Two NPC systems (Kepler/Asha, Vorn/Krath) are always included. All other systems are empty at game start — available for colonization.
+
+NPC factions are seeded data: they own their planets from day 1 but never expand.
 
 ---
 
 ## Database Schema
 
 ```sql
--- Shared world
+-- ── Shared world ──────────────────────────────────────────────────────────────
+
 galaxies (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   name       VARCHAR(128),
@@ -88,100 +93,97 @@ star_systems (
   name       VARCHAR(128),
   x          FLOAT,
   y          FLOAT,
-  star_class CHAR(1),
+  star_class CHAR(1)
 )
 
 planets (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   system_id  INT NOT NULL REFERENCES star_systems(id),
   name       VARCHAR(128),
-  type       ENUM('terrestrial','volcanic','frozen','ocean') NOT NULL,
+  type       ENUM('terrestrial','volcanic','frozen','ocean','uninhabitable') NOT NULL,
   slot_count INT DEFAULT 9
 )
 
--- Per-player state
+-- NPC factions (seeded data, never mutated at runtime)
+npc_factions (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  system_id   INT NOT NULL REFERENCES star_systems(id),
+  name        VARCHAR(128),
+  portrait    VARCHAR(16),
+  disposition ENUM('friendly','neutral','hostile') DEFAULT 'neutral'
+)
+
+npc_planet_ownership (
+  planet_id  INT PRIMARY KEY REFERENCES planets(id),
+  faction_id INT NOT NULL REFERENCES npc_factions(id)
+)
+
+-- ── Per-player state ──────────────────────────────────────────────────────────
+
 planet_ownership (
   id           INT AUTO_INCREMENT PRIMARY KEY,
   planet_id    INT NOT NULL REFERENCES planets(id),
   player_id    INT NOT NULL REFERENCES players(id),
   is_home      TINYINT(1) DEFAULT 0,
   colonized_at DATETIME,
-  UNIQUE (planet_id, player_id)
+  UNIQUE (planet_id)          -- one owner per planet at a time
 )
 
 planet_resources (
-  id                    INT AUTO_INCREMENT PRIMARY KEY,
   planet_id             INT NOT NULL,
   player_id             INT NOT NULL,
   metal                 FLOAT DEFAULT 0,
   crystal               FLOAT DEFAULT 0,
   population            FLOAT DEFAULT 0,
+  alloy                 FLOAT DEFAULT 0,
+  obsidian              FLOAT DEFAULT 0,
+  cryo                  FLOAT DEFAULT 0,
+  biomass               FLOAT DEFAULT 0,
+  pure_crystal          FLOAT DEFAULT 0,
   super_alloy           FLOAT DEFAULT 0,
   quantum_shard         FLOAT DEFAULT 0,
-  pure_crystal          FLOAT DEFAULT 0,
   nano_alloy            FLOAT DEFAULT 0,
-  kinetic_round         FLOAT DEFAULT 0,
-  plasma_cell           FLOAT DEFAULT 0,
   power_cell            FLOAT DEFAULT 0,
   resources_computed_at DATETIME NOT NULL,
-  UNIQUE (planet_id, player_id)
+  PRIMARY KEY (planet_id, player_id)
 )
 
 planet_slots (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
   planet_id  INT NOT NULL,
   player_id  INT NOT NULL,
   slot_index INT NOT NULL,
   unlocked   TINYINT(1) DEFAULT 0,
-  UNIQUE (planet_id, player_id, slot_index)
+  PRIMARY KEY (planet_id, player_id, slot_index)
 )
 
+-- Per-planet buildings (planet-specific)
 buildings (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
   planet_id     INT NOT NULL,
   player_id     INT NOT NULL,
   building_key  VARCHAR(64) NOT NULL,
   level         INT DEFAULT 0,
   build_ends_at DATETIME NULL,
-  UNIQUE (planet_id, player_id, building_key)
+  PRIMARY KEY (planet_id, player_id, building_key)
+)
+
+-- Global research (star_map, interstellar_comm — apply across all planets)
+global_research (
+  player_id     INT NOT NULL,
+  building_key  VARCHAR(64) NOT NULL,         -- 'star_map' | 'interstellar_comm'
+  level         INT DEFAULT 0,
+  build_ends_at DATETIME NULL,
+  PRIMARY KEY (player_id, building_key)
 )
 
 missions (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   player_id      INT NOT NULL,
-  type           ENUM('recon_drone','galaxy_probe','colony_ship','freighter','warship') NOT NULL,
-  from_planet_id INT NULL,
-  to_planet_id   INT NULL,
-  to_system_id   INT NULL,
-  cargo          JSON NULL,
+  type           ENUM('recon_drone','colony_ship') NOT NULL,
+  from_planet_id INT NULL REFERENCES planets(id),
+  to_planet_id   INT NULL REFERENCES planets(id),
   ends_at        DATETIME NOT NULL,
-  status         ENUM('in_flight','arrived','done') DEFAULT 'in_flight',
+  status         ENUM('in_flight','done') DEFAULT 'in_flight',
   created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-
-warships (
-  id        INT AUTO_INCREMENT PRIMARY KEY,
-  player_id INT NOT NULL,
-  planet_id INT NOT NULL,      -- home planet (one warship per planet)
-  name      VARCHAR(128),
-  class_id  VARCHAR(64) DEFAULT 'frigate',
-  hull      INT,
-  shield    INT,
-  speed     INT,
-  status    ENUM('hangar','in_flight','returning') DEFAULT 'hangar'
-  -- Note: drive/weapon slots intentionally omitted for now.
-  -- Equipment system can be added when combat is designed end-to-end.
-)
-
--- One freighter per planet. No inventory count — boolean presence.
--- When in transit the row is absent or status = 'in_flight'; on arrival it is recreated at the destination.
--- Alternatively modelled as a nullable FK on planet_ownership and tracked via the missions table.
-freighters (
-  id        INT AUTO_INCREMENT PRIMARY KEY,
-  player_id INT NOT NULL,
-  planet_id INT NOT NULL,      -- current home planet (changes on arrival)
-  status    ENUM('hangar','in_flight') DEFAULT 'hangar',
-  UNIQUE (player_id, planet_id)
 )
 
 conversion_queues (
@@ -192,6 +194,29 @@ conversion_queues (
   recipe_index INT NOT NULL,
   ends_at      DATETIME NOT NULL,
   remaining    INT DEFAULT 0
+)
+
+-- ── Communication (Phase 2) ──────────────────────────────────────────────────
+
+-- One row per player per system — scan state
+system_contacts (
+  player_id    INT NOT NULL,
+  system_id    INT NOT NULL REFERENCES star_systems(id),
+  scan_state   ENUM('unscanned','scanning','scanned') DEFAULT 'unscanned',
+  scan_ends_at DATETIME NULL,
+  PRIMARY KEY (player_id, system_id)
+)
+
+-- Emoji messages between player and NPC faction (or future: player-to-player)
+comm_log (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  player_id      INT NOT NULL,
+  system_id      INT NOT NULL REFERENCES star_systems(id),
+  direction      ENUM('sent','received') NOT NULL,
+  message_key    VARCHAR(64) NOT NULL,    -- emoji string (sent) or NPC response key (received)
+  travel_ends_at DATETIME NULL,           -- NULL once delivered
+  reply_ends_at  DATETIME NULL,
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
 )
 ```
 
@@ -204,111 +229,153 @@ Every write endpoint runs lazy resource computation before executing its action.
 
 ```
 -- Auth
-POST /auth/register
-POST /auth/login
+POST /auth/register   { username, email, password, portrait?, disposition? }
+POST /auth/login      { email, password }
 POST /auth/logout
 GET  /auth/me
 
 -- Game state (page load + after each action)
-GET  /game/state/:planetId     → resources, buildings, slots, missions, dock
+GET  /game/state/:planetId
+  → { resources, buildings, globalResearch, slots, missions, dock, conversionQueues }
 
--- Building
-POST /game/build               { planetId, buildingKey }
+-- Building (planet-specific)
+POST /game/build              { planetId, buildingKey }
+
+-- Global research (star_map, interstellar_comm)
+POST /game/research           { buildingKey }
 
 -- Conversions
-POST /game/convert             { planetId, buildingKey, recipeIndex, count }
+POST /game/convert            { planetId, buildingKey, recipeIndex, count }
 
--- Colony
-POST /game/mission/drone       { fromPlanetId, toPlanetId }
-POST /game/mission/colony      { fromPlanetId, toPlanetId }
-GET  /game/missions            → all active missions for player
+-- Missions
+POST /game/mission/drone      { fromPlanetId, toPlanetId }
+POST /game/mission/colony     { fromPlanetId, toPlanetId }
+GET  /game/missions           → all active missions for player
 
 -- Galaxy
-GET  /galaxy                   → all systems + planet ownership (all players)
-GET  /galaxy/system/:id        → system detail
+GET  /galaxy                  → all systems + ownership (players + NPCs)
+GET  /galaxy/system/:id       → system detail
 
--- Warship (Phase 1: build only)
-POST /game/warship/build       { planetId }
-
--- Warship (Phase 4: combat)
-POST /game/warship/attack      { fromPlanetId, toPlanetId }
-GET  /game/warship/status      → warship state (hangar / in_flight / returning)
+-- Scanning & Comm (Phase 2)
+POST /galaxy/scan             { systemId }    -- starts scan; 409 if scan already active
+GET  /galaxy/contacts         → { [systemId]: { scanState, scanEndsAt } }
+POST /comm/send               { systemId, messageKey }
+GET  /comm/log                → all comm_log entries for player
 ```
 
 ---
 
 ## Feature Phases
 
-### Phase 1 — Bauen & Besiedeln (current focus)
+### Phase 1 — Foundation
 
-- User registration & login
-- Home planet with full building system
-- Resource production (lazy computation)
-- Colony Ships: colonize planets in the home system
-- Recon Drones: scan planets before colonizing
-- Galaxy Map: see all systems, see which planets are owned by which player
-- No combat, no trade, no communication yet
+Core multiplayer backbone. Everything the frontend already does, now server-side.
 
-### Phase 2 — Handel & Kommunikation
+- User registration & login (JWT auth)
+- Shared galaxy served from DB (`GET /galaxy`)
+- Planet ownership: home planet assigned on first login
+- Full building system per planet (lazy resource computation)
+- Global research (`global_research` table) — star_map + interstellar_comm
+- Recon Drone + Colony Ship missions
+- Conversion queues
+- `GET /game/state/:planetId` as the single source of truth on load and after actions
 
-**Freighter Trade:**
-- One freighter per planet (boolean hangar state — either present or in transit)
-- Freighters fly between your own colonies to redistribute resources; on arrival the freighter is available at the destination planet
-- Later: trade offers between players — a player posts an offer (X metal for Y crystal), another accepts
+**Frontend change:** swap `useHawkStar.js` LocalStorage logic for `useHawkStarApi.js` calls. See migration plan below.
 
-**Kommunikation:**
-- In-game message system between players
-- Messages tied to a planet or system (e.g. "I claim this system")
-- Simple inbox/outbox per player
-- Table: `messages (id, from_player_id, to_player_id, subject, body, sent_at, read_at)`
+---
 
-### Phase 3 — Ausspionieren
+### Phase 2 — Scanning & NPC Communication
 
-- Galaxy Probes reveal system info (planet count, types)
-- Recon Drones in foreign systems reveal planet ownership + building level ranges (not exact)
-- Results are stored per player — what you've scouted is your intelligence
-- Table: `intel (id, player_id, planet_id, scouted_at, data JSON)` — data becomes stale over time
+Frontend-complete. Backend needs:
 
-### Phase 4 — Kampf
+- `system_contacts` table + scan endpoint (enforce one-scan-at-a-time server-side)
+- Scan duration formula mirrors frontend: `max(7200, dist × 180)` seconds
+- NPC auto-response logic server-side (disposition → response key pool)
+- `comm_log` table + send/receive endpoints
+- `GET /galaxy/contacts` returns all scan states for player
 
-**Warship Model:** One warship per planet (no fleet concept for now). The ship sits in the hangar after construction. Drive/weapon slots are intentionally absent — a simpler stat-based combat keeps the scope manageable and the backend schema clean.
+---
 
-**Attack Flow:**
-1. Player selects an enemy planet on the Galaxy Map → clicks "Attack"
-2. Frontend sends `POST /game/warship/attack { fromPlanetId, toPlanetId }`
-3. Server sets warship `status = 'in_flight'`, calculates `arrives_at` from ship speed
-4. On arrival, server resolves combat using attacker/defender hull+shield stats
-5. Result written to `combat_logs`, warship set to `status = 'returning'`
-6. After return flight, warship back in `'hangar'` — damaged hull is carried over
+### Phase 3 — Player Interaction
 
-**Combat Resolution (server-side):**
-- Attacker deals damage = ship hull × 0.6 (base formula, tunable)
-- Defender's planet defenses reduce incoming damage
-- If defender hull reaches 0 → attacker wins (planet ownership transfers or is raided)
-- Ships take damage regardless — no permanent destruction in Phase 4 (hull resets after return)
+- Player-to-player messaging (extend `comm_log` or add `messages` table)
+- Freighter trade: redistribute resources between own planets
+  - One freighter per planet; flies between own colonies
+  - Later: trade offers between players
 
-**Tables:**
 ```sql
+-- Extend missions table with type 'freighter' when implementing
+-- Or track via separate freighter_missions table
+```
+
+---
+
+### Phase 4 — Espionage
+
+- Recon Drones in **foreign** systems reveal planet ownership + building level ranges
+- Results stored per player — what you've scouted is your intelligence, becomes stale over time
+
+```sql
+intel (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  player_id   INT NOT NULL,
+  planet_id   INT NOT NULL REFERENCES planets(id),
+  scouted_at  DATETIME,
+  data        JSON    -- building ranges, owner, etc.
+)
+```
+
+---
+
+### Phase 5 — Combat
+
+One warship per planet (no fleet concept). Stat-based combat — no loadout system yet.
+
+```sql
+warships (
+  id        INT AUTO_INCREMENT PRIMARY KEY,
+  player_id INT NOT NULL,
+  planet_id INT NOT NULL,
+  hull      INT,
+  shield    INT,
+  speed     INT,
+  status    ENUM('hangar','in_flight','returning') DEFAULT 'hangar'
+)
+
 combat_logs (
   id           INT AUTO_INCREMENT PRIMARY KEY,
   attacker_id  INT NOT NULL REFERENCES players(id),
   defender_id  INT NOT NULL REFERENCES players(id),
   planet_id    INT NOT NULL REFERENCES planets(id),
   attacker_won TINYINT(1),
-  result       JSON,   -- hull remaining, damage dealt, resources raided
+  result       JSON,
   fought_at    DATETIME
 )
 ```
 
-**Not in Phase 4:** Fleet battles (multiple ships), weapon loadouts, orbital bombardment — these depend on how the combat system feels in practice.
+**Attack flow:**
+1. Player clicks "Attack" on an enemy planet → `POST /game/warship/attack { fromPlanetId, toPlanetId }`
+2. Server sets warship `status = 'in_flight'`, computes `arrives_at` from ship speed
+3. On arrival: server resolves combat (hull × 0.6 base damage, reduced by planetary defenses)
+4. Result written to `combat_logs`, warship set to `returning`
+5. After return flight: warship back in `hangar` — damaged hull carried over (no destruction in Phase 5)
 
 ---
 
 ## Frontend Migration Plan
 
-1. Create `composables/useHawkStarApi.js` — wraps all API calls, returns the same data shape as current `useHawkStar`
-2. Add `const USE_API = false` flag in `useHawkStar.js` — toggle between LocalStorage and API during transition
-3. All write actions (build, mission, convert) become `POST` requests; the response returns the updated state
-4. `GET /game/state/:planetId` is called on page load and after every action — no background polling
-5. Building timers and mission timers still run visually in the frontend (countdown from `ends_at`) — no need to poll for completion
-6. Once API is stable: remove LocalStorage fallback and the `USE_API` flag
+1. Create `composables/useHawkStarApi.js` — wraps all API calls, returns the same data shapes as current `useHawkStar.js`
+2. `GET /game/state/:planetId` is called on page load and after every action — no background polling
+3. All write actions (build, research, mission, convert, scan, send) become `POST` requests; response returns updated state
+4. Building timers and mission timers run visually in the frontend (countdown from `ends_at`) — no polling needed
+5. Keep `buildTimeFactor` dev flag active during integration testing; strip when going live
+6. Once API is stable: remove LocalStorage fallback entirely
+
+**Migration order (suggested):**
+1. Auth + player session
+2. Galaxy load + planet ownership
+3. Building + global research
+4. Resource computation (lazy)
+5. Missions (drone + colony)
+6. Conversions
+7. Scanning + comm log

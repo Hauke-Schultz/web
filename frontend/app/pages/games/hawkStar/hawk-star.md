@@ -220,19 +220,21 @@ Everything else (alliances, declarations, conflict) is explicitly out of scope h
 
 ### Step 1 — Scanning Systems
 
-All 9 systems are always visible on the Galaxy Map. However, **who lives there is hidden by default**. A system can be in one of two scan states:
+All 9 systems are always visible on the Galaxy Map. However, **who lives there is hidden by default**. A system can be in one of three scan states:
 
 | Scan State | What the player sees |
 |------------|---------------------|
-| `unscanned` | Star + planet count only — inhabitants unknown |
-| `scanned` | Star + inhabitants revealed (name, number of planets owned) |
+| `unscanned` | Star + system name only — inhabitants unknown |
+| `scanning` | Pulsing 📶 badge + countdown timer |
+| `scanned` | Inhabitants revealed (name, number of planets owned) |
 
 **How scanning works:**
 
-- Research `interstellar_comm` Lv1 in the Comm Center (new global building, alongside `star_map`).
+- Research `star_map` Lv3 in the Comm Center — this is the unlock gate for galaxy scanning.
 - This unlocks a **"Scan System"** button on the Galaxy Map for any `unscanned` system.
-- Click → starts a **scan signal** (travel time based on distance, same formula as drone missions).
-- When the signal arrives, the system transitions to `scanned` and a notification fires.
+- **Only one scan can run at a time.** While a scan is in progress all other unscanned systems show ⏳.
+- Click → starts a scan signal. Duration is distance-based: **min. 2 hours**, up to ~8 hours for the farthest systems (formula: `max(7200, dist × 180)` seconds, scaled by `buildTimeFactor` for dev).
+- When the scan completes, the system transitions to `scanned` and a notification fires.
 - The player's own home system is always `scanned` from the start.
 
 Scanning is one-way and permanent — a scanned system stays scanned.
@@ -314,13 +316,25 @@ commLog: [
 
 ---
 
-### Research: `interstellar_comm`
+### Research: `star_map`
 
-New global building in the `comm_center` tile (alongside `star_map`). Two levels for now:
+Global building in the `comm_center` tile. Three levels:
 
 | Level | Effect |
 |-------|--------|
-| Lv1 | Unlock scanning + messaging for all visible systems |
+| Lv1 | Unlocks Solar System view |
+| Lv2 | Unlocks Galaxy Map view |
+| Lv3 | Enables deep-space scanning (one scan at a time, takes several hours) |
+
+Levels unlock features only when **fully researched** — in-progress research does not count.
+
+### Research: `interstellar_comm`
+
+Global building in the `comm_center` tile. **Requires `star_map` Lv3.** Two levels:
+
+| Level | Effect |
+|-------|--------|
+| Lv1 | Unlock messaging for all scanned systems |
 | Lv2 | Halve signal travel time |
 
 ---
@@ -350,7 +364,9 @@ The Galaxy Map shows two areas below the tile row:
 - `scanned` (inhabited): faction portrait + name.
 - `scanned` (empty): free/uncolonized label.
 - Home system: always shown as own colony (blue).
-- "Scan" button visible when: `interstellar_comm` Lv1+ researched + system is `unscanned`.
+- "Scan" button visible when: `star_map` Lv3 researched + system is `unscanned` + no other scan active.
+- 🔒 shown when `star_map` < Lv3.
+- ⏳ shown when `star_map` >= Lv3 but another scan is already running.
 
 ---
 
@@ -509,21 +525,23 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Localisation (i18n) — all components          | ✅ Done |
 | Research → Comm Center rename + Star Map global | ✅ Done |
 | NPC factions in mock (Asha/Kepler, disposition) | ✅ Done |
-| `interstellar_comm` research (Comm Center, global) | ✅ Done |
-| System scanning — `systemContacts` state + scan signal tick | ✅ Done |
-| Galaxy Map — scan button, scanning indicator, scanned display | ✅ Done |
-| Predefined messages + `commLog` + NPC auto-response | ✅ Done |
+| `interstellar_comm` research (Comm Center, global, requires star_map Lv3) | ✅ Done |
+| System scanning — `systemContacts`, one scan at a time, hours-based duration | ✅ Done |
+| Galaxy scanning gate — `star_map` Lv3, uses actual completed level (not in-progress) | ✅ Done |
+| Galaxy Map — scan button, scanning indicator, scanned display, ⏳ busy state | ✅ Done |
+| Predefined emoji messages + `commLog` + NPC auto-response | ✅ Done |
 | Comm log in Galaxy Map view | ✅ Done |
 | i18n — `hawkStar.comm.*` + `hawkStar.buildings.interstellar_comm` | ✅ Done |
 | Procedural galaxy generator (`generateGalaxy()`) — per-player, persisted in save | ✅ Done |
 | Two NPC factions — Asha (friendly) + Krath (hostile) | ✅ Done |
 | `recon_drone` + `colony_ship` simplified to 1 level, 1 active mission at a time | ✅ Done |
 | Commander profile — portrait picker, name edit, disposition selector (`HsProfilePanel`) | ✅ Done |
-| Backend — User login & registration           | ⬜ Planned |
-| Backend — Bauen & Besiedeln (Phase 1)         | ⬜ Planned |
-| Backend — Kommunikation & Diplomatie (Phase 2) | ⬜ Planned |
-| Backend — Ausspionieren (Phase 3)             | ⬜ Planned |
-| Backend — Kampf (Phase 4)                     | ⬜ Planned |
+| `formatTime` — supports s / m s / h m / t h m s formats | ✅ Done |
+| Backend — Phase 1: Foundation (auth, galaxy, building, resources, research, missions) | ⬜ Planned |
+| Backend — Phase 2: Scanning & NPC Comm (system_contacts, comm_log server-side) | ⬜ Planned |
+| Backend — Phase 3: Player Interaction (trade, player messaging) | ⬜ Planned |
+| Backend — Phase 4: Espionage | ⬜ Planned |
+| Backend — Phase 5: Combat | ⬜ Planned |
 
 See `hawk-star-backend.md` for the full backend & multiplayer concept.
 
