@@ -10,7 +10,8 @@ const {
   homeSystemId,
   now,
   formatTime,
-  interstellarCommLevel,
+  starMapLevel,
+  activeScan,
   systemContacts,
   canScanSystem,
   scanSystem,
@@ -125,7 +126,8 @@ const tileClass = (sys) => {
             class="hs-galaxy-scan-btn"
             @click.stop="scanSystem(sys.id)"
           >📶 <span class="hs-galaxy-scan-btn__label">{{ t('hawkStar.comm.scanSystem') }}</span></button>
-          <span v-else-if="interstellarCommLevel < 1" class="hs-galaxy-tile-locked">🔒</span>
+          <span v-else-if="starMapLevel < 3" class="hs-galaxy-tile-locked">🔒</span>
+          <span v-else-if="activeScan" class="hs-galaxy-tile-locked" style="opacity:0.5">⏳</span>
         </template>
       </div>
     </div>

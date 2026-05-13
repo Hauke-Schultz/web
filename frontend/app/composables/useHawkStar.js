@@ -266,7 +266,7 @@ const researchCenterBuilt = computed(() => playerBuildings.value['command_center
 
 // Space facilities always read from home planet
 const homeBuilding = (id) => allPlanetStates.value[homePlanetId.value]?.buildings[id]
-const starMapLevel = computed(() => effectiveLevel(globalResearch.value.star_map ?? { level: 0, buildEndsAt: null }))
+const starMapLevel = computed(() => globalResearch.value.star_map?.level ?? 0)
 const spaceTechLevel = computed(() => {
   const state = homeBuilding('space_tech')
   return state ? effectiveLevel(state) : 0
@@ -576,18 +576,31 @@ const signalTravelTime = (targetSystemId) => {
   return Math.max(10, Math.round(dist * factor * buildTimeFactor.value))
 }
 
+const activeScan = computed(() =>
+  Object.entries(systemContacts.value).find(([, c]) => c.scanState === 'scanning')?.[0] ?? null
+)
+
+const scanDuration = (targetSystemId) => {
+  const home   = galaxySystems.value.find(s => s.id === homeSystemId.value)
+  const target = galaxySystems.value.find(s => s.id === targetSystemId)
+  if (!home || !target) return Math.round(7200 * buildTimeFactor.value)
+  const dist    = Math.sqrt(Math.pow(target.x - home.x, 2) + Math.pow(target.y - home.y, 2))
+  const baseSec = Math.max(7200, Math.round(dist * 180))
+  return Math.round(baseSec * buildTimeFactor.value)
+}
+
 const canScanSystem = (systemId) => {
-  if (interstellarCommLevel.value < 1) return false
+  if (starMapLevel.value < 3) return false
+  if (activeScan.value !== null) return false
   const contact = systemContacts.value[systemId]
   return contact?.scanState === 'unscanned'
 }
 
 const scanSystem = (systemId) => {
   if (!canScanSystem(systemId)) return
-  const travelSec = signalTravelTime(systemId)
   systemContacts.value[systemId] = {
     scanState:  'scanning',
-    scanEndsAt: Date.now() + travelSec * 1000,
+    scanEndsAt: Date.now() + scanDuration(systemId) * 1000,
   }
 }
 
@@ -1280,6 +1293,7 @@ export function useHawkStar() {
     dismissAllNotifications,
     // communication
     interstellarCommLevel,
+    activeScan,
     systemContacts,
     commLog,
     canScanSystem,

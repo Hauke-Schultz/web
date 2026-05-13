@@ -909,15 +909,24 @@ export const BUILDINGS = {
         effect:      'Unlocks Galaxy view — all star systems visible',
         production:  {},
       },
+      {
+        level:       3,
+        cost:        { metal: 500, crystal: 600, alloy: 80 },
+        buildTime:   10800,
+        effect:      'Enables deep-space scanning — actively scan unknown star systems (one at a time, takes several hours)',
+        production:  {},
+      },
     ],
   },
 
   interstellar_comm: {
-    id:          'interstellar_comm',
-    name:        'Interstellar Communication',
-    tileType:    'comm_center',
-    icon:        '📶',
-    global:      true,
+    id:               'interstellar_comm',
+    name:             'Interstellar Communication',
+    tileType:         'comm_center',
+    icon:             '📶',
+    global:           true,
+    requiresBuilding: 'star_map',
+    requiresLevel:    3,
     description: 'Deep-space signal array. Allows scanning inhabited systems and exchanging predefined messages with other civilizations.',
     levels: [
       {
