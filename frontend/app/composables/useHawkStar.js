@@ -40,7 +40,7 @@ const homePlanetId = ref(homeConfig.value.planetId)
 const isFirstRun   = computed(() => playerName.value === '')
 
 // ── Dev tuning ─────────────────────────────────────────────
-const tickRateMs      = ref(1000)
+const tickRateMs      = ref(5000)
 const buildTimeFactor = ref(1)
 
 // ── Per-planet state (slots + buildings + resources) ───────
@@ -351,8 +351,20 @@ const slotsOnSlot = (slot) => {
 const remainingSec = (buildEndsAt) =>
   Math.max(0, Math.ceil((buildEndsAt - now.value) / 1000))
 
-const formatTime = (sec) =>
-  sec >= 60 ? `${Math.floor(sec / 60)}m ${sec % 60}s` : `${sec}s`
+const formatTime = (sec) => {
+  if (sec < 60) return `${sec}s`
+  if (sec < 3600) {
+    const m = Math.floor(sec / 60), s = sec % 60
+    return s ? `${m}m ${s}s` : `${m}m`
+  }
+  if (sec < 86400) {
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60)
+    return m ? `${h}h ${m}m` : `${h}h`
+  }
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600),
+        m = Math.floor((sec % 3600) / 60), s = sec % 60
+  return [`${d}d`, h && `${h}h`, m && `${m}m`, s && `${s}s`].filter(Boolean).join(' ')
+}
 
 const buildProgressStyle = (id) => {
   const state = playerBuildings.value[id]
@@ -730,7 +742,7 @@ const loadDevSettings = () => {
 loadDevSettings()
 
 const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 23
+const SAVE_VERSION = 24
 
 const saveGame = () => {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -834,11 +846,38 @@ const loadGame = () => {
     }
     if (Array.isArray(data.commLog)) commLog.value = data.commLog
 
-    // Offline production — apply missed ticks since last save
+    // Offline production — apply missed production since last save
     if (data.savedAt) {
-      const offlineMs    = Math.min(Date.now() - data.savedAt, MAX_OFFLINE_MS)
-      const offlineTicks = Math.floor(offlineMs / tickRateMs.value)
-      applyOfflineProduction(offlineTicks)
+      const offlineMs = Math.min(Date.now() - data.savedAt, MAX_OFFLINE_MS)
+      const now_ts    = Date.now()
+
+      // Complete all buildings that finished while the app was closed
+      for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
+        const pr = pstate.resources
+        for (const [id, state] of Object.entries(pstate.buildings)) {
+          if (BUILDINGS[id]?.global) continue
+          if (!state.buildEndsAt || state.buildEndsAt > now_ts) continue
+          state.level += 1
+          state.buildEndsAt    = null
+          state.buildStartedAt = null
+          const levelDef = BUILDINGS[id]?.levels[state.level - 1]
+          if (levelDef?.unlocks) {
+            for (const { slot } of levelDef.unlocks) {
+              const s = pstate.slots.find(ps => ps.slot === slot)
+              if (s) s.unlocked = true
+            }
+          }
+          if (levelDef?.popBonus) pr.population += levelDef.popBonus
+        }
+      }
+      for (const [, state] of Object.entries(globalResearch.value)) {
+        if (!state.buildEndsAt || state.buildEndsAt > now_ts) continue
+        state.level += 1
+        state.buildEndsAt    = null
+        state.buildStartedAt = null
+      }
+
+      applyOfflineProduction(offlineMs / 1000)
     }
     // Prevent first live tick from double-firing production
     lastProdAt = Date.now()
@@ -865,14 +904,14 @@ export const completeSetup = (name) => {
 // ── Offline production ─────────────────────────────────────
 const MAX_OFFLINE_MS = 24 * 60 * 60 * 1000
 
-const applyOfflineProduction = (ticks) => {
-  if (ticks <= 0) return
+const applyOfflineProduction = (seconds) => {
+  if (seconds <= 0) return
 
   for (const [, pstate] of Object.entries(allPlanetStates.value)) {
     const pb = pstate.buildings
     const pr = pstate.resources
 
-    // Gross production per tick
+    // Gross production per second
     const prod = {}
     for (const [id, state] of Object.entries(pb)) {
       if (state.level === 0) continue
@@ -906,7 +945,7 @@ const applyOfflineProduction = (ticks) => {
       if (res === 'energy') continue
       if (amt === 0) continue
       const cap = caps[res]
-      const newVal = Math.max(0, (pr[res] ?? 0) + amt * ticks)
+      const newVal = Math.max(0, (pr[res] ?? 0) + amt * seconds)
       pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
     }
   }
@@ -1054,11 +1093,12 @@ const tick = () => {
           caps[res] = (caps[res] ?? 0) + cap
         }
       }
-      // Apply net production
+      // Apply net production (amt is per-second; scale by tick interval)
+      const tickSec = tickRateMs.value / 1000
       const net = { ...prod, energy: (prod.energy ?? 0) - energyDrain }
       for (const [res, amt] of Object.entries(net)) {
         const cap = caps[res]
-        const newVal = Math.max(0, (pr[res] ?? 0) + amt)
+        const newVal = Math.max(0, (pr[res] ?? 0) + amt * tickSec)
         pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
       }
     }
