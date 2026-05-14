@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
@@ -7,25 +7,10 @@ import { useHawkStar } from '~/composables/useHawkStar.js'
 const {
   playerResources,
   formatTime,
-  // recon drones
   reconDroneLevel,
-  reconDroneInventory,
-  reconDroneBuild,
-  droneBuildTime,
-  canBuildDrone,
-  buildReconDrone,
-  droneBuildProgressStyle,
-  // colony ships
   colonyShipLevel,
-  colonyShipInventory,
-  colonyShipBuild,
-  colonyShipBuildTime,
-  canBuildColonyShip,
-  buildColonyShip,
-  colonyShipBuildProgressStyle,
   getPlanetName,
   homeSystem,
-  // active missions
   activeDroneMissions,
   remainingDroneSec,
   droneProgressStyle,
@@ -41,9 +26,15 @@ const getPlanetLabel = (planetId) => {
   return p?.name ?? getPlanetName(planetId) ?? planetId
 }
 
+const canAffordDrone  = computed(() =>
+  Object.entries(UNIT_COSTS.recon_drone.cost).every(([r, a]) => (playerResources.value[r] ?? 0) >= a)
+)
+const canAffordColony = computed(() =>
+  Object.entries(UNIT_COSTS.colony_ship.cost).every(([r, a]) => (playerResources.value[r] ?? 0) >= a)
+)
+
 const hasMissions = computed(() =>
-  activeDroneMissions.value.length ||
-  activeColonyMissions.value.length
+  activeDroneMissions.value.length || activeColonyMissions.value.length
 )
 </script>
 
@@ -57,33 +48,30 @@ const hasMissions = computed(() =>
       <span class="hs-panel-desc">{{ t('hawkStar.tiles.dock.desc') }}</span>
     </div>
 
-    <!-- Ship build list -->
+    <!-- Unit status list -->
     <div class="hs-building-list">
 
       <!-- Recon Drone -->
       <div class="hs-building-row">
         <div class="hs-building-icon-wrap">
           <span class="hs-building-icon">🛸</span>
-          <span v-if="reconDroneInventory > 0" class="hs-level-badge">{{ reconDroneInventory }}</span>
         </div>
         <div class="hs-building-info">
           <div class="hs-building-name">{{ t('hawkStar.dock.reconDrone') }}</div>
           <div class="hs-building-effect">{{ t('hawkStar.dock.reconDroneDesc') }}</div>
-          <div v-if="reconDroneLevel > 0 && !reconDroneBuild" class="hs-cost-row">
-            <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-          </div>
-          <div v-if="reconDroneBuild" class="hs-progress-row">
-            <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
-            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
+          <div v-if="reconDroneLevel > 0" class="hs-cost-row">
+            <span
+              v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost"
+              :key="resId"
+              class="hs-cost-tag"
+              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
           </div>
         </div>
         <div class="hs-building-action">
-          <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
-          <span v-else-if="reconDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
-          <div v-else class="hs-btn-wrap">
-            <button class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
-            <span class="hs-build-time">⏱ {{ formatTime(droneBuildTime) }}</span>
-          </div>
+          <span v-if="reconDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
+          <span v-else-if="!canAffordDrone" class="hs-status-low">{{ t('hawkStar.dock.insufficientResources') }}</span>
+          <span v-else class="hs-status-ready">{{ t('hawkStar.dock.unitReady') }}</span>
         </div>
       </div>
 
@@ -91,26 +79,23 @@ const hasMissions = computed(() =>
       <div class="hs-building-row">
         <div class="hs-building-icon-wrap">
           <span class="hs-building-icon">🚀</span>
-          <span v-if="colonyShipInventory > 0" class="hs-level-badge hs-level-badge--colony">{{ colonyShipInventory }}</span>
         </div>
         <div class="hs-building-info">
           <div class="hs-building-name">{{ t('hawkStar.dock.colonyShip') }}</div>
           <div class="hs-building-effect">{{ t('hawkStar.dock.colonyShipDesc') }}</div>
-          <div v-if="colonyShipLevel > 0 && !colonyShipBuild" class="hs-cost-row">
-            <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-          </div>
-          <div v-if="colonyShipBuild" class="hs-progress-row">
-            <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
-            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
+          <div v-if="colonyShipLevel > 0" class="hs-cost-row">
+            <span
+              v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost"
+              :key="resId"
+              class="hs-cost-tag"
+              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
           </div>
         </div>
         <div class="hs-building-action">
-          <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
-          <span v-else-if="colonyShipLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
-          <div v-else class="hs-btn-wrap">
-            <button class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
-            <span class="hs-build-time">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
-          </div>
+          <span v-if="colonyShipLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
+          <span v-else-if="!canAffordColony" class="hs-status-low">{{ t('hawkStar.dock.insufficientResources') }}</span>
+          <span v-else class="hs-status-ready">{{ t('hawkStar.dock.unitReady') }}</span>
         </div>
       </div>
 
@@ -123,7 +108,9 @@ const hasMissions = computed(() =>
         <div class="hs-dock-mission-info">
           <span class="hs-dock-mission-label">Recon → {{ getPlanetLabel(m.planetId) }}</span>
           <div class="hs-progress-row">
-            <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--unit" :key="m.endsAt" :style="droneProgressStyle(m.planetId)" /></div>
+            <div class="hs-progress-track">
+              <div class="hs-progress-fill hs-progress-fill--unit" :key="m.endsAt" :style="droneProgressStyle(m.planetId)" />
+            </div>
             <span class="hs-progress-time">{{ formatTime(remainingDroneSec(m.planetId)) }}</span>
           </div>
         </div>
@@ -133,19 +120,25 @@ const hasMissions = computed(() =>
         <div class="hs-dock-mission-info">
           <span class="hs-dock-mission-label">Colonize → {{ getPlanetLabel(m.planetId) }}</span>
           <div class="hs-progress-row">
-            <div class="hs-progress-track"><div class="hs-progress-fill hs-progress-fill--colony" :key="m.endsAt" :style="colonyProgressStyle(m.planetId)" /></div>
+            <div class="hs-progress-track">
+              <div class="hs-progress-fill hs-progress-fill--colony" :key="m.endsAt" :style="colonyProgressStyle(m.planetId)" />
+            </div>
             <span class="hs-progress-time">{{ formatTime(remainingColonySec(m.planetId)) }}</span>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Empty missions hint -->
+    <p v-else-if="reconDroneLevel > 0 || colonyShipLevel > 0" class="hs-dock-hint">
+      {{ t('hawkStar.dock.launchFromSystemMap') }}
+    </p>
+
   </div>
 </template>
 
 
 <style lang="scss" scoped>
-// ── Panel wrapper (matches HsTilePanel .hs-panel) ─────────────────────────────
 .hs-panel {
   flex: 1;
   min-width: 0;
@@ -170,7 +163,6 @@ const hasMissions = computed(() =>
 .hs-panel-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin: 0; flex: 1; }
 .hs-panel-desc  { font-size: 0.65rem; opacity: 0.4; }
 
-// ── Building list (matches HsTilePanel) ───────────────────────────────────────
 .hs-building-list { display: flex; flex-direction: column; gap: 0.5rem; }
 
 .hs-building-row {
@@ -198,41 +190,14 @@ const hasMissions = computed(() =>
   border-radius: var(--hs-r-sm);
 }
 
-.hs-building-icon { font-size: 1.1rem; }
-
-.hs-level-badge {
-  position: absolute;
-  bottom: -4px;
-  right: -4px;
-  font-size: 0.55rem;
-  font-weight: 700;
-  background: #f59e0b;
-  color: #000;
-  padding: 1px 4px;
-  border-radius: 4px;
-  line-height: 1.4;
-
-  &--colony   { background: #60a5fa; }
-}
-
+.hs-building-icon   { font-size: 1.1rem; }
 .hs-building-info   { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.hs-building-name   {
-  font-size: 0.825rem;
-  font-weight: 600;
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
+.hs-building-name   { font-size: 0.825rem; font-weight: 600; display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; }
 .hs-building-effect { font-size: 0.68rem; opacity: 0.5; }
 .hs-building-action { flex-shrink: 0; }
 
 .hs-cost-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 
-.hs-btn-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.hs-build-time { font-size: 0.6rem; color: rgba(255,255,255,0.4); white-space: nowrap; }
-
-// ── Shared utilities ──────────────────────────────────────────────────────────
 .hs-cost-tag {
   font-size: 0.65rem;
   padding: 2px 6px;
@@ -241,33 +206,18 @@ const hasMissions = computed(() =>
   &--no { background: var(--hs-danger-bg-cost);  color: var(--hs-danger-muted); }
 }
 
+.hs-status-locked { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
+.hs-status-ready  { font-size: 0.65rem; font-weight: 700; color: #34d399; white-space: nowrap; }
+.hs-status-low    { font-size: 0.62rem; font-weight: 600; color: #f87171; white-space: nowrap; text-align: right; }
+
 .hs-progress-row   { display: flex; align-items: center; gap: 0.5rem; margin-top: 6px; }
 .hs-progress-track { flex: 1; height: 4px; background: var(--hs-glass-3xl); border-radius: 9999px; overflow: hidden; }
-.hs-progress-fill  { height: 100%; border-radius: 9999px; background: var(--hs-warn); }
+.hs-progress-fill  { height: 100%; border-radius: 9999px; }
 .hs-progress-time  { font-size: 0.65rem; color: var(--hs-warn-text); font-variant-numeric: tabular-nums; width: 3.5rem; text-align: right; flex-shrink: 0; }
 
-.hs-progress-fill--unit      { background: #f59e0b; }
-.hs-progress-fill--colony    { background: #60a5fa; }
+.hs-progress-fill--unit   { background: #f59e0b; }
+.hs-progress-fill--colony { background: #60a5fa; }
 
-.hs-btn-build {
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--hs-r-sm);
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: var(--hs-accent);
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  transition: background 0.15s;
-  white-space: nowrap;
-  &:hover:not(:disabled) { background: var(--hs-accent-hover); }
-  &--disabled { background: var(--hs-glass-xl); color: rgba(255,255,255,0.3); cursor: not-allowed; }
-}
-
-.hs-status-building { font-size: 0.7rem; font-weight: 600; color: var(--hs-warn); white-space: nowrap; }
-.hs-status-locked   { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
-
-// ── Active missions ───────────────────────────────────────────────────────────
 .hs-dock-missions {
   border-top: 1px solid rgba(255,255,255,0.06);
   padding-top: 0.35rem;
@@ -289,15 +239,11 @@ const hasMissions = computed(() =>
 .hs-dock-mission-icon  { font-size: 0.9rem; flex-shrink: 0; padding-top: 1px; }
 .hs-dock-mission-info  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hs-dock-mission-label { font-size: 0.72rem; font-weight: 600; }
-.hs-dock-mission-cargo { display: flex; flex-wrap: wrap; gap: 3px; }
 
-.hs-dock-cargo-tag {
-  font-size: 0.62rem;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(52,211,153,0.1);
-  color: #34d399;
-  border: 1px solid rgba(52,211,153,0.2);
+.hs-dock-hint {
+  font-size: 0.65rem;
+  opacity: 0.3;
+  margin: 0.25rem 0 0;
+  text-align: center;
 }
-
 </style>

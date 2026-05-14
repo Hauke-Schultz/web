@@ -1,381 +1,349 @@
 # Hawk-Star — Backend & Multiplayer
 
-Stack: **PHP + MySQL 8** (Docker local, existing PHP server for prod).
-All game state lives in the database — no LocalStorage in multiplayer mode.
-
-Frontend is feature-complete for Phases 1 & 2. Backend implementation starts here.
+Stack: **PHP + MySQL 8** (Docker local, Strato prod).
+URL-Prefix: `/api/star/` — getrennt von allen anderen Games.
+Alle Shared Functions in `api/star/bootstrap.php`, alle Spielkonfiguration in `api/star/config.php`.
 
 ---
 
-## User Management
-
-**Flow:**
-1. Player registers with username + email + password
-2. Password hashed server-side with bcrypt
-3. Login returns a **JWT token** — sent as `Authorization: Bearer <token>` on every request
-4. Token expires after N hours; a refresh endpoint extends the session
-
-**Tables:**
-
-```sql
-players (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
-  username      VARCHAR(64) UNIQUE NOT NULL,
-  email         VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  portrait      VARCHAR(16) DEFAULT '👨‍🚀',
-  disposition   ENUM('friendly','neutral','hostile') DEFAULT 'neutral',
-  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
-  last_seen_at  DATETIME
-)
-
-sessions (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  player_id  INT NOT NULL REFERENCES players(id),
-  token_hash VARCHAR(255) NOT NULL,
-  expires_at DATETIME NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-```
-
-**Endpoints:**
+## Dateistruktur
 
 ```
-POST /auth/register   { username, email, password, portrait?, disposition? }
-POST /auth/login      { email, password } → { token, player }
-POST /auth/logout
-GET  /auth/me         → current player info
+api/star/
+  bootstrap.php          ← ok(), fail(), auth(), init_planet(), resolve_*(), compute_resources()
+  config.php             ← BUILDINGS, RESOURCES, UNIT_COSTS, GLOBAL_BUILDINGS, building_def(), level_def(), create_player_system()
+  jwt.php                ← jwt_sign(), jwt_verify() — minimales HS256 ohne Composer
+  auth/
+    register.php         ← POST /api/star/auth/register
+    login.php            ← POST /api/star/auth/login
+    logout.php           ← POST /api/star/auth/logout
+    me.php               ← GET  /api/star/auth/me
+  galaxy/
+    index.php            ← GET  /api/star/galaxy
+  game/
+    state.php            ← GET  /api/star/game/state?planet_id=X
+    build.php            ← POST /api/star/game/build
+    research.php         ← POST /api/star/game/research
+    convert.php          ← POST /api/star/game/convert
+    missions.php         ← GET  /api/star/game/missions
+    mission/
+      drone.php          ← POST /api/star/game/mission/drone
+      colony.php         ← POST /api/star/game/mission/colony
+
+docker/mysql/init/
+  002_hawk_star_schema.sql   ← alle hs_* Tabellen + Galaxy-Seed
 ```
 
 ---
 
-## Resource Computation — Lazy, Event-Driven
+## Authentifizierung
 
-**No polling. No cron jobs.**
+JWT-Token (HS256, kein Composer), Secret aus `.env` → `JWT_SECRET=...`.
+Token-Lebensdauer: 7 Tage. Jede gespeicherte Session in `hs_sessions`.
 
-Resources are only computed when the player takes an action or opens the game. The server calculates how much was produced since the last computation:
+```
+POST /api/star/auth/register   { username, email, password, portrait?, disposition? }
+  → { token, player, homePlanetId }
 
-> stored + (production_rate × seconds_since_last_computation)
+POST /api/star/auth/login      { email, password }
+  → { token, player, homePlanetId }
 
-Each planet stores a `resources_computed_at` timestamp. The server runs this delta calculation at the start of every write request (build, mission, etc.) and on the initial page load. The client gets fresh values as a response to its own actions — not from a background ticker.
+POST /api/star/auth/logout
+GET  /api/star/auth/me
+  → { player, homePlanetId }
+```
 
-- Server load is minimal — only active players generate requests
-- No WebSockets or background jobs needed for Phases 1 & 2
-- Resources are always accurate when returned
-- Energy is not stored — it is computed on-demand as `sum(production) - sum(drain)` across all buildings
-
----
-
-## Shared Galaxy
-
-All players share **one galaxy instance**. Planet ownership is tracked per player. This replaces the frontend's per-player procedurally generated galaxy.
-
-The galaxy is seeded once on first server setup from `generateGalaxy()` output (or a fixed seed). Two NPC systems (Kepler/Asha, Vorn/Krath) are always included. All other systems are empty at game start — available for colonization.
-
-NPC factions are seeded data: they own their planets from day 1 but never expand.
+Alle anderen Endpoints: `Authorization: Bearer <token>` erforderlich.
 
 ---
 
-## Database Schema
+## Ressourcenberechnung — Lazy, Event-Driven
+
+**Kein Polling. Kein Cron.**
+
+Ressourcen werden nur berechnet wenn der Spieler eine Aktion ausführt oder die Seite lädt. Der Server berechnet das Delta seit der letzten Berechnung:
+
+> stored + (production_rate × seconds_elapsed)
+
+- Jeder Planet hat `resources_computed_at` in `hs_planet_resources`
+- `compute_resources()` läuft am Anfang jedes Write-Requests + auf `GET /game/state`
+- Energiebilanz: wenn `sum(production_energy) - sum(energyDrain) < 0` → alle Produktionen stoppen
+- Storage-Caps aus `storageCapacity` der Gebäude
+- Max. 24h Offline-Cap
+
+### Timer-Resolution
+
+`resolve_timers()` läuft ebenfalls bei jedem `GET /game/state` (vor dem Laden):
+- `resolve_buildings()` — fertige Gebäude → level+1, build_ends_at=NULL, Slot-Unlocks, popBonus
+- `resolve_global_research()` — fertige Forschungen → level+1
+- `resolve_missions()` — colony_ship → Planet-Ownership anlegen + init_planet(); beide Typen → status='done'
+- `resolve_conversions()` — Output liefern, Queue weiterschieben oder löschen
+
+---
+
+## Dynamische Galaxie
+
+**Die Galaxie wächst mit jedem neuen Spieler.** Kein Fixed Seed.
+
+Bei jeder Registrierung erstellt `create_player_system()`:
+- Wählt einen unbenutzten Namen aus einem 40-Namen-Pool
+- Wählt eine Position mit ≥ 15 Units Abstand zu bestehenden Systemen
+- Zufälliger Star Class (G / K / M / F)
+- 4 bewohnbare Planeten (terrestrial, volcanic, frozen, ocean, gemischt) + 2–3 unbewohnbare
+- Gibt `['systemId' => int, 'planetId' => int]` zurück (Home Planet = zufälliger bewohnbarer Planet)
+
+Aktuell **keine NPCs** — nur echte Spieler. Die `hs_npc_factions`-Tabelle existiert für später.
+
+---
+
+## Datenbankschema
+
+Alle Tabellen haben das Präfix `hs_`. Vollständige Definition in `docker/mysql/init/002_hawk_star_schema.sql`.
 
 ```sql
 -- ── Shared world ──────────────────────────────────────────────────────────────
 
-galaxies (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  name       VARCHAR(128),
-  created_at DATETIME
-)
+hs_galaxies (id, name, created_at)
+  -- Seed: INSERT INTO hs_galaxies (id, name) VALUES (1, 'Hawk-Star')
 
-star_systems (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  galaxy_id  INT NOT NULL REFERENCES galaxies(id),
-  name       VARCHAR(128),
-  x          FLOAT,
-  y          FLOAT,
-  star_class CHAR(1)
-)
+hs_star_systems (id, galaxy_id, name, x FLOAT, y FLOAT, star_class CHAR(1))
 
-planets (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  system_id  INT NOT NULL REFERENCES star_systems(id),
-  name       VARCHAR(128),
-  type       ENUM('terrestrial','volcanic','frozen','ocean','uninhabitable') NOT NULL,
-  slot_count INT DEFAULT 9
-)
+hs_planets (id, system_id, name, type ENUM('terrestrial','volcanic','frozen','ocean','uninhabitable'))
 
--- NPC factions (seeded data, never mutated at runtime)
-npc_factions (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  system_id   INT NOT NULL REFERENCES star_systems(id),
-  name        VARCHAR(128),
-  portrait    VARCHAR(16),
-  disposition ENUM('friendly','neutral','hostile') DEFAULT 'neutral'
-)
-
-npc_planet_ownership (
-  planet_id  INT PRIMARY KEY REFERENCES planets(id),
-  faction_id INT NOT NULL REFERENCES npc_factions(id)
-)
+hs_npc_factions (id, system_id, name, portrait, disposition)   -- für spätere NPCs
+hs_npc_planet_ownership (planet_id PK, faction_id)
 
 -- ── Per-player state ──────────────────────────────────────────────────────────
 
-planet_ownership (
-  id           INT AUTO_INCREMENT PRIMARY KEY,
-  planet_id    INT NOT NULL REFERENCES planets(id),
-  player_id    INT NOT NULL REFERENCES players(id),
-  is_home      TINYINT(1) DEFAULT 0,
-  colonized_at DATETIME,
-  UNIQUE (planet_id)          -- one owner per planet at a time
+hs_players (id, username UNIQUE, email UNIQUE, password_hash, portrait, disposition, created_at, last_seen_at)
+
+hs_sessions (id, player_id, token_hash, expires_at, created_at)
+
+hs_planet_ownership (
+  id, planet_id, player_id,
+  is_home TINYINT(1),
+  colonized_at,
+  UNIQUE (planet_id)        -- ein Besitzer pro Planet
 )
 
-planet_resources (
-  planet_id             INT NOT NULL,
-  player_id             INT NOT NULL,
-  metal                 FLOAT DEFAULT 0,
-  crystal               FLOAT DEFAULT 0,
-  population            FLOAT DEFAULT 0,
-  alloy                 FLOAT DEFAULT 0,
-  obsidian              FLOAT DEFAULT 0,
-  cryo                  FLOAT DEFAULT 0,
-  biomass               FLOAT DEFAULT 0,
-  pure_crystal          FLOAT DEFAULT 0,
-  super_alloy           FLOAT DEFAULT 0,
-  quantum_shard         FLOAT DEFAULT 0,
-  nano_alloy            FLOAT DEFAULT 0,
-  power_cell            FLOAT DEFAULT 0,
-  resources_computed_at DATETIME NOT NULL,
-  PRIMARY KEY (planet_id, player_id)
+hs_planet_resources (
+  planet_id, player_id,            -- PK
+  metal, crystal, population,
+  alloy, obsidian, cryo, biomass,  -- planetenspezifische Rohstoffe
+  pure_crystal, super_alloy, quantum_shard, nano_alloy, power_cell,
+  resources_computed_at DATETIME
 )
 
-planet_slots (
-  planet_id  INT NOT NULL,
-  player_id  INT NOT NULL,
-  slot_index INT NOT NULL,
-  unlocked   TINYINT(1) DEFAULT 0,
-  PRIMARY KEY (planet_id, player_id, slot_index)
+hs_planet_slots (planet_id, player_id, slot_index, unlocked TINYINT(1))
+  -- 12 Slots pro Planet, Slot 5 startet freigeschaltet
+
+hs_buildings (planet_id, player_id, building_key, level INT, build_ends_at DATETIME NULL)
+  -- level=0 + build_ends_at = gerade im Bau (Level 1)
+  -- level>0 + build_ends_at NULL = fertig
+
+hs_global_research (player_id, building_key, level, build_ends_at DATETIME NULL)
+  -- Keys: 'star_map', 'interstellar_comm'
+
+hs_missions (
+  id, player_id,
+  type ENUM('recon_drone','colony_ship'),
+  from_planet_id, to_planet_id,
+  ends_at DATETIME,
+  status ENUM('in_flight','done')
 )
 
--- Per-planet buildings (planet-specific)
-buildings (
-  planet_id     INT NOT NULL,
-  player_id     INT NOT NULL,
-  building_key  VARCHAR(64) NOT NULL,
-  level         INT DEFAULT 0,
-  build_ends_at DATETIME NULL,
-  PRIMARY KEY (planet_id, player_id, building_key)
+hs_conversion_queues (
+  id, planet_id, player_id,
+  building_key, recipe_index INT,
+  ends_at DATETIME,
+  remaining INT     -- verbleibende Batches nach dem laufenden
 )
 
--- Global research (star_map, interstellar_comm — apply across all planets)
-global_research (
-  player_id     INT NOT NULL,
-  building_key  VARCHAR(64) NOT NULL,         -- 'star_map' | 'interstellar_comm'
-  level         INT DEFAULT 0,
-  build_ends_at DATETIME NULL,
-  PRIMARY KEY (player_id, building_key)
-)
+-- ── Phase 2: Communication ─────────────────────────────────────────────────────
 
-missions (
-  id             INT AUTO_INCREMENT PRIMARY KEY,
-  player_id      INT NOT NULL,
-  type           ENUM('recon_drone','colony_ship') NOT NULL,
-  from_planet_id INT NULL REFERENCES planets(id),
-  to_planet_id   INT NULL REFERENCES planets(id),
-  ends_at        DATETIME NOT NULL,
-  status         ENUM('in_flight','done') DEFAULT 'in_flight',
-  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-
-conversion_queues (
-  id           INT AUTO_INCREMENT PRIMARY KEY,
-  planet_id    INT NOT NULL,
-  player_id    INT NOT NULL,
-  building_key VARCHAR(64) NOT NULL,
-  recipe_index INT NOT NULL,
-  ends_at      DATETIME NOT NULL,
-  remaining    INT DEFAULT 0
-)
-
--- ── Communication (Phase 2) ──────────────────────────────────────────────────
-
--- One row per player per system — scan state
-system_contacts (
-  player_id    INT NOT NULL,
-  system_id    INT NOT NULL REFERENCES star_systems(id),
-  scan_state   ENUM('unscanned','scanning','scanned') DEFAULT 'unscanned',
-  scan_ends_at DATETIME NULL,
-  PRIMARY KEY (player_id, system_id)
-)
-
--- Emoji messages between player and NPC faction (or future: player-to-player)
-comm_log (
-  id             INT AUTO_INCREMENT PRIMARY KEY,
-  player_id      INT NOT NULL,
-  system_id      INT NOT NULL REFERENCES star_systems(id),
-  direction      ENUM('sent','received') NOT NULL,
-  message_key    VARCHAR(64) NOT NULL,    -- emoji string (sent) or NPC response key (received)
-  travel_ends_at DATETIME NULL,           -- NULL once delivered
-  reply_ends_at  DATETIME NULL,
-  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
-)
+hs_system_contacts (player_id, system_id, scan_state ENUM('unscanned','scanning','scanned'), scan_ends_at)
+hs_comm_log (id, player_id, system_id, direction ENUM('sent','received'), message_key, travel_ends_at, reply_ends_at, created_at)
 ```
 
 ---
 
-## REST API
-
-All routes require `Authorization: Bearer <token>` except `/auth/*`.
-Every write endpoint runs lazy resource computation before executing its action.
+## REST API (Phase 1 — implementiert)
 
 ```
 -- Auth
-POST /auth/register   { username, email, password, portrait?, disposition? }
-POST /auth/login      { email, password }
-POST /auth/logout
-GET  /auth/me
+POST /api/star/auth/register   { username, email, password, portrait?, disposition? }
+POST /api/star/auth/login      { email, password }
+POST /api/star/auth/logout
+GET  /api/star/auth/me
 
--- Game state (page load + after each action)
-GET  /game/state/:planetId
-  → { resources, buildings, globalResearch, slots, missions, dock, conversionQueues }
+-- Game State (Seitenaufruf + nach jeder Aktion)
+GET  /api/star/game/state?planet_id=X
+  → { planet, resources, buildings, globalResearch, slots, missions, conversionQueues }
+  (Führt resolve_timers() + compute_resources() aus bevor State geladen wird)
 
--- Building (planet-specific)
-POST /game/build              { planetId, buildingKey }
+-- Gebäude (planetenspezifisch)
+POST /api/star/game/build      { planetId, buildingKey }
+  → { buildingKey, endsAt }
 
--- Global research (star_map, interstellar_comm)
-POST /game/research           { buildingKey }
+-- Globale Forschung (star_map, interstellar_comm)
+POST /api/star/game/research   { buildingKey }
+  → { buildingKey, endsAt }
 
--- Conversions
-POST /game/convert            { planetId, buildingKey, recipeIndex, count }
+-- Konvertierungen
+POST /api/star/game/convert    { planetId, buildingKey, recipeIndex, count }
+  → { endsAt, count, totalDuration }
 
--- Missions
-POST /game/mission/drone      { fromPlanetId, toPlanetId }
-POST /game/mission/colony     { fromPlanetId, toPlanetId }
-GET  /game/missions           → all active missions for player
+-- Missionen
+POST /api/star/game/mission/drone   { fromPlanetId, toPlanetId }
+  → { missionId, endsAt }
+POST /api/star/game/mission/colony  { fromPlanetId, toPlanetId }
+  → { missionId, endsAt }
+GET  /api/star/game/missions
+  → [{ id, type, fromPlanetId, toPlanetId, endsAt }]
 
--- Galaxy
-GET  /galaxy                  → all systems + ownership (players + NPCs)
-GET  /galaxy/system/:id       → system detail
-
--- Scanning & Comm (Phase 2)
-POST /galaxy/scan             { systemId }    -- starts scan; 409 if scan already active
-GET  /galaxy/contacts         → { [systemId]: { scanState, scanEndsAt } }
-POST /comm/send               { systemId, messageKey }
-GET  /comm/log                → all comm_log entries for player
+-- Galaxie
+GET  /api/star/galaxy
+  → [{ id, name, x, y, starClass, factions[], planets[{id, name, type, owner}] }]
 ```
 
 ---
 
-## Feature Phases
+## Phase-Übersicht
 
-### Phase 1 — Foundation
-
-Core multiplayer backbone. Everything the frontend already does, now server-side.
-
-- User registration & login (JWT auth)
-- Shared galaxy served from DB (`GET /galaxy`)
-- Planet ownership: home planet assigned on first login
-- Full building system per planet (lazy resource computation)
-- Global research (`global_research` table) — star_map + interstellar_comm
-- Recon Drone + Colony Ship missions
-- Conversion queues
-- `GET /game/state/:planetId` as the single source of truth on load and after actions
-
-**Frontend change:** swap `useHawkStar.js` LocalStorage logic for `useHawkStarApi.js` calls. See migration plan below.
+| Phase | Inhalt | Status |
+|-------|--------|--------|
+| **1** | Auth, Galaxie, Gebäude, Ressourcen, Forschung, Missionen, Konvertierung | ✅ **Implementiert** |
+| **1b** | Auth-Modal (Login-Default, Remember-Me), API-Wrapper, initFromApi, Write-Actions, Apache-Fix, HsDockPanel | ✅ **Implementiert** |
+| **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth | ⬜ **Nächster Schritt** |
+| **2** | Scanning (`hs_system_contacts`), NPC-Komm (`hs_comm_log`), server-seitig | ⬜ Offen |
+| **3** | Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Offen |
+| **4** | Espionage — Recon in fremden Systemen, Intel-DB | ⬜ Offen |
+| **5** | Kampf — Kriegsschiffe, stat-basierter Combat | ⬜ Offen |
 
 ---
 
-### Phase 2 — Scanning & NPC Communication
+## Phase 1b — Frontend-Migration
 
-Frontend-complete. Backend needs:
+### Phase 1b — Implementiert ✅
 
-- `system_contacts` table + scan endpoint (enforce one-scan-at-a-time server-side)
-- Scan duration formula mirrors frontend: `max(7200, dist × 180)` seconds
-- NPC auto-response logic server-side (disposition → response key pool)
-- `comm_log` table + send/receive endpoints
-- `GET /galaxy/contacts` returns all scan states for player
+**`useHawkStarAuth.js`** — Auth-Singleton:
+- `token`, `player`, `homePlanetId`, `authError`, `authLoading`, `isAuthenticated`, `rememberMe`
+- `register(username, email, password)`, `login(email, password)`, `logout()`, `verifyToken()`
+- **Remember me** (Standard: `true`): Token in `localStorage['hawk-star-token']`; bei `false` nur in `sessionStorage` (Tab-Session).
+- Token wird beim Start aus beiden Stores gelesen (`localStorage || sessionStorage`).
+
+**Auth-Modal** (`index.vue`):
+- Standard-Tab: **Login** (nicht Register)
+- Zwei Tabs: Login (mit „Remember me"-Checkbox) / Register, Inline-Fehlermeldungen
+- Nach Erfolg → `initFromApi()` → Spiel startet
+
+**Apache-Fix — Authorization-Header:**
+- `api/.htaccess`: `RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]` als erste Regel (mod_rewrite übergibt Authorization sonst nicht an PHP).
+- `api/star/bootstrap.php` `auth()`: liest aus `$_SERVER['HTTP_AUTHORIZATION']` → `$_SERVER['REDIRECT_HTTP_AUTHORIZATION']` → `getallheaders()['Authorization']` (Fallback-Chain).
+- Galaxy-URL hat Trailing Slash `/galaxy/` in `useHawkStarApi.js` — verhindert Apache 301-Redirect auf absolute URL, der den Auth-Header beim Browser-Follow verliert.
+
+**`useHawkStarApi.js`** — dünner API-Wrapper:
+- `fetchGalaxy`, `fetchGameState(planetId)`, `postBuild`, `postResearch`, `postConvert`, `postDroneMission`, `postColonyMission`, `getMissions`
+
+**`useHawkStar.js`** — Write-Actions auf API umgestellt:
+- `startBuild(id)` — async, `postBuild`/`postResearch`, optimistische Deduktion + Rollback
+- `sendReconDrone(planetId, fromId)` — direkt `postDroneMission` (kein Inventory-Step)
+- `sendColonyShip(planetId, fromId)` — direkt `postColonyMission` (kein Inventory-Step)
+- `startConversion(buildingId, ri, count)` — async, `postConvert`
+- `canSendDrone` / `canSendColonyShip` — prüfen Building-Level + Affordability (kein Inventory)
+- `buildError` ref — Fehlerfeedback für UI
+- `gameLoaded` ref — `false` bis `initFromApi()` vollständig erfolgreich. `startBuild` blockt wenn `false`.
+- `initError` ref — Fehlermeldung wenn Galaxy-Load oder Game-State-Load fehlschlägt, im UI als rote Zeile + Retry-Button.
+- `initFromApi()` — lädt Galaxy + Game State, setzt alle Refs, ruft `saveGame()`. Setzt `gameLoaded = true` nur bei Erfolg.
+
+**Loading-Screen** (`index.vue`):
+- `v-if="isAuthenticated && !gameLoaded"` → zeigt „Loading galaxy data…" + immer sichtbaren Reload-Button.
+- Bei Fehler: `initError`-Text statt der Lademeldung, Button wird zu „Retry".
+- Hintergrund: Vite HMR resettet Module-Level-Refs (`gameLoaded = false`), läuft aber kein `onMounted` neu → Reload-Button als manueller Auslöser.
+
+**Neues Drone/Colony-Modell:**
+- `recon_drone`/`colony_ship` = Gebäude (Level 1 = Unit vorhanden, kein separater Build-Schritt)
+- Mission deducts `UNIT_COSTS` resources direkt
+- Kein Inventory (`reconDroneInventory` wird immer 0 im API-Modus)
+
+**`HsDockPanel`** — an neues Missions-Modell angepasst:
+- Kein „Build Drone" / „Build Colony Ship"-Button mehr
+- Zeigt für jede Unit: Locked / Insufficient Resources / Ready (grün)
+- Aktive Missionen mit Fortschrittsbalken darunter
+- Hinweis „Launch units from the System Map" wenn keine Missionen laufen
+
+### Phase 1c — Nächster Schritt ⬜
+
+LocalStorage-Save (`hawk-star-save`) entfernen — API ist alleinige Source of Truth:
+- `saveGame()` und `loadGame()` entfernen
+- Tick-Loop vereinfachen: keine lokale Ressourcenproduktion mehr (server-seitig), nur Timer-Updates für Fortschrittsbalken
+- `initFromApi()` als einzigen State-Provider etablieren
+
+### Schritt (Phase 2+): Weiterer Rollout
+
+**Noch ausstehend:**
+1. Scanning + Comm Log (Phase 2 Backend + Frontend)
+2. Scan-States aus `hs_system_contacts` laden in `initFromApi`
+3. Mehrere eigene Planeten laden (jetzt nur Home Planet — andere Planeten bei Bedarf laden)
+4. `buildTimeFactor` für Devmode bleibt bis Prod-Release
 
 ---
 
-### Phase 3 — Player Interaction
+## Phase 2 — Scanning & NPC Communication
 
-- Player-to-player messaging (extend `comm_log` or add `messages` table)
-- Freighter trade: redistribute resources between own planets
-  - One freighter per planet; flies between own colonies
-  - Later: trade offers between players
+Frontend ist feature-complete. Backend braucht:
 
-```sql
--- Extend missions table with type 'freighter' when implementing
--- Or track via separate freighter_missions table
+- `hs_system_contacts` + Scan-Endpoint (server-seitig: one-at-a-time durchsetzen)
+- Scan-Dauer-Formel spiegelt Frontend: `max(7200, dist × 180)` Sekunden
+- NPC-Auto-Response server-seitig (disposition → Response-Key-Pool)
+- `hs_comm_log` + Send/Receive-Endpoints
+- `GET /api/star/galaxy/contacts` gibt alle Scan-States zurück
+
+```
+POST /api/star/galaxy/scan      { systemId }   → 409 wenn Scan läuft
+GET  /api/star/galaxy/contacts  → { [systemId]: { scanState, scanEndsAt } }
+POST /api/star/comm/send        { systemId, messageKey }
+GET  /api/star/comm/log         → alle comm_log-Einträge des Spielers
 ```
 
 ---
 
-### Phase 4 — Espionage
+## Phase 3 — Spieler-Interaktion
 
-- Recon Drones in **foreign** systems reveal planet ownership + building level ranges
-- Results stored per player — what you've scouted is your intelligence, becomes stale over time
+- Spieler-zu-Spieler-Messaging (extend `hs_comm_log` oder neues `hs_messages`)
+- Frachter-Trade: Ressourcen zwischen eigenen Planeten transferieren
+  - Ein Frachter pro Planet; fliegt zwischen eigenen Kolonien
+  - Später: Trade-Angebote zwischen Spielern
+
+---
+
+## Phase 4 — Espionage
+
+- Recon Drones in **fremden** Systemen enthüllen Planet-Ownership + Gebäude-Level-Ranges
+- Ergebnisse pro Spieler gespeichert — was du gescoutet hast, ist dein Intel (wird stale)
 
 ```sql
-intel (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  player_id   INT NOT NULL,
-  planet_id   INT NOT NULL REFERENCES planets(id),
-  scouted_at  DATETIME,
-  data        JSON    -- building ranges, owner, etc.
+hs_intel (
+  id, player_id, planet_id,
+  scouted_at DATETIME,
+  data JSON    -- building ranges, owner, etc.
 )
 ```
 
 ---
 
-### Phase 5 — Combat
+## Phase 5 — Combat
 
-One warship per planet (no fleet concept). Stat-based combat — no loadout system yet.
+Ein Kriegsschiff pro Planet (kein Fleet-Konzept). Stat-basierter Combat.
 
 ```sql
-warships (
-  id        INT AUTO_INCREMENT PRIMARY KEY,
-  player_id INT NOT NULL,
-  planet_id INT NOT NULL,
-  hull      INT,
-  shield    INT,
-  speed     INT,
-  status    ENUM('hangar','in_flight','returning') DEFAULT 'hangar'
-)
-
-combat_logs (
-  id           INT AUTO_INCREMENT PRIMARY KEY,
-  attacker_id  INT NOT NULL REFERENCES players(id),
-  defender_id  INT NOT NULL REFERENCES players(id),
-  planet_id    INT NOT NULL REFERENCES planets(id),
-  attacker_won TINYINT(1),
-  result       JSON,
-  fought_at    DATETIME
-)
+hs_warships (id, player_id, planet_id, hull, shield, speed, status ENUM('hangar','in_flight','returning'))
+hs_combat_logs (id, attacker_id, defender_id, planet_id, attacker_won, result JSON, fought_at)
 ```
 
-**Attack flow:**
-1. Player clicks "Attack" on an enemy planet → `POST /game/warship/attack { fromPlanetId, toPlanetId }`
-2. Server sets warship `status = 'in_flight'`, computes `arrives_at` from ship speed
-3. On arrival: server resolves combat (hull × 0.6 base damage, reduced by planetary defenses)
-4. Result written to `combat_logs`, warship set to `returning`
-5. After return flight: warship back in `hangar` — damaged hull carried over (no destruction in Phase 5)
-
----
-
-## Frontend Migration Plan
-
-1. Create `composables/useHawkStarApi.js` — wraps all API calls, returns the same data shapes as current `useHawkStar.js`
-2. `GET /game/state/:planetId` is called on page load and after every action — no background polling
-3. All write actions (build, research, mission, convert, scan, send) become `POST` requests; response returns updated state
-4. Building timers and mission timers run visually in the frontend (countdown from `ends_at`) — no polling needed
-5. Keep `buildTimeFactor` dev flag active during integration testing; strip when going live
-6. Once API is stable: remove LocalStorage fallback entirely
-
-**Migration order (suggested):**
-1. Auth + player session
-2. Galaxy load + planet ownership
-3. Building + global research
-4. Resource computation (lazy)
-5. Missions (drone + colony)
-6. Conversions
-7. Scanning + comm log
+**Attack Flow:**
+1. Spieler klickt "Attack" auf feindlichen Planeten → `POST /game/warship/attack { fromPlanetId, toPlanetId }`
+2. Server setzt Kriegsschiff auf `in_flight`, berechnet `arrives_at`
+3. On Arrival: Combat-Resolution (hull × 0.6 Basis-Schaden, reduziert durch Planet-Defenses)
+4. Ergebnis in `hs_combat_logs`, Kriegsschiff → `returning`
+5. Nach Rückflug: Kriegsschiff zurück im `hangar` — beschädigter Hull bleibt (kein Destroy in Phase 5)

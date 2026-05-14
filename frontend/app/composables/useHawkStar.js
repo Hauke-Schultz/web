@@ -1,6 +1,8 @@
 import { ref, computed, watch } from 'vue'
 import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, NPC_RESPONSES, SIGNAL_SPEED_BASE } from '~/utils/hawkStarConfig.js'
 import { generateGalaxy } from '~/utils/hawkStarGalaxyMock.js'
+import { useHawkStarAuth } from './useHawkStarAuth.js'
+import { useHawkStarApi } from './useHawkStarApi.js'
 
 // ── Galaxy state (generated on first run, persisted in save) ─────────────────
 const galaxySystems = ref([])
@@ -57,6 +59,13 @@ const globalResearch = ref(
 
 // ── Notifications (persistent done-events) ────────────────
 const notifications = ref([])
+
+// ── API error feedback ─────────────────────────────────────
+const buildError = ref('')
+
+// ── Game ready flag (false until initFromApi succeeds) ─────────
+const gameLoaded = ref(false)
+const initError  = ref('')
 
 // ── Communication ─────────────────────────────────────────
 // systemContacts: per-system scan state
@@ -291,20 +300,58 @@ const canBuild = (id) =>
   hasEnoughPower(id) &&
   hasEnoughStaff(id)
 
-const startBuild = (id) => {
+const startBuild = async (id) => {
+  if (!gameLoaded.value) {
+    buildError.value = 'Game loading — please wait a moment'
+    return
+  }
   const next = nextLevelDef(id)
   if (!next || isBuildingInProgress(id) || !canBuild(id)) return
-  const res = allPlanetStates.value[activePlanetId.value].resources
-  for (const [r, amt] of Object.entries(next.cost)) {
-    res[r] -= amt
+
+  buildError.value = ''
+  const planetId = activePlanetId.value
+  const { postBuild, postResearch } = useHawkStarApi()
+
+  // Optimistic cost deduction
+  const res = allPlanetStates.value[planetId]?.resources
+  if (res) {
+    for (const [r, amt] of Object.entries(next.cost ?? {})) {
+      res[r] = Math.max(0, (res[r] ?? 0) - amt)
+    }
   }
-  const _buildMs = next.buildTime * buildTimeFactor.value * 1000
+
+  // Optimistic timer (placeholder until server responds)
+  const placeholderEndsAt = Date.now() + next.buildTime * 1000
   if (BUILDINGS[id]?.global) {
-    globalResearch.value[id].buildStartedAt = Date.now()
-    globalResearch.value[id].buildEndsAt    = Date.now() + _buildMs
+    globalResearch.value[id].buildEndsAt = placeholderEndsAt
   } else {
-    allPlanetStates.value[activePlanetId.value].buildings[id].buildStartedAt = Date.now()
-    allPlanetStates.value[activePlanetId.value].buildings[id].buildEndsAt    = Date.now() + _buildMs
+    allPlanetStates.value[planetId].buildings[id].buildEndsAt = placeholderEndsAt
+  }
+
+  try {
+    const result = BUILDINGS[id]?.global
+      ? await postResearch(id)
+      : await postBuild(planetId, id)
+
+    // Correct with server timestamp
+    if (BUILDINGS[id]?.global) {
+      globalResearch.value[id].buildEndsAt = result.endsAt
+    } else {
+      allPlanetStates.value[planetId].buildings[id].buildEndsAt = result.endsAt
+    }
+  } catch (e) {
+    // Rollback
+    if (res) {
+      for (const [r, amt] of Object.entries(next.cost ?? {})) {
+        res[r] = (res[r] ?? 0) + amt
+      }
+    }
+    if (BUILDINGS[id]?.global) {
+      globalResearch.value[id].buildEndsAt = null
+    } else {
+      allPlanetStates.value[planetId].buildings[id].buildEndsAt = null
+    }
+    buildError.value = e.message
   }
 }
 
@@ -420,18 +467,30 @@ const buildReconDrone = () => {
 }
 
 const canSendDrone = (planetId) =>
-  reconDroneInventory.value > 0 &&
+  reconDroneLevel.value > 0 &&
+  canAfford(UNIT_COSTS.recon_drone.cost) &&
   !playerScannedPlanets.value.includes(planetId) &&
   !activeDroneMissions.value.find(m => m.planetId === planetId) &&
   activeDroneMissions.value.length < 1
 
-const sendReconDrone = (planetId, fromPlanetId) => {
+const sendReconDrone = async (planetId, fromPlanetId) => {
   if (!canSendDrone(planetId)) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  dock.reconDroneInventory -= 1
-  const ft = fromPlanetId ? droneFlightTimeBetween(fromPlanetId, planetId) : droneFlightTime(planetId)
-  dock.activeDroneMissions.push({ planetId, endsAt: Date.now() + ft * 1000, startedAt: Date.now() })
+  const fromId = fromPlanetId ?? activePlanetId.value
+  buildError.value = ''
+  const { postDroneMission } = useHawkStarApi()
+  try {
+    const result = await postDroneMission(fromId, planetId)
+    const dock = allPlanetStates.value[fromId]?.dock
+    if (dock) dock.activeDroneMissions.push({ planetId, endsAt: result.endsAt })
+    const res = allPlanetStates.value[fromId]?.resources
+    if (res) {
+      for (const [r, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
+        res[r] = Math.max(0, (res[r] ?? 0) - amt)
+      }
+    }
+  } catch (e) {
+    buildError.value = e.message
+  }
 }
 
 const remainingDroneSec = (planetId) => {
@@ -499,7 +558,8 @@ const buildColonyShip = () => {
 const canSendColonyShip = (planetId) => {
   const planet = homeSystem.value?.planets.find(p => p.id === planetId)
   return (
-    colonyShipInventory.value > 0 &&
+    colonyShipLevel.value > 0 &&
+    canAfford(UNIT_COSTS.colony_ship.cost) &&
     !!planet &&
     planetId !== homePlanetId.value &&
     planet.state === 'uncolonized' &&
@@ -510,13 +570,24 @@ const canSendColonyShip = (planetId) => {
   )
 }
 
-const sendColonyShip = (planetId, fromPlanetId) => {
+const sendColonyShip = async (planetId, fromPlanetId) => {
   if (!canSendColonyShip(planetId)) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
-  if (!dock) return
-  dock.colonyShipInventory -= 1
-  const ft = fromPlanetId ? colonyFlightTimeBetween(fromPlanetId, planetId) : colonyFlightTime(planetId)
-  dock.activeColonyMissions.push({ planetId, endsAt: Date.now() + ft * 1000, startedAt: Date.now() })
+  const fromId = fromPlanetId ?? activePlanetId.value
+  buildError.value = ''
+  const { postColonyMission } = useHawkStarApi()
+  try {
+    const result = await postColonyMission(fromId, planetId)
+    const dock = allPlanetStates.value[fromId]?.dock
+    if (dock) dock.activeColonyMissions.push({ planetId, endsAt: result.endsAt })
+    const res = allPlanetStates.value[fromId]?.resources
+    if (res) {
+      for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
+        res[r] = Math.max(0, (res[r] ?? 0) - amt)
+      }
+    }
+  } catch (e) {
+    buildError.value = e.message
+  }
 }
 
 const remainingColonySec = (planetId) => {
@@ -694,32 +765,36 @@ const canConvert = (buildingId, recipeIndex) => {
   return canAfford(recipe.input)
 }
 
-// count: total runs to queue. If recipe already running → adds to remaining.
-const startConversion = (buildingId, recipeIndex, count = 1) => {
+// count: total runs to queue.
+const startConversion = async (buildingId, recipeIndex, count = 1) => {
+  if (!canConvert(buildingId, recipeIndex)) return
   const planetId = activePlanetId.value
   const queues   = allPlanetStates.value[planetId]?.conversionQueues
   if (!queues) return
 
-  const existing = queues.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex)
-  if (existing) {
-    // Already running — just stack more runs (resources deducted lazily in tick)
-    existing.remaining += count
-    return
-  }
+  buildError.value = ''
+  const { postConvert } = useHawkStarApi()
 
-  if (!canConvert(buildingId, recipeIndex)) return
-  const recipe = BUILDINGS[buildingId].conversions[recipeIndex]
-  const res    = allPlanetStates.value[planetId].resources
-  for (const [r, amt] of Object.entries(recipe.input)) {
-    res[r] -= amt
+  try {
+    const result = await postConvert(planetId, buildingId, recipeIndex, count)
+    // Optimistic cost deduction
+    const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
+    const res    = allPlanetStates.value[planetId]?.resources
+    if (recipe && res) {
+      for (const [r, amt] of Object.entries(recipe.input)) {
+        res[r] = Math.max(0, (res[r] ?? 0) - amt * count)
+      }
+    }
+    queues.push({
+      buildingId,
+      recipeIndex,
+      planetId,
+      endsAt:    result.endsAt,
+      remaining: Math.max(0, count - 1),
+    })
+  } catch (e) {
+    buildError.value = e.message
   }
-  queues.push({
-    buildingId,
-    recipeIndex,
-    planetId,
-    endsAt:    Date.now() + conversionTime(buildingId, recipeIndex) * 1000,
-    remaining: Math.max(0, count - 1),
-  })
 }
 
 const remainingConversionSec = (q) =>
@@ -1166,6 +1241,113 @@ const tick = () => {
   saveGame()
 }
 
+// ── API init ───────────────────────────────────────────────
+
+const applyGameState = (planetId, state) => {
+  const apiSlots = Object.fromEntries(state.slots.map(s => [s.slot, s.unlocked]))
+  const slots = PLANET_GRID.map(s => ({ ...s, unlocked: apiSlots[s.slot] ?? s.startsUnlocked }))
+
+  const freshBuildings = Object.fromEntries(
+    Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }])
+  )
+  const buildings = { ...freshBuildings, ...state.buildings }
+
+  const droneMissions  = (state.missions ?? []).filter(m => m.type === 'recon_drone')
+    .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+  const colonyMissions = (state.missions ?? []).filter(m => m.type === 'colony_ship')
+    .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+
+  const convQueues = (state.conversionQueues ?? []).map(q => ({
+    buildingId: q.buildingKey, recipeIndex: q.recipeIndex,
+    planetId,  endsAt: q.endsAt,  remaining: q.remaining,
+  }))
+
+  allPlanetStates.value[planetId] = {
+    planetType:       state.planet.type,
+    planetName:       state.planet.name,
+    resources:        state.resources,
+    slots,
+    buildings,
+    dock: {
+      reconDroneInventory:  0,
+      reconDroneBuild:      null,
+      activeDroneMissions:  droneMissions,
+      colonyShipInventory:  0,
+      colonyShipBuild:      null,
+      activeColonyMissions: colonyMissions,
+    },
+    conversionQueues: convQueues,
+  }
+
+  globalResearch.value = { ...globalResearch.value, ...state.globalResearch }
+}
+
+export const initFromApi = async () => {
+  gameLoaded.value = false
+  initError.value  = ''
+
+  const { player, homePlanetId: authHomePlanetId } = useHawkStarAuth()
+  const { fetchGalaxy, fetchGameState } = useHawkStarApi()
+  const myId = player.value?.id
+
+  // Load galaxy
+  try {
+    const galaxy = await fetchGalaxy()
+    galaxySystems.value = galaxy.map(sys => ({
+      id: sys.id, name: sys.name, x: sys.x, y: sys.y, starClass: sys.starClass,
+      factions: sys.factions ?? [],
+      planets:  sys.planets.map(p => ({
+        id: p.id, name: p.name, type: p.type,
+        state: p.owner ? (p.owner.playerId === myId ? 'own' : 'colonized') : 'uncolonized',
+        owner: p.owner ?? null,
+      })),
+    }))
+  } catch (e) {
+    console.error('[hawk-star] Galaxy load failed:', e)
+    initError.value = `Failed to load galaxy: ${e.message}`
+    return
+  }
+
+  const hpId = authHomePlanetId.value
+  if (!hpId) {
+    initError.value = 'No home planet assigned — please re-login'
+    return
+  }
+
+  // Reset state
+  allPlanetStates.value        = {}
+  playerScannedPlanets.value   = [hpId]
+  playerColonizedPlanets.value = galaxySystems.value
+    .flatMap(s => s.planets).filter(p => p.owner?.playerId === myId).map(p => p.id)
+
+  homePlanetId.value   = hpId
+  activePlanetId.value = hpId
+
+  // Resolve home system + initialize systemContacts
+  systemContacts.value = Object.fromEntries(
+    galaxySystems.value.map(s => [s.id, { scanState: 'unscanned', scanEndsAt: null }])
+  )
+  for (const sys of galaxySystems.value) {
+    if (sys.planets.some(p => p.id === hpId)) {
+      homeSystemId.value = sys.id
+      systemContacts.value[sys.id] = { scanState: 'scanned', scanEndsAt: null }
+      break
+    }
+  }
+
+  // Load home planet game state
+  try {
+    const state = await fetchGameState(hpId)
+    applyGameState(hpId, state)
+    playerName.value = player.value?.username ?? ''
+    gameLoaded.value = true
+    saveGame()
+  } catch (e) {
+    console.error('[hawk-star] Game state load failed:', e)
+    initError.value = `Failed to load planet data: ${e.message}`
+  }
+}
+
 export const startTick = () => {
   if (tickInterval) return
   loadGame()
@@ -1286,6 +1468,10 @@ export function useHawkStar() {
     startConversion,
     remainingConversionSec,
     conversionProgressStyle,
+    // api feedback
+    buildError,
+    gameLoaded,
+    initError,
     // notifications
     allPlanetStates,
     notifications,

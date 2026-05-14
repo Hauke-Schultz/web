@@ -10,8 +10,8 @@ function getDB(): PDO {
     static $pdo = null;
     if ($pdo !== null) return $pdo;
 
-    $configFile = __DIR__ . '/db.configg.php';
-    if (file_exists($configFile)) {
+    $configFile = __DIR__ . '/db.config.php';
+    if (file_exists($configFile) && !getenv('DB_HOST')) {
         require_once $configFile;
     }
 

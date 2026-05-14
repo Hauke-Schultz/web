@@ -1,7 +1,7 @@
 <script setup>
-import { ref, watch, watchEffect, onMounted, onUnmounted, nextTick } from 'vue'
-import { startTick, stopTick, completeSetup, useHawkStar } from '~/composables/useHawkStar.js'
-import { loadHawk3Data } from '~/utils/localStores.js'
+import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
+import { startTick, stopTick, initFromApi, useHawkStar } from '~/composables/useHawkStar.js'
+import { useHawkStarAuth } from '~/composables/useHawkStarAuth.js'
 import HsResourceBar from '~/components/hawk-star/HsResourceBar.vue'
 import HsPlanetGrid from '~/components/hawk-star/HsPlanetGrid.vue'
 import HsTilePanel from '~/components/hawk-star/HsTilePanel.vue'
@@ -11,28 +11,43 @@ import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
-onMounted(() => {
-  startTick()
-  // Pre-fill commander name from games profile (user can still edit it)
-  if (!setupName.value) {
-    const profileName = loadHawk3Data().player?.name
-    if (profileName && profileName !== 'Spieler') setupName.value = profileName
+const { starMapLevel, gameLoaded, initError } = useHawkStar()
+const { player, authError, authLoading, isAuthenticated, rememberMe, register, login, verifyToken } = useHawkStarAuth()
+
+const currentView = ref('planet')
+const activePanel = ref('')
+const panelRef    = ref(null)
+
+// ── Auth modal state ───────────────────────────────────────────────────────────
+const authMode    = ref('login')  // 'register' | 'login'
+const authName    = ref('')
+const authEmail   = ref('')
+const authPass    = ref('')
+
+function switchMode(mode) {
+  authMode.value  = mode
+  authError.value = ''
+}
+
+async function submitAuth() {
+  let data = null
+  if (authMode.value === 'register') {
+    data = await register(authName.value.trim(), authEmail.value.trim(), authPass.value)
+  } else {
+    data = await login(authEmail.value.trim(), authPass.value)
   }
+  if (data) await initFromApi()
+}
+
+// ── App init ───────────────────────────────────────────────────────────────────
+onMounted(async () => {
+  if (isAuthenticated.value) {
+    const ok = await verifyToken()
+    if (ok) await initFromApi()
+  }
+  startTick()
 })
 onUnmounted(stopTick)
-
-const { starMapLevel, isFirstRun, activeSlot } = useHawkStar()
-
-const currentView  = ref('planet')
-const activePanel  = ref('')
-const setupName    = ref('')
-const panelRef     = ref(null)
-
-const submitSetup = () => {
-  const name = setupName.value.trim()
-  if (!name) return
-  completeSetup(name)
-}
 
 // Fall back if a view becomes locked again (e.g. game reset)
 watchEffect(() => {
@@ -54,7 +69,16 @@ watchEffect(() => {
       </div>
     </div>
 
-    <div class="hs-main">
+    <!-- ── Loading / error state ── -->
+    <div v-if="isAuthenticated && !gameLoaded" class="hs-init-state">
+      <p v-if="initError" class="hs-init-error">{{ initError }}</p>
+      <p v-else class="hs-init-loading">Loading galaxy data…</p>
+      <button class="hs-setup-btn hs-init-retry" @click="initFromApi()">
+        {{ initError ? 'Retry' : 'Reload' }}
+      </button>
+    </div>
+
+    <div class="hs-main" v-else-if="isAuthenticated && gameLoaded">
       <template v-if="currentView === 'planet'">
         <div class="hs-planet-wrap">
           <HsPlanetGrid v-model:activePanel="activePanel" />
@@ -67,30 +91,97 @@ watchEffect(() => {
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
     </div>
 
-    <!-- ── Setup overlay (first run only) ── -->
+    <!-- ── Auth overlay ── -->
     <Teleport to="body">
-      <div v-if="isFirstRun" class="hs-setup-backdrop">
+      <div v-if="!isAuthenticated" class="hs-setup-backdrop">
         <div class="hs-setup-modal">
           <div class="hs-setup-logo">🪐</div>
           <h1 class="hs-setup-title">Hawk-Star</h1>
-          <p class="hs-setup-sub">Your colony has been assigned a starting planet.</p>
-          <p class="hs-setup-label">Enter your commander name</p>
-          <input
-            v-model="setupName"
-            class="hs-setup-input"
-            type="text"
-            placeholder="Commander name…"
-            maxlength="12"
-            autofocus
-            @keydown.enter="submitSetup"
-          />
+
+          <!-- Tabs -->
+          <div class="hs-auth-tabs">
+            <button
+              class="hs-auth-tab"
+              :class="{ 'hs-auth-tab--active': authMode === 'register' }"
+              @click="switchMode('register')"
+            >Register</button>
+            <button
+              class="hs-auth-tab"
+              :class="{ 'hs-auth-tab--active': authMode === 'login' }"
+              @click="switchMode('login')"
+            >Login</button>
+          </div>
+
+          <!-- Register fields -->
+          <template v-if="authMode === 'register'">
+            <p class="hs-setup-label">Commander name</p>
+            <input
+              v-model="authName"
+              class="hs-setup-input"
+              type="text"
+              placeholder="Username…"
+              maxlength="64"
+              autocomplete="username"
+              @keydown.enter="submitAuth"
+            />
+            <p class="hs-setup-label">E-Mail</p>
+            <input
+              v-model="authEmail"
+              class="hs-setup-input"
+              type="email"
+              placeholder="commander@galaxy.net"
+              autocomplete="email"
+              @keydown.enter="submitAuth"
+            />
+            <p class="hs-setup-label">Password</p>
+            <input
+              v-model="authPass"
+              class="hs-setup-input"
+              type="password"
+              placeholder="Min. 6 characters"
+              autocomplete="new-password"
+              @keydown.enter="submitAuth"
+            />
+          </template>
+
+          <!-- Login fields -->
+          <template v-else>
+            <p class="hs-setup-label">E-Mail</p>
+            <input
+              v-model="authEmail"
+              class="hs-setup-input"
+              type="email"
+              placeholder="commander@galaxy.net"
+              autocomplete="email"
+              @keydown.enter="submitAuth"
+            />
+            <p class="hs-setup-label">Password</p>
+            <input
+              v-model="authPass"
+              class="hs-setup-input"
+              type="password"
+              placeholder="Password"
+              autocomplete="current-password"
+              @keydown.enter="submitAuth"
+            />
+            <label class="hs-remember-row">
+              <input v-model="rememberMe" type="checkbox" class="hs-remember-check" />
+              <span>Remember me</span>
+            </label>
+          </template>
+
+          <!-- Error -->
+          <p v-if="authError" class="hs-auth-error">{{ authError }}</p>
+
           <button
             class="hs-setup-btn"
-            :class="{ 'hs-setup-btn--disabled': !setupName.trim() }"
-            :disabled="!setupName.trim()"
-            @click="submitSetup"
+            :class="{ 'hs-setup-btn--disabled': authLoading }"
+            :disabled="authLoading"
+            @click="submitAuth"
           >
-            Begin Colony
+            <span v-if="authLoading">…</span>
+            <span v-else-if="authMode === 'register'">Begin Colony</span>
+            <span v-else>Enter Command</span>
           </button>
         </div>
       </div>
@@ -103,7 +194,7 @@ watchEffect(() => {
 </style>
 
 <style lang="scss">
-// ── Setup overlay (not scoped — uses Teleport to body) ────────────────────────
+// ── Auth overlay (not scoped — uses Teleport to body) ─────────────────────────
 .hs-setup-backdrop {
   position: fixed;
   inset: 0;
@@ -144,6 +235,64 @@ watchEffect(() => {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+}
+
+.hs-auth-tabs {
+  display: flex;
+  width: 100%;
+  gap: 0.25rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(100, 130, 220, 0.15);
+  border-radius: 0.5rem;
+  padding: 0.2rem;
+}
+
+.hs-auth-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &--active {
+    background: rgba(100, 130, 220, 0.2);
+    color: #fff;
+  }
+
+  &:hover:not(&--active) {
+    color: rgba(255,255,255,0.7);
+  }
+}
+
+.hs-auth-error {
+  font-size: 0.72rem;
+  color: #f87171;
+  margin: 0;
+  align-self: flex-start;
+  line-height: 1.4;
+}
+
+.hs-remember-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 0.1rem;
+}
+
+.hs-remember-check {
+  accent-color: #4f6ef7;
+  width: 0.85rem;
+  height: 0.85rem;
+  cursor: pointer;
 }
 
 .hs-setup-label {
@@ -190,6 +339,41 @@ watchEffect(() => {
     opacity: 0.3;
     cursor: not-allowed;
   }
+}
+
+.hs-init-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 1rem;
+  width: 100%;
+}
+
+.hs-init-loading {
+  font-size: 0.85rem;
+  opacity: 0.45;
+  margin: 0;
+  animation: hs-pulse 1.6s ease-in-out infinite;
+}
+
+.hs-init-error {
+  font-size: 0.82rem;
+  color: #f87171;
+  margin: 0;
+  text-align: center;
+}
+
+.hs-init-retry {
+  width: auto;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.8rem;
+}
+
+@keyframes hs-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 0.9;  }
 }
 
 .hs-planet-wrap {

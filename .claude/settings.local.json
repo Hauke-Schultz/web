@@ -20,7 +20,8 @@
       "Bash(curl:*)",
       "Bash(xargs ls *)",
       "Bash(dir \"C:\\\\Users\\\\hauke\\\\WebstormProjects\\\\web\\\\frontend\\\\app\\\\components\\\\dailyReward\")",
-      "Bash(Remove-Item *)"
+      "Bash(Remove-Item *)",
+      "Bash(docker exec web-php-1 *)"
     ]
   }
 }

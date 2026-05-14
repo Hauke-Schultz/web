@@ -58,7 +58,10 @@
       "reconDroneDesc": "Scout planets in your home system",
       "colonyShipDesc": "Colonize unoccupied planets",
       "noResources": "No resources available",
-      "dispatch": "Dispatch →"
+      "dispatch": "Dispatch →",
+      "unitReady": "Ready",
+      "insufficientResources": "Insufficient resources",
+      "launchFromSystemMap": "Launch units from the System Map"
     },
 
     "solar": {

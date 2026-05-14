@@ -4,6 +4,9 @@ Options -Indexes
 
 RewriteEngine On
 
+# Pass Authorization header to PHP (mod_rewrite strips it otherwise)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 # Extension-lose URLs -> .php (z.B. /api/rsvp -> rsvp.php)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME}.php -f

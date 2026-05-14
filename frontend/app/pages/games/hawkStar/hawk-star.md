@@ -162,39 +162,23 @@ A rough progression arc for a single player:
 
 ## Galaxy
 
-Each player receives a **procedurally generated private galaxy** on first run. The galaxy is created by `generateGalaxy()` in `hawkStarGalaxyMock.js`, stored in the save, and restored on reload. It will be replaced by a real backend API in the multiplayer phase.
+The galaxy is **shared between all players** and grows dynamically: each new player registration creates a new star system. There is no fixed seed and no NPC factions for now — the galaxy is populated by real players.
 
-### Generation
+### Generation (backend)
 
-`generateGalaxy()` returns **9 systems**: 2 fixed NPC systems + 7 randomly generated empty systems.
+When a player registers, `create_player_system()` (in `api/star/config.php`) runs:
+- Picks an unused name from a 40-name pool (e.g. "Arix System", "Vega System")
+- Picks a position ≥ 15 units away from all existing systems (random within 0–100)
+- Creates a random star class (G / K / M / F)
+- Generates **6–7 planets**: exactly 4 habitable types + 2–3 uninhabitable, shuffled
+- Returns the new system ID + the ID of the home planet (a random habitable planet)
 
-Each generated system gets:
-- A name picked from a pool (e.g. "Arix System", "Vega System")
-- A position from a pre-defined spread of slots on the 0–100 % canvas
-- A random star class (G / K / M / F)
-- **6–8 planets**: exactly 4 habitable types (terrestrial, volcanic, frozen, ocean) + 2–4 uninhabitable, all shuffled
+### Frontend (current, pre-migration)
 
-### Home System
-
-`buildStartPool()` in `useHawkStar.js` picks from systems where no planet has an owner (i.e. all generated empty systems). The player starts on a **randomly chosen habitable planet** in that system. The home system is immediately marked `scanned` in `systemContacts` when setup completes.
-
-### NPC Factions
-
-Two fixed NPC systems are always included for testing:
-
-| System | NPC | Owned planets | Disposition |
-|--------|-----|--------------|-------------|
-| Kepler | Asha 👩‍🚀 | Kepler I (terrestrial) · Kepler III (frozen) | `friendly` |
-| Vorn | Krath 💀 | Vorn I (volcanic) · Vorn II (terrestrial) | `hostile` |
-
-Each NPC has a **disposition** that determines auto-responses to comm signals:
-- `friendly` — responds with welcome/peace emojis
-- `neutral` — acknowledges
-- `hostile` — rejects; may initiate attacks later
-
-### Visibility
-
-All 9 systems are always visible in the Galaxy Map. Solar System view shows the home system.
+Until the frontend migrates to the backend API, `generateGalaxy()` in `hawkStarGalaxyMock.js` still provides the local mock galaxy for the frontend:
+- Returns **9 systems**: 2 fixed NPC systems (Kepler/Asha, Vorn/Krath) + 7 random empty systems
+- Stored in the save and restored on reload
+- Will be replaced by `GET /api/star/galaxy` once frontend migration is complete
 
 ### Planet States
 
@@ -455,14 +439,38 @@ Player state (resources, slot unlock status, building progress) is currently per
 | `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
 | `HsSettingsPanel` | Dev tuning controls (tick rate, build factor, game reset). Shown below `HsNotificationPanel` in the Activity view. |
 
+### Auth & Session
+
+Das Spiel benötigt einen Account. Beim ersten Öffnen erscheint das **Auth-Modal** (ersetzt das alte "Commander Name"-Setup-Modal).
+
+**Zwei Modi — umschaltbar per Tab (Standard: Login):**
+
+| Modus | Felder |
+|-------|--------|
+| **Anmelden** | E-Mail · Passwort · „Remember me"-Checkbox |
+| **Registrieren** | Commander-Name (username, 2–64 Zeichen) · E-Mail · Passwort (min. 6 Zeichen) |
+
+- Portrait und Disposition werden **nicht** beim Register abgefragt — das gehört ins In-Game-Profil (`HsProfilePanel`).
+- **Remember me** (Standard: an): Token landet in `localStorage['hawk-star-token']` (bleibt über Tabs/Neustarts hinaus). Deaktiviert: Token nur in `sessionStorage` (verschwindet beim Tab-Schließen).
+- Beim Laden: Token in localStorage oder sessionStorage → Token verify → direkt ins Spiel; ungültig/fehlend → Auth-Modal.
+- Token-Ablauf (7 Tage): beim nächsten API-Call bekommt der Client 401 → Modal wieder zeigen.
+- Fehlermeldungen erscheinen inline im Modal (Username bereits vergeben, falsches Passwort, etc.).
+
+**Composables:**
+- `useHawkStarAuth.js` — Auth-Singleton: Token, Player, rememberMe, register/login/logout/verifyToken
+- `useHawkStarApi.js` — dünner API-Wrapper: alle Game-Actions (fetchGalaxy, postBuild, postDroneMission, …)
+- `useHawkStar.js` — lokale UI-State-Logik (aktiver Slot, aktive View, Tick, Ressourcen-UI)
+
 ### State & Persistence
 
-- **`useHawkStar.js`** is a singleton composable — all components read from and write to it directly, no props/emits for game state.
-- Player state is saved to **LocalStorage** under the key `hawkStarSave`. Includes: resources, slot unlocks, building levels & progress, ship inventory, missions, galaxy layout, player profile.
-- A version guard discards outdated saves automatically (current: v23).
-- `allPlanetStates` is the core state object — keyed by `planetId`, each entry holds resources, buildings, dock, and conversion queues for that planet.
-- `galaxySystems` is a reactive ref holding the full galaxy array — generated once on first run via `generateGalaxy()`, then persisted and restored from save.
-- `playerPortrait` and `playerDisposition` are profile fields stored in the save. `playerDisposition` mirrors the NPC faction shape (`friendly` / `neutral` / `hostile`) and will be visible to other players in the multiplayer phase.
+- **`useHawkStar.js`** ist ein Singleton-Composable — alle Komponenten lesen und schreiben direkt darin, keine Props/Emits für Game-State.
+- **`gameLoaded`** ref (bool): wird erst `true`, nachdem `initFromApi()` vollständig erfolgreich war. `startBuild` und andere Write-Actions sind davon abhängig — solange `false`, werden sie geblockt.
+- **`initError`** ref (string): enthält die Fehlermeldung, wenn Galaxy-Load oder Game-State-Load fehlschlägt. Im UI sichtbar als rote Zeile über dem Retry-Button.
+- Aktuell: Player-State zusätzlich in **LocalStorage** unter `hawk-star-save` (Ressourcen, Slot-Unlocks, Gebäude-Fortschritt, Missionen, Galaxie-Layout, Profil). Soll entfernt werden, sobald die LocalStorage-Migration abgeschlossen ist.
+- Nach Frontend-Migration: State kommt ausschließlich aus der Backend-API (`GET /api/star/game/state?planet_id=X`), LocalStorage enthält nur noch den JWT-Token.
+- `allPlanetStates` ist das Kern-State-Objekt — keyed by `planetId`, enthält Ressourcen, Gebäude, Dock, Conversion-Queues pro Planet.
+- `galaxySystems`: nach `initFromApi()` von `GET /api/star/galaxy/` geladen (echter API-Stand). Fallback über `generateGalaxy()` bleibt im Code für HMR-Initialisierung, wird aber durch API-Daten überschrieben.
+- `playerPortrait` und `playerDisposition` werden im In-Game-Profil (`HsProfilePanel`) gespeichert und per API aktualisiert.
 
 ### Offline Production
 
@@ -537,7 +545,17 @@ All Hawk-Star keys live under `hawkStar.*`:
 | `recon_drone` + `colony_ship` simplified to 1 level, 1 active mission at a time | ✅ Done |
 | Commander profile — portrait picker, name edit, disposition selector (`HsProfilePanel`) | ✅ Done |
 | `formatTime` — supports s / m s / h m / t h m s formats | ✅ Done |
-| Backend — Phase 1: Foundation (auth, galaxy, building, resources, research, missions) | ⬜ Planned |
+| Backend — Phase 1: Foundation (auth, galaxy, building, resources, research, missions) | ✅ Done |
+| Auth-Modal — Register/Login, JWT-Token in localStorage (`useHawkStarAuth.js`) | ✅ Done |
+| Auth: Login-Tab als Standard, „Remember me"-Checkbox (localStorage vs. sessionStorage) | ✅ Done |
+| Auth: 401-Fix — `.htaccess` Authorization-Header-Passthrough + `bootstrap.php` Fallback-Chain | ✅ Done |
+| `useHawkStarApi.js` — API-Wrapper für alle Game-Actions | ✅ Done |
+| `initFromApi` — lädt Galaxy + Game State nach Auth, ersetzt Mock | ✅ Done |
+| `gameLoaded` / `initError` — Loading-Screen + Retry-Button in `index.vue` | ✅ Done |
+| Write-Actions auf API: `startBuild`, `sendReconDrone`, `sendColonyShip`, `startConversion` | ✅ Done |
+| Drone/Colony — kein Inventory mehr, direktes Mission-Modell (Building = Unit) | ✅ Done |
+| `HsDockPanel` — an neues Missions-Modell angepasst (kein Build-Step, direkte Mission-Anzeige) | ✅ Done |
+| Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth | ⬜ Next |
 | Backend — Phase 2: Scanning & NPC Comm (system_contacts, comm_log server-side) | ⬜ Planned |
 | Backend — Phase 3: Player Interaction (trade, player messaging) | ⬜ Planned |
 | Backend — Phase 4: Espionage | ⬜ Planned |

@@ -60,7 +60,10 @@
       "reconDroneDesc": "Erkunde Planeten in deinem Heimatsystem",
       "colonyShipDesc": "Kolonisiere unbewohnte Planeten",
       "noResources": "Keine Ressourcen verfügbar",
-      "dispatch": "Abschicken →"
+      "dispatch": "Abschicken →",
+      "unitReady": "Bereit",
+      "insufficientResources": "Zu wenig Ressourcen",
+      "launchFromSystemMap": "Einheiten über die Systemkarte starten"
     },
 
     "solar": {
