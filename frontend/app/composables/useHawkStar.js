@@ -1,45 +1,17 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, NPC_RESPONSES, SIGNAL_SPEED_BASE } from '~/utils/hawkStarConfig.js'
-import { generateGalaxy } from '~/utils/hawkStarGalaxyMock.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
-// ── Galaxy state (generated on first run, persisted in save) ─────────────────
+// ── Galaxy state (loaded from API on init) ────────────────────────────────────
 const galaxySystems = ref([])
-galaxySystems.value = generateGalaxy()
-
-// ── Starting planet pool — pick a random uninhabited system ──────────────────
-const HABITABLE_TYPES = new Set(['terrestrial', 'volcanic', 'frozen', 'ocean'])
-const buildStartPool = () => {
-  // Only consider systems where no planet has an owner (no NPC inhabitants)
-  const emptySystems = galaxySystems.value.filter(sys => sys.planets.every(p => !p.owner))
-  if (emptySystems.length === 0) return []
-  const sys = emptySystems[Math.floor(Math.random() * emptySystems.length)]
-  return sys.planets
-    .filter(p => HABITABLE_TYPES.has(p.type) && p.state === 'uncolonized')
-    .map(p => ({
-      system:     sys.name,
-      systemId:   sys.id,
-      planet:     p.name,
-      planetId:   p.id,
-      planetType: p.type,
-    }))
-}
-
-const randomStartConfig = () => {
-  const pool = buildStartPool()
-  return pool[Math.floor(Math.random() * pool.length)]
-}
 
 // ── Singleton state ────────────────────────────────────────
 const playerName        = ref('')
 const playerPortrait    = ref('👨‍🚀')
 const playerDisposition = ref('neutral')
-const homeConfig   = ref(randomStartConfig())
-const systemName   = ref(homeConfig.value.system)
-const homeSystemId = ref(homeConfig.value.systemId)
-const homePlanetId = ref(homeConfig.value.planetId)
-const isFirstRun   = computed(() => playerName.value === '')
+const homeSystemId = ref(null)
+const homePlanetId = ref(null)
 
 // ── Dev tuning ─────────────────────────────────────────────
 const tickRateMs      = ref(5000)
@@ -70,11 +42,7 @@ const initError  = ref('')
 // ── Communication ─────────────────────────────────────────
 // systemContacts: per-system scan state
 // commLog: all sent/received messages (newest first)
-const systemContacts = ref(
-  Object.fromEntries(
-    galaxySystems.value.map(s => [s.id, { scanState: 'unscanned', scanEndsAt: null }])
-  )
-)
+const systemContacts = ref({})
 const commLog = ref([])
 
 const dismissNotification = (id) => {
@@ -109,9 +77,7 @@ const initializePlanetState = (planetId, pType, pName, isHome = false) => {
   }
 }
 
-initializePlanetState(homeConfig.value.planetId, homeConfig.value.planetType, homeConfig.value.planet, true)
-
-const activePlanetId = ref(homeConfig.value.planetId)
+const activePlanetId = ref(null)
 
 const setActivePlanet = (planetId) => {
   if (!allPlanetStates.value[planetId]) return
@@ -139,7 +105,6 @@ const homeResources   = computed(() => allPlanetStates.value[homePlanetId.value]
 const activeSlot = ref(5)
 const now = ref(Date.now())
 let tickInterval = null
-let lastProdAt   = 0
 
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
@@ -425,7 +390,7 @@ const buildProgressStyle = (id) => {
 
 // ── Recon Drones (home system planet scouting) ────────────
 // playerScannedPlanets: planets whose info has been revealed by a drone arriving
-const playerScannedPlanets = ref([homePlanetId.value])
+const playerScannedPlanets = ref([])
 // Per-planet dock aliases (computed from active planet's dock)
 const reconDroneInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.reconDroneInventory ?? 0)
 const reconDroneBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.reconDroneBuild ?? null)
@@ -514,7 +479,7 @@ const droneBuildProgressStyle = computed(() => {
 
 
 // ── Colony Ships (home system colonization) ────────────────
-const playerColonizedPlanets = ref([homePlanetId.value])
+const playerColonizedPlanets = ref([])
 // Per-planet dock aliases
 const colonyShipInventory  = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipInventory ?? 0)
 const colonyShipBuild      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipBuild ?? null)
@@ -684,42 +649,17 @@ const sendMessage = (systemId, messageKey) => {
   const sys = galaxySystems.value.find(s => s.id === systemId)
   if (!sys) return
   const travelSec = signalTravelTime(systemId)
-  const id = `msg_${Date.now()}_${systemId}`
+  const owners = sys.planets.filter(p => p.owner != null).map(p => p.owner)
   commLog.value.unshift({
-    id,
+    id:           `msg_${Date.now()}_${systemId}`,
     direction:    'sent',
     systemId,
     systemName:   sys.name,
-    factions:     sys.factions ?? [],
+    owners,
     messageKey,
     timestamp:    Date.now(),
     travelEndsAt: Date.now() + travelSec * 1000,
-    replyEndsAt:  null,
   })
-}
-
-// Called from the tick when a sent message's signal arrives.
-const _deliverMessage = (entry) => {
-  const sys = galaxySystems.value.find(s => s.id === entry.systemId)
-  const factions = sys?.factions ?? []
-  // Each faction sends a reply after the same travel time back
-  for (const faction of factions) {
-    const pool = NPC_RESPONSES[faction.disposition] ?? NPC_RESPONSES.neutral
-    const responseKey = pool[Math.floor(Math.random() * pool.length)]
-    const travelSec = signalTravelTime(entry.systemId)
-    commLog.value.unshift({
-      id:           `msg_${Date.now()}_reply_${faction.name}`,
-      direction:    'received',
-      systemId:     entry.systemId,
-      systemName:   sys.name,
-      factions:     [faction],
-      messageKey:   responseKey,
-      timestamp:    Date.now(),
-      travelEndsAt: Date.now() + travelSec * 1000,
-      replyEndsAt:  null,
-    })
-  }
-  entry.replyEndsAt = entry.travelEndsAt // mark delivered
 }
 
 
@@ -807,7 +747,7 @@ const conversionProgressStyle = (q) => {
   return { width: `${pct}%` }
 }
 
-// ── LocalStorage persistence ───────────────────────────────
+// ── LocalStorage persistence (dev settings only) ──────────────────────────────
 const DEV_KEY = 'hawk-star-dev'
 
 const saveDevSettings = () => {
@@ -829,221 +769,13 @@ const loadDevSettings = () => {
 
 loadDevSettings()
 
-const SAVE_KEY     = 'hawk-star-save'
-const SAVE_VERSION = 24
-
-const saveGame = () => {
-  localStorage.setItem(SAVE_KEY, JSON.stringify({
-    version:               SAVE_VERSION,
-    savedAt:               Date.now(),
-    playerName:            playerName.value,
-    playerPortrait:        playerPortrait.value,
-    playerDisposition:     playerDisposition.value,
-    systemName:            systemName.value,
-    homeSystemId:          homeSystemId.value,
-    homePlanetId:          homePlanetId.value,
-    activePlanetId:        activePlanetId.value,
-    allPlanetStates:       Object.fromEntries(
-      Object.entries(allPlanetStates.value).map(([pid, ps]) => [pid, {
-        planetType:       ps.planetType,
-        planetName:       ps.planetName,
-        resources:        ps.resources,
-        slots:            ps.slots.map(s => ({ slot: s.slot, unlocked: s.unlocked })),
-        buildings:        ps.buildings,
-        dock:             ps.dock,
-        conversionQueues: ps.conversionQueues ?? [],
-      }])
-    ),
-    playerScannedPlanets:   playerScannedPlanets.value,
-    playerColonizedPlanets: playerColonizedPlanets.value,
-    notifications:          notifications.value,
-    globalResearch:         globalResearch.value,
-    systemContacts:         systemContacts.value,
-    galaxySystems:          galaxySystems.value,
-    commLog:                commLog.value,
-  }))
-}
-
-const loadGame = () => {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY)
-    if (!raw) return
-    const data = JSON.parse(raw)
-    // Discard saves from an older format (before unit inventory system)
-    if ((data.version ?? 1) < SAVE_VERSION) {
-      localStorage.removeItem(SAVE_KEY)
-      return
-    }
-    if (data.playerName)        playerName.value        = data.playerName
-    if (data.playerPortrait)    playerPortrait.value    = data.playerPortrait
-    if (data.playerDisposition) playerDisposition.value = data.playerDisposition
-    if (data.systemName)        systemName.value        = data.systemName
-    if (data.homeSystemId) homeSystemId.value = data.homeSystemId
-    if (data.homePlanetId) homePlanetId.value = data.homePlanetId
-    if (data.allPlanetStates) {
-      for (const [pid, ps] of Object.entries(data.allPlanetStates)) {
-        const freshSlots     = PLANET_GRID.map(s => ({ ...s, unlocked: s.startsUnlocked }))
-        const freshBuildings = Object.fromEntries(Object.keys(BUILDINGS).map(id => [id, { level: 0, buildEndsAt: null }]))
-        const isHome = pid === (data.homePlanetId ?? homePlanetId.value)
-        const savedDock = ps.dock ?? {}
-        allPlanetStates.value[pid] = {
-          planetType: ps.planetType ?? 'terrestrial',
-          planetName: ps.planetName ?? '',
-          resources:  ps.resources ?? (isHome ? { ...HOME_START_RESOURCES } : { ...COLONY_START_RESOURCES }),
-          slots: freshSlots.map(s => {
-            const saved = ps.slots?.find(ps2 => ps2.slot === s.slot)
-            return saved ? { ...s, unlocked: saved.unlocked } : s
-          }),
-          buildings: Object.fromEntries(
-            Object.keys(BUILDINGS).map(id => [id, ps.buildings?.[id] ?? freshBuildings[id]])
-          ),
-          dock: {
-            ...freshDock(),
-            ...savedDock,
-            activeDroneMissions:    Array.isArray(savedDock.activeDroneMissions)    ? savedDock.activeDroneMissions    : [],
-            activeColonyMissions:   Array.isArray(savedDock.activeColonyMissions)   ? savedDock.activeColonyMissions   : [],
-          },
-          conversionQueues: Array.isArray(ps.conversionQueues) ? ps.conversionQueues : [],
-        }
-      }
-    }
-    // Backward compat: migrate old global conversionQueue into per-planet array
-    if (data.conversionQueue) {
-      const q  = data.conversionQueue
-      const ps = allPlanetStates.value[q.planetId]
-      if (ps && !ps.conversionQueues.find(x => x.buildingId === q.buildingId && x.recipeIndex === q.recipeIndex)) {
-        ps.conversionQueues.push(q)
-      }
-    }
-    if (data.activePlanetId && allPlanetStates.value[data.activePlanetId]) {
-      activePlanetId.value = data.activePlanetId
-    }
-    if (Array.isArray(data.playerScannedPlanets))   playerScannedPlanets.value   = data.playerScannedPlanets
-    if (Array.isArray(data.playerColonizedPlanets))  playerColonizedPlanets.value = data.playerColonizedPlanets
-    if (Array.isArray(data.notifications))           notifications.value          = data.notifications
-    if (data.globalResearch) {
-      for (const id of Object.keys(globalResearch.value)) {
-        if (data.globalResearch[id]) globalResearch.value[id] = data.globalResearch[id]
-      }
-    }
-    if (Array.isArray(data.galaxySystems) && data.galaxySystems.length > 0) {
-      galaxySystems.value = data.galaxySystems
-    }
-    if (data.systemContacts) {
-      systemContacts.value = data.systemContacts
-    }
-    if (Array.isArray(data.commLog)) commLog.value = data.commLog
-
-    // Offline production — apply missed production since last save
-    if (data.savedAt) {
-      const offlineMs = Math.min(Date.now() - data.savedAt, MAX_OFFLINE_MS)
-      const now_ts    = Date.now()
-
-      // Complete all buildings that finished while the app was closed
-      for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
-        const pr = pstate.resources
-        for (const [id, state] of Object.entries(pstate.buildings)) {
-          if (BUILDINGS[id]?.global) continue
-          if (!state.buildEndsAt || state.buildEndsAt > now_ts) continue
-          state.level += 1
-          state.buildEndsAt    = null
-          state.buildStartedAt = null
-          const levelDef = BUILDINGS[id]?.levels[state.level - 1]
-          if (levelDef?.unlocks) {
-            for (const { slot } of levelDef.unlocks) {
-              const s = pstate.slots.find(ps => ps.slot === slot)
-              if (s) s.unlocked = true
-            }
-          }
-          if (levelDef?.popBonus) pr.population += levelDef.popBonus
-        }
-      }
-      for (const [, state] of Object.entries(globalResearch.value)) {
-        if (!state.buildEndsAt || state.buildEndsAt > now_ts) continue
-        state.level += 1
-        state.buildEndsAt    = null
-        state.buildStartedAt = null
-      }
-
-      applyOfflineProduction(offlineMs / 1000)
-    }
-    // Prevent first live tick from double-firing production
-    lastProdAt = Date.now()
-  } catch (e) {
-    console.warn('[hawk-star] Failed to load save:', e)
-  }
-}
-
-watch([playerPortrait, playerDisposition], saveGame)
-
 export const resetGame = () => {
-  localStorage.removeItem(SAVE_KEY)
   location.reload()
-}
-
-export const completeSetup = (name) => {
-  playerName.value = name.trim()
-  if (systemContacts.value[homeSystemId.value]) {
-    systemContacts.value[homeSystemId.value].scanState = 'scanned'
-  }
-  saveGame()
-}
-
-// ── Offline production ─────────────────────────────────────
-const MAX_OFFLINE_MS = 24 * 60 * 60 * 1000
-
-const applyOfflineProduction = (seconds) => {
-  if (seconds <= 0) return
-
-  for (const [, pstate] of Object.entries(allPlanetStates.value)) {
-    const pb = pstate.buildings
-    const pr = pstate.resources
-
-    // Gross production per second
-    const prod = {}
-    for (const [id, state] of Object.entries(pb)) {
-      if (state.level === 0) continue
-      const levelDef = BUILDINGS[id]?.levels[state.level - 1]
-      for (const [res, amt] of Object.entries(levelDef?.production ?? {})) {
-        prod[res] = (prod[res] ?? 0) + amt
-      }
-    }
-
-    // Energy drain
-    let energyDrain = 0
-    for (const [id, state] of Object.entries(pb)) {
-      const lvl = effectiveLevel(state)
-      if (lvl === 0) continue
-      energyDrain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
-    }
-
-    // Storage caps
-    const caps = { ...BASE_STORAGE }
-    for (const [id, state] of Object.entries(pb)) {
-      if (state.level === 0) continue
-      const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
-      for (const [res, cap] of Object.entries(storage)) {
-        caps[res] = (caps[res] ?? 0) + cap
-      }
-    }
-
-    // Net production (energy goes negative but is floored at 0, not stockpiled)
-    const net = { ...prod, energy: (prod.energy ?? 0) - energyDrain }
-    for (const [res, amt] of Object.entries(net)) {
-      if (res === 'energy') continue
-      if (amt === 0) continue
-      const cap = caps[res]
-      const newVal = Math.max(0, (pr[res] ?? 0) + amt * seconds)
-      pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
-    }
-  }
 }
 
 // ── Tick ───────────────────────────────────────────────────
 const tick = () => {
   now.value = Date.now()
-  const doProd = (now.value - lastProdAt) >= tickRateMs.value
-  if (doProd) lastProdAt = now.value
 
   // Process all per-planet conversion queues
   for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
@@ -1155,41 +887,6 @@ const tick = () => {
       })
     }
 
-    if (doProd) {
-      // Production: gross output
-      const prod = {}
-      for (const [id, state] of Object.entries(pb)) {
-        if (state.level === 0) continue
-        const levelDef = BUILDINGS[id]?.levels[state.level - 1]
-        for (const [res, amt] of Object.entries(levelDef?.production ?? {})) {
-          prod[res] = (prod[res] ?? 0) + amt
-        }
-      }
-      // Energy drain
-      let energyDrain = 0
-      for (const [id, state] of Object.entries(pb)) {
-        const lvl = effectiveLevel(state)
-        if (lvl === 0) continue
-        energyDrain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
-      }
-      // Storage caps
-      const caps = { ...BASE_STORAGE }
-      for (const [id, state] of Object.entries(pb)) {
-        if (state.level === 0) continue
-        const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
-        for (const [res, cap] of Object.entries(storage)) {
-          caps[res] = (caps[res] ?? 0) + cap
-        }
-      }
-      // Apply net production (amt is per-second; scale by tick interval)
-      const tickSec = tickRateMs.value / 1000
-      const net = { ...prod, energy: (prod.energy ?? 0) - energyDrain }
-      for (const [res, amt] of Object.entries(net)) {
-        const cap = caps[res]
-        const newVal = Math.max(0, (pr[res] ?? 0) + amt * tickSec)
-        pr[res] = cap !== undefined ? Math.min(newVal, cap) : newVal
-      }
-    }
   }
 
   // Complete global research (star_map and any future global buildings)
@@ -1231,14 +928,6 @@ const tick = () => {
       })
     }
   }
-  // Deliver sent messages (signal arrived → queue NPC reply)
-  for (const entry of commLog.value) {
-    if (entry.direction === 'sent' && entry.replyEndsAt === null && entry.travelEndsAt <= now.value) {
-      _deliverMessage(entry)
-    }
-  }
-
-  saveGame()
 }
 
 // ── API init ───────────────────────────────────────────────
@@ -1295,8 +984,7 @@ export const initFromApi = async () => {
     const galaxy = await fetchGalaxy()
     galaxySystems.value = galaxy.map(sys => ({
       id: sys.id, name: sys.name, x: sys.x, y: sys.y, starClass: sys.starClass,
-      factions: sys.factions ?? [],
-      planets:  sys.planets.map(p => ({
+      planets: sys.planets.map(p => ({
         id: p.id, name: p.name, type: p.type,
         state: p.owner ? (p.owner.playerId === myId ? 'own' : 'colonized') : 'uncolonized',
         owner: p.owner ?? null,
@@ -1339,9 +1027,10 @@ export const initFromApi = async () => {
   try {
     const state = await fetchGameState(hpId)
     applyGameState(hpId, state)
-    playerName.value = player.value?.username ?? ''
+    playerName.value        = player.value?.username    ?? ''
+    playerPortrait.value    = player.value?.portrait    ?? '👨‍🚀'
+    playerDisposition.value = player.value?.disposition ?? 'neutral'
     gameLoaded.value = true
-    saveGame()
   } catch (e) {
     console.error('[hawk-star] Game state load failed:', e)
     initError.value = `Failed to load planet data: ${e.message}`
@@ -1350,7 +1039,6 @@ export const initFromApi = async () => {
 
 export const startTick = () => {
   if (tickInterval) return
-  loadGame()
   tickInterval = setInterval(tick, 1000)
 }
 
@@ -1367,13 +1055,11 @@ export function useHawkStar() {
     playerPortrait,
     playerDisposition,
     planetName,
-    systemName,
     planetType,
     homeSystemId,
     homePlanetId,
     homeSystem,
     galaxySystems,
-    isFirstRun,
     activePlanetId,
     setActivePlanet,
     PLANET_TYPES,

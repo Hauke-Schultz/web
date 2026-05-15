@@ -20,10 +20,10 @@ const {
 
 const { t } = useI18n()
 
-// ── System order: home first, then only inhabited (faction) systems ───────────
+// ── System order: home first, then inhabited systems ─────────────────────────
 const sortedSystems = computed(() => {
   const home = galaxySystems.value.find(s => s.id === homeSystemId.value)
-  const rest = galaxySystems.value.filter(s => s.id !== homeSystemId.value && (s.factions?.length ?? 0) > 0)
+  const rest = galaxySystems.value.filter(s => s.id !== homeSystemId.value && s.planets.some(p => p.owner != null))
   return home ? [home, ...rest] : rest
 })
 
@@ -32,13 +32,20 @@ const STAR_CLASS_ICON = { G: '☀️', K: '🟠', M: '🔴', F: '⚪' }
 
 const isHome = (sys) => sys.id === homeSystemId.value
 
-const isInhabited = (sys) =>
-  (sys.factions?.length > 0) || sys.planets.some(p => p.owner)
+const isInhabited = (sys) => sys.planets.some(p => p.owner != null)
+
+const firstOwner = (sys) => sys.planets.find(p => p.owner)?.owner ?? null
+
+const uniqueOwners = (sys) => {
+  const seen = new Set()
+  return sys.planets
+    .filter(p => p.owner && !seen.has(p.owner.playerId) && seen.add(p.owner.playerId))
+    .map(p => p.owner)
+}
 
 const contactOf = (sysId) =>
   systemContacts.value[sysId] ?? { scanState: 'unscanned', scanEndsAt: null }
 
-// Home system is always treated as scanned (it's the player's own)
 const resolvedScanState = (sys) =>
   isHome(sys) ? 'scanned' : contactOf(sys.id).scanState
 
@@ -47,8 +54,8 @@ const scanRemaining = (sysId) => {
   return c.scanEndsAt ? Math.max(0, Math.ceil((c.scanEndsAt - now.value) / 1000)) : 0
 }
 
-const ownedCount = (sys, factionName) =>
-  sys.planets.filter(p => p.owner === factionName).length
+const ownedCount = (sys, playerId) =>
+  sys.planets.filter(p => p.owner?.playerId === playerId).length
 
 // ── Selection — home system pre-selected ──────────────────────────────────────
 const selectedId = ref(homeSystemId.value)
@@ -105,11 +112,11 @@ const tileClass = (sys) => {
         <!-- SCANNED -->
         <template v-else-if="resolvedScanState(sys) === 'scanned'">
           <span class="hs-galaxy-tile-icon">
-            {{ isInhabited(sys) ? (sys.factions?.[0]?.portrait ?? '👤') : (STAR_CLASS_ICON[sys.starClass] ?? '⭐') }}
+            {{ isInhabited(sys) ? (firstOwner(sys)?.portrait ?? '👤') : (STAR_CLASS_ICON[sys.starClass] ?? '⭐') }}
           </span>
           <span class="hs-galaxy-tile-name">{{ sys.name }}</span>
           <span v-if="isInhabited(sys)" class="hs-galaxy-tile-state hs-galaxy-tile-state--inhabited">
-            {{ sys.factions?.[0]?.name ?? '?' }}
+            {{ firstOwner(sys)?.username ?? '?' }}
           </span>
           <span v-else class="hs-galaxy-tile-state hs-galaxy-tile-state--free">
             {{ t('hawkStar.galaxy.stateUncolonized') }}
@@ -148,14 +155,14 @@ const tileClass = (sys) => {
             <button class="hs-galaxy-card-close" @click="selectedId = null">✕</button>
           </div>
 
-          <!-- Faction list (inhabited foreign systems) -->
+          <!-- Owner list (inhabited foreign systems) -->
           <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-comm-section">
             <div class="hs-faction-list">
-              <div v-for="faction in selected.factions ?? []" :key="faction.name" class="hs-faction-row">
-                <span class="hs-faction-portrait">{{ faction.portrait }}</span>
+              <div v-for="owner in uniqueOwners(selected)" :key="owner.playerId" class="hs-faction-row">
+                <span class="hs-faction-portrait">{{ owner.portrait ?? '👤' }}</span>
                 <div class="hs-faction-info">
-                  <span class="hs-faction-name">{{ faction.name }}</span>
-                  <span class="hs-faction-count">{{ ownedCount(selected, faction.name) }} 🪐</span>
+                  <span class="hs-faction-name">{{ owner.username }}</span>
+                  <span class="hs-faction-count">{{ ownedCount(selected, owner.playerId) }} 🪐</span>
                 </div>
               </div>
             </div>
@@ -172,7 +179,7 @@ const tileClass = (sys) => {
               <span
                 v-else-if="planet.owner"
                 class="hs-planet-tag hs-planet-tag--owner"
-              >{{ planet.owner }}</span>
+              >{{ planet.owner?.username }}</span>
             </li>
           </ul>
         </div>

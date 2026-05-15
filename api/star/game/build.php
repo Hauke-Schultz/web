@@ -53,13 +53,6 @@ if (!empty($def['requiresBuilding'])) {
     if ($reqCurrent < $reqLevel) fail("Requires $reqKey level $reqLevel");
 }
 
-// Check one build at a time (per planet)
-$inProgress = $db->prepare(
-    'SELECT COUNT(*) FROM hs_buildings WHERE planet_id=? AND player_id=? AND build_ends_at IS NOT NULL'
-);
-$inProgress->execute([$planetId, $playerId]);
-if ((int)$inProgress->fetchColumn() > 0) fail('Another building is already in progress on this planet');
-
 // Lazy resource computation before deducting cost
 compute_resources($db, $planetId, $playerId, $planet['type']);
 

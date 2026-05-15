@@ -92,7 +92,7 @@ Bei jeder Registrierung erstellt `create_player_system()`:
 - 4 bewohnbare Planeten (terrestrial, volcanic, frozen, ocean, gemischt) + 2–3 unbewohnbare
 - Gibt `['systemId' => int, 'planetId' => int]` zurück (Home Planet = zufälliger bewohnbarer Planet)
 
-Aktuell **keine NPCs** — nur echte Spieler. Die `hs_npc_factions`-Tabelle existiert für später.
+Nur echte Spieler — keine NPCs.
 
 ---
 
@@ -110,8 +110,6 @@ hs_star_systems (id, galaxy_id, name, x FLOAT, y FLOAT, star_class CHAR(1))
 
 hs_planets (id, system_id, name, type ENUM('terrestrial','volcanic','frozen','ocean','uninhabitable'))
 
-hs_npc_factions (id, system_id, name, portrait, disposition)   -- für spätere NPCs
-hs_npc_planet_ownership (planet_id PK, faction_id)
 
 -- ── Per-player state ──────────────────────────────────────────────────────────
 
@@ -214,8 +212,8 @@ GET  /api/star/galaxy
 |-------|--------|--------|
 | **1** | Auth, Galaxie, Gebäude, Ressourcen, Forschung, Missionen, Konvertierung | ✅ **Implementiert** |
 | **1b** | Auth-Modal (Login-Default, Remember-Me), API-Wrapper, initFromApi, Write-Actions, Apache-Fix, HsDockPanel | ✅ **Implementiert** |
-| **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth | ⬜ **Nächster Schritt** |
-| **2** | Scanning (`hs_system_contacts`), NPC-Komm (`hs_comm_log`), server-seitig | ⬜ Offen |
+| **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth | ✅ **Implementiert** |
+| **2** | Scanning (`hs_system_contacts`), Player-Komm (`hs_comm_log`), server-seitig | ⬜ Offen |
 | **3** | Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Offen |
 | **4** | Espionage — Recon in fremden Systemen, Intel-DB | ⬜ Offen |
 | **5** | Kampf — Kriegsschiffe, stat-basierter Combat | ⬜ Offen |
@@ -289,14 +287,13 @@ LocalStorage-Save (`hawk-star-save`) entfernen — API ist alleinige Source of T
 
 ---
 
-## Phase 2 — Scanning & NPC Communication
+## Phase 2 — Scanning & Player Communication
 
 Frontend ist feature-complete. Backend braucht:
 
 - `hs_system_contacts` + Scan-Endpoint (server-seitig: one-at-a-time durchsetzen)
 - Scan-Dauer-Formel spiegelt Frontend: `max(7200, dist × 180)` Sekunden
-- NPC-Auto-Response server-seitig (disposition → Response-Key-Pool)
-- `hs_comm_log` + Send/Receive-Endpoints
+- `hs_comm_log` + Send/Receive-Endpoints (Emoji von Spieler zu Spieler, travel-time delay)
 - `GET /api/star/galaxy/contacts` gibt alle Scan-States zurück
 
 ```

@@ -173,14 +173,7 @@ When a player registers, `create_player_system()` (in `api/star/config.php`) run
 - Generates **6–7 planets**: exactly 4 habitable types + 2–3 uninhabitable, shuffled
 - Returns the new system ID + the ID of the home planet (a random habitable planet)
 
-### Frontend (current, pre-migration)
-
-Until the frontend migrates to the backend API, `generateGalaxy()` in `hawkStarGalaxyMock.js` still provides the local mock galaxy for the frontend:
-- Returns **9 systems**: 2 fixed NPC systems (Kepler/Asha, Vorn/Krath) + 7 random empty systems
-- Stored in the save and restored on reload
-- Will be replaced by `GET /api/star/galaxy` once frontend migration is complete
-
-### Planet States
+1### Planet States
 
 **Planets** carry individual states: `own` · `uncolonized` · `uninhabitable` · `scanning` · `colonizing` · `unknown`
 
@@ -229,13 +222,8 @@ Scanning is one-way and permanent — a scanned system stays scanned.
 
 Once a system is `scanned`, its **system card** on the Galaxy Map shows:
 
-- Which planets are owned and by whom (NPC name or future: player name)
-- How many planets that faction controls in this system
-- The faction's portrait/icon placeholder (for NPCs: defined in `hawkStarGalaxyMock.js`)
-
-Example: Kepler system scanned → shows "Asha · 2 planets".
-
-NPCs in `hawkStarGalaxyMock.js` get a `portrait` field (emoji or icon id) for display.
+- Which planets are owned and by whom (player username + portrait)
+- How many planets that player controls in this system
 
 ---
 
@@ -248,22 +236,14 @@ Once a system is `scanned`, the player can **send an emoji** to its inhabitants.
 - The Comm Log panel (right side of the Galaxy Map card) shows a **"📡 Nachricht senden ▾"** button at the bottom.
 - Clicking opens an emoji picker. Clicking an emoji **sends immediately** — no separate send button.
 - The emoji travels (same signal time as the scan — distance-based).
-- On arrival, the NPC picks an auto-response emoji from a predefined pool based on their `disposition`.
-- Both the sent emoji and the NPC response appear as chat bubbles in the **Comm Log**.
+- On arrival, the emoji appears in the target player's Comm Log (server-side, Phase 2 backend).
+- Sent emojis appear as chat bubbles in the **Comm Log**.
 
 **Sendable emoji pool (`COMM_EMOJIS` in `hawkStarConfig.js`):**
 
 `👋 🤝 🌟 ✌️ 😊 🕊️ 🌿 💫 🌈 💎 💰 📦 🔭 📡 🛸 ⚠️ 💥 🔥`
 
-**NPC auto-response pool — displayed as emojis, keyed by `disposition`:**
-
-| Disposition | Response keys | Displayed emoji |
-|-------------|--------------|-----------------|
-| `friendly` | `npc_welcome`, `npc_glad`, `npc_peace_back` | 👋, 😊, 🕊️ |
-| `neutral` | `npc_acknowledged`, `npc_received`, `npc_noted` | ✅, 📨, 📝 |
-| `hostile` | `npc_stay_away`, `npc_not_interested`, `npc_channel_closed` | ✋, 🚫, 🔒 |
-
-The emoji mapping lives in `HsCommLog.vue` (`NPC_EMOJI` constant). No free text, no game-state change from messaging (that comes later).
+No free text, no game-state change from messaging (that comes later).
 
 ---
 
@@ -287,13 +267,12 @@ commLog: [
   {
     id:          'msg_1234',
     direction:   'sent' | 'received',
-    systemId:    'kepler',
-    systemName:  'Kepler',
-    factions:    [{ name: 'Asha', portrait: '🌺', disposition: 'friendly' }],
-    messageKey:  '👋',             // emoji string (sent) or NPC key e.g. 'npc_welcome' (received)
+    systemId:    42,
+    systemName:  'Arix System',
+    owners:      [{ username: 'Froppy', portrait: '👨‍🚀' }],
+    messageKey:  '👋',             // emoji string
     timestamp:   1234567890,
     travelEndsAt: null | timestamp, // null once delivered
-    replyEndsAt:  null,
   }
 ]
 ```
@@ -345,7 +324,7 @@ The Galaxy Map shows two areas below the tile row:
 **Tile states:**
 - `unscanned`: star icon + system name — no inhabitants shown.
 - `scanning`: pulsing amber 📶 + countdown.
-- `scanned` (inhabited): faction portrait + name.
+- `scanned` (inhabited): player portrait + username.
 - `scanned` (empty): free/uncolonized label.
 - Home system: always shown as own colony (blue).
 - "Scan" button visible when: `star_map` Lv3 researched + system is `unscanned` + no other scan active.
@@ -363,7 +342,7 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 - Consecutive messages from the same direction are **grouped into one row** and displayed as side-by-side emoji bubbles.
 - Always shows the last **10 rows** (groups). If more exist, a **"↑ Ältere Nachrichten anzeigen"** button appears at the top.
 - Sent messages: right-aligned, blue bubble.
-- Received messages: left-aligned, teal bubble, with faction avatar and faction name above the bubble row.
+- Received messages: left-aligned, teal bubble, with player portrait and username above the bubble row.
 - Messages in transit are shown at reduced opacity with a small countdown timer.
 - Auto-scrolls to the bottom on new messages.
 
@@ -378,9 +357,8 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 
 | File | Change | Status |
 |------|--------|--------|
-| `hawkStarConfig.js` | Added `interstellar_comm` building (global, `comm_center`, 2 levels) + `COMM_MESSAGES`, `NPC_RESPONSES`, `SIGNAL_SPEED_BASE` exports | ✅ Done |
-| `hawkStarGalaxyMock.js` | Added `factions` array with `disposition` + `portrait` to Kepler system | ✅ Done |
-| `useHawkStar.js` | Added `systemContacts`, `commLog`, `interstellarCommLevel`, `scanSystem()`, `sendMessage()`, `canScanSystem()`, `canMessageSystem()`, `signalTravelTime()`, `_deliverMessage()`, signal tick loop | ✅ Done |
+| `hawkStarConfig.js` | Added `interstellar_comm` building (global, `comm_center`, 2 levels) + `COMM_EMOJIS`, `SIGNAL_SPEED_BASE` exports | ✅ Done |
+| `useHawkStar.js` | Added `systemContacts`, `commLog`, `interstellarCommLevel`, `scanSystem()`, `sendMessage()`, `canScanSystem()`, `canMessageSystem()`, `signalTravelTime()`, signal tick loop | ✅ Done |
 | `HsGalaxyMap.vue` | Scan button, scanning indicator (pulsing badge), scanned faction display, message dropdown + Comm Log section | ✅ Done |
 | `en.json` / `de.json` | Added keys under `hawkStar.comm.*` and `hawkStar.buildings.interstellar_comm` | ✅ Done |
 
@@ -398,7 +376,7 @@ All static game data lives in `hawkStarConfig.js` and is structured to map 1:1 t
 | `BUILDINGS` | `buildings` |
 | `BUILDINGS[id].levels` | `building_levels` (composite PK: buildingId + level) |
 
-Player state (resources, slot unlock status, building progress) is currently persisted in **LocalStorage** and will migrate to a backend API. Saves include a version guard — outdated saves are automatically discarded.
+Player state (resources, slot unlock status, building progress) is served exclusively from the backend API (`GET /api/star/game/state`). LocalStorage only holds the JWT token and dev settings.
 
 ---
 
@@ -532,16 +510,13 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Notification Panel                            | ✅ Done |
 | Localisation (i18n) — all components          | ✅ Done |
 | Research → Comm Center rename + Star Map global | ✅ Done |
-| NPC factions in mock (Asha/Kepler, disposition) | ✅ Done |
 | `interstellar_comm` research (Comm Center, global, requires star_map Lv3) | ✅ Done |
 | System scanning — `systemContacts`, one scan at a time, hours-based duration | ✅ Done |
 | Galaxy scanning gate — `star_map` Lv3, uses actual completed level (not in-progress) | ✅ Done |
 | Galaxy Map — scan button, scanning indicator, scanned display, ⏳ busy state | ✅ Done |
-| Predefined emoji messages + `commLog` + NPC auto-response | ✅ Done |
+| Predefined emoji messages + `commLog` (frontend-local, backend Phase 2) | ✅ Done |
 | Comm log in Galaxy Map view | ✅ Done |
 | i18n — `hawkStar.comm.*` + `hawkStar.buildings.interstellar_comm` | ✅ Done |
-| Procedural galaxy generator (`generateGalaxy()`) — per-player, persisted in save | ✅ Done |
-| Two NPC factions — Asha (friendly) + Krath (hostile) | ✅ Done |
 | `recon_drone` + `colony_ship` simplified to 1 level, 1 active mission at a time | ✅ Done |
 | Commander profile — portrait picker, name edit, disposition selector (`HsProfilePanel`) | ✅ Done |
 | `formatTime` — supports s / m s / h m / t h m s formats | ✅ Done |
@@ -555,8 +530,8 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Write-Actions auf API: `startBuild`, `sendReconDrone`, `sendColonyShip`, `startConversion` | ✅ Done |
 | Drone/Colony — kein Inventory mehr, direktes Mission-Modell (Building = Unit) | ✅ Done |
 | `HsDockPanel` — an neues Missions-Modell angepasst (kein Build-Step, direkte Mission-Anzeige) | ✅ Done |
-| Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth | ⬜ Next |
-| Backend — Phase 2: Scanning & NPC Comm (system_contacts, comm_log server-side) | ⬜ Planned |
+| Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth | ✅ Done |
+| Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side) | ⬜ Planned |
 | Backend — Phase 3: Player Interaction (trade, player messaging) | ⬜ Planned |
 | Backend — Phase 4: Espionage | ⬜ Planned |
 | Backend — Phase 5: Combat | ⬜ Planned |

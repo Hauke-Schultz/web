@@ -1360,7 +1360,7 @@ export const BUILDINGS = {
   },
 }
 
-// ── Communication — emoji picker & NPC responses ──────────────────────────────
+// ── Communication — emoji picker ─────────────────────────────────────────────
 
 export const COMM_EMOJIS = [
   // Gestures & hands
@@ -1381,13 +1381,6 @@ export const COMM_EMOJIS = [
   '💩', '🤬', '🤡', '🐀', '🦠',
   '🗑️', '💣',  '😈', '🤮',
 ]
-
-// Auto-responses keyed by NPC disposition. One is picked at random on arrival.
-export const NPC_RESPONSES = {
-  friendly: ['npc_welcome', 'npc_glad',         'npc_peace_back'],
-  neutral:  ['npc_acknowledged', 'npc_received', 'npc_noted'],
-  hostile:  ['npc_stay_away', 'npc_not_interested', 'npc_channel_closed'],
-}
 
 // Base signal travel time in seconds per galaxy-distance unit.
 // Halved at interstellar_comm Lv2.

@@ -14,19 +14,6 @@ const {
   galaxySystems,
 } = useHawkStar()
 
-// NPC response key → emoji
-const NPC_EMOJI = {
-  npc_welcome:        '👋',
-  npc_glad:           '😊',
-  npc_peace_back:     '🕊️',
-  npc_acknowledged:   '✅',
-  npc_received:       '📨',
-  npc_noted:          '📝',
-  npc_stay_away:      '✋',
-  npc_not_interested: '🚫',
-  npc_channel_closed: '🔒',
-}
-const npcEmoji = (key) => NPC_EMOJI[key] ?? '💬'
 
 const MAX_VISIBLE = 10
 const showOlder   = ref(false)
@@ -66,8 +53,8 @@ const hasOlder = computed(() =>
 
 // Send controls
 const systemData  = computed(() => galaxySystems.value.find(s => s.id === props.systemId))
-const hasFactions = computed(() => (systemData.value?.factions?.length ?? 0) > 0)
-const showSendBar = computed(() => hasFactions.value && canMessageSystem(props.systemId))
+const hasPlayers  = computed(() => systemData.value?.planets.some(p => p.owner != null) ?? false)
+const showSendBar = computed(() => hasPlayers.value && canMessageSystem(props.systemId))
 
 const showEmojiPicker = ref(false)
 
@@ -113,16 +100,16 @@ watch(() => props.systemId, () => {
       >
         <!-- Avatar (received only) -->
         <span v-if="group.direction === 'received'" class="hs-chat-avatar">
-          {{ group.entries[0].factions?.[0]?.portrait ?? '👤' }}
+          {{ group.entries[0].owners?.[0]?.portrait ?? '👤' }}
         </span>
 
-        <!-- Content: faction label + bubble row -->
+        <!-- Content: sender label + bubble row -->
         <div
           class="hs-chat-content"
           :class="group.direction === 'received' ? 'hs-chat-content--received' : ''"
         >
           <span v-if="group.direction === 'received'" class="hs-chat-from">
-            {{ group.entries[0].factions?.[0]?.name ?? '?' }}
+            {{ group.entries[0].owners?.[0]?.username ?? '?' }}
           </span>
           <div class="hs-chat-bubbles">
             <div
@@ -135,10 +122,10 @@ watch(() => props.systemId, () => {
               ]"
             >
               <span v-if="entry.travelEndsAt > now.value" class="hs-chat-emoji hs-chat-emoji--transit">
-                {{ group.direction === 'sent' ? entry.messageKey : npcEmoji(entry.messageKey) }}
+                {{ entry.messageKey }}
               </span>
               <span v-else class="hs-chat-emoji">
-                {{ group.direction === 'sent' ? entry.messageKey : npcEmoji(entry.messageKey) }}
+                {{ entry.messageKey }}
               </span>
               <span v-if="entry.travelEndsAt > now.value" class="hs-chat-transit-timer">
                 {{ formatTime(Math.max(0, Math.ceil((entry.travelEndsAt - now.value) / 1000))) }}
