@@ -39,7 +39,7 @@ const allResources = computed(() =>
         <div class="hs-res-info">
           <span class="hs-res-name">{{ t('hawkStar.res.' + res.id) }}</span>
           <span class="hs-res-amount">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
-          <span v-if="production[res.id]" class="hs-res-rate">+{{ production[res.id] }}/t</span>
+          <span v-if="production[res.id]" class="hs-res-rate">+{{ production[res.id] }}/m</span>
           <span v-if="maxStorage[res.id]" class="hs-res-cap">/{{ maxStorage[res.id] }}</span>
         </div>
       </div>

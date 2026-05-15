@@ -149,7 +149,8 @@ CREATE TABLE IF NOT EXISTS hs_comm_log (
   direction      ENUM('sent','received') NOT NULL,
   message_key    VARCHAR(64) NOT NULL,
   travel_ends_at DATETIME NULL,
-  reply_ends_at  DATETIME NULL,
+  sent_msg_id    INT NULL REFERENCES hs_comm_log(id),
+  from_player_id INT NULL REFERENCES hs_players(id),
   created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

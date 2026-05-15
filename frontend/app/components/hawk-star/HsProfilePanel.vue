@@ -2,19 +2,28 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
+import { useHawkStarAuth } from '~/composables/useHawkStarAuth.js'
 
 const { t } = useI18n()
 const { playerName, playerPortrait, playerDisposition } = useHawkStar()
+const { logout, deleteAccount } = useHawkStarAuth()
 
 const PORTRAITS = ['👨‍🚀', '👩‍🚀', '🧑‍🚀', '🤖', '👾', '🧠', '💀', '🦾', '⭐', '🪐', '🔭', '⚡']
 const DISPOSITIONS = ['friendly', 'neutral', 'hostile']
 const DISP_ICON = { friendly: '🤝', neutral: '⚖️', hostile: '⚔️' }
 
-const showPicker = ref(false)
+const showPicker     = ref(false)
+const confirmDelete  = ref(false)
 
 const selectPortrait = (p) => {
   playerPortrait.value = p
   showPicker.value = false
+}
+
+const handleDelete = async () => {
+  if (!confirmDelete.value) { confirmDelete.value = true; return }
+  await deleteAccount()
+  confirmDelete.value = false
 }
 </script>
 
@@ -65,6 +74,21 @@ const selectPortrait = (p) => {
           >{{ DISP_ICON[d] }} {{ t('hawkStar.profile.' + d) }}</button>
         </div>
       </div>
+    </div>
+
+    <!-- Account actions -->
+    <div class="hs-profile-actions">
+      <button class="hs-profile-btn hs-profile-btn--logout" @click="logout">
+        ↩ Logout
+      </button>
+      <button
+        class="hs-profile-btn hs-profile-btn--delete"
+        :class="{ 'hs-profile-btn--confirm': confirmDelete }"
+        @click="handleDelete"
+        @blur="confirmDelete = false"
+      >
+        {{ confirmDelete ? '⚠ Wirklich löschen?' : '🗑 Profil löschen' }}
+      </button>
     </div>
   </div>
 </template>
@@ -221,5 +245,49 @@ const selectPortrait = (p) => {
     border-color: rgba(248,113,113,0.4);
     color: #f87171;
   }
+}
+
+// ── Account actions ───────────────────────────────────────────────────────────
+.hs-profile-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.6rem;
+  border-top: 1px solid var(--hs-line-sm);
+}
+
+.hs-profile-btn {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+  &--logout {
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.5);
+    &:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.8); }
+  }
+
+  &--delete {
+    border: 1px solid rgba(248,113,113,0.2);
+    background: rgba(248,113,113,0.05);
+    color: rgba(248,113,113,0.5);
+    &:hover { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.4); color: #f87171; }
+  }
+
+  &--confirm {
+    border-color: rgba(248,113,113,0.7) !important;
+    background: rgba(248,113,113,0.15) !important;
+    color: #f87171 !important;
+    animation: hs-pulse-danger 0.6s ease;
+  }
+}
+
+@keyframes hs-pulse-danger {
+  0%, 100% { box-shadow: none; }
+  50%       { box-shadow: 0 0 8px rgba(248,113,113,0.4); }
 }
 </style>

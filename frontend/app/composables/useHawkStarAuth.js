@@ -99,6 +99,11 @@ async function logout() {
   clearAuth()
 }
 
+async function deleteAccount() {
+  try { await apiFetch('/auth/delete', { method: 'POST' }) } catch { /* ignore */ }
+  clearAuth()
+}
+
 // Verify existing token on app start — clears token if expired/invalid
 async function verifyToken() {
   if (!token.value) return false
@@ -125,6 +130,7 @@ export function useHawkStarAuth() {
     register,
     login,
     logout,
+    deleteAccount,
     verifyToken,
   }
 }

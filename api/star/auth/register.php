@@ -39,9 +39,10 @@ $db->prepare(
      VALUES (?,?,1,NOW())'
 )->execute([$homePlanet['planet_id'], $playerId]);
 
-// Initialize planet state and global research
+// Initialize planet state, global research, and home system scan state
 init_planet($db, $homePlanet['planet_id'], $playerId, true);
 init_global_research($db, $playerId);
+init_system_contacts($db, $playerId, $newSystem['systemId']);
 
 // Issue token
 $exp     = time() + 7 * 86400;

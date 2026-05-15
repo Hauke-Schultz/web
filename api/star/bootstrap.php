@@ -116,6 +116,65 @@ function init_global_research(PDO $db, int $playerId): void {
     }
 }
 
+// ── System contacts & comm delivery ──────────────────────────────────────────
+
+function init_system_contacts(PDO $db, int $playerId, int $homeSystemId): void {
+    $db->prepare(
+        "INSERT IGNORE INTO hs_system_contacts (player_id, system_id, scan_state) VALUES (?,?,'scanned')"
+    )->execute([$playerId, $homeSystemId]);
+}
+
+function resolve_system_contacts(PDO $db, int $playerId): void {
+    $db->prepare(
+        "UPDATE hs_system_contacts
+         SET scan_state='scanned', scan_ends_at=NULL
+         WHERE player_id=? AND scan_state='scanning' AND scan_ends_at IS NOT NULL AND scan_ends_at <= NOW()"
+    )->execute([$playerId]);
+}
+
+function resolve_comm_deliveries(PDO $db, int $playerId): void {
+    // Find in-transit messages from other players targeting systems where this player owns planets
+    $pending = $db->prepare(
+        "SELECT cl.id, cl.player_id AS sender_id, cl.system_id, cl.message_key, cl.created_at
+         FROM hs_comm_log cl
+         WHERE cl.direction = 'sent'
+           AND cl.travel_ends_at IS NOT NULL
+           AND cl.travel_ends_at <= NOW()
+           AND cl.player_id != ?
+           AND cl.system_id IN (
+               SELECT p.system_id FROM hs_planets p
+               JOIN hs_planet_ownership po ON po.planet_id = p.id
+               WHERE po.player_id = ?
+           )
+           AND NOT EXISTS (
+               SELECT 1 FROM hs_comm_log r
+               WHERE r.sent_msg_id = cl.id AND r.player_id = ?
+           )"
+    );
+    $pending->execute([$playerId, $playerId, $playerId]);
+
+    $senderHomeStmt = $db->prepare(
+        'SELECT p.system_id FROM hs_planet_ownership po
+         JOIN hs_planets p ON p.id = po.planet_id
+         WHERE po.player_id = ? AND po.is_home = 1 LIMIT 1'
+    );
+    $insertStmt = $db->prepare(
+        "INSERT INTO hs_comm_log (player_id, system_id, direction, message_key, from_player_id, sent_msg_id, created_at)
+         VALUES (?,?,'received',?,?,?,?)"
+    );
+
+    foreach ($pending->fetchAll() as $msg) {
+        $senderHomeStmt->execute([$msg['sender_id']]);
+        $senderSystemId = $senderHomeStmt->fetchColumn();
+        if (!$senderSystemId) continue;
+        $insertStmt->execute([
+            $playerId, (int)$senderSystemId,
+            $msg['message_key'], (int)$msg['sender_id'], (int)$msg['id'],
+            $msg['created_at'],
+        ]);
+    }
+}
+
 // ── Timer resolution ──────────────────────────────────────────────────────────
 
 function resolve_timers(PDO $db, int $planetId, int $playerId): void {
@@ -297,7 +356,7 @@ function compute_resources(PDO $db, int $planetId, int $playerId, string $planet
     foreach (RESOURCE_KEYS as $res) {
         if ($res === 'population') continue;
         $current       = (float)($r[$res] ?? 0);
-        $newVal        = $current + ($production[$res] ?? 0) * $elapsed;
+        $newVal        = $current + ($production[$res] ?? 0) * $elapsed / 60.0;
         if (isset($caps[$res])) $newVal = min($newVal, $caps[$res]);
         $updates[$res] = max(0, $newVal);
     }

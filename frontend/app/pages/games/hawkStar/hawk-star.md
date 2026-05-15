@@ -173,7 +173,7 @@ When a player registers, `create_player_system()` (in `api/star/config.php`) run
 - Generates **6–7 planets**: exactly 4 habitable types + 2–3 uninhabitable, shuffled
 - Returns the new system ID + the ID of the home planet (a random habitable planet)
 
-1### Planet States
+### Planet States
 
 **Planets** carry individual states: `own` · `uncolonized` · `uninhabitable` · `scanning` · `colonizing` · `unknown`
 
@@ -361,6 +361,14 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `useHawkStar.js` | Added `systemContacts`, `commLog`, `interstellarCommLevel`, `scanSystem()`, `sendMessage()`, `canScanSystem()`, `canMessageSystem()`, `signalTravelTime()`, signal tick loop | ✅ Done |
 | `HsGalaxyMap.vue` | Scan button, scanning indicator (pulsing badge), scanned faction display, message dropdown + Comm Log section | ✅ Done |
 | `en.json` / `de.json` | Added keys under `hawkStar.comm.*` and `hawkStar.buildings.interstellar_comm` | ✅ Done |
+| `useHawkStarApi.js` | Added `fetchContacts`, `postScanSystem`, `postSendMessage`, `fetchCommLog` | ✅ Done |
+| `useHawkStar.js` | `scanSystem()` + `sendMessage()` auf API umgestellt; `initFromApi()` lädt Contacts + CommLog | ✅ Done |
+| `bootstrap.php` | Added `init_system_contacts()`, `resolve_system_contacts()`, `resolve_comm_deliveries()` | ✅ Done |
+| `galaxy/contacts.php` | `GET /api/star/galaxy/contacts` — gibt alle Scan-States zurück | ✅ Done |
+| `galaxy/scan.php` | `POST /api/star/galaxy/scan` — startet System-Scan (gate: star_map Lv3, 1 gleichzeitig) | ✅ Done |
+| `comm/send.php` | `POST /api/star/comm/send` — sendet Emoji mit Travel-Time-Delay | ✅ Done |
+| `comm/log.php` | `GET /api/star/comm/log` — liefert CommLog inkl. lazy Delivery empfangener Nachrichten | ✅ Done |
+| `002_hawk_star_schema.sql` | `hs_comm_log` um `sent_msg_id` + `from_player_id` erweitert | ✅ Done |
 
 ---
 
@@ -531,7 +539,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Drone/Colony — kein Inventory mehr, direktes Mission-Modell (Building = Unit) | ✅ Done |
 | `HsDockPanel` — an neues Missions-Modell angepasst (kein Build-Step, direkte Mission-Anzeige) | ✅ Done |
 | Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth | ✅ Done |
-| Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side) | ⬜ Planned |
+| Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side) | ✅ Done |
 | Backend — Phase 3: Player Interaction (trade, player messaging) | ⬜ Planned |
 | Backend — Phase 4: Espionage | ⬜ Planned |
 | Backend — Phase 5: Combat | ⬜ Planned |

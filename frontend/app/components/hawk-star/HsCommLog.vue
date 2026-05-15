@@ -19,10 +19,10 @@ const MAX_VISIBLE = 10
 const showOlder   = ref(false)
 const messagesRef = ref(null)
 
-// Filtered + sorted oldest→newest
+// Filtered + sorted oldest→newest (compare as strings — systemId can be int or string)
 const systemLog = computed(() =>
   commLog.value
-    .filter(e => e.systemId === props.systemId)
+    .filter(e => String(e.systemId) === String(props.systemId))
     .slice()
     .sort((a, b) => a.timestamp - b.timestamp)
 )

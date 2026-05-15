@@ -25,5 +25,9 @@ export function useHawkStarApi() {
     postDroneMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/drone',   { fromPlanetId, toPlanetId }),
     postColonyMission: (fromPlanetId, toPlanetId)     => post('/game/mission/colony',  { fromPlanetId, toPlanetId }),
     getMissions:       ()                              => apiFetch('/game/missions'),
+    fetchContacts:     ()                              => apiFetch('/galaxy/contacts'),
+    postScanSystem:    (systemId)                      => post('/galaxy/scan',          { systemId }),
+    postSendMessage:   (systemId, messageKey)          => post('/comm/send',            { systemId, messageKey }),
+    fetchCommLog:      ()                              => apiFetch('/comm/log'),
   }
 }

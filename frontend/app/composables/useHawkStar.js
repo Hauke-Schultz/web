@@ -105,6 +105,7 @@ const homeResources   = computed(() => allPlanetStates.value[homePlanetId.value]
 const activeSlot = ref(5)
 const now = ref(Date.now())
 let tickInterval = null
+const lastResourceSync = ref(0)
 
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
@@ -166,6 +167,13 @@ const production = computed(() => ({
 }))
 
 const energyDeficit = computed(() => production.value.energy < 0)
+
+// 0 → 1 over 60 seconds, resets on each resource sync
+const tickProgress = computed(() =>
+  lastResourceSync.value === 0
+    ? 0
+    : Math.min(1, (now.value - lastResourceSync.value) / 60000)
+)
 
 // ── Staff / population ─────────────────────────────────────
 const totalStaffDrain = computed(() => {
@@ -632,11 +640,24 @@ const canScanSystem = (systemId) => {
   return contact?.scanState === 'unscanned'
 }
 
-const scanSystem = (systemId) => {
+const scanSystem = async (systemId) => {
   if (!canScanSystem(systemId)) return
+  // Optimistic update while API call is in flight
   systemContacts.value[systemId] = {
     scanState:  'scanning',
     scanEndsAt: Date.now() + scanDuration(systemId) * 1000,
+  }
+  try {
+    const { postScanSystem } = useHawkStarApi()
+    const data = await postScanSystem(systemId)
+    systemContacts.value[systemId] = {
+      scanState:  'scanning',
+      scanEndsAt: data.scanEndsAt,
+    }
+  } catch (e) {
+    // Rollback optimistic update
+    systemContacts.value[systemId] = { scanState: 'unscanned', scanEndsAt: null }
+    console.error('[hawk-star] Scan failed:', e)
   }
 }
 
@@ -644,22 +665,28 @@ const canMessageSystem = (systemId) =>
   interstellarCommLevel.value >= 1 &&
   systemContacts.value[systemId]?.scanState === 'scanned'
 
-const sendMessage = (systemId, messageKey) => {
+const sendMessage = async (systemId, messageKey) => {
   if (!canMessageSystem(systemId)) return
-  const sys = galaxySystems.value.find(s => s.id === systemId)
+  const sysId = typeof systemId === 'string' ? parseInt(systemId, 10) : systemId
+  const sys = galaxySystems.value.find(s => s.id === sysId)
   if (!sys) return
-  const travelSec = signalTravelTime(systemId)
-  const owners = sys.planets.filter(p => p.owner != null).map(p => p.owner)
-  commLog.value.unshift({
-    id:           `msg_${Date.now()}_${systemId}`,
-    direction:    'sent',
-    systemId,
-    systemName:   sys.name,
-    owners,
-    messageKey,
-    timestamp:    Date.now(),
-    travelEndsAt: Date.now() + travelSec * 1000,
-  })
+  try {
+    const { postSendMessage } = useHawkStarApi()
+    const data = await postSendMessage(sysId, messageKey)
+    const owners = sys.planets.filter(p => p.owner != null).map(p => p.owner)
+    commLog.value.unshift({
+      id:           data.messageId,
+      direction:    'sent',
+      systemId:     sysId,
+      systemName:   sys.name,
+      owners,
+      messageKey,
+      timestamp:    Date.now(),
+      travelEndsAt: data.travelEndsAt,
+    })
+  } catch (e) {
+    console.error('[hawk-star] Send message failed:', e)
+  }
 }
 
 
@@ -776,6 +803,16 @@ export const resetGame = () => {
 // ── Tick ───────────────────────────────────────────────────
 const tick = () => {
   now.value = Date.now()
+
+  // Sync resources from server once per minute
+  if (gameLoaded.value && activePlanetId.value && now.value - lastResourceSync.value >= 60000) {
+    lastResourceSync.value = now.value
+    const { fetchGameState } = useHawkStarApi()
+    fetchGameState(activePlanetId.value).then(state => {
+      const ps = allPlanetStates.value[activePlanetId.value]
+      if (ps && state?.resources) Object.assign(ps.resources, state.resources)
+    }).catch(() => {})
+  }
 
   // Process all per-planet conversion queues
   for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
@@ -976,7 +1013,7 @@ export const initFromApi = async () => {
   initError.value  = ''
 
   const { player, homePlanetId: authHomePlanetId } = useHawkStarAuth()
-  const { fetchGalaxy, fetchGameState } = useHawkStarApi()
+  const { fetchGalaxy, fetchGameState, fetchContacts, fetchCommLog } = useHawkStarApi()
   const myId = player.value?.id
 
   // Load galaxy
@@ -1011,7 +1048,7 @@ export const initFromApi = async () => {
   homePlanetId.value   = hpId
   activePlanetId.value = hpId
 
-  // Resolve home system + initialize systemContacts
+  // Derive home system (needed before contacts load)
   systemContacts.value = Object.fromEntries(
     galaxySystems.value.map(s => [s.id, { scanState: 'unscanned', scanEndsAt: null }])
   )
@@ -1023,6 +1060,31 @@ export const initFromApi = async () => {
     }
   }
 
+  // Load scan contacts from API (merges over defaults above)
+  try {
+    const contacts = await fetchContacts()
+    for (const [sysId, contact] of Object.entries(contacts)) {
+      systemContacts.value[sysId] = {
+        scanState:  contact.scanState,
+        scanEndsAt: contact.scanEndsAt,
+      }
+    }
+    // Home system is always scanned regardless
+    if (homeSystemId.value) {
+      systemContacts.value[homeSystemId.value] = { scanState: 'scanned', scanEndsAt: null }
+    }
+  } catch (e) {
+    console.error('[hawk-star] Contacts load failed (non-fatal):', e)
+  }
+
+  // Load comm log from API (API returns ASC, unshift-based display expects newest first)
+  try {
+    const log = await fetchCommLog()
+    commLog.value = log.slice().reverse()
+  } catch (e) {
+    console.error('[hawk-star] CommLog load failed (non-fatal):', e)
+  }
+
   // Load home planet game state
   try {
     const state = await fetchGameState(hpId)
@@ -1030,6 +1092,7 @@ export const initFromApi = async () => {
     playerName.value        = player.value?.username    ?? ''
     playerPortrait.value    = player.value?.portrait    ?? '👨‍🚀'
     playerDisposition.value = player.value?.disposition ?? 'neutral'
+    lastResourceSync.value = Date.now()
     gameLoaded.value = true
   } catch (e) {
     console.error('[hawk-star] Game state load failed:', e)
@@ -1088,6 +1151,7 @@ export function useHawkStar() {
     totalEnergyDrain,
     production,
     energyDeficit,
+    tickProgress,
     // staff
     totalStaffDrain,
     freeWorkers,

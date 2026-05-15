@@ -11,6 +11,7 @@ const {
   maxStorage,
   energyDeficit,
   planetType,
+  tickProgress,
 } = useHawkStar()
 
 const BAR_IDS = ['population', 'metal', 'crystal', 'alloy', 'cryo', 'obsidian', 'biomass', 'energy']
@@ -60,9 +61,17 @@ const visibleResources = computed(() =>
         class="hs-res-prod"
         :class="production[res.id] > 0 ? 'hs-res-prod--pos' : ''"
       >
-        {{ production[res.id] ? `+${production[res.id]}/t` : '' }}
+        {{ production[res.id] ? `+${production[res.id]}/m` : '' }}
         <template v-if="maxStorage[res.id]"> · /{{ maxStorage[res.id] }}</template>
       </span>
+
+      <!-- Tick progress bar: only for stockpiled resources with active production -->
+      <div
+        v-if="production[res.id] > 0 && res.id !== 'energy'"
+        class="hs-res-tick-bar"
+      >
+        <div class="hs-res-tick-fill" :style="{ width: `${tickProgress * 100}%` }" />
+      </div>
     </div>
   </div>
 </template>
@@ -87,10 +96,11 @@ const visibleResources = computed(() =>
   background: var(--hs-glass-md);
   border: 1px solid var(--hs-line-lg);
   border-radius: var(--hs-r-md);
-  padding: 0.375rem 0.15rem;
+  padding: 0.375rem 0.15rem 0;
+  overflow: hidden;
 
   @media (min-width: 640px) {
-    padding: 0.5rem 0.25rem;
+    padding: 0.5rem 0.25rem 0;
   }
 
   &--deficit {
@@ -116,10 +126,27 @@ const visibleResources = computed(() =>
   font-size: 0.55rem;
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 0.3rem;
 
   @media (min-width: 640px) { font-size: 0.6rem; }
 
   &--pos { color: var(--hs-ok); }
   &--neg { color: var(--hs-danger); }
+}
+
+// ── Tick progress bar ─────────────────────────────────────────────────────────
+.hs-res-tick-bar {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.hs-res-tick-fill {
+  height: 100%;
+  background: var(--hs-ok);
+  opacity: 0.6;
+  transition: width 1s linear;
 }
 </style>

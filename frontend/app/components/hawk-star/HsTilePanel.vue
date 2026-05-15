@@ -5,7 +5,6 @@ import { RESOURCES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
 import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
-import HsSettingsPanel from '~/components/hawk-star/HsSettingsPanel.vue'
 import HsProfilePanel from '~/components/hawk-star/HsProfilePanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 
@@ -41,7 +40,6 @@ const {
   startConversion,
   remainingConversionSec,
   conversionProgressStyle,
-  buildTimeFactor,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -94,11 +92,8 @@ const setConversionCount = (bId, idx, val) => {
   <!-- Profile -->
   <HsProfilePanel v-if="activePanel === 'profile'" />
 
-  <!-- Activity + Settings -->
-  <template v-else-if="activePanel === 'notifications'">
-    <HsNotificationPanel />
-    <HsSettingsPanel />
-  </template>
+  <!-- Activity -->
+  <HsNotificationPanel v-else-if="activePanel === 'notifications'" />
 
   <!-- Resources -->
   <HsAllResourcePanel v-else-if="activePanel === 'resources'" />
@@ -131,7 +126,7 @@ const setConversionCount = (bId, idx, val) => {
         <div class="hs-building-info">
           <div class="hs-building-name">{{ t('hawkStar.buildings.' + bDef.id + '.name') }}</div>
           <div v-if="currentLevelDef(bDef.id)" class="hs-building-stats">
-            <span v-for="(amt, resId) in currentLevelDef(bDef.id).production" :key="resId">{{ RESOURCES[resId]?.icon }} +{{ amt }}/s</span>
+            <span v-for="(amt, resId) in currentLevelDef(bDef.id).production" :key="resId">{{ RESOURCES[resId]?.icon }} +{{ amt }}/m</span>
             <span v-if="currentLevelDef(bDef.id).energyDrain">⚡ -{{ currentLevelDef(bDef.id).energyDrain }}</span>
             <span v-if="currentLevelDef(bDef.id).staffDrain">👥 {{ currentLevelDef(bDef.id).staffDrain }}</span>
           </div>

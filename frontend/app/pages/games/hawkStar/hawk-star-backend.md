@@ -213,7 +213,7 @@ GET  /api/star/galaxy
 | **1** | Auth, Galaxie, Gebäude, Ressourcen, Forschung, Missionen, Konvertierung | ✅ **Implementiert** |
 | **1b** | Auth-Modal (Login-Default, Remember-Me), API-Wrapper, initFromApi, Write-Actions, Apache-Fix, HsDockPanel | ✅ **Implementiert** |
 | **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth | ✅ **Implementiert** |
-| **2** | Scanning (`hs_system_contacts`), Player-Komm (`hs_comm_log`), server-seitig | ⬜ Offen |
+| **2** | Scanning (`hs_system_contacts`), Player-Komm (`hs_comm_log`), server-seitig | ✅ **Implementiert** |
 | **3** | Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Offen |
 | **4** | Espionage — Recon in fremden Systemen, Intel-DB | ⬜ Offen |
 | **5** | Kampf — Kriegsschiffe, stat-basierter Combat | ⬜ Offen |
@@ -287,21 +287,49 @@ LocalStorage-Save (`hawk-star-save`) entfernen — API ist alleinige Source of T
 
 ---
 
-## Phase 2 — Scanning & Player Communication
-
-Frontend ist feature-complete. Backend braucht:
-
-- `hs_system_contacts` + Scan-Endpoint (server-seitig: one-at-a-time durchsetzen)
-- Scan-Dauer-Formel spiegelt Frontend: `max(7200, dist × 180)` Sekunden
-- `hs_comm_log` + Send/Receive-Endpoints (Emoji von Spieler zu Spieler, travel-time delay)
-- `GET /api/star/galaxy/contacts` gibt alle Scan-States zurück
+## Phase 2 — Scanning & Player Communication ✅
 
 ```
-POST /api/star/galaxy/scan      { systemId }   → 409 wenn Scan läuft
+POST /api/star/galaxy/scan      { systemId }   → { systemId, scanEndsAt }  (409 wenn Scan läuft)
 GET  /api/star/galaxy/contacts  → { [systemId]: { scanState, scanEndsAt } }
-POST /api/star/comm/send        { systemId, messageKey }
+POST /api/star/comm/send        { systemId, messageKey } → { messageId, travelEndsAt }
 GET  /api/star/comm/log         → alle comm_log-Einträge des Spielers
 ```
+
+### Scan-Mechanik
+
+- Gate: `star_map >= 3`, nur ein Scan gleichzeitig
+- Dauer: `max(7200, dist × 180)` Sekunden (dist = euklidische Distanz auf dem 0–100-Grid)
+- `resolve_system_contacts()` läuft vor jedem `GET /galaxy/contacts`
+
+### Komm-Mechanik
+
+- Gate: `interstellar_comm >= 1` für Send; System muss `scanned` sein
+- Travel-Time: `max(10, dist × (icLevel >= 2 ? 0.5 : 1))` Sekunden
+- Delivery: lazy — `resolve_comm_deliveries()` läuft beim `GET /comm/log` des Empfängers
+  - Findet `sent`-Einträge anderer Spieler, deren Zielsystem Planeten des Empfängers enthält
+  - Erstellt `received`-Einträge mit `sent_msg_id`-Rücklink (verhindert Doppel-Delivery)
+  - Sender-System wird aus `hs_planet_ownership WHERE is_home=1` des Senders ermittelt
+
+### Neue Spalten in `hs_comm_log`
+
+| Spalte | Typ | Bedeutung |
+|--------|-----|-----------|
+| `sent_msg_id` | INT NULL | Rücklink zur Original-`sent`-Zeile (nur bei `received`-Einträgen) |
+| `from_player_id` | INT NULL | Sender-Spieler-ID (nur bei `received`-Einträgen) |
+
+### Initialisierung bei Registrierung
+
+`init_system_contacts($db, $playerId, $homeSystemId)` wird in `register.php` aufgerufen → schreibt das Home-System sofort als `scanned` in `hs_system_contacts`.
+
+### Neue Dateien
+
+| Datei | Endpoint |
+|-------|---------|
+| `api/star/galaxy/contacts.php` | `GET /api/star/galaxy/contacts` |
+| `api/star/galaxy/scan.php` | `POST /api/star/galaxy/scan` |
+| `api/star/comm/send.php` | `POST /api/star/comm/send` |
+| `api/star/comm/log.php` | `GET /api/star/comm/log` |
 
 ---
 
