@@ -105,7 +105,7 @@ const homeResources   = computed(() => allPlanetStates.value[homePlanetId.value]
 const activeSlot = ref(5)
 const now = ref(Date.now())
 let tickInterval = null
-const lastResourceSync = ref(0)
+const lastResourceSync = ref(0) // stores Math.floor(timestamp / 60000) — minute number
 
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
@@ -168,12 +168,8 @@ const production = computed(() => ({
 
 const energyDeficit = computed(() => production.value.energy < 0)
 
-// 0 → 1 over 60 seconds, resets on each resource sync
-const tickProgress = computed(() =>
-  lastResourceSync.value === 0
-    ? 0
-    : Math.min(1, (now.value - lastResourceSync.value) / 60000)
-)
+// 0 → 1 aligned to real wall-clock minutes (e.g. 50% at :30s)
+const tickProgress = computed(() => (now.value % 60000) / 60000)
 
 // ── Staff / population ─────────────────────────────────────
 const totalStaffDrain = computed(() => {
@@ -804,9 +800,10 @@ export const resetGame = () => {
 const tick = () => {
   now.value = Date.now()
 
-  // Sync resources from server once per minute
-  if (gameLoaded.value && activePlanetId.value && now.value - lastResourceSync.value >= 60000) {
-    lastResourceSync.value = now.value
+  // Sync resources at each wall-clock minute boundary
+  const currentMinute = Math.floor(now.value / 60000)
+  if (gameLoaded.value && activePlanetId.value && lastResourceSync.value > 0 && currentMinute > lastResourceSync.value) {
+    lastResourceSync.value = currentMinute
     const { fetchGameState } = useHawkStarApi()
     fetchGameState(activePlanetId.value).then(state => {
       const ps = allPlanetStates.value[activePlanetId.value]
@@ -1092,7 +1089,7 @@ export const initFromApi = async () => {
     playerName.value        = player.value?.username    ?? ''
     playerPortrait.value    = player.value?.portrait    ?? '👨‍🚀'
     playerDisposition.value = player.value?.disposition ?? 'neutral'
-    lastResourceSync.value = Date.now()
+    lastResourceSync.value = Math.floor(Date.now() / 60000)
     gameLoaded.value = true
   } catch (e) {
     console.error('[hawk-star] Game state load failed:', e)

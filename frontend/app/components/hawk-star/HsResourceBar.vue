@@ -44,7 +44,7 @@ const visibleResources = computed(() =>
       >
         <template v-if="res.id === 'energy'">{{ production.energy > 0 ? `+${production.energy}` : production.energy }}</template>
         <template v-else-if="res.id === 'population'">{{ freeWorkers > 0 ? `+${freeWorkers}` : freeWorkers }}</template>
-        <template v-else>{{ Math.floor(playerResources[res.id]) }}</template>
+        <template v-else>{{ Math.floor(playerResources[res.id] + tickProgress * (production[res.id] || 0)) }}</template>
       </span>
       <span
         v-if="res.id === 'energy'"
@@ -65,13 +65,6 @@ const visibleResources = computed(() =>
         <template v-if="maxStorage[res.id]"> · /{{ maxStorage[res.id] }}</template>
       </span>
 
-      <!-- Tick progress bar: only for stockpiled resources with active production -->
-      <div
-        v-if="production[res.id] > 0 && res.id !== 'energy'"
-        class="hs-res-tick-bar"
-      >
-        <div class="hs-res-tick-fill" :style="{ width: `${tickProgress * 100}%` }" />
-      </div>
     </div>
   </div>
 </template>
@@ -96,11 +89,11 @@ const visibleResources = computed(() =>
   background: var(--hs-glass-md);
   border: 1px solid var(--hs-line-lg);
   border-radius: var(--hs-r-md);
-  padding: 0.375rem 0.15rem 0;
+  padding: 0.375rem 0.15rem 0.3rem;
   overflow: hidden;
 
   @media (min-width: 640px) {
-    padding: 0.5rem 0.25rem 0;
+    padding: 0.5rem 0.25rem 0.4rem;
   }
 
   &--deficit {
@@ -126,27 +119,10 @@ const visibleResources = computed(() =>
   font-size: 0.55rem;
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.35);
-  margin-bottom: 0.3rem;
 
   @media (min-width: 640px) { font-size: 0.6rem; }
 
   &--pos { color: var(--hs-ok); }
   &--neg { color: var(--hs-danger); }
-}
-
-// ── Tick progress bar ─────────────────────────────────────────────────────────
-.hs-res-tick-bar {
-  width: 100%;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.06);
-  margin-top: auto;
-  flex-shrink: 0;
-}
-
-.hs-res-tick-fill {
-  height: 100%;
-  background: var(--hs-ok);
-  opacity: 0.6;
-  transition: width 1s linear;
 }
 </style>
