@@ -6,12 +6,12 @@ $jwt      = auth();
 $playerId = (int)$jwt['sub'];
 $db       = getDB();
 
-// Deliver any arrived messages from other players
-resolve_comm_deliveries($db, $playerId);
+// Deliver any arrived messages from other players (non-fatal — columns may not exist yet)
+try { resolve_comm_deliveries($db, $playerId); } catch (Throwable $e) {}
 
 $rows = $db->prepare(
     "SELECT cl.id, cl.system_id, cl.direction, cl.message_key,
-            cl.travel_ends_at, cl.from_player_id, cl.created_at,
+            cl.travel_ends_at, cl.created_at,
             s.name AS system_name
      FROM hs_comm_log cl
      JOIN hs_star_systems s ON s.id = cl.system_id

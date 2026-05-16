@@ -29,5 +29,6 @@ export function useHawkStarApi() {
     postScanSystem:    (systemId)                      => post('/galaxy/scan',          { systemId }),
     postSendMessage:   (systemId, messageKey)          => post('/comm/send',            { systemId, messageKey }),
     fetchCommLog:      ()                              => apiFetch('/comm/log'),
+    postDevCheat:      (action, planetId = null)       => post('/dev/cheat', { action, ...(planetId != null ? { planetId } : {}) }),
   }
 }

@@ -229,19 +229,24 @@ Once a system is `scanned`, its **system card** on the Galaxy Map shows:
 
 ### Step 3 — Emoji Messages
 
-Once a system is `scanned`, the player can **send an emoji** to its inhabitants.
+Once a system is `scanned`, the player can **send a row of up to 5 emojis** to its inhabitants.
 
 **How it works:**
 
-- The Comm Log panel (right side of the Galaxy Map card) shows a **"📡 Nachricht senden ▾"** button at the bottom.
-- Clicking opens an emoji picker. Clicking an emoji **sends immediately** — no separate send button.
-- The emoji travels (same signal time as the scan — distance-based).
-- On arrival, the emoji appears in the target player's Comm Log (server-side, Phase 2 backend).
-- Sent emojis appear as chat bubbles in the **Comm Log**.
+- The Comm Log panel (left side of the Galaxy Map panel) has a send bar at the bottom.
+- The player picks 1–5 emojis from the picker — each click **adds** to a staging tray. Clicking a staged emoji removes it again.
+- A **Send** button (active once ≥1 emoji is staged) dispatches the whole row at once.
+- The emoji row travels at signal speed (distance-based, same formula as scanning).
+- On arrival, the row appears in the target player's Comm Log.
+- Sent rows appear as right-aligned bubbles; received rows as left-aligned with portrait + username.
 
 **Sendable emoji pool (`COMM_EMOJIS` in `hawkStarConfig.js`):**
 
 `👋 🤝 🌟 ✌️ 😊 🕊️ 🌿 💫 🌈 💎 💰 📦 🔭 📡 🛸 ⚠️ 💥 🔥`
+
+**Limits (enforced on both backend and frontend):**
+- Max **5 emojis per row** — validated on send; picker disables once 5 are staged.
+- Max **10 rows stored per `(player_id, system_id)` pair** — backend deletes oldest row(s) on each INSERT so the table never grows unbounded.
 
 No free text, no game-state change from messaging (that comes later).
 
@@ -260,22 +265,24 @@ systemContacts: {
 }
 ```
 
-**`commLog`** — list of sent/received messages, stored in `useHawkStar.js`:
+**`commLog`** — list of sent/received message rows, stored in `useHawkStar.js`:
 
 ```js
 commLog: [
   {
-    id:          'msg_1234',
-    direction:   'sent' | 'received',
-    systemId:    42,
-    systemName:  'Arix System',
-    owners:      [{ username: 'Froppy', portrait: '👨‍🚀' }],
-    messageKey:  '👋',             // emoji string
-    timestamp:   1234567890,
-    travelEndsAt: null | timestamp, // null once delivered
+    id:           'msg_1234',
+    direction:    'sent' | 'received',
+    systemId:     42,
+    systemName:   'Arix System',
+    owners:       [{ username: 'Froppy', portrait: '👨‍🚀' }],
+    messageKey:   '👋 🤝 🌟',   // 1–5 emojis, space-separated
+    timestamp:    1234567890,
+    travelEndsAt: null,          // null once delivered, timestamp while in transit
   }
 ]
 ```
+
+`messageKey` is a space-separated string of 1–5 emojis. The UI splits on spaces to render individual bubbles within a row.
 
 ---
 
@@ -309,10 +316,10 @@ The Galaxy Map shows two areas below the tile row:
 ```
 [tile row: all systems]
 ┌────────────────────────┬────────────────────┐
-│  System Card           │  Comm Log          │
-│  · system name/meta    │  · chat bubbles    │
-│  · faction list        │  · send bar        │
-│  · planet list         │                    │
+│  Comm Log              │  System Card       │
+│  · chat bubbles        │  · system name     │
+│  · staging tray        │  · faction list    │
+│  · send button         │  · planet list     │
 └────────────────────────┴────────────────────┘
 ```
 
@@ -347,9 +354,10 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 - Auto-scrolls to the bottom on new messages.
 
 **Send bar** (visible when `canMessageSystem(systemId)` is true):
-- A single `📡 Nachricht senden ▾` button opens the emoji picker.
-- Clicking an emoji sends immediately — no separate send button.
-- Picker shows `COMM_EMOJIS` at `1.5rem` icon size.
+- **Staging tray**: shows 0–5 staged emoji chips with a remove (×) button each.
+- **Emoji picker**: grid of `COMM_EMOJIS` at `1.5rem`. Click to add to tray. Picker buttons disabled once 5 are staged.
+- **Send button**: active when tray has ≥1 emoji. Dispatches the row, clears the tray.
+- Sends `messageKeys: string[]` to `POST /api/star/comm/send`.
 
 ---
 
@@ -369,6 +377,11 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `comm/send.php` | `POST /api/star/comm/send` — sendet Emoji mit Travel-Time-Delay | ✅ Done |
 | `comm/log.php` | `GET /api/star/comm/log` — liefert CommLog inkl. lazy Delivery empfangener Nachrichten | ✅ Done |
 | `002_hawk_star_schema.sql` | `hs_comm_log` um `sent_msg_id` + `from_player_id` erweitert | ✅ Done |
+| `comm/send.php` | Multi-emoji: accept `messageKeys[]`, join space-separated, validate ≤5, cleanup last-10 | ⬜ Planned |
+| `comm/log.php` | resolve_comm_deliveries robustify (try-catch for missing columns) | ✅ Done |
+| `HsCommLog.vue` | Staging tray (1–5 emojis), send button, split messageKey on render | ⬜ Planned |
+| `useHawkStar.js` | `sendMessage(systemId, messageKeys[])` — pass array instead of single string | ⬜ Planned |
+| `useHawkStarApi.js` | `postSendMessage(systemId, messageKeys[])` | ⬜ Planned |
 
 ---
 
@@ -503,46 +516,47 @@ All Hawk-Star keys live under `hawkStar.*`:
 
 ### Implementation Status
 
-| Feature                                       | Status |
-|-----------------------------------------------|--------|
-| Planet grid, slot unlocks                     | ✅ Done |
-| Buildings (all types)                         | ✅ Done |
-| Energy & staff system                         | ✅ Done |
-| Resources + storage caps                      | ✅ Done |
-| High-Tech conversions                         | ✅ Done |
-| Recon Drones                                  | ✅ Done |
-| Colony Ships                                  | ✅ Done |
-| Galaxy Map (simplified, all systems visible)  | ✅ Done |
-| Solar System view                             | ✅ Done |
-| Dev mode — tick rate & build time factor      | ✅ Done |
-| Notification Panel                            | ✅ Done |
-| Localisation (i18n) — all components          | ✅ Done |
-| Research → Comm Center rename + Star Map global | ✅ Done |
-| `interstellar_comm` research (Comm Center, global, requires star_map Lv3) | ✅ Done |
-| System scanning — `systemContacts`, one scan at a time, hours-based duration | ✅ Done |
-| Galaxy scanning gate — `star_map` Lv3, uses actual completed level (not in-progress) | ✅ Done |
-| Galaxy Map — scan button, scanning indicator, scanned display, ⏳ busy state | ✅ Done |
-| Predefined emoji messages + `commLog` (frontend-local, backend Phase 2) | ✅ Done |
-| Comm log in Galaxy Map view | ✅ Done |
-| i18n — `hawkStar.comm.*` + `hawkStar.buildings.interstellar_comm` | ✅ Done |
-| `recon_drone` + `colony_ship` simplified to 1 level, 1 active mission at a time | ✅ Done |
-| Commander profile — portrait picker, name edit, disposition selector (`HsProfilePanel`) | ✅ Done |
-| `formatTime` — supports s / m s / h m / t h m s formats | ✅ Done |
-| Backend — Phase 1: Foundation (auth, galaxy, building, resources, research, missions) | ✅ Done |
-| Auth-Modal — Register/Login, JWT-Token in localStorage (`useHawkStarAuth.js`) | ✅ Done |
-| Auth: Login-Tab als Standard, „Remember me"-Checkbox (localStorage vs. sessionStorage) | ✅ Done |
+| Feature                                                                                       | Status |
+|-----------------------------------------------------------------------------------------------|--------|
+| Planet grid, slot unlocks                                                                     | ✅ Done |
+| Buildings (all types)                                                                         | ✅ Done |
+| Energy & staff system                                                                         | ✅ Done |
+| Resources + storage caps                                                                      | ✅ Done |
+| High-Tech conversions                                                                         | ✅ Done |
+| Recon Drones                                                                                  | ✅ Done |
+| Colony Ships                                                                                  | ✅ Done |
+| Galaxy Map (simplified, all systems visible)                                                  | ✅ Done |
+| Solar System view                                                                             | ✅ Done |
+| Dev mode — tick rate & build time factor                                                      | ✅ Done |
+| Notification Panel                                                                            | ✅ Done |
+| Localisation (i18n) — all components                                                          | ✅ Done |
+| Research → Comm Center rename + Star Map global                                               | ✅ Done |
+| `interstellar_comm` research (Comm Center, global, requires star_map Lv3)                     | ✅ Done |
+| System scanning — `systemContacts`, one scan at a time, hours-based duration                  | ✅ Done |
+| Galaxy scanning gate — `star_map` Lv3, uses actual completed level (not in-progress)          | ✅ Done |
+| Galaxy Map — scan button, scanning indicator, scanned display, ⏳ busy state                   | ✅ Done |
+| Predefined emoji messages + `commLog` (frontend-local, backend Phase 2)                       | ✅ Done |
+| Comm log in Galaxy Map view                                                                   | ✅ Done |
+| i18n — `hawkStar.comm.*` + `hawkStar.buildings.interstellar_comm`                             | ✅ Done |
+| `recon_drone` + `colony_ship` simplified to 1 level, 1 active mission at a time               | ✅ Done |
+| Commander profile — portrait picker, name edit, disposition selector (`HsProfilePanel`)       | ✅ Done |
+| `formatTime` — supports s / m s / h m / t h m s formats                                       | ✅ Done |
+| Backend — Phase 1: Foundation (auth, galaxy, building, resources, research, missions)         | ✅ Done |
+| Auth-Modal — Register/Login, JWT-Token in localStorage (`useHawkStarAuth.js`)                 | ✅ Done |
+| Auth: Login-Tab als Standard, „Remember me"-Checkbox (localStorage vs. sessionStorage)        | ✅ Done |
 | Auth: 401-Fix — `.htaccess` Authorization-Header-Passthrough + `bootstrap.php` Fallback-Chain | ✅ Done |
-| `useHawkStarApi.js` — API-Wrapper für alle Game-Actions | ✅ Done |
-| `initFromApi` — lädt Galaxy + Game State nach Auth, ersetzt Mock | ✅ Done |
-| `gameLoaded` / `initError` — Loading-Screen + Retry-Button in `index.vue` | ✅ Done |
-| Write-Actions auf API: `startBuild`, `sendReconDrone`, `sendColonyShip`, `startConversion` | ✅ Done |
-| Drone/Colony — kein Inventory mehr, direktes Mission-Modell (Building = Unit) | ✅ Done |
+| `useHawkStarApi.js` — API-Wrapper für alle Game-Actions                                       | ✅ Done |
+| `initFromApi` — lädt Galaxy + Game State nach Auth, ersetzt Mock                              | ✅ Done |
+| `gameLoaded` / `initError` — Loading-Screen + Retry-Button in `index.vue`                     | ✅ Done |
+| Write-Actions auf API: `startBuild`, `sendReconDrone`, `sendColonyShip`, `startConversion`    | ✅ Done |
+| Drone/Colony — kein Inventory mehr, direktes Mission-Modell (Building = Unit)                 | ✅ Done |
 | `HsDockPanel` — an neues Missions-Modell angepasst (kein Build-Step, direkte Mission-Anzeige) | ✅ Done |
-| Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth | ✅ Done |
-| Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side) | ✅ Done |
-| Backend — Phase 3: Player Interaction (trade, player messaging) | ⬜ Planned |
-| Backend — Phase 4: Espionage | ⬜ Planned |
-| Backend — Phase 5: Combat | ⬜ Planned |
+| Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth           | ✅ Done |
+| Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side)             | ✅ Done |
+| Multi-emoji messages — tray UI (≤5 per row), send button, last-10 cleanup per conversation    | ⬜ Planned |
+| Backend — Phase 3: Player Interaction (trade, player messaging)                               | ⬜ Planned |
+| Backend — Phase 4: Espionage                                                                  | ⬜ Planned |
+| Backend — Phase 5: Combat                                                                     | ⬜ Planned |
 
 See `hawk-star-backend.md` for the full backend & multiplayer concept.
 

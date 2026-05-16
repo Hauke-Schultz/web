@@ -19,8 +19,8 @@
 // ── Unit production costs ─────────────────────────────────────────────────────
 // Cost to build ONE unit (drone / probe / ship). Building level divides buildTimeBase.
 export const UNIT_COSTS = {
-  recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 30  },
-  colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 60  },
+  recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 300  },
+  colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 900  },
 }
 
 // ── Planet types ──────────────────────────────────────────────────────────────
@@ -911,7 +911,7 @@ export const BUILDINGS = {
       },
       {
         level:       3,
-        cost:        { metal: 500, crystal: 600, alloy: 80 },
+        cost:        { metal: 500, crystal: 600 },
         buildTime:   10800,
         effect:      'Enables deep-space scanning — actively scan unknown star systems (one at a time, takes several hours)',
         production:  {},

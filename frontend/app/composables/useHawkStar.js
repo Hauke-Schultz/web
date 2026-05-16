@@ -407,7 +407,7 @@ const droneBuildTime = computed(() =>
 
 const droneFlightTime = (planetId) => {
   const idx = homeSystem.value?.planets.findIndex(p => p.id === planetId) ?? 0
-  return Math.ceil(60 * (idx + 1))
+  return Math.ceil(3600 * (idx + 1))
 }
 
 const droneFlightTimeBetween = (fromId, toId) => {
@@ -415,7 +415,7 @@ const droneFlightTimeBetween = (fromId, toId) => {
   const fi = ps.findIndex(p => p.id === fromId)
   const ti = ps.findIndex(p => p.id === toId)
   const dist = Math.max(1, Math.abs(fi - ti))
-  return Math.ceil(60 * dist)
+  return Math.ceil(3600 * dist)
 }
 
 const canBuildDrone = computed(() =>
@@ -496,7 +496,7 @@ const colonyShipBuildTime = computed(() =>
 
 const colonyFlightTime = (planetId) => {
   const idx = homeSystem.value?.planets.findIndex(p => p.id === planetId) ?? 0
-  return Math.ceil(120 * (idx + 1))
+  return Math.ceil(7200 * (idx + 1))
 }
 
 const colonyFlightTimeBetween = (fromId, toId) => {
@@ -504,7 +504,7 @@ const colonyFlightTimeBetween = (fromId, toId) => {
   const fi = ps.findIndex(p => p.id === fromId)
   const ti = ps.findIndex(p => p.id === toId)
   const dist = Math.max(1, Math.abs(fi - ti))
-  return Math.ceil(120 * dist)
+  return Math.ceil(7200 * dist)
 }
 
 const canBuildColonyShip = computed(() =>
@@ -1003,6 +1003,12 @@ const applyGameState = (planetId, state) => {
   }
 
   globalResearch.value = { ...globalResearch.value, ...state.globalResearch }
+}
+
+export const refreshPlanetState = async (planetId) => {
+  const { fetchGameState } = useHawkStarApi()
+  const state = await fetchGameState(planetId)
+  applyGameState(planetId, state)
 }
 
 export const initFromApi = async () => {

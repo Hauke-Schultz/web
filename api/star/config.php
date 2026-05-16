@@ -6,8 +6,8 @@
  */
 
 const UNIT_COSTS = [
-    'recon_drone' => ['cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 30],
-    'colony_ship' => ['cost' => ['metal' => 300, 'crystal' => 150], 'buildTimeBase' => 60],
+    'recon_drone' => ['cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 300,  'flightTimeBase' => 3600],
+    'colony_ship' => ['cost' => ['metal' => 300, 'crystal' => 150], 'buildTimeBase' => 900, 'flightTimeBase' => 7200],
 ];
 
 const GLOBAL_BUILDINGS = ['star_map', 'interstellar_comm'];
@@ -154,7 +154,7 @@ const BUILDINGS = [
   'star_map' => ['tileType'=>'comm_center','global'=>true,'levels'=>[
     ['level'=>1,'cost'=>['metal'=>80,'crystal'=>100],'buildTime'=>480,'production'=>[],'energyDrain'=>0,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>200,'crystal'=>250],'buildTime'=>5400,'production'=>[],'energyDrain'=>0,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>500,'crystal'=>600,'alloy'=>80],'buildTime'=>10800,'production'=>[],'energyDrain'=>0,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>3,'cost'=>['metal'=>500,'crystal'=>600],'buildTime'=>10800,'production'=>[],'energyDrain'=>0,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'interstellar_comm' => ['tileType'=>'comm_center','global'=>true,'requiresBuilding'=>'star_map','requiresLevel'=>3,'levels'=>[

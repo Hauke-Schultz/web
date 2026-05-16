@@ -143,6 +143,11 @@ const tileClass = (sys) => {
     <Transition name="hs-slide">
       <div v-if="selected && showCard(selected)" class="hs-galaxy-panel">
 
+        <!-- Comm Log -->
+        <div class="hs-galaxy-comm-wrap">
+          <HsCommLog :system-id="selected.id" />
+        </div>
+
         <!-- System card -->
         <div class="hs-galaxy-card">
           <div class="hs-galaxy-card-header">
@@ -182,11 +187,6 @@ const tileClass = (sys) => {
               >{{ planet.owner?.username }}</span>
             </li>
           </ul>
-        </div>
-
-        <!-- Comm Log -->
-        <div class="hs-galaxy-comm-wrap">
-          <HsCommLog :system-id="selected.id" />
         </div>
 
       </div>

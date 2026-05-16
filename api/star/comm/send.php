@@ -10,8 +10,10 @@ $messageKey = trim($b['messageKey']  ?? '');
 
 if (!$systemId || !$messageKey) fail('systemId and messageKey required');
 
-$allowedEmojis = ['👋','🤝','🌟','✌️','😊','🕊️','🌿','💫','🌈','💎','💰','📦','🔭','📡','🛸','⚠️','💥','🔥'];
-if (!in_array($messageKey, $allowedEmojis, true)) fail('Invalid messageKey');
+// Normalise variation selectors before comparing so ✌ and ✌️ both match
+$normalise   = fn(string $s) => preg_replace('/[\x{FE00}-\x{FE0F}]/u', '', $s);
+$allowedBase = array_map($normalise, ['👋','🤝','🌟','✌️','😊','🕊️','🌿','💫','🌈','💎','💰','📦','🔭','📡','🛸','⚠️','💥','🔥']);
+if (!in_array($normalise($messageKey), $allowedBase, true)) fail('Invalid messageKey');
 
 $db = getDB();
 

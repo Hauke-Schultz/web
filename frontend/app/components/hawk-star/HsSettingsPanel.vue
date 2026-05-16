@@ -1,7 +1,32 @@
 <script setup>
-import { useHawkStar, resetGame } from '~/composables/useHawkStar.js'
+import { useHawkStar, resetGame, refreshPlanetState, initFromApi } from '~/composables/useHawkStar.js'
+import { useHawkStarApi } from '~/composables/useHawkStarApi.js'
 
-const { tickRateMs, buildTimeFactor, saveDevSettings } = useHawkStar()
+const { tickRateMs, buildTimeFactor, saveDevSettings, activePlanetId } = useHawkStar()
+const { postDevCheat } = useHawkStarApi()
+
+const cheatBusy = ref(false)
+
+const PLANET_CHEATS  = ['complete_buildings', 'max_resources']
+const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_scanning']
+
+async function runCheat(action) {
+  if (cheatBusy.value) return
+  cheatBusy.value = true
+  try {
+    const pid = PLANET_CHEATS.includes(action) ? activePlanetId.value : null
+    await postDevCheat(action, pid)
+    if (FULL_RELOAD.includes(action)) {
+      await initFromApi()
+    } else {
+      await refreshPlanetState(activePlanetId.value)
+    }
+  } catch (e) {
+    console.error('[dev cheat]', e)
+  } finally {
+    cheatBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -18,6 +43,15 @@ const { tickRateMs, buildTimeFactor, saveDevSettings } = useHawkStar()
       </label>
       <button class="hs-dev-save" @click="saveDevSettings">Save</button>
       <button class="hs-dev-reset" title="Reset game (clears save)" @click="resetGame">↺ Reset</button>
+    </div>
+    <div class="hs-dev-panel">
+      <span class="hs-dev-label">CHEAT</span>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle laufenden Gebäude fertigstellen" @click="runCheat('complete_buildings')">✓ Bauten</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Ressourcen auf Lager-Maximum setzen" @click="runCheat('max_resources')">⬆ Res max</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle globalen Forschungen fertigstellen" @click="runCheat('complete_research')">⬆ Research</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Drohnen-Missionen abschließen" @click="runCheat('complete_drone_missions')">✓ Drohnen</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Colony-Missionen abschließen" @click="runCheat('complete_colony_missions')">✓ Colony</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Galaxy-Scans abschließen" @click="runCheat('complete_scanning')">✓ Scan</button>
     </div>
   </div>
 </template>
@@ -109,5 +143,20 @@ const { tickRateMs, buildTimeFactor, saveDevSettings } = useHawkStar()
   transition: color 0.15s, border-color 0.15s;
 
   &:hover { color: var(--hs-danger); border-color: var(--hs-danger-border); }
+}
+
+.hs-cheat-btn {
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(180, 100, 255, 0.3);
+  background: rgba(180, 100, 255, 0.07);
+  color: rgba(200, 140, 255, 0.7);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) { color: rgb(210, 160, 255); border-color: rgba(180, 100, 255, 0.6); }
+  &:disabled { opacity: 0.4; cursor: default; }
 }
 </style>

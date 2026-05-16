@@ -17,6 +17,16 @@ const {
   activeColonyMissions,
   remainingColonySec,
   colonyProgressStyle,
+  canBuildDrone,
+  buildReconDrone,
+  reconDroneBuild,
+  droneBuildTime,
+  droneBuildProgressStyle,
+  canBuildColonyShip,
+  buildColonyShip,
+  colonyShipBuild,
+  colonyShipBuildTime,
+  colonyShipBuildProgressStyle,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -25,13 +35,6 @@ const getPlanetLabel = (planetId) => {
   const p = homeSystem.value?.planets.find(pl => pl.id === planetId)
   return p?.name ?? getPlanetName(planetId) ?? planetId
 }
-
-const canAffordDrone  = computed(() =>
-  Object.entries(UNIT_COSTS.recon_drone.cost).every(([r, a]) => (playerResources.value[r] ?? 0) >= a)
-)
-const canAffordColony = computed(() =>
-  Object.entries(UNIT_COSTS.colony_ship.cost).every(([r, a]) => (playerResources.value[r] ?? 0) >= a)
-)
 
 const hasMissions = computed(() =>
   activeDroneMissions.value.length || activeColonyMissions.value.length
@@ -70,8 +73,25 @@ const hasMissions = computed(() =>
         </div>
         <div class="hs-building-action">
           <span v-if="reconDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
-          <span v-else-if="!canAffordDrone" class="hs-status-low">{{ t('hawkStar.dock.insufficientResources') }}</span>
-          <span v-else class="hs-status-ready">{{ t('hawkStar.dock.unitReady') }}</span>
+          <template v-else-if="reconDroneBuild">
+            <div class="hs-build-progress-wrap">
+              <div class="hs-progress-track">
+                <div class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" />
+              </div>
+              <span class="hs-progress-time">{{ formatTime(Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000)) }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="hs-btn-wrap">
+              <button
+                class="hs-btn-build"
+                :class="{ 'hs-btn-build--disabled': !canBuildDrone }"
+                :disabled="!canBuildDrone"
+                @click="buildReconDrone"
+              >{{ t('hawkStar.tile.btnBuild') }}</button>
+              <span class="hs-build-time">⏱ {{ formatTime(droneBuildTime) }}</span>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -94,8 +114,25 @@ const hasMissions = computed(() =>
         </div>
         <div class="hs-building-action">
           <span v-if="colonyShipLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
-          <span v-else-if="!canAffordColony" class="hs-status-low">{{ t('hawkStar.dock.insufficientResources') }}</span>
-          <span v-else class="hs-status-ready">{{ t('hawkStar.dock.unitReady') }}</span>
+          <template v-else-if="colonyShipBuild">
+            <div class="hs-build-progress-wrap">
+              <div class="hs-progress-track">
+                <div class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" />
+              </div>
+              <span class="hs-progress-time">{{ formatTime(Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000)) }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="hs-btn-wrap">
+              <button
+                class="hs-btn-build"
+                :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }"
+                :disabled="!canBuildColonyShip"
+                @click="buildColonyShip"
+              >{{ t('hawkStar.tile.btnBuild') }}</button>
+              <span class="hs-build-time">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -207,8 +244,47 @@ const hasMissions = computed(() =>
 }
 
 .hs-status-locked { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
-.hs-status-ready  { font-size: 0.65rem; font-weight: 700; color: #34d399; white-space: nowrap; }
-.hs-status-low    { font-size: 0.62rem; font-weight: 600; color: #f87171; white-space: nowrap; text-align: right; }
+
+.hs-btn-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.hs-btn-build {
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--hs-accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) { background: var(--hs-accent-hover); }
+
+  &--disabled {
+    background: var(--hs-glass-xl);
+    color: rgba(255, 255, 255, 0.3);
+    cursor: not-allowed;
+  }
+}
+
+.hs-build-time {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+}
+
+.hs-build-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 7rem;
+}
 
 .hs-progress-row   { display: flex; align-items: center; gap: 0.5rem; margin-top: 6px; }
 .hs-progress-track { flex: 1; height: 4px; background: var(--hs-glass-3xl); border-radius: 9999px; overflow: hidden; }

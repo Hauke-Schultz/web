@@ -57,7 +57,14 @@ $db->prepare(
     'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
 )->execute([...array_values($cost), $fromId, $playerId]);
 
-$flightTime = UNIT_COSTS['recon_drone']['buildTimeBase'];
+$planetOrder = $db->prepare('SELECT id FROM hs_planets WHERE system_id=? ORDER BY id ASC');
+$planetOrder->execute([$from['system_id']]);
+$orderedIds  = array_column($planetOrder->fetchAll(), 'id');
+$fi = array_search($fromId, $orderedIds);
+$ti = array_search($toId,   $orderedIds);
+$dist       = max(1, abs((int)$fi - (int)$ti));
+$flightTime = UNIT_COSTS['recon_drone']['flightTimeBase'] * $dist;
+
 $db->prepare(
     'INSERT INTO hs_missions (player_id, type, from_planet_id, to_planet_id, ends_at)
      VALUES (?,\'recon_drone\',?,?, DATE_ADD(NOW(), INTERVAL ? SECOND))'

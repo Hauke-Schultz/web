@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { useHawkStarAuth } from '~/composables/useHawkStarAuth.js'
+import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
 const { t } = useI18n()
 const { playerName, playerPortrait, playerDisposition } = useHawkStar()
@@ -90,6 +91,8 @@ const handleDelete = async () => {
         {{ confirmDelete ? '⚠ Wirklich löschen?' : '🗑 Profil löschen' }}
       </button>
     </div>
+
+	  <HsSettingsPanel />
   </div>
 </template>
 
