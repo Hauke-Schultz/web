@@ -49,7 +49,14 @@
       "btnConvert": "Umwandeln",
       "convQueued": "+{n} in Warteschlange",
       "convEmptyNoRefinery": "Bau die Raffinerie um Umwandlungen freizuschalten",
-      "convEmptyNoFacility": "Bau eine Hightech-Anlage um Umwandlungen freizuschalten"
+      "convEmptyNoFacility": "Bau eine Hightech-Anlage um Umwandlungen freizuschalten",
+      "onboarding": {
+        "title": "Willkommen, Commander — hier beginnt deine Kolonie",
+        "step1": "🏛️ Baue das Kommandozentrum — das Herzstück jeder Kolonie",
+        "step2": "⛏️ Schalte Bergbau- & Energie-Felder frei, um Ressourcen zu gewinnen",
+        "step3": "📡 Erforsche die Sternkarte im Comm Center, um das Sonnensystem zu erkunden",
+        "step4": "🚀 Besiedle neue Planeten und spezialisiere jede Kolonie"
+      }
     },
 
     "dock": {

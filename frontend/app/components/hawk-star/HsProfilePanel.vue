@@ -7,18 +7,41 @@ import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
 const { t } = useI18n()
 const { playerName, playerPortrait, playerDisposition } = useHawkStar()
-const { logout, deleteAccount } = useHawkStarAuth()
+const { logout, deleteAccount, saveProfile } = useHawkStarAuth()
 
 const PORTRAITS = ['👨‍🚀', '👩‍🚀', '🧑‍🚀', '🤖', '👾', '🧠', '💀', '🦾', '⭐', '🪐', '🔭', '⚡']
 const DISPOSITIONS = ['friendly', 'neutral', 'hostile']
 const DISP_ICON = { friendly: '🤝', neutral: '⚖️', hostile: '⚔️' }
 
-const showPicker     = ref(false)
-const confirmDelete  = ref(false)
+const showPicker    = ref(false)
+const confirmDelete = ref(false)
+const savedFlash    = ref(false)
 
-const selectPortrait = (p) => {
+let savedTimer = null
+const flashSaved = () => {
+  savedFlash.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => { savedFlash.value = false }, 1500)
+}
+
+const selectPortrait = async (p) => {
   playerPortrait.value = p
   showPicker.value = false
+  await saveProfile({ portrait: p })
+  flashSaved()
+}
+
+const selectDisposition = async (d) => {
+  playerDisposition.value = d
+  await saveProfile({ disposition: d })
+  flashSaved()
+}
+
+const saveName = async () => {
+  const name = playerName.value.trim()
+  if (!name) return
+  await saveProfile({ username: name })
+  flashSaved()
 }
 
 const handleDelete = async () => {
@@ -34,6 +57,9 @@ const handleDelete = async () => {
     <div class="hs-panel-header">
       <span class="hs-panel-icon">👤</span>
       <h2 class="hs-panel-title">{{ t('hawkStar.profile.title') }}</h2>
+      <Transition name="hs-saved">
+        <span v-if="savedFlash" class="hs-profile-saved">✓ gespeichert</span>
+      </Transition>
     </div>
 
     <div class="hs-profile-body">
@@ -64,6 +90,7 @@ const handleDelete = async () => {
           type="text"
           maxlength="12"
           :placeholder="t('hawkStar.profile.name')"
+          @blur="saveName"
         />
         <div class="hs-profile-disp-row">
           <button
@@ -71,7 +98,7 @@ const handleDelete = async () => {
             :key="d"
             class="hs-profile-disp-btn"
             :class="[`hs-profile-disp-btn--${d}`, { 'hs-profile-disp-btn--active': d === playerDisposition }]"
-            @click="playerDisposition = d"
+            @click="selectDisposition(d)"
           >{{ DISP_ICON[d] }} {{ t('hawkStar.profile.' + d) }}</button>
         </div>
       </div>
@@ -96,6 +123,7 @@ const handleDelete = async () => {
   </div>
 </template>
 
+
 <style lang="scss" scoped>
 .hs-profile {
   flex: 1;
@@ -116,6 +144,13 @@ const handleDelete = async () => {
 
 .hs-panel-icon  { font-size: 1.25rem; }
 .hs-panel-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin: 0; flex: 1; }
+
+.hs-profile-saved {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: rgba(52,211,153,0.85);
+  letter-spacing: 0.03em;
+}
 
 .hs-profile-body {
   display: flex;
@@ -293,4 +328,8 @@ const handleDelete = async () => {
   0%, 100% { box-shadow: none; }
   50%       { box-shadow: 0 0 8px rgba(248,113,113,0.4); }
 }
+
+// ── Saved flash transition ────────────────────────────────────────────────────
+.hs-saved-enter-active, .hs-saved-leave-active { transition: opacity 0.2s; }
+.hs-saved-enter-from,   .hs-saved-leave-to     { opacity: 0; }
 </style>

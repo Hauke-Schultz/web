@@ -32,19 +32,6 @@ async function runCheat(action) {
 <template>
   <div class="hs-settings-panel">
     <div class="hs-dev-panel">
-      <span class="hs-dev-label">DEV</span>
-      <label class="hs-dev-field">
-        <span>Prod tick (ms)</span>
-        <input v-model.number="tickRateMs" type="number" min="1000" max="60000" step="1000" class="hs-dev-input" />
-      </label>
-      <label class="hs-dev-field">
-        <span>Build factor</span>
-        <input v-model.number="buildTimeFactor" type="number" min="0.01" max="10" step="0.1" class="hs-dev-input" />
-      </label>
-      <button class="hs-dev-save" @click="saveDevSettings">Save</button>
-      <button class="hs-dev-reset" title="Reset game (clears save)" @click="resetGame">↺ Reset</button>
-    </div>
-    <div class="hs-dev-panel">
       <span class="hs-dev-label">CHEAT</span>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle laufenden Gebäude fertigstellen" @click="runCheat('complete_buildings')">✓ Bauten</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Ressourcen auf Lager-Maximum setzen" @click="runCheat('max_resources')">⬆ Res max</button>

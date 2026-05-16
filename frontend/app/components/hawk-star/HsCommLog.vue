@@ -11,8 +11,21 @@ const { t } = useI18n()
 const {
   commLog, sendMessage, canMessageSystem,
   COMM_EMOJIS, now, formatTime,
-  galaxySystems,
+  galaxySystems, markSystemRead,
 } = useHawkStar()
+
+const formatMsgTime = (timestamp) => {
+  if (!timestamp) return ''
+  const d = new Date(timestamp)
+  const today = new Date()
+  const isToday = d.toDateString() === today.toDateString()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  if (isToday) return `${hh}:${mm}`
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mo = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}.${mo}. ${hh}:${mm}`
+}
 
 const MAX_VISIBLE = 10
 const MAX_STAGED  = 5
@@ -57,8 +70,14 @@ const systemData  = computed(() => galaxySystems.value.find(s => s.id === props.
 const hasPlayers  = computed(() => systemData.value?.planets.some(p => p.owner != null) ?? false)
 const showSendBar = computed(() => hasPlayers.value && canMessageSystem(props.systemId))
 
+const hasMessageInTransit = computed(() =>
+  systemLog.value.some(e => e.direction === 'sent' && e.travelEndsAt && e.travelEndsAt > now.value)
+)
+
 const showPicker  = ref(false)
 const staged      = ref([])
+
+watch(hasMessageInTransit, (blocked) => { if (blocked) showPicker.value = false })
 
 const addEmoji = (emoji) => {
   if (staged.value.length >= MAX_STAGED) return
@@ -73,7 +92,7 @@ const isFull = computed(() => staged.value.length >= MAX_STAGED)
 
 const sending = ref(false)
 const sendStaged = async () => {
-  if (staged.value.length === 0 || sending.value) return
+  if (staged.value.length === 0 || sending.value || hasMessageInTransit.value) return
   const keys = [...staged.value]
   staged.value  = []
   showPicker.value = false
@@ -90,10 +109,11 @@ const scrollToBottom = () => {
   })
 }
 
-onMounted(scrollToBottom)
+onMounted(() => { markSystemRead(props.systemId); scrollToBottom() })
 watch(groupedLog, scrollToBottom, { flush: 'post' })
 
 watch(() => props.systemId, () => {
+  markSystemRead(props.systemId)
   showOlder.value  = false
   showPicker.value = false
   staged.value     = []
@@ -151,8 +171,11 @@ watch(() => props.systemId, () => {
                   :class="{ 'hs-chat-emoji--transit': entry.travelEndsAt > now }"
                 >{{ emoji }}</span>
               </div>
-              <span v-if="entry.travelEndsAt > now" class="hs-chat-transit-timer">
-                {{ formatTime(Math.max(0, Math.ceil((entry.travelEndsAt - now) / 1000))) }}
+              <span class="hs-chat-time">
+	              <span v-if="entry.travelEndsAt > now" class="hs-chat-transit-timer">
+	                {{ formatTime(Math.max(0, Math.ceil((entry.travelEndsAt - now) / 1000))) }}
+	              </span>
+                {{ formatMsgTime(entry.timestamp) }}
               </span>
             </div>
           </div>
@@ -164,22 +187,30 @@ watch(() => props.systemId, () => {
     <div v-if="showSendBar" class="hs-clog-send-bar">
 
       <!-- Staging tray + send button -->
-      <div class="hs-clog-tray-row">
-        <button class="hs-clog-picker-toggle" :class="{ 'is-active': showPicker }" @click="showPicker = !showPicker">
-          📡
-        </button>
-        <div class="hs-clog-tray">
-          <span v-if="staged.length === 0" class="hs-clog-tray-hint">{{ isFull ? '' : t('hawkStar.comm.stagingHint') }}</span>
-          <button
-            v-for="(emoji, idx) in staged"
-            :key="idx"
-            class="hs-clog-staged-chip"
-            @click="removeEmoji(idx)"
-          >{{ emoji }}<span class="hs-clog-staged-remove">×</span></button>
+      <div class="hs-clog-tray-row" :class="{ 'hs-clog-tray-row--blocked': hasMessageInTransit }">
+        <button
+          class="hs-clog-picker-toggle"
+          :class="{ 'is-active': showPicker }"
+          :disabled="hasMessageInTransit"
+          @click="showPicker = !showPicker"
+        >📡</button>
+        <div class="hs-clog-tray" @click="!hasMessageInTransit && !isFull && (showPicker = true)">
+          <span v-if="hasMessageInTransit" class="hs-clog-tray-hint hs-clog-tray-hint--transit">
+            ⏳ {{ t('hawkStar.comm.inTransit') }}
+          </span>
+          <template v-else>
+            <span v-if="staged.length === 0" class="hs-clog-tray-hint">{{ isFull ? '' : t('hawkStar.comm.stagingHint') }}</span>
+            <button
+              v-for="(emoji, idx) in staged"
+              :key="idx"
+              class="hs-clog-staged-chip"
+              @click="removeEmoji(idx)"
+            >{{ emoji }}<span class="hs-clog-staged-remove">×</span></button>
+          </template>
         </div>
         <button
           class="hs-clog-send-btn"
-          :disabled="staged.length === 0 || sending"
+          :disabled="staged.length === 0 || sending || hasMessageInTransit"
           @click="sendStaged"
         >{{ t('hawkStar.comm.sendBtn') }} →</button>
       </div>
@@ -349,7 +380,7 @@ watch(() => props.systemId, () => {
     border-bottom-left-radius: 3px;
   }
 
-  &--transit { opacity: 0.45; }
+  &--transit { opacity: 0.7; }
 }
 
 .hs-chat-emoji-row {
@@ -367,10 +398,21 @@ watch(() => props.systemId, () => {
 }
 
 .hs-chat-transit-timer {
-  font-size: 0.48rem;
-  color: rgba(251,191,36,0.6);
+  font-size: 0.6rem;
+  color: rgba(251,191,36,1);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+	padding-right: 1rem;
+}
+
+.hs-chat-time {
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  align-self: flex-end;
+
+  .hs-chat-row--received & { align-self: flex-start; }
 }
 
 // ── Send bar ──────────────────────────────────────────────────────────────────
@@ -423,12 +465,27 @@ watch(() => props.systemId, () => {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--hs-r-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.04); }
+}
+
+.hs-clog-tray-row--blocked {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .hs-clog-tray-hint {
   font-size: 0.58rem;
   color: rgba(255,255,255,0.2);
   font-style: italic;
+
+  &--transit {
+    color: rgba(251,191,36,0.7);
+    font-style: normal;
+    font-weight: 600;
+  }
 }
 
 .hs-clog-staged-chip {

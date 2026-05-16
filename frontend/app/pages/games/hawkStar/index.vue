@@ -36,14 +36,20 @@ async function submitAuth() {
   } else {
     data = await login(authEmail.value.trim(), authPass.value)
   }
-  if (data) await initFromApi()
+  if (data) {
+    await initFromApi()
+    activePanel.value = ''
+  }
 }
 
 // ── App init ───────────────────────────────────────────────────────────────────
 onMounted(async () => {
   if (isAuthenticated.value) {
     const ok = await verifyToken()
-    if (ok) await initFromApi()
+    if (ok) {
+      await initFromApi()
+      activePanel.value = ''
+    }
   }
   startTick()
 })
@@ -87,7 +93,7 @@ watchEffect(() => {
           <HsTilePanel :activePanel="activePanel" />
         </div>
       </template>
-      <HsSolarSystem v-else-if="currentView === 'solar-system'" @go-planet="currentView = 'planet'" />
+      <HsSolarSystem v-else-if="currentView === 'solar-system'" @go-planet="currentView = 'planet'; activePanel = ''" />
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
     </div>
 

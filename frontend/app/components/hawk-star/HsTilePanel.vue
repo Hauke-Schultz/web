@@ -109,6 +109,17 @@ const setConversionCount = (bId, idx, val) => {
       <span class="hs-panel-desc">{{ activeTileType ? t('hawkStar.tiles.' + activeTileType.id + '.desc') : '' }}</span>
     </div>
 
+    <!-- Onboarding hint — shown when base tile is active and Command Center not yet built -->
+    <div v-if="activeTileType?.id === 'base' && getLevel('command_center') === 0" class="hs-onboarding">
+      <div class="hs-onboarding-title">{{ t('hawkStar.tile.onboarding.title') }}</div>
+      <ol class="hs-onboarding-steps">
+        <li>{{ t('hawkStar.tile.onboarding.step1') }}</li>
+        <li>{{ t('hawkStar.tile.onboarding.step2') }}</li>
+        <li>{{ t('hawkStar.tile.onboarding.step3') }}</li>
+        <li>{{ t('hawkStar.tile.onboarding.step4') }}</li>
+      </ol>
+    </div>
+
     <div class="hs-building-list">
       <div
         v-for="bDef in buildingsForActiveSlot"
@@ -292,6 +303,38 @@ const setConversionCount = (bId, idx, val) => {
 
 
 <style lang="scss" scoped>
+.hs-onboarding {
+  background: rgba(80, 120, 255, 0.07);
+  border: 1px solid rgba(80, 120, 255, 0.2);
+  border-radius: var(--hs-r-md);
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hs-onboarding-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(150, 180, 255, 0.9);
+  letter-spacing: 0.03em;
+}
+
+.hs-onboarding-steps {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+
+  li {
+    font-size: 0.67rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.45;
+  }
+}
+
 .hs-panel {
   flex: 1;
   min-width: 0;

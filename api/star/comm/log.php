@@ -6,11 +6,15 @@ $jwt      = auth();
 $playerId = (int)$jwt['sub'];
 $db       = getDB();
 
-// Auto-migrate: add columns that were added after initial DB creation
-$db->exec("ALTER TABLE hs_comm_log ADD COLUMN IF NOT EXISTS sent_msg_id    INT NULL");
-$db->exec("ALTER TABLE hs_comm_log ADD COLUMN IF NOT EXISTS from_player_id INT NULL");
+// Migrate columns — MySQL 5.7 compatible (no IF NOT EXISTS), duplicate-column error = already exists
+foreach (['sent_msg_id' => 'INT NULL', 'from_player_id' => 'INT NULL'] as $col => $type) {
+    try { $db->exec("ALTER TABLE hs_comm_log ADD COLUMN $col $type"); } catch (\Throwable $e) {}
+}
 
-resolve_comm_deliveries($db, $playerId);
+// Deliver in-transit messages (separate try-catch so a migration edge-case never blocks delivery)
+try {
+    resolve_comm_deliveries($db, $playerId);
+} catch (\Throwable $e) {}
 
 $rows = $db->prepare(
     "SELECT cl.id, cl.system_id, cl.direction, cl.message_key,

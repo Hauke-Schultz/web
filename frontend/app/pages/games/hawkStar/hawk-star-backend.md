@@ -372,3 +372,73 @@ hs_combat_logs (id, attacker_id, defender_id, planet_id, attacker_won, result JS
 3. On Arrival: Combat-Resolution (hull × 0.6 Basis-Schaden, reduziert durch Planet-Defenses)
 4. Ergebnis in `hs_combat_logs`, Kriegsschiff → `returning`
 5. Nach Rückflug: Kriegsschiff zurück im `hangar` — beschädigter Hull bleibt (kein Destroy in Phase 5)
+
+---
+
+## Deployment (Strato Shared Hosting)
+
+### Voraussetzungen
+
+| Komponente | Strato-Setup |
+|------------|--------------|
+| Webserver | Apache mit `mod_rewrite` |
+| PHP | 7.4+ (PHP 8.1 empfohlen) |
+| MySQL | 5.7 oder 8.0 — **kein** `ADD COLUMN IF NOT EXISTS` in 5.7 (separate try-catch verwenden) |
+
+### Pre-Deployment — Pflicht
+
+1. **JWT Secret** — `api/db.config.php` ergänzen (gitignored, manuell hochladen):
+   ```php
+   define('JWT_SECRET', '<starker-zufalls-string-min-32-zeichen>');
+   ```
+   Ohne diesen Eintrag fällt `bootstrap.php` auf `'dev-secret'` zurück — **kritisches Sicherheitsrisiko**.
+
+2. **`api/star/dev/` nicht uploaden** — `cheat.php` u.ä. nie auf Produktionsserver.
+
+3. **DB-Schema einrichten** — einmalig per phpMyAdmin oder SSH:
+   ```
+   docker/mysql/init/002_hawk_star_schema.sql
+   ```
+   Enthält alle `hs_*`-Tabellen + Galaxy-Seed-INSERT.
+
+### Build & Upload
+
+```bash
+cd frontend && npm run build
+# Output: frontend/.output/public/
+```
+
+| Quelle | Ziel (Strato Webroot, z.B. `/html/`) |
+|--------|--------------------------------------|
+| `frontend/.output/public/` | `/html/` |
+| `api/` (ohne `star/dev/`) | `/html/api/` |
+| `api/db.config.php` | `/html/api/db.config.php` (gitignored, manuell) |
+
+### API-Pfade
+
+`useHawkStarApi.js` verwendet relative Pfade (`/api/star/...`) — kein API-URL-Config nötig, funktioniert automatisch auf jedem Webroot.
+
+### `.htaccess` — SPA Routing
+
+Webroot-`.htaccess` für direkten URL-Aufruf (nicht überschreiben: `api/.htaccess` ist der Authorization-Header-Fix):
+
+```apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+```
+
+### Pre-Launch Checkliste
+
+- [ ] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
+- [ ] `api/star/dev/` nicht hochgeladen
+- [ ] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
+- [ ] Webroot-`.htaccess` für SPA-Routing vorhanden
+- [ ] `display_errors = Off` in `.htaccess`: `php_flag display_errors Off`
+- [ ] Rate Limiting auf `POST /api/star/auth/login` + `/register` erwägen
+- [ ] Nach erstem Login: 401-Redirect + JWT-Ablauf (7 Tage) testen

@@ -42,8 +42,34 @@ const initError  = ref('')
 // ── Communication ─────────────────────────────────────────
 // systemContacts: per-system scan state
 // commLog: all sent/received messages (newest first)
-const systemContacts = ref({})
-const commLog = ref([])
+const systemContacts  = ref({})
+const commLog         = ref([])
+const unreadSystems   = ref({}) // { '<sysId>': true } for systems with new received messages
+
+const LAST_READ_KEY = 'hs-comm-last-read'
+let _lastReadTimes = {}
+try { _lastReadTimes = JSON.parse(localStorage.getItem(LAST_READ_KEY) ?? '{}') } catch {}
+
+const recomputeUnread = () => {
+  const u = {}
+  for (const entry of commLog.value) {
+    if (entry.direction !== 'received') continue
+    const key = String(entry.systemId)
+    if ((entry.timestamp ?? 0) > (_lastReadTimes[key] ?? 0)) u[key] = true
+  }
+  unreadSystems.value = u
+}
+
+const markSystemRead = (sysId) => {
+  const key = String(sysId)
+  if (unreadSystems.value[key]) {
+    const u = { ...unreadSystems.value }
+    delete u[key]
+    unreadSystems.value = u
+  }
+  _lastReadTimes[key] = Date.now()
+  try { localStorage.setItem(LAST_READ_KEY, JSON.stringify(_lastReadTimes)) } catch {}
+}
 
 const dismissNotification = (id) => {
   const idx = notifications.value.findIndex(n => n.id === id)
@@ -106,6 +132,7 @@ const activeSlot = ref(5)
 const now = ref(Date.now())
 let tickInterval = null
 const lastResourceSync = ref(0) // stores Math.floor(timestamp / 60000) — minute number
+const lastCommLogSync  = ref(0) // stores Math.floor(timestamp / 1000) — second number
 
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
@@ -530,6 +557,7 @@ const canSendColonyShip = (planetId) => {
     colonyShipLevel.value > 0 &&
     canAfford(UNIT_COSTS.colony_ship.cost) &&
     !!planet &&
+    planet.type !== 'uninhabitable' &&
     planetId !== homePlanetId.value &&
     planet.state === 'uncolonized' &&
     playerScannedPlanets.value.includes(planetId) &&
@@ -671,7 +699,7 @@ const sendMessage = async (systemId, messageKeys) => {
     const { postSendMessage } = useHawkStarApi()
     const data = await postSendMessage(sysId, messageKeys)
     const owners = sys.planets.filter(p => p.owner != null).map(p => p.owner)
-    commLog.value.unshift({
+    commLog.value.push({
       id:           data.messageId,
       direction:    'sent',
       systemId:     sysId,
@@ -810,6 +838,14 @@ const tick = () => {
       const ps = allPlanetStates.value[activePlanetId.value]
       if (ps && state?.resources) Object.assign(ps.resources, state.resources)
     }).catch(() => {})
+  }
+
+  // Refresh comm log every 20 seconds so incoming messages appear without a page reload
+  const currentSec = Math.floor(now.value / 1000)
+  if (gameLoaded.value && lastCommLogSync.value > 0 && currentSec - lastCommLogSync.value >= 20) {
+    lastCommLogSync.value = currentSec
+    const { fetchCommLog } = useHawkStarApi()
+    fetchCommLog().then(log => { commLog.value = log.slice(); recomputeUnread() }).catch(() => {})
   }
 
   // Process all per-planet conversion queues
@@ -1004,6 +1040,11 @@ const applyGameState = (planetId, state) => {
   }
 
   globalResearch.value = { ...globalResearch.value, ...state.globalResearch }
+
+  // Seed planets revealed by completed drone missions (survive page reload)
+  for (const pid of (state.droneScannedPlanets ?? [])) {
+    if (!playerScannedPlanets.value.includes(pid)) playerScannedPlanets.value.push(pid)
+  }
 }
 
 export const refreshPlanetState = async (planetId) => {
@@ -1066,17 +1107,27 @@ export const initFromApi = async () => {
 
   // Load scan contacts from API (merges over defaults above)
   try {
-    const contacts = await fetchContacts()
-    for (const [sysId, contact] of Object.entries(contacts)) {
+    const { contacts: contactMap, theyScannedMe: theyScannedMeList } = await fetchContacts()
+    for (const [sysId, contact] of Object.entries(contactMap ?? {})) {
       systemContacts.value[sysId] = {
-        scanState:  contact.scanState,
-        scanEndsAt: contact.scanEndsAt,
-        mutualScan: contact.mutualScan ?? false,
+        scanState:    contact.scanState,
+        scanEndsAt:   contact.scanEndsAt,
+        mutualScan:   contact.mutualScan ?? false,
+        theyScannedMe: false,
+      }
+    }
+    // Mark systems whose owners have already scanned us (but we haven't scanned them)
+    for (const sysId of (theyScannedMeList ?? [])) {
+      const key = String(sysId)
+      if (systemContacts.value[key]) {
+        systemContacts.value[key].theyScannedMe = true
+      } else {
+        systemContacts.value[key] = { scanState: 'unscanned', scanEndsAt: null, mutualScan: false, theyScannedMe: true }
       }
     }
     // Home system is always scanned regardless
     if (homeSystemId.value) {
-      systemContacts.value[homeSystemId.value] = { scanState: 'scanned', scanEndsAt: null }
+      systemContacts.value[homeSystemId.value] = { scanState: 'scanned', scanEndsAt: null, mutualScan: false, theyScannedMe: false }
     }
   } catch (e) {
     console.error('[hawk-star] Contacts load failed (non-fatal):', e)
@@ -1085,7 +1136,9 @@ export const initFromApi = async () => {
   // Load comm log from API (API returns ASC, unshift-based display expects newest first)
   try {
     const log = await fetchCommLog()
-    commLog.value = log.slice().reverse()
+    commLog.value = log.slice()
+    lastCommLogSync.value = Math.floor(Date.now() / 1000)
+    recomputeUnread()
   } catch (e) {
     console.error('[hawk-star] CommLog load failed (non-fatal):', e)
   }
@@ -1098,6 +1151,8 @@ export const initFromApi = async () => {
     playerPortrait.value    = player.value?.portrait    ?? '👨‍🚀'
     playerDisposition.value = player.value?.disposition ?? 'neutral'
     lastResourceSync.value = Math.floor(Date.now() / 60000)
+    // Always open on the base tile so new players see the onboarding panel
+    activeSlot.value = 5
     gameLoaded.value = true
   } catch (e) {
     console.error('[hawk-star] Game state load failed:', e)
@@ -1237,6 +1292,8 @@ export function useHawkStar() {
     activeScan,
     systemContacts,
     commLog,
+    unreadSystems,
+    markSystemRead,
     canScanSystem,
     scanSystem,
     canMessageSystem,

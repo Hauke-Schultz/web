@@ -32,17 +32,33 @@ $mutualRows = $db->prepare(
 $mutualRows->execute([$playerId, $homeSystemId, $playerId]);
 $mutualIds = array_flip(array_map('intval', $mutualRows->fetchAll(PDO::FETCH_COLUMN)));
 
+// Which systems (that we haven't scanned) have owners who have already scanned our home system
+$theyScannedUsRows = $db->prepare(
+    'SELECT DISTINCT p.system_id
+     FROM hs_planets p
+     JOIN hs_planet_ownership po ON po.planet_id = p.id AND po.player_id != ?
+     JOIN hs_system_contacts sc  ON sc.player_id = po.player_id
+                                 AND sc.system_id = ?
+                                 AND sc.scan_state = \'scanned\'
+     WHERE p.system_id NOT IN (
+         SELECT system_id FROM hs_system_contacts
+         WHERE player_id = ? AND scan_state IN (\'scanned\',\'scanning\')
+     )'
+);
+$theyScannedUsRows->execute([$playerId, $homeSystemId, $playerId]);
+$theyScannedUsIds = array_values(array_map('intval', $theyScannedUsRows->fetchAll(PDO::FETCH_COLUMN)));
+
 $rows = $db->prepare('SELECT system_id, scan_state, scan_ends_at FROM hs_system_contacts WHERE player_id=?');
 $rows->execute([$playerId]);
 
-$result = [];
+$contacts = [];
 foreach ($rows->fetchAll() as $row) {
     $sysId = (int)$row['system_id'];
-    $result[(string)$sysId] = [
+    $contacts[(string)$sysId] = [
         'scanState'  => $row['scan_state'],
         'scanEndsAt' => $row['scan_ends_at'] ? strtotime($row['scan_ends_at']) * 1000 : null,
         'mutualScan' => isset($mutualIds[$sysId]),
     ];
 }
 
-ok($result);
+ok(['contacts' => $contacts, 'theyScannedMe' => $theyScannedUsIds]);

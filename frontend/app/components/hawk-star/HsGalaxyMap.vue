@@ -13,6 +13,7 @@ const {
   starMapLevel,
   activeScan,
   systemContacts,
+  unreadSystems,
   canScanSystem,
   scanSystem,
   galaxySystems,
@@ -94,6 +95,9 @@ const tileClass = (sys) => {
         :class="tileClass(sys)"
         @click="selectSystem(sys)"
       >
+        <!-- Unread message badge -->
+        <span v-if="unreadSystems[String(sys.id)]" class="hs-galaxy-tile-unread" />
+
         <!-- HOME -->
         <template v-if="isHome(sys)">
           <span class="hs-galaxy-tile-icon">{{ playerPortrait }}</span>
@@ -130,7 +134,7 @@ const tileClass = (sys) => {
 
         <!-- UNSCANNED -->
         <template v-else>
-          <span class="hs-galaxy-tile-icon">❓</span>
+          <span class="hs-galaxy-tile-icon">{{ contactOf(sys.id).theyScannedMe ? '👁️' : '❓' }}</span>
           <span class="hs-galaxy-tile-name">{{ sys.name }}</span>
           <span class="hs-galaxy-tile-unknown">{{ t('hawkStar.comm.unscanned') }}</span>
           <button
@@ -148,8 +152,8 @@ const tileClass = (sys) => {
     <Transition name="hs-slide">
       <div v-if="selected && showCard(selected)" class="hs-galaxy-panel">
 
-        <!-- Comm Log -->
-        <div class="hs-galaxy-comm-wrap">
+        <!-- Comm Log — hidden for own home system -->
+        <div v-if="!isHome(selected)" class="hs-galaxy-comm-wrap">
           <HsCommLog :system-id="selected.id" />
         </div>
 
@@ -331,6 +335,25 @@ const tileClass = (sys) => {
 .hs-galaxy-tile-mutual {
   font-size: 0.65rem;
   line-height: 1;
+}
+
+// ── Unread message badge ──────────────────────────────────────────────────────
+.hs-galaxy-tile-unread {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248,113,113,0.75);
+  animation: hs-pulse-unread 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes hs-pulse-unread {
+  0%, 100% { opacity: 1;   transform: scale(1);   }
+  50%       { opacity: 0.55; transform: scale(1.4); }
 }
 
 // ── Scan button (inside tile) ─────────────────────────────────────────────────

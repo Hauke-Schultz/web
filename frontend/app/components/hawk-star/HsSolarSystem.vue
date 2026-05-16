@@ -2,12 +2,13 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PLANET_TYPES, RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
-import { useHawkStar } from '~/composables/useHawkStar.js'
+import { useHawkStar, refreshPlanetState } from '~/composables/useHawkStar.js'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 
 const {
 	playerName,
 	reconDroneLevel, colonyShipLevel,
+  allPlanetStates,
   playerScannedPlanets, playerColonizedPlanets,
   reconDroneInventory, colonyShipInventory,
   allActiveDroneMissions,
@@ -43,7 +44,8 @@ const closeBuildRow = () => { expandedBuildRow.value = null }
 const planets           = computed(() => homeSystem.value?.planets ?? [])
 const habitablePlanets  = computed(() => planets.value.filter(p => p.type !== 'uninhabitable'))
 
-const goToPlanet = (planetId) => {
+const goToPlanet = async (planetId) => {
+  if (!allPlanetStates.value[planetId]) await refreshPlanetState(planetId)
   setActivePlanet(planetId)
   emit('go-planet')
 }
@@ -90,6 +92,9 @@ const tileClass = (planet) => [
   planet.id === activePlanetId.value ? 'hs-solar-tile--active' : '',
 ]
 
+
+const hasCommandCenter = (planetId) =>
+  (allPlanetStates.value[planetId]?.buildings?.command_center?.level ?? 0) >= 1
 
 const planetTypeIcon = (type) => PLANET_TYPES[type]?.icon ?? '🪐'
 const starClassLabel = (cls) => t(`hawkStar.starClass.${cls}`, cls)
@@ -242,24 +247,24 @@ const planetIcon = (planet) => {
         </div>
       </div>
       <div
-        v-if="effectivePlanetState(selectedPlanet) === 'own' && selectedPlanet.id !== homePlanetId"
+        v-if="effectivePlanetState(selectedPlanet) === 'own'"
         class="hs-solar-settle-bar"
       >
-        <span class="hs-solar-settle-hint">{{ t('hawkStar.solar.settleHint') }}</span>
+        <span v-if="!hasCommandCenter(selectedPlanet.id)" class="hs-solar-settle-hint">
+          {{ t('hawkStar.solar.settleHint') }}
+        </span>
         <button class="hs-solar-settle-btn" @click.stop="goToPlanet(selectedPlanet.id)">
           🏛️ {{ t('hawkStar.solar.settleBtn') }}
         </button>
       </div>
 
       <div
-        v-else-if="effectivePlanetState(selectedPlanet) === 'uncolonized'"
+        v-else-if="canSendColonyShip(selectedPlanet.id)"
         class="hs-solar-settle-bar hs-solar-settle-bar--colony"
       >
         <span class="hs-solar-settle-hint">{{ t('hawkStar.solar.colonizeHint') }}</span>
         <button
           class="hs-solar-settle-btn hs-solar-settle-btn--colony"
-          :class="{ 'hs-solar-settle-btn--disabled': !canSendColonyShip(selectedPlanet.id) }"
-          :disabled="!canSendColonyShip(selectedPlanet.id)"
           @click.stop="sendColonyShip(selectedPlanet.id, activePlanetId)"
         >
           🚀 {{ t('hawkStar.solar.colonize') }}

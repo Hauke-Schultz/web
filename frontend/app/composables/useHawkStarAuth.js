@@ -104,6 +104,21 @@ async function deleteAccount() {
   clearAuth()
 }
 
+async function saveProfile(fields = {}) {
+  try {
+    const data = await apiFetch('/auth/profile', {
+      method: 'POST',
+      body: JSON.stringify(fields),
+    })
+    if (data.player && player.value) {
+      player.value = { ...player.value, ...data.player }
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 // Verify existing token on app start — clears token if expired/invalid
 async function verifyToken() {
   if (!token.value) return false
@@ -132,5 +147,6 @@ export function useHawkStarAuth() {
     logout,
     deleteAccount,
     verifyToken,
+    saveProfile,
   }
 }

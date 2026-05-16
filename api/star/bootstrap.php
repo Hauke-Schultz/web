@@ -93,18 +93,6 @@ function init_planet(PDO $db, int $planetId, int $playerId, bool $isHome): void 
          VALUES (?,?,?,?,?, NOW())'
     )->execute([$planetId, $playerId, $metal, $crystal, $population]);
 
-    // Command center starts at level 1 (free, instant on home planet)
-    if ($isHome) {
-        $db->prepare(
-            'INSERT IGNORE INTO hs_buildings (planet_id, player_id, building_key, level)
-             VALUES (?,?,?,?)'
-        )->execute([$planetId, $playerId, 'command_center', 1]);
-        // Unlock slots 2 and 4 (command_center lv1 unlocks)
-        $db->prepare(
-            'UPDATE hs_planet_slots SET unlocked=1
-             WHERE planet_id=? AND player_id=? AND slot_index IN (2,4)'
-        )->execute([$planetId, $playerId]);
-    }
 }
 
 function init_global_research(PDO $db, int $playerId): void {
@@ -135,7 +123,7 @@ function resolve_system_contacts(PDO $db, int $playerId): void {
 function resolve_comm_deliveries(PDO $db, int $playerId): void {
     // Find in-transit messages from other players targeting systems where this player owns planets
     $pending = $db->prepare(
-        "SELECT cl.id, cl.player_id AS sender_id, cl.system_id, cl.message_key, cl.created_at
+        "SELECT cl.id, cl.player_id AS sender_id, cl.message_key, cl.travel_ends_at
          FROM hs_comm_log cl
          WHERE cl.direction = 'sent'
            AND cl.travel_ends_at IS NOT NULL
@@ -153,33 +141,41 @@ function resolve_comm_deliveries(PDO $db, int $playerId): void {
     );
     $pending->execute([$playerId, $playerId, $playerId]);
 
-    // Prefer a system that the recipient already knows (scanned), fall back to sender's home system
-    $senderSystemStmt = $db->prepare(
+    // Always use the sender's home system as the conversation bucket
+    $senderHomeStmt = $db->prepare(
         'SELECT p.system_id
          FROM hs_planet_ownership po
          JOIN hs_planets p ON p.id = po.planet_id
-         LEFT JOIN hs_system_contacts sc
-             ON sc.system_id = p.system_id
-             AND sc.player_id = ?
-             AND sc.scan_state = \'scanned\'
-         WHERE po.player_id = ?
-         ORDER BY (sc.system_id IS NOT NULL) DESC, po.is_home DESC
+         WHERE po.player_id = ? AND po.is_home = 1
          LIMIT 1'
     );
     $insertStmt = $db->prepare(
-        "INSERT INTO hs_comm_log (player_id, system_id, direction, message_key, from_player_id, sent_msg_id, created_at)
-         VALUES (?,?,'received',?,?,?,?)"
+        "INSERT INTO hs_comm_log (player_id, system_id, direction, message_key, from_player_id, sent_msg_id)
+         VALUES (?,?,'received',?,?,?)"
+    );
+    $cleanupStmt = $db->prepare(
+        "DELETE FROM hs_comm_log
+         WHERE player_id = ? AND system_id = ?
+         AND id NOT IN (
+           SELECT id FROM (
+             SELECT id FROM hs_comm_log
+             WHERE player_id = ? AND system_id = ?
+             ORDER BY created_at DESC
+             LIMIT 10
+           ) AS recent
+         )"
     );
 
     foreach ($pending->fetchAll() as $msg) {
-        $senderSystemStmt->execute([$playerId, (int)$msg['sender_id']]);
-        $senderSystemId = $senderSystemStmt->fetchColumn();
+        $senderHomeStmt->execute([(int)$msg['sender_id']]);
+        $senderSystemId = $senderHomeStmt->fetchColumn();
         if (!$senderSystemId) continue;
         $insertStmt->execute([
             $playerId, (int)$senderSystemId,
             $msg['message_key'], (int)$msg['sender_id'], (int)$msg['id'],
-            $msg['created_at'],
         ]);
+        // Keep only the last 10 messages per player+system conversation
+        $cleanupStmt->execute([$playerId, (int)$senderSystemId, $playerId, (int)$senderSystemId]);
     }
 }
 

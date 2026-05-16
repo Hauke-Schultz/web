@@ -47,7 +47,14 @@
       "btnConvert": "Convert",
       "convQueued": "+{n} queued",
       "convEmptyNoRefinery": "Build the refinery to unlock conversions",
-      "convEmptyNoFacility": "Build a High-Tech facility to unlock conversions"
+      "convEmptyNoFacility": "Build a High-Tech facility to unlock conversions",
+      "onboarding": {
+        "title": "Welcome, Commander — your colony begins here",
+        "step1": "🏛️ Build the Command Center — the heart of every colony",
+        "step2": "⛏️ Unlock Mining & Energy tiles to grow your resource income",
+        "step3": "📡 Research Star Map in the Comm Center to explore your solar system",
+        "step4": "🚀 Colonize new planets and specialize each one"
+      }
     },
 
     "dock": {

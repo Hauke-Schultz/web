@@ -554,6 +554,14 @@ All Hawk-Star keys live under `hawkStar.*`:
 | Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth           | ✅ Done |
 | Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side)             | ✅ Done |
 | Multi-emoji messages — tray UI (≤5 per row), send button, last-10 cleanup per conversation    | ✅ Done |
+| Comm log delivery — MySQL 5.7 kompatibel (separate try-catch per ALTER TABLE)                 | ✅ Done |
+| Comm log — 20s Auto-Refresh (Polling in tick(), lastCommLogSync)                              | ✅ Done |
+| Unread-Badge auf Galaxy-Tiles (localStorage `hs-comm-last-read`, recomputeUnread)             | ✅ Done |
+| Transit-Block — kein zweites Senden während Nachricht unterwegs ist (hasMessageInTransit)     | ✅ Done |
+| Recon Drone — Planet-Reveal bei Reload (droneScannedPlanets in GET /game/state)               | ✅ Done |
+| HsSolarSystem — "Go to Planet" für alle eigenen Planeten (async, refreshPlanetState first)    | ✅ Done |
+| HsSolarSystem — Colonize-Button nur via canSendColonyShip (Uninhabitable-Guard)               | ✅ Done |
+| HsSolarSystem — Siedlungs-Hinweis nur wenn command_center < Lv1 (hasCommandCenter)            | ✅ Done |
 | Backend — Phase 3: Player Interaction (trade, player messaging)                               | ⬜ Planned |
 | Backend — Phase 4: Espionage                                                                  | ⬜ Planned |
 | Backend — Phase 5: Combat                                                                     | ⬜ Planned |
@@ -586,4 +594,67 @@ Eine kurze Warteschlange mit 30s–3min-Aufgaben: "Recrute Kolonisten" (+1 Pop),
 
 # Schwarzmarkt / Barter
 Konvertiere überschüssige Ressourcen schnell zu anderen — aber zu schlechtem Kurs (3:1 oder 4:1). Metal → Crystal, Crystal → Alloy etc. Kein langer Build, nur ein Klick + kurze
+
+---
+
+## Deployment (Strato FTP)
+
+### Pre-Deployment — Pflicht
+
+1. **JWT Secret setzen** — `api/db.config.php` ergänzen:
+   ```php
+   define('JWT_SECRET', '<starker-zufalls-string-min-32-zeichen>');
+   ```
+   Ohne diesen Eintrag fällt `bootstrap.php` auf `'dev-secret'` zurück — **kritisches Sicherheitsrisiko**.
+
+2. **`api/star/dev/` NICHT hochladen** — `cheat.php` usw. dürfen nicht auf den Produktionsserver.
+
+3. **DB-Schema prüfen** — alle `hs_*`-Tabellen müssen auf dem Strato-MySQL existieren.
+   Schema-Quelle: `docker/mysql/init/002_hawk_star_schema.sql`
+
+### Build
+
+```bash
+cd frontend
+npm run build
+```
+
+Output: `frontend/.output/public/` — statische SPA (`index.html` + `_nuxt/`).
+
+### FTP Upload
+
+| Quelle | Ziel (Strato Webroot, z.B. `/html/`) |
+|--------|--------------------------------------|
+| `frontend/.output/public/` | `/html/` (komplettes Verzeichnis) |
+| `api/` (ohne `api/star/dev/`) | `/html/api/` |
+| `api/db.config.php` | `/html/api/db.config.php` (manuell, gitignored) |
+
+Reihenfolge: erst `api/`, dann `public/`, dann `db.config.php`.
+
+### SPA Routing — `.htaccess`
+
+Webroot-`.htaccess` für direkten URL-Aufruf von `/games/hawk-star/*`:
+
+```apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+```
+
+Die `api/.htaccess` (Authorization-Header-Fix) ist bereits vorhanden — **nicht überschreiben**.
+
+### Pre-Launch Checkliste
+
+- [ ] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
+- [ ] `api/star/dev/` nicht hochgeladen
+- [ ] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
+- [ ] Webroot-`.htaccess` für SPA-Routing vorhanden
+- [ ] `display_errors = Off` (`.htaccess`: `php_flag display_errors Off`)
+- [ ] Rate Limiting auf Login/Register erwägen (Brute-Force-Schutz)
+- [ ] Nach erstem Login: JWT-Token-Ablauf (7 Tage) + 401-Redirect testen
 

@@ -82,6 +82,14 @@ foreach ($missionsRaw->fetchAll() as $m) {
     ];
 }
 
+// All planets ever revealed by completed recon drone missions for this player
+$droneScannedRaw = $db->prepare(
+    'SELECT DISTINCT to_planet_id FROM hs_missions
+     WHERE player_id=? AND type=\'recon_drone\' AND status=\'done\''
+);
+$droneScannedRaw->execute([$playerId]);
+$droneScannedPlanets = array_values(array_map('intval', $droneScannedRaw->fetchAll(PDO::FETCH_COLUMN)));
+
 $convRaw = $db->prepare(
     'SELECT id, building_key, recipe_index, ends_at, remaining
      FROM hs_conversion_queues WHERE planet_id=? AND player_id=? ORDER BY ends_at ASC'
@@ -110,6 +118,7 @@ ok([
     'buildings'        => $buildings,
     'globalResearch'   => $globalResearch,
     'slots'            => $slots,
-    'missions'         => $missions,
-    'conversionQueues' => $convQueues,
+    'missions'           => $missions,
+    'droneScannedPlanets'=> $droneScannedPlanets,
+    'conversionQueues'   => $convQueues,
 ]);
