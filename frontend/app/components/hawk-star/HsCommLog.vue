@@ -14,12 +14,13 @@ const {
   galaxySystems,
 } = useHawkStar()
 
-
 const MAX_VISIBLE = 10
+const MAX_STAGED  = 5
 const showOlder   = ref(false)
 const messagesRef = ref(null)
 
-// Filtered + sorted oldest→newest (compare as strings — systemId can be int or string)
+// ── Log filtering & grouping ──────────────────────────────────────────────────
+
 const systemLog = computed(() =>
   commLog.value
     .filter(e => String(e.systemId) === String(props.systemId))
@@ -27,7 +28,6 @@ const systemLog = computed(() =>
     .sort((a, b) => a.timestamp - b.timestamp)
 )
 
-// Group ALL messages first, then limit to last MAX_VISIBLE rows
 const allGrouped = computed(() => {
   const groups = []
   for (const entry of systemLog.value) {
@@ -51,17 +51,38 @@ const hasOlder = computed(() =>
   !showOlder.value && allGrouped.value.length > MAX_VISIBLE
 )
 
-// Send controls
+// ── Send controls ─────────────────────────────────────────────────────────────
+
 const systemData  = computed(() => galaxySystems.value.find(s => s.id === props.systemId))
 const hasPlayers  = computed(() => systemData.value?.planets.some(p => p.owner != null) ?? false)
 const showSendBar = computed(() => hasPlayers.value && canMessageSystem(props.systemId))
 
-const showEmojiPicker = ref(false)
+const showPicker  = ref(false)
+const staged      = ref([])
 
-const sendEmoji = (emoji) => {
-  sendMessage(props.systemId, emoji)
-  showEmojiPicker.value = false
+const addEmoji = (emoji) => {
+  if (staged.value.length >= MAX_STAGED) return
+  staged.value.push(emoji)
 }
+
+const removeEmoji = (idx) => {
+  staged.value.splice(idx, 1)
+}
+
+const isFull = computed(() => staged.value.length >= MAX_STAGED)
+
+const sending = ref(false)
+const sendStaged = async () => {
+  if (staged.value.length === 0 || sending.value) return
+  const keys = [...staged.value]
+  staged.value  = []
+  showPicker.value = false
+  sending.value = true
+  await sendMessage(props.systemId, keys)
+  sending.value = false
+}
+
+// ── Scroll ────────────────────────────────────────────────────────────────────
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -73,8 +94,9 @@ onMounted(scrollToBottom)
 watch(groupedLog, scrollToBottom, { flush: 'post' })
 
 watch(() => props.systemId, () => {
-  showOlder.value       = false
-  showEmojiPicker.value = false
+  showOlder.value  = false
+  showPicker.value = false
+  staged.value     = []
   scrollToBottom()
 })
 </script>
@@ -83,6 +105,7 @@ watch(() => props.systemId, () => {
   <div class="hs-clog">
     <div class="hs-clog-header">📡 {{ t('hawkStar.comm.commLog') }}</div>
 
+    <!-- Messages -->
     <div ref="messagesRef" class="hs-clog-messages">
       <button v-if="hasOlder" class="hs-clog-older-btn" @click="showOlder = true">
         ↑ {{ t('hawkStar.comm.olderMessages') }}
@@ -98,12 +121,10 @@ watch(() => props.systemId, () => {
         class="hs-chat-row"
         :class="group.direction === 'sent' ? 'hs-chat-row--sent' : 'hs-chat-row--received'"
       >
-        <!-- Avatar (received only) -->
         <span v-if="group.direction === 'received'" class="hs-chat-avatar">
           {{ group.entries[0].owners?.[0]?.portrait ?? '👤' }}
         </span>
 
-        <!-- Content: sender label + bubble row -->
         <div
           class="hs-chat-content"
           :class="group.direction === 'received' ? 'hs-chat-content--received' : ''"
@@ -118,17 +139,20 @@ watch(() => props.systemId, () => {
               class="hs-chat-bubble"
               :class="[
                 group.direction === 'sent' ? 'hs-chat-bubble--sent' : 'hs-chat-bubble--received',
-                { 'hs-chat-bubble--transit': entry.travelEndsAt > now.value },
+                { 'hs-chat-bubble--transit': entry.travelEndsAt > now },
               ]"
             >
-              <span v-if="entry.travelEndsAt > now.value" class="hs-chat-emoji hs-chat-emoji--transit">
-                {{ entry.messageKey }}
-              </span>
-              <span v-else class="hs-chat-emoji">
-                {{ entry.messageKey }}
-              </span>
-              <span v-if="entry.travelEndsAt > now.value" class="hs-chat-transit-timer">
-                {{ formatTime(Math.max(0, Math.ceil((entry.travelEndsAt - now.value) / 1000))) }}
+              <!-- Split space-separated emoji row -->
+              <div class="hs-chat-emoji-row">
+                <span
+                  v-for="(emoji, i) in entry.messageKey.split(' ')"
+                  :key="i"
+                  class="hs-chat-emoji"
+                  :class="{ 'hs-chat-emoji--transit': entry.travelEndsAt > now }"
+                >{{ emoji }}</span>
+              </div>
+              <span v-if="entry.travelEndsAt > now" class="hs-chat-transit-timer">
+                {{ formatTime(Math.max(0, Math.ceil((entry.travelEndsAt - now) / 1000))) }}
               </span>
             </div>
           </div>
@@ -136,25 +160,48 @@ watch(() => props.systemId, () => {
       </div>
     </div>
 
-    <!-- Send bar: emoji picker only, click sends directly -->
+    <!-- Send bar -->
     <div v-if="showSendBar" class="hs-clog-send-bar">
-      <button class="hs-clog-emoji-trigger" @click="showEmojiPicker = !showEmojiPicker">
-        📡 {{ t('hawkStar.comm.sendMessage') }} ▾
-      </button>
-      <template v-if="showEmojiPicker">
-        <div class="hs-clog-emoji-backdrop" @click="showEmojiPicker = false" />
-        <div class="hs-clog-emoji-picker">
+
+      <!-- Staging tray + send button -->
+      <div class="hs-clog-tray-row">
+        <button class="hs-clog-picker-toggle" :class="{ 'is-active': showPicker }" @click="showPicker = !showPicker">
+          📡
+        </button>
+        <div class="hs-clog-tray">
+          <span v-if="staged.length === 0" class="hs-clog-tray-hint">{{ isFull ? '' : t('hawkStar.comm.stagingHint') }}</span>
+          <button
+            v-for="(emoji, idx) in staged"
+            :key="idx"
+            class="hs-clog-staged-chip"
+            @click="removeEmoji(idx)"
+          >{{ emoji }}<span class="hs-clog-staged-remove">×</span></button>
+        </div>
+        <button
+          class="hs-clog-send-btn"
+          :disabled="staged.length === 0 || sending"
+          @click="sendStaged"
+        >{{ t('hawkStar.comm.sendBtn') }} →</button>
+      </div>
+
+      <!-- Emoji picker -->
+      <Transition name="hs-picker">
+        <div v-if="showPicker" class="hs-clog-emoji-picker">
           <button
             v-for="emoji in COMM_EMOJIS"
             :key="emoji"
             class="hs-clog-emoji-btn"
-            @click="sendEmoji(emoji)"
+            :class="{ 'hs-clog-emoji-btn--full': isFull }"
+            :disabled="isFull"
+            @click="addEmoji(emoji)"
           >{{ emoji }}</button>
         </div>
-      </template>
+      </Transition>
+
     </div>
   </div>
 </template>
+
 
 <style lang="scss" scoped>
 .hs-clog {
@@ -188,8 +235,8 @@ watch(() => props.systemId, () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 270px;
-  max-height: 340px;
+  min-height: 200px;
+  max-height: 300px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.08) transparent;
 
@@ -262,7 +309,6 @@ watch(() => props.systemId, () => {
   &--received { align-items: flex-start; }
 }
 
-// ── Faction name ──────────────────────────────────────────────────────────────
 .hs-chat-from {
   font-size: 0.5rem;
   font-weight: 700;
@@ -271,7 +317,6 @@ watch(() => props.systemId, () => {
   letter-spacing: 0.05em;
 }
 
-// ── Bubble row ────────────────────────────────────────────────────────────────
 .hs-chat-bubbles {
   display: flex;
   flex-direction: row;
@@ -279,13 +324,12 @@ watch(() => props.systemId, () => {
   gap: 0.3rem;
 }
 
-// ── Single bubble ─────────────────────────────────────────────────────────────
 .hs-chat-bubble {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 0.45rem 0.5rem;
+  padding: 0.4rem 0.5rem;
   border-radius: var(--hs-r-md);
 
   &--sent {
@@ -303,16 +347,20 @@ watch(() => props.systemId, () => {
   &--transit { opacity: 0.45; }
 }
 
-// ── Emoji ─────────────────────────────────────────────────────────────────────
+.hs-chat-emoji-row {
+  display: flex;
+  flex-direction: row;
+  gap: 0.15rem;
+}
+
 .hs-chat-emoji {
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   line-height: 1;
   display: block;
 
   &--transit { filter: grayscale(0.4); }
 }
 
-// ── Transit countdown ─────────────────────────────────────────────────────────
 .hs-chat-transit-timer {
   font-size: 0.48rem;
   color: rgba(251,191,36,0.6);
@@ -323,48 +371,110 @@ watch(() => props.systemId, () => {
 // ── Send bar ──────────────────────────────────────────────────────────────────
 .hs-clog-send-bar {
   flex-shrink: 0;
-  position: relative;
-  padding: 0.4rem 0.625rem;
+  padding: 0.4rem 0.5rem;
   border-top: 1px solid rgba(255,255,255,0.07);
   background: rgba(255,255,255,0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
-.hs-clog-emoji-trigger {
-  width: 100%;
+// ── Tray row ──────────────────────────────────────────────────────────────────
+.hs-clog-tray-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hs-clog-picker-toggle {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid rgba(52,211,153,0.3);
+  background: rgba(52,211,153,0.07);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover, &.is-active {
+    background: rgba(52,211,153,0.18);
+    border-color: rgba(52,211,153,0.55);
+  }
+}
+
+.hs-clog-tray {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 2rem;
+  padding: 0.1rem 0.3rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--hs-r-sm);
+}
+
+.hs-clog-tray-hint {
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.2);
+  font-style: italic;
+}
+
+.hs-clog-staged-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: rgba(79,110,247,0.2);
+  border: 1px solid rgba(79,110,247,0.4);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.1s;
+
+  &:hover { background: rgba(220,80,80,0.2); border-color: rgba(220,80,80,0.4); }
+}
+
+.hs-clog-staged-remove {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.4);
+  font-style: normal;
+  line-height: 1;
+}
+
+.hs-clog-send-btn {
+  flex-shrink: 0;
   padding: 0.3rem 0.625rem;
   border-radius: var(--hs-r-sm);
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  border: 1px solid rgba(52,211,153,0.3);
-  background: rgba(52,211,153,0.07);
-  color: rgba(52,211,153,0.85);
+  border: 1px solid rgba(79,110,247,0.4);
+  background: rgba(79,110,247,0.12);
+  color: rgba(150,175,255,0.9);
+  white-space: nowrap;
   transition: background 0.15s, border-color 0.15s;
-  text-align: center;
 
-  &:hover { background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.55); }
+  &:hover:not(:disabled) { background: rgba(79,110,247,0.25); border-color: rgba(79,110,247,0.65); }
+  &:disabled { opacity: 0.3; cursor: default; }
 }
 
-.hs-clog-emoji-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-}
-
+// ── Emoji picker ──────────────────────────────────────────────────────────────
 .hs-clog-emoji-picker {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0.625rem;
-  right: 0.625rem;
-  z-index: 100;
-  background: #12122a;
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: var(--hs-r-md);
-  padding: 0.4rem;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 3px;
-  box-shadow: 0 4px 28px rgba(0,0,0,0.6);
+  grid-template-columns: repeat(9, 1fr);
+  gap: 2px;
+  padding: 0.35rem;
+  background: rgba(10,10,28,0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--hs-r-md);
 }
 
 .hs-clog-emoji-btn {
@@ -372,15 +482,27 @@ watch(() => props.systemId, () => {
   border: 1px solid transparent;
   border-radius: var(--hs-r-sm);
   cursor: pointer;
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   line-height: 1;
-  padding: 0.28rem 0.1rem;
+  padding: 0.25rem 0.1rem;
   text-align: center;
   transition: background 0.1s, transform 0.1s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: rgba(255,255,255,0.1);
     transform: scale(1.15);
   }
+
+  &--full, &:disabled {
+    opacity: 0.25;
+    cursor: default;
+    transform: none;
+  }
 }
+
+// ── Picker slide transition ───────────────────────────────────────────────────
+.hs-picker-enter-active,
+.hs-picker-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.hs-picker-enter-from,
+.hs-picker-leave-to     { opacity: 0; transform: translateY(-4px); }
 </style>

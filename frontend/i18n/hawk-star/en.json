@@ -111,6 +111,8 @@
       "noMessages":     "No messages yet",
       "olderMessages":  "Show older messages",
       "send":           "Send",
+      "sendBtn":        "Send",
+      "stagingHint":    "Tap emojis to compose…",
       "sentLabel":      "You → {system}",
       "receivedLabel":  "{faction} ({system})",
       "inhabitants":    "{n} planet | {n} planets",

@@ -5,15 +5,38 @@ method('POST');
 $jwt        = auth();
 $playerId   = (int)$jwt['sub'];
 $b          = body();
-$systemId   = (int)($b['systemId']   ?? 0);
-$messageKey = trim($b['messageKey']  ?? '');
+$systemId   = (int)($b['systemId']    ?? 0);
+$messageKeys = $b['messageKeys'] ?? [];
 
-if (!$systemId || !$messageKey) fail('systemId and messageKey required');
+if (!$systemId) fail('systemId required');
+if (!is_array($messageKeys) || count($messageKeys) === 0) fail('messageKeys required');
+if (count($messageKeys) > 5) fail('Max 5 emojis per message');
 
-// Normalise variation selectors before comparing so ✌ and ✌️ both match
 $normalise   = fn(string $s) => preg_replace('/[\x{FE00}-\x{FE0F}]/u', '', $s);
-$allowedBase = array_map($normalise, ['👋','🤝','🌟','✌️','😊','🕊️','🌿','💫','🌈','💎','💰','📦','🔭','📡','🛸','⚠️','💥','🔥']);
-if (!in_array($normalise($messageKey), $allowedBase, true)) fail('Invalid messageKey');
+$allowedBase = array_map($normalise, [
+  // Gestures & hands
+  '👋','🤝','✌️','🫡','👍','👎',
+  '👏','🙏','✋','🫶','🤜','🤛',
+  // Faces & emotions
+  '😊','🥰','😘','💋','😂','😭',
+  '😤','😡','😱','🤔','😎','🤩',
+  // Hearts & affection
+  '❤️','💛','💚','🖤',
+  '💕','💝','💘','🔥','💫',
+  // Space & trade
+  '🌟','🕊️','💎','🛸',
+  '🚀','💰','📦','🌈','🌿','🪐',
+  // Warnings & conflict
+  '⚠️','🛑','☠️','⚔️','🛡️',
+  // Insults & chaos
+  '💩','🤬','🤡','🐀','🦠',
+  '🗑️','💣','😈','🤮',
+]);
+foreach ($messageKeys as $key) {
+    if (!in_array($normalise((string)$key), $allowedBase, true)) fail('Invalid emoji');
+}
+
+$messageKey = implode(' ', $messageKeys);
 
 $db = getDB();
 
@@ -58,5 +81,19 @@ $msgId     = (int)$db->lastInsertId();
 $endsAtRow = $db->prepare('SELECT travel_ends_at FROM hs_comm_log WHERE id=?');
 $endsAtRow->execute([$msgId]);
 $endsAtVal = $endsAtRow->fetchColumn();
+
+// Keep only last 10 rows per (player_id, system_id)
+$db->prepare(
+    "DELETE FROM hs_comm_log
+     WHERE player_id = ? AND system_id = ?
+     AND id NOT IN (
+       SELECT id FROM (
+         SELECT id FROM hs_comm_log
+         WHERE player_id = ? AND system_id = ?
+         ORDER BY created_at DESC
+         LIMIT 10
+       ) AS recent
+     )"
+)->execute([$playerId, $systemId, $playerId, $systemId]);
 
 ok(['messageId' => $msgId, 'travelEndsAt' => strtotime($endsAtVal) * 1000]);

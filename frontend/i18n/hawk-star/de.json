@@ -112,6 +112,8 @@
       "noMessages":     "Noch keine Nachrichten",
       "olderMessages":  "Ältere Nachrichten anzeigen",
       "send":           "Senden",
+      "sendBtn":        "Senden",
+      "stagingHint":    "Emojis tippen zum Verfassen…",
       "sentLabel":      "Du → {system}",
       "receivedLabel":  "{faction} ({system})",
       "inhabitants":    "{n} Planet | {n} Planeten",

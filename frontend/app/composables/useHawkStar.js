@@ -661,14 +661,15 @@ const canMessageSystem = (systemId) =>
   interstellarCommLevel.value >= 1 &&
   systemContacts.value[systemId]?.scanState === 'scanned'
 
-const sendMessage = async (systemId, messageKey) => {
+const sendMessage = async (systemId, messageKeys) => {
   if (!canMessageSystem(systemId)) return
+  if (!Array.isArray(messageKeys) || messageKeys.length === 0) return
   const sysId = typeof systemId === 'string' ? parseInt(systemId, 10) : systemId
   const sys = galaxySystems.value.find(s => s.id === sysId)
   if (!sys) return
   try {
     const { postSendMessage } = useHawkStarApi()
-    const data = await postSendMessage(sysId, messageKey)
+    const data = await postSendMessage(sysId, messageKeys)
     const owners = sys.planets.filter(p => p.owner != null).map(p => p.owner)
     commLog.value.unshift({
       id:           data.messageId,
@@ -676,7 +677,7 @@ const sendMessage = async (systemId, messageKey) => {
       systemId:     sysId,
       systemName:   sys.name,
       owners,
-      messageKey,
+      messageKey:   messageKeys.join(' '),
       timestamp:    Date.now(),
       travelEndsAt: data.travelEndsAt,
     })

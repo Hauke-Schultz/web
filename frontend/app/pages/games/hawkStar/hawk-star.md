@@ -377,11 +377,11 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `comm/send.php` | `POST /api/star/comm/send` — sendet Emoji mit Travel-Time-Delay | ✅ Done |
 | `comm/log.php` | `GET /api/star/comm/log` — liefert CommLog inkl. lazy Delivery empfangener Nachrichten | ✅ Done |
 | `002_hawk_star_schema.sql` | `hs_comm_log` um `sent_msg_id` + `from_player_id` erweitert | ✅ Done |
-| `comm/send.php` | Multi-emoji: accept `messageKeys[]`, join space-separated, validate ≤5, cleanup last-10 | ⬜ Planned |
+| `comm/send.php` | Multi-emoji: accept `messageKeys[]`, join space-separated, validate ≤5, cleanup last-10 | ✅ Done |
 | `comm/log.php` | resolve_comm_deliveries robustify (try-catch for missing columns) | ✅ Done |
-| `HsCommLog.vue` | Staging tray (1–5 emojis), send button, split messageKey on render | ⬜ Planned |
-| `useHawkStar.js` | `sendMessage(systemId, messageKeys[])` — pass array instead of single string | ⬜ Planned |
-| `useHawkStarApi.js` | `postSendMessage(systemId, messageKeys[])` | ⬜ Planned |
+| `HsCommLog.vue` | Staging tray (1–5 emojis), send button, split messageKey on render | ✅ Done |
+| `useHawkStar.js` | `sendMessage(systemId, messageKeys[])` — pass array instead of single string | ✅ Done |
+| `useHawkStarApi.js` | `postSendMessage(systemId, messageKeys[])` | ✅ Done |
 
 ---
 
@@ -553,7 +553,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | `HsDockPanel` — an neues Missions-Modell angepasst (kein Build-Step, direkte Mission-Anzeige) | ✅ Done |
 | Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth           | ✅ Done |
 | Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side)             | ✅ Done |
-| Multi-emoji messages — tray UI (≤5 per row), send button, last-10 cleanup per conversation    | ⬜ Planned |
+| Multi-emoji messages — tray UI (≤5 per row), send button, last-10 cleanup per conversation    | ✅ Done |
 | Backend — Phase 3: Player Interaction (trade, player messaging)                               | ⬜ Planned |
 | Backend — Phase 4: Espionage                                                                  | ⬜ Planned |
 | Backend — Phase 5: Combat                                                                     | ⬜ Planned |
