@@ -121,6 +121,11 @@ const tileClass = (sys) => {
           <span v-else class="hs-galaxy-tile-state hs-galaxy-tile-state--free">
             {{ t('hawkStar.galaxy.stateUncolonized') }}
           </span>
+          <span
+            v-if="isInhabited(sys) && contactOf(sys.id).mutualScan"
+            class="hs-galaxy-tile-mutual"
+            :title="t('hawkStar.comm.mutualScan')"
+          >📡</span>
         </template>
 
         <!-- UNSCANNED -->
@@ -320,6 +325,12 @@ const tileClass = (sys) => {
 .hs-galaxy-tile-locked {
   font-size: 0.6rem;
   opacity: 0.4;
+}
+
+// ── Mutual-scan badge ─────────────────────────────────────────────────────────
+.hs-galaxy-tile-mutual {
+  font-size: 0.65rem;
+  line-height: 1;
 }
 
 // ── Scan button (inside tile) ─────────────────────────────────────────────────

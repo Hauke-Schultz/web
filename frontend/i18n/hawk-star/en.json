@@ -113,6 +113,7 @@
       "send":           "Send",
       "sendBtn":        "Send",
       "stagingHint":    "Tap emojis to compose…",
+      "mutualScan":     "They've scanned your system — two-way contact possible",
       "sentLabel":      "You → {system}",
       "receivedLabel":  "{faction} ({system})",
       "inhabitants":    "{n} planet | {n} planets",

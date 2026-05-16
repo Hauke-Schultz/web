@@ -153,10 +153,18 @@ function resolve_comm_deliveries(PDO $db, int $playerId): void {
     );
     $pending->execute([$playerId, $playerId, $playerId]);
 
-    $senderHomeStmt = $db->prepare(
-        'SELECT p.system_id FROM hs_planet_ownership po
+    // Prefer a system that the recipient already knows (scanned), fall back to sender's home system
+    $senderSystemStmt = $db->prepare(
+        'SELECT p.system_id
+         FROM hs_planet_ownership po
          JOIN hs_planets p ON p.id = po.planet_id
-         WHERE po.player_id = ? AND po.is_home = 1 LIMIT 1'
+         LEFT JOIN hs_system_contacts sc
+             ON sc.system_id = p.system_id
+             AND sc.player_id = ?
+             AND sc.scan_state = \'scanned\'
+         WHERE po.player_id = ?
+         ORDER BY (sc.system_id IS NOT NULL) DESC, po.is_home DESC
+         LIMIT 1'
     );
     $insertStmt = $db->prepare(
         "INSERT INTO hs_comm_log (player_id, system_id, direction, message_key, from_player_id, sent_msg_id, created_at)
@@ -164,8 +172,8 @@ function resolve_comm_deliveries(PDO $db, int $playerId): void {
     );
 
     foreach ($pending->fetchAll() as $msg) {
-        $senderHomeStmt->execute([$msg['sender_id']]);
-        $senderSystemId = $senderHomeStmt->fetchColumn();
+        $senderSystemStmt->execute([$playerId, (int)$msg['sender_id']]);
+        $senderSystemId = $senderSystemStmt->fetchColumn();
         if (!$senderSystemId) continue;
         $insertStmt->execute([
             $playerId, (int)$senderSystemId,

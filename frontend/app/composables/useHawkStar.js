@@ -1071,6 +1071,7 @@ export const initFromApi = async () => {
       systemContacts.value[sysId] = {
         scanState:  contact.scanState,
         scanEndsAt: contact.scanEndsAt,
+        mutualScan: contact.mutualScan ?? false,
       }
     }
     // Home system is always scanned regardless

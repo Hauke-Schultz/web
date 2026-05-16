@@ -114,6 +114,7 @@
       "send":           "Senden",
       "sendBtn":        "Senden",
       "stagingHint":    "Emojis tippen zum Verfassen…",
+      "mutualScan":     "Sie haben dein System gescannt — Zwei-Wege-Kontakt möglich",
       "sentLabel":      "Du → {system}",
       "receivedLabel":  "{faction} ({system})",
       "inhabitants":    "{n} Planet | {n} Planeten",

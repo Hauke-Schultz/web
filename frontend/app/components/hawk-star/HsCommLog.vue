@@ -279,6 +279,7 @@ watch(() => props.systemId, () => {
   display: flex;
   align-items: flex-end;
   gap: 0.4rem;
+  width: 100%;
 
   &--sent     { flex-direction: row-reverse; }
   &--received { flex-direction: row; }
@@ -304,6 +305,8 @@ watch(() => props.systemId, () => {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  max-width: 75%;
+  min-width: 0;
   align-items: flex-end;
 
   &--received { align-items: flex-start; }
@@ -319,9 +322,11 @@ watch(() => props.systemId, () => {
 
 .hs-chat-bubbles {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 0.3rem;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+
+  .hs-chat-row--received & { align-items: flex-start; }
 }
 
 .hs-chat-bubble {

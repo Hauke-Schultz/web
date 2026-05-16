@@ -6,8 +6,11 @@ $jwt      = auth();
 $playerId = (int)$jwt['sub'];
 $db       = getDB();
 
-// Deliver any arrived messages from other players (non-fatal — columns may not exist yet)
-try { resolve_comm_deliveries($db, $playerId); } catch (Throwable $e) {}
+// Auto-migrate: add columns that were added after initial DB creation
+$db->exec("ALTER TABLE hs_comm_log ADD COLUMN IF NOT EXISTS sent_msg_id    INT NULL");
+$db->exec("ALTER TABLE hs_comm_log ADD COLUMN IF NOT EXISTS from_player_id INT NULL");
+
+resolve_comm_deliveries($db, $playerId);
 
 $rows = $db->prepare(
     "SELECT cl.id, cl.system_id, cl.direction, cl.message_key,
