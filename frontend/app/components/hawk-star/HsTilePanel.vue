@@ -18,6 +18,7 @@ const {
   getLevel,
   isBuildingInProgress,
   isBuildingLocked,
+  lockedRequirementInfo,
   nextLevelDef,
   canBuild,
   startBuild,
@@ -199,7 +200,7 @@ const setConversionCount = (bId, idx, val) => {
           </template>
           <template v-else-if="isBuildingLocked(bDef.id)">
             <span class="hs-status-locked">
-              {{ BUILDINGS[bDef.id].requiresBuilding ? t('hawkStar.tile.lockedRequires', { name: t('hawkStar.buildings.' + BUILDINGS[bDef.id].requiresBuilding + '.name'), level: BUILDINGS[bDef.id].requiresLevel }) : t('hawkStar.tile.lockedGeneric') }}
+              {{ lockedRequirementInfo(bDef.id) ? t('hawkStar.tile.lockedRequires', { name: t('hawkStar.buildings.' + lockedRequirementInfo(bDef.id).building + '.name'), level: lockedRequirementInfo(bDef.id).level }) : t('hawkStar.tile.lockedGeneric') }}
             </span>
           </template>
           <template v-else>

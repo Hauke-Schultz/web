@@ -285,9 +285,21 @@ const colonyShipLevel = computed(() => {
   return state?.level ?? 0
 })
 const isBuildingLocked = (id) => {
-  const req = BUILDINGS[id]?.requiresBuilding
-  if (!req) return false
-  return getLevel(req) < (BUILDINGS[id]?.requiresLevel ?? 1)
+  const bReq = BUILDINGS[id]?.requiresBuilding
+  if (bReq && getLevel(bReq) < (BUILDINGS[id]?.requiresLevel ?? 1)) return true
+  const lReq = nextLevelDef(id)?.requiresBuilding
+  if (lReq && getLevel(lReq) < (nextLevelDef(id)?.requiresLevel ?? 1)) return true
+  return false
+}
+
+const lockedRequirementInfo = (id) => {
+  const bReq = BUILDINGS[id]?.requiresBuilding
+  if (bReq && getLevel(bReq) < (BUILDINGS[id]?.requiresLevel ?? 1))
+    return { building: bReq, level: BUILDINGS[id]?.requiresLevel ?? 1 }
+  const lReq = nextLevelDef(id)?.requiresBuilding
+  if (lReq && getLevel(lReq) < (nextLevelDef(id)?.requiresLevel ?? 1))
+    return { building: lReq, level: nextLevelDef(id)?.requiresLevel ?? 1 }
+  return null
 }
 
 const canBuild = (id) =>
@@ -1199,6 +1211,7 @@ export function useHawkStar() {
     getLevel,
     isBuildingInProgress,
     isBuildingLocked,
+    lockedRequirementInfo,
     nextLevelDef,
     canBuild,
     startBuild,
