@@ -43,11 +43,11 @@ $nextLevel    = $currentLevel + 1;
 $levelDef     = level_def($buildingKey, $nextLevel);
 if (!$levelDef) fail('Already at max level');
 
-// requiresBuilding check
-if (!empty($def['requiresBuilding'])) {
-    $reqKey   = $def['requiresBuilding'];
-    $reqLevel = $def['requiresLevel'] ?? 1;
-    $reqRow   = $db->prepare('SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=?');
+// requiresBuilding check — building-level applies to all levels; level-entry applies only to this level
+$reqKey   = $def['requiresBuilding'] ?? ($levelDef['requiresBuilding'] ?? null);
+$reqLevel = $def['requiresLevel']    ?? ($levelDef['requiresLevel']    ?? 1);
+if ($reqKey) {
+    $reqRow = $db->prepare('SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=?');
     $reqRow->execute([$planetId, $playerId, $reqKey]);
     $reqCurrent = (int)($reqRow->fetchColumn() ?: 0);
     if ($reqCurrent < $reqLevel) fail("Requires $reqKey level $reqLevel");

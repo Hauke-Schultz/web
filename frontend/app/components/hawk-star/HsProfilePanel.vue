@@ -9,7 +9,7 @@ const { t } = useI18n()
 const { playerName, playerPortrait, playerDisposition } = useHawkStar()
 const { logout, deleteAccount, saveProfile } = useHawkStarAuth()
 
-const PORTRAITS = ['👨‍🚀', '👩‍🚀', '🧑‍🚀', '🤖', '👾', '🧠', '💀', '🦾', '⭐', '🪐', '🔭', '⚡']
+const PORTRAITS = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️']
 const DISPOSITIONS = ['friendly', 'neutral', 'hostile']
 const DISP_ICON = { friendly: '🤝', neutral: '⚖️', hostile: '⚔️' }
 

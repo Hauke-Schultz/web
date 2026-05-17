@@ -10,7 +10,7 @@ $portrait    = array_key_exists('portrait',    $b) ? $b['portrait']             
 $username    = array_key_exists('username',    $b) ? trim((string)$b['username'])     : null;
 $disposition = array_key_exists('disposition', $b) ? $b['disposition']               : null;
 
-$allowed_portraits   = ['👨‍🚀','👩‍🚀','🧑‍🚀','🤖','👾','🧠','💀','🦾','⭐','🪐','🔭','⚡'];
+$allowed_portraits   = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️'];
 $allowed_dispositions = ['friendly','neutral','hostile'];
 
 $fields = [];

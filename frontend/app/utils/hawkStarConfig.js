@@ -165,6 +165,8 @@ export const BUILDINGS = {
         staffDrain:  2,
         unlocks:     [{ slot: 6 }, { slot: 8 }],
         popBonus:    5,
+        requiresBuilding: 'metal_mine',
+        requiresLevel: 2,
       },
       {
         level:       3,
@@ -185,6 +187,8 @@ export const BUILDINGS = {
     tileType:    'base',
     icon:        '🏠',
     description: 'Housing for your growing workforce.',
+    requiresBuilding: 'metal_mine',
+    requiresLevel: 1,
     levels: [
       {
         level:       1,
@@ -1363,23 +1367,26 @@ export const BUILDINGS = {
 // ── Communication — emoji picker ─────────────────────────────────────────────
 
 export const COMM_EMOJIS = [
-  // Gestures & hands
-  '👋', '🤝', '✌️', '🫡', '👍', '👎',
-  '👏', '🙏', '✋', '🫶', '🤜', '🤛',
-  // Faces & emotions
-  '😊', '🥰', '😘', '💋', '😂', '😭',
-  '😤', '😡', '😱', '🤔', '😎', '🤩',
-  // Hearts & affection
-  '❤️', '💛', '💚', '🖤',
-  '💕', '💝', '💘', '🔥', '💫',
-  // Space & trade
-  '🌟', '🕊️', '💎', '🛸',
-  '🚀', '💰', '📦', '🌈', '🌿', '🪐',
-  // Warnings & conflict
-  '⚠️', '🛑', '☠️', '⚔️', '🛡️',
-  // Schimpfen & Chaos
-  '💩', '🤬', '🤡', '🐀', '🦠',
-  '🗑️', '💣',  '😈', '🤮',
+  // Greetings & gestures (rows of 9 match the picker grid)
+  '👋', '🤝', '✌️', '🫡', '🖖', '👍', '👎', '👏', '🙏',
+  '✋', '🫶', '🤜', '🤛', '💪', '😊', '🥰', '😘', '💋',
+  // Emotions
+  '😂', '😇', '😎', '🤩', '😭', '🤯', '😤', '😱', '🤔',
+  '😡', '🤬', '😈', '🤮', '😶‍🌫️', '💩', '🤡', '🐀', '🦠',
+  // Chaos & danger
+  '🗑️', '💣', '⛔️', '☢️', '⚠️', '🛑', '☠️', '⚔️', '🛡️',
+  // Hearts & precious
+  '💯', '❤️', '💘', '💛', '💚', '🖤', '💎', '💫', '🌟',
+  // Celebration
+  '🕊️', '🎉', '🎁', '🏆️', '📢', '🎵', '🙈', '🙉', '🙊',
+  // Space & nature
+  '🦄', '🛸', '🚀', '🪐', '👽️', '🌍️', '🌋', '🌊', '🌈',
+  // Elements
+  '🌿', '🔥', '⚡️', '☄️', '💥', '💦', '💨', '☃️', '🧊',
+  // Objects & food
+  '🦖', '💡', '💊', '💰', '☎️', '🧠', '🍆', '🍌', '🍑',
+  // Status
+  '🥦', '🥒', '✅️', '🆗', '❗️', '⁉️', '❓️', '🚩', '🔎',
 ]
 
 // Base signal travel time in seconds per galaxy-distance unit.

@@ -16,11 +16,11 @@ const BUILDINGS = [
 
   'command_center' => ['tileType' => 'base', 'levels' => [
     ['level'=>1,'cost'=>[],'buildTime'=>20,'production'=>[],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[['slot'=>2],['slot'=>4]],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>480,'production'=>[],'energyDrain'=>2,'staffDrain'=>2,'unlocks'=>[['slot'=>6],['slot'=>8]],'popBonus'=>5],
+    ['level'=>2,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>480,'production'=>[],'energyDrain'=>2,'staffDrain'=>2,'unlocks'=>[['slot'=>6],['slot'=>8]],'popBonus'=>5,'requiresBuilding'=>'metal_mine','requiresLevel'=>2],
     ['level'=>3,'cost'=>['metal'=>300,'crystal'=>100],'buildTime'=>3600,'production'=>[],'energyDrain'=>3,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>10],
   ]],
 
-  'quarters' => ['tileType' => 'base', 'levels' => [
+  'quarters' => ['tileType' => 'base', 'requiresBuilding' => 'metal_mine', 'requiresLevel' => 1, 'levels' => [
     ['level'=>1,'cost'=>['metal'=>40],'buildTime'=>20,'production'=>[],'energyDrain'=>1,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>4],
     ['level'=>2,'cost'=>['metal'=>100,'crystal'=>30],'buildTime'=>300,'production'=>[],'energyDrain'=>2,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>6],
     ['level'=>3,'cost'=>['metal'=>260,'crystal'=>80],'buildTime'=>2400,'production'=>[],'energyDrain'=>3,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>12],

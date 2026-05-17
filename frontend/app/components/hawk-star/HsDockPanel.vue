@@ -20,11 +20,13 @@ const {
   canBuildDrone,
   buildReconDrone,
   reconDroneBuild,
+  reconDroneInventory,
   droneBuildTime,
   droneBuildProgressStyle,
   canBuildColonyShip,
   buildColonyShip,
   colonyShipBuild,
+  colonyShipInventory,
   colonyShipBuildTime,
   colonyShipBuildProgressStyle,
 } = useHawkStar()
@@ -58,6 +60,7 @@ const hasMissions = computed(() =>
       <div class="hs-building-row">
         <div class="hs-building-icon-wrap">
           <span class="hs-building-icon">🛸</span>
+          <span v-if="reconDroneInventory > 0" class="hs-building-badge">{{ reconDroneInventory }}</span>
         </div>
         <div class="hs-building-info">
           <div class="hs-building-name">{{ t('hawkStar.dock.reconDrone') }}</div>
@@ -99,6 +102,7 @@ const hasMissions = computed(() =>
       <div class="hs-building-row">
         <div class="hs-building-icon-wrap">
           <span class="hs-building-icon">🚀</span>
+          <span v-if="colonyShipInventory > 0" class="hs-building-badge hs-building-badge--colony">{{ colonyShipInventory }}</span>
         </div>
         <div class="hs-building-info">
           <div class="hs-building-name">{{ t('hawkStar.dock.colonyShip') }}</div>
@@ -228,6 +232,26 @@ const hasMissions = computed(() =>
 }
 
 .hs-building-icon   { font-size: 1.1rem; }
+
+.hs-building-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 3px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #000;
+  font-size: 0.55rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+
+  &--colony { background: #60a5fa; }
+}
 .hs-building-info   { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hs-building-name   { font-size: 0.825rem; font-weight: 600; display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; }
 .hs-building-effect { font-size: 0.68rem; opacity: 0.5; }
