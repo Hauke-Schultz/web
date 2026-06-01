@@ -254,13 +254,15 @@ No free text, no game-state change from messaging (that comes later).
 
 ### Data Model
 
-**`systemContacts`** — stored in `useHawkStar.js`, persisted in save:
+**`systemContacts`** — stored in `useHawkStar.js`, loaded from API:
 
 ```js
 systemContacts: {
   [systemId]: {
-    scanState:  'unscanned' | 'scanning' | 'scanned',
-    scanEndsAt: null | timestamp,
+    scanState:    'unscanned' | 'scanning' | 'scanned',
+    scanEndsAt:   null | timestamp,
+    mutualScan:   boolean,  // true = they have also scanned our home system
+    theyScannedMe: boolean, // true = they scanned us, but we haven't scanned them yet
   }
 }
 ```
@@ -599,6 +601,9 @@ Konvertiere überschüssige Ressourcen schnell zu anderen — aber zu schlechtem
 
 ## Deployment (Strato FTP)
 
+**Live seit 2026-06-01 unter https://haukeschultz.com/games/hawk-star/**
+PHP 8.3, MySQL auf Strato Shared Hosting. Phase 1 + 2 vollständig deployed.
+
 ### Pre-Deployment — Pflicht
 
 1. **JWT Secret setzen** — `api/db.config.php` ergänzen:
@@ -650,11 +655,11 @@ Die `api/.htaccess` (Authorization-Header-Fix) ist bereits vorhanden — **nicht
 
 ### Pre-Launch Checkliste
 
-- [ ] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
-- [ ] `api/star/dev/` nicht hochgeladen
-- [ ] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
-- [ ] Webroot-`.htaccess` für SPA-Routing vorhanden
-- [ ] `display_errors = Off` (`.htaccess`: `php_flag display_errors Off`)
+- [x] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
+- [x] `api/star/dev/` nicht hochgeladen
+- [x] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
+- [x] Webroot-`.htaccess` für SPA-Routing vorhanden
+- [ ] `display_errors = Off` — auf Strato kein `php_flag` in `.htaccess` möglich (PHP läuft als CGI/FPM); stattdessen `.user.ini` im Webroot mit `display_errors = Off` ablegen
 - [ ] Rate Limiting auf Login/Register erwägen (Brute-Force-Schutz)
 - [ ] Nach erstem Login: JWT-Token-Ablauf (7 Tage) + 401-Redirect testen
 

@@ -14,10 +14,12 @@ api/star/
   config.php             ← BUILDINGS, RESOURCES, UNIT_COSTS, GLOBAL_BUILDINGS, building_def(), level_def(), create_player_system()
   jwt.php                ← jwt_sign(), jwt_verify() — minimales HS256 ohne Composer
   auth/
-    register.php         ← POST /api/star/auth/register
-    login.php            ← POST /api/star/auth/login
-    logout.php           ← POST /api/star/auth/logout
-    me.php               ← GET  /api/star/auth/me
+    register.php         ← POST   /api/star/auth/register
+    login.php            ← POST   /api/star/auth/login
+    logout.php           ← POST   /api/star/auth/logout
+    me.php               ← GET    /api/star/auth/me
+    profile.php          ← POST   /api/star/auth/profile  (portrait, username, disposition)
+    delete.php           ← DELETE /api/star/auth/delete   (löscht den eigenen Account + alle Spielerdaten)
   galaxy/
     index.php            ← GET  /api/star/galaxy
   game/
@@ -110,6 +112,10 @@ hs_star_systems (id, galaxy_id, name, x FLOAT, y FLOAT, star_class CHAR(1))
 
 hs_planets (id, system_id, name, type ENUM('terrestrial','volcanic','frozen','ocean','uninhabitable'))
 
+-- (Vorbereitet für spätere NPC-Fraktionen — aktuell leer)
+hs_npc_factions (id, system_id, name, portrait, disposition ENUM('friendly','neutral','hostile'))
+hs_npc_planet_ownership (planet_id PK, faction_id)
+
 
 -- ── Per-player state ──────────────────────────────────────────────────────────
 
@@ -160,7 +166,7 @@ hs_conversion_queues (
 -- ── Phase 2: Communication ─────────────────────────────────────────────────────
 
 hs_system_contacts (player_id, system_id, scan_state ENUM('unscanned','scanning','scanned'), scan_ends_at)
-hs_comm_log (id, player_id, system_id, direction ENUM('sent','received'), message_key, travel_ends_at, reply_ends_at, created_at)
+hs_comm_log (id, player_id, system_id, direction ENUM('sent','received'), message_key, travel_ends_at, sent_msg_id, from_player_id, created_at)
 ```
 
 ---
@@ -169,10 +175,12 @@ hs_comm_log (id, player_id, system_id, direction ENUM('sent','received'), messag
 
 ```
 -- Auth
-POST /api/star/auth/register   { username, email, password, portrait?, disposition? }
-POST /api/star/auth/login      { email, password }
-POST /api/star/auth/logout
-GET  /api/star/auth/me
+POST   /api/star/auth/register  { username, email, password, portrait?, disposition? }
+POST   /api/star/auth/login     { email, password }
+POST   /api/star/auth/logout
+GET    /api/star/auth/me
+POST   /api/star/auth/profile   { portrait?, username?, disposition? }  → { player }
+DELETE /api/star/auth/delete    — löscht Account + alle Spielerdaten
 
 -- Game State (Seitenaufruf + nach jeder Aktion)
 GET  /api/star/game/state?planet_id=X
@@ -212,7 +220,7 @@ GET  /api/star/galaxy
 |-------|--------|--------|
 | **1** | Auth, Galaxie, Gebäude, Ressourcen, Forschung, Missionen, Konvertierung | ✅ **Implementiert** |
 | **1b** | Auth-Modal (Login-Default, Remember-Me), API-Wrapper, initFromApi, Write-Actions, Apache-Fix, HsDockPanel | ✅ **Implementiert** |
-| **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth | ✅ **Implementiert** |
+| **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth; `auth/profile`, `auth/delete` | ✅ **Implementiert** |
 | **2** | Scanning (`hs_system_contacts`), Player-Komm (`hs_comm_log`), server-seitig | ✅ **Implementiert** |
 | **3** | Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Offen |
 | **4** | Espionage — Recon in fremden Systemen, Intel-DB | ⬜ Offen |
@@ -270,20 +278,13 @@ GET  /api/star/galaxy
 - Aktive Missionen mit Fortschrittsbalken darunter
 - Hinweis „Launch units from the System Map" wenn keine Missionen laufen
 
-### Phase 1c — Nächster Schritt ⬜
+### Phase 1c — ✅ Implementiert
 
-LocalStorage-Save (`hawk-star-save`) entfernen — API ist alleinige Source of Truth:
-- `saveGame()` und `loadGame()` entfernen
-- Tick-Loop vereinfachen: keine lokale Ressourcenproduktion mehr (server-seitig), nur Timer-Updates für Fortschrittsbalken
-- `initFromApi()` als einzigen State-Provider etablieren
-
-### Schritt (Phase 2+): Weiterer Rollout
-
-**Noch ausstehend:**
-1. Scanning + Comm Log (Phase 2 Backend + Frontend)
-2. Scan-States aus `hs_system_contacts` laden in `initFromApi`
-3. Mehrere eigene Planeten laden (jetzt nur Home Planet — andere Planeten bei Bedarf laden)
-4. `buildTimeFactor` für Devmode bleibt bis Prod-Release
+LocalStorage-Save (`hawk-star-save`) entfernt — API ist alleinige Source of Truth:
+- `saveGame()` und `loadGame()` entfernt
+- `initFromApi()` als einziger State-Provider
+- `auth/profile.php` — Portrait, Username, Disposition per API änderbar (`HsProfilePanel`)
+- `auth/delete.php` — Account + alle Spielerdaten löschen (DELETE/POST)
 
 ---
 
@@ -291,10 +292,17 @@ LocalStorage-Save (`hawk-star-save`) entfernen — API ist alleinige Source of T
 
 ```
 POST /api/star/galaxy/scan      { systemId }   → { systemId, scanEndsAt }  (409 wenn Scan läuft)
-GET  /api/star/galaxy/contacts  → { [systemId]: { scanState, scanEndsAt } }
-POST /api/star/comm/send        { systemId, messageKey } → { messageId, travelEndsAt }
+GET  /api/star/galaxy/contacts  → {
+                                    contacts: { [systemId]: { scanState, scanEndsAt, mutualScan } },
+                                    theyScannedMe: systemId[]   ← Systeme, deren Bewohner uns schon gescannt haben (aber wir nicht sie)
+                                  }
+POST /api/star/comm/send        { systemId, messageKeys: string[] }  → { messageId, travelEndsAt }
 GET  /api/star/comm/log         → alle comm_log-Einträge des Spielers
 ```
+
+**`mutualScan`** — `true`, wenn der Inhaber des gescannten Systems uns (das Home-System des Scannenden) ebenfalls gescannt hat. Wird in der Galaxy Map verwendet um gegenseitige Kontakte zu kennzeichnen.
+
+**`theyScannedMe`** — Liste von System-IDs, deren Bewohner unser Home-System bereits gescannt haben, auch wenn wir sie noch nicht zurückgescannt haben. Damit kann das Frontend dem Spieler zeigen, dass er "beobachtet" wird.
 
 ### Scan-Mechanik
 
@@ -377,6 +385,9 @@ hs_combat_logs (id, attacker_id, defender_id, planet_id, attacker_won, result JS
 
 ## Deployment (Strato Shared Hosting)
 
+**Live seit 2026-06-01 unter https://haukeschultz.com/games/hawk-star/**
+Stack: PHP 8.3, MySQL (Strato Shared Hosting). Phase 1 + 2 vollständig deployed.
+
 ### Voraussetzungen
 
 | Komponente | Strato-Setup |
@@ -435,10 +446,10 @@ Webroot-`.htaccess` für direkten URL-Aufruf (nicht überschreiben: `api/.htacce
 
 ### Pre-Launch Checkliste
 
-- [ ] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
-- [ ] `api/star/dev/` nicht hochgeladen
-- [ ] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
-- [ ] Webroot-`.htaccess` für SPA-Routing vorhanden
-- [ ] `display_errors = Off` in `.htaccess`: `php_flag display_errors Off`
+- [x] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
+- [x] `api/star/dev/` nicht hochgeladen
+- [x] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
+- [x] Webroot-`.htaccess` für SPA-Routing vorhanden
+- [ ] `display_errors = Off` — Strato läuft PHP als CGI/FPM, daher kein `php_flag` in `.htaccess`; stattdessen `.user.ini` mit `display_errors = Off` in `/html/api/` ablegen
 - [ ] Rate Limiting auf `POST /api/star/auth/login` + `/register` erwägen
 - [ ] Nach erstem Login: 401-Redirect + JWT-Ablauf (7 Tage) testen
