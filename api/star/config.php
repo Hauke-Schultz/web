@@ -16,7 +16,7 @@ const BUILDINGS = [
 
   'command_center' => ['tileType' => 'base', 'levels' => [
     ['level'=>1,'cost'=>[],'buildTime'=>20,'production'=>[],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[['slot'=>2],['slot'=>4]],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>480,'production'=>[],'energyDrain'=>2,'staffDrain'=>2,'unlocks'=>[['slot'=>6],['slot'=>8]],'popBonus'=>5,'requiresBuilding'=>'metal_mine','requiresLevel'=>2],
+    ['level'=>2,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>480,'production'=>[],'energyDrain'=>2,'staffDrain'=>2,'unlocks'=>[['slot'=>6],['slot'=>7],['slot'=>8]],'popBonus'=>5,'requiresBuilding'=>'metal_mine','requiresLevel'=>2],
     ['level'=>3,'cost'=>['metal'=>300,'crystal'=>100],'buildTime'=>3600,'production'=>[],'energyDrain'=>3,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>10],
   ]],
 
@@ -207,6 +207,12 @@ const BUILDINGS = [
     ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350],'buildTime'=>14400,'production'=>[],'energyDrain'=>15,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>1500,'crystal'=>750],'buildTime'=>57600,'production'=>[],'energyDrain'=>25,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
   ]],
+
+  'farm' => ['tileType'=>'agriculture','levels'=>[
+    ['level'=>1,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>300,'production'=>[],'energyDrain'=>2,'staffDrain'=>1,'storageCapacity'=>['food'=>100],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>2,'cost'=>['metal'=>200,'crystal'=>80],'buildTime'=>1800,'production'=>[],'energyDrain'=>3,'staffDrain'=>2,'storageCapacity'=>['food'=>300],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>3,'cost'=>['metal'=>450,'crystal'=>180],'buildTime'=>7200,'production'=>[],'energyDrain'=>4,'staffDrain'=>2,'storageCapacity'=>['food'=>500],'unlocks'=>[],'popBonus'=>0],
+  ]],
 ];
 
 // ── Galaxy generation ─────────────────────────────────────────────────────────
@@ -296,7 +302,71 @@ function create_player_system(PDO $db): array {
 const RESOURCE_KEYS = [
     'metal','crystal','population','alloy','obsidian','cryo','biomass',
     'pure_crystal','super_alloy','quantum_shard','nano_alloy','power_cell',
+    'red_seed','green_seed','blue_seed','white_seed','xenopilz',
 ];
+
+// ── Agriculture crop tables ───────────────────────────────────────────────────
+
+// Seeds are resources; each crop yields itself.
+// 'planets' => ['all'] means it can grow on any planet type.
+const AGRI_CROPS = [
+    'red_seed'   => ['symbol' => '🌺', 'yield' => ['red_seed'   => 2], 'planets' => ['volcanic']],
+    'green_seed' => ['symbol' => '🌿', 'yield' => ['green_seed' => 2], 'planets' => ['terrestrial']],
+    'blue_seed'  => ['symbol' => '🫐', 'yield' => ['blue_seed'  => 2], 'planets' => ['ocean']],
+    'white_seed' => ['symbol' => '🌸', 'yield' => ['white_seed' => 2], 'planets' => ['frozen']],
+    'xenopilz'   => ['symbol' => '🍄', 'yield' => ['xenopilz'   => 1], 'planets' => ['all']],
+];
+
+// Xenopilz appears on all planet types; chance increases with farm level.
+const AGRI_XENOPILZ_CHANCE = [1 => 15, 2 => 20, 3 => 25];
+
+// Growth window: 6–16 h (in seconds)
+const AGRI_GROW_MIN = 21600;
+const AGRI_GROW_MAX = 57600;
+
+function pick_random_crop(int $farmLevel, string $planetType): array {
+    $xChance = AGRI_XENOPILZ_CHANCE[min($farmLevel, 3)];
+    if (mt_rand(1, 100) <= $xChance) {
+        return array_merge(['key' => 'xenopilz'], AGRI_CROPS['xenopilz']);
+    }
+    foreach (AGRI_CROPS as $key => $crop) {
+        if ($crop['planets'] !== ['all'] && in_array($planetType, $crop['planets'], true)) {
+            return array_merge(['key' => $key], $crop);
+        }
+    }
+    // Fallback for unknown planet types
+    return array_merge(['key' => 'xenopilz'], AGRI_CROPS['xenopilz']);
+}
+
+function generate_harvest_grid(int $farmLevel, string $planetType): array {
+    $grid = [];
+    $now  = time();
+    for ($i = 0; $i < 9; $i++) {
+        $growSec = mt_rand(AGRI_GROW_MIN, AGRI_GROW_MAX);
+        $crop    = pick_random_crop($farmLevel, $planetType);
+        $grid[]  = [
+            'crop'      => $crop['key'],
+            'symbol'    => $crop['symbol'],
+            'yield'     => $crop['yield'],
+            'plantedAt' => $now * 1000,
+            'growsAt'   => ($now + $growSec) * 1000,
+        ];
+    }
+    return $grid;
+}
+
+function reset_cell(int $farmLevel, string $planetType): array {
+    $now     = time();
+    $growSec = mt_rand(AGRI_GROW_MIN, AGRI_GROW_MAX);
+    $crop    = pick_random_crop($farmLevel, $planetType);
+    return [
+        'crop'      => $crop['key'],
+        'symbol'    => $crop['symbol'],
+        'yield'     => $crop['yield'],
+        'plantedAt' => $now * 1000,
+        'growsAt'   => ($now + $growSec) * 1000,
+    ];
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

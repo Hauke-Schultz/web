@@ -31,6 +31,11 @@ api/star/
     mission/
       drone.php          ← POST /api/star/game/mission/drone
       colony.php         ← POST /api/star/game/mission/colony
+  agriculture/
+    state.php            ← GET  /api/star/agriculture/state?planet_id=X
+    harvest.php          ← POST /api/star/agriculture/harvest
+  dev/
+    cheat.php            ← POST /api/star/dev/cheat  (complete_buildings, max_resources, ready_farm, …)
 
 docker/mysql/init/
   002_hawk_star_schema.sql   ← alle hs_* Tabellen + Galaxy-Seed
@@ -135,7 +140,15 @@ hs_planet_resources (
   metal, crystal, population,
   alloy, obsidian, cryo, biomass,  -- planetenspezifische Rohstoffe
   pure_crystal, super_alloy, quantum_shard, nano_alloy, power_cell,
+  red_seed, green_seed, blue_seed, white_seed, xenopilz,  -- Agriculture-Saaten
   resources_computed_at DATETIME
+)
+
+hs_agriculture (
+  planet_id, player_id,   -- PK
+  last_harvest DATETIME NULL,
+  streak TINYINT DEFAULT 0,
+  current_grid JSON NULL   -- Array mit 9 Zell-Objekten { crop, symbol, yield, plantedAt, growsAt }
 )
 
 hs_planet_slots (planet_id, player_id, slot_index, unlocked TINYINT(1))
@@ -215,6 +228,29 @@ GET  /api/star/game/missions
 -- Galaxie
 GET  /api/star/galaxy
   → [{ id, name, x, y, starClass, factions[], planets[{id, name, type, owner}] }]
+
+-- Agriculture (Acker-Gebäude muss gebaut + fertig sein)
+GET  /api/star/agriculture/state?planet_id=X
+  → { farmLevel, cells: [{ crop, symbol, yield, plantedAt, growsAt, ready }, ...×9] }
+  (Generiert Grid beim ersten Aufruf; bestehende Zellen werden nie neu generiert bis Ernte)
+
+POST /api/star/agriculture/harvest  { planetId, cellIndex }
+  → { harvested: { <resKey>: amt }, cell: { crop, symbol, yield, plantedAt, growsAt, ready } }
+  (Schreibt Ressourcen gut, ersetzt Zelle durch neue mit 6–16 h Timer)
+```
+
+---
+
+## Agriculture — Config (`config.php`)
+
+```php
+AGRI_CROPS          // 5 Einträge: crop-key → { symbol, yield, planets }
+AGRI_XENOPILZ_CHANCE // [1 => 15, 2 => 20, 3 => 25]  — % je Farm-Level
+AGRI_GROW_MIN / MAX  // 21600 / 57600 s  (6 h / 16 h)
+
+pick_random_crop($farmLevel, $planetType)  // Xenopilz-Roll, sonst planeteneigene Saat
+generate_harvest_grid($farmLevel, $planetType)  // 9 Zellen mit growsAt-Timestamps
+reset_cell($farmLevel, $planetType)             // Eine neue Zelle für nach der Ernte
 ```
 
 ---
@@ -227,7 +263,8 @@ GET  /api/star/galaxy
 | **1b** | Auth-Modal (Login-Default, Remember-Me), API-Wrapper, initFromApi, Write-Actions, Apache-Fix, HsDockPanel | ✅ **Implementiert** |
 | **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth; `auth/profile`, `auth/delete` | ✅ **Implementiert** |
 | **2** | Scanning (`hs_system_contacts`), Player-Komm (`hs_comm_log`), server-seitig | ✅ **Implementiert** |
-| **3** | Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Offen |
+| **2b** | Agriculture-Tile: Acker Lv1–3, 5 planetenspezifische Saaten, per-Cell-Timer (6–16 h), 2-Step-Harvest | ✅ **Implementiert** |
+| **3** | Spieler-Interaktion (Trade, Player-Messaging) — Saaten als Handelswaren | ⬜ Offen |
 | **4** | Espionage — Recon in fremden Systemen, Intel-DB | ⬜ Offen |
 | **5** | Kampf — Kriegsschiffe, stat-basierter Combat | ⬜ Offen |
 

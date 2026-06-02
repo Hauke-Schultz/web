@@ -21,7 +21,9 @@
       "Bash(xargs ls *)",
       "Bash(dir \"C:\\\\Users\\\\hauke\\\\WebstormProjects\\\\web\\\\frontend\\\\app\\\\components\\\\dailyReward\")",
       "Bash(Remove-Item *)",
-      "Bash(docker exec web-php-1 *)"
+      "Bash(docker exec web-php-1 *)",
+      "Bash(dir \"C:\\\\Users\\\\hauke\\\\WebstormProjects\\\\web\\\\frontend\\\\app\\\\\")",
+      "PowerShell(New-Item *)"
     ]
   }
 }

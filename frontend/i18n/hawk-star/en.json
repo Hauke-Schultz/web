@@ -178,7 +178,24 @@
       "super_alloy": "Super Alloy",
       "quantum_shard": "Quantum Shard",
       "nano_alloy": "Nano Alloy",
-      "power_cell": "Power Cell"
+      "power_cell": "Power Cell",
+      "red_seed":   "Red Seed",
+      "green_seed": "Green Seed",
+      "blue_seed":  "Blue Seed",
+      "white_seed": "White Seed",
+      "xenopilz":   "Xenofungus"
+    },
+
+    "agriculture": {
+      "harvestDone": "Harvest collected!",
+      "loading":     "Loading…",
+      "crops": {
+        "red_seed":   "Red Seed",
+        "green_seed": "Green Seed",
+        "blue_seed":  "Blue Seed",
+        "white_seed": "White Seed",
+        "xenopilz":   "Xenofungus"
+      }
     },
 
     "tiles": {
@@ -188,7 +205,7 @@
       "techcenter":  { "name": "Tech Center", "desc": "Technology research" },
       "comm_center": { "name": "Comm Center",  "desc": "Global technologies — researched once, applied across all planets" },
       "spacebase":   { "name": "Space Base",  "desc": "Launch pad for drones and colony ships" },
-      "agriculture": { "name": "Agriculture", "desc": "Reserved — no buildings yet" },
+      "agriculture": { "name": "Agriculture", "desc": "Grow seeds — each cell takes 6–16 h, then scratch & harvest" },
       "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
       "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" },
       "dock":        { "name": "Dock",        "desc": "Ship management, missions and fleet operations" },
@@ -421,6 +438,13 @@
         "lv2": "Enhanced shield — absorbs 40% incoming damage · uses 15 energy · 5 workers",
         "lv3": "Fortress shield — absorbs 60% incoming damage · uses 25 energy · 8 workers"
       },
+      "farm": {
+        "name": "Farm",
+        "desc": "Grow planet-specific seeds — harvest every 6–16 h per cell.",
+        "lv1": "3×3 seed grid · planet seed + Xenofungus (15 %) · uses 2 energy · 1 worker",
+        "lv2": "Xenofungus chance +5 % · uses 3 energy · 2 workers",
+        "lv3": "Xenofungus chance +10 % · planet seed yield +1 · uses 4 energy · 2 workers"
+      }
     }
   }
 }

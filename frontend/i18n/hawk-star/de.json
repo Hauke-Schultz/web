@@ -179,7 +179,24 @@
       "super_alloy": "Super-Legierung",
       "quantum_shard": "Quantumsplitter",
       "nano_alloy": "Nano-Legierung",
-      "power_cell": "Power Cell"
+      "power_cell": "Power Cell",
+      "red_seed":   "Rote Saat",
+      "green_seed": "Grüne Saat",
+      "blue_seed":  "Blaue Saat",
+      "white_seed": "Weiße Saat",
+      "xenopilz":   "Xenopilz"
+    },
+
+    "agriculture": {
+      "harvestDone": "Ernte eingesammelt!",
+      "loading":     "Laden…",
+      "crops": {
+        "red_seed":   "Rote Saat",
+        "green_seed": "Grüne Saat",
+        "blue_seed":  "Blaue Saat",
+        "white_seed": "Weiße Saat",
+        "xenopilz":   "Xenopilz"
+      }
     },
 
     "tiles": {
@@ -189,7 +206,7 @@
       "techcenter":  { "name": "Techzentrum",     "desc": "Technologieforschung" },
       "comm_center": { "name": "Komm-Zentrum",    "desc": "Globale Technologien — einmal erforscht, auf allen Planeten aktiv" },
       "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Drohnen und Kolonisierungsschiffe" },
-      "agriculture": { "name": "Landwirtschaft",  "desc": "Reserviert — noch keine Gebäude" },
+      "agriculture": { "name": "Landwirtschaft",  "desc": "Saat anbauen — jede Zelle wächst 6–16 h, dann rubbeln & ernten" },
       "defense":     { "name": "Verteidigung",    "desc": "Planetarische Schilde, Waffenplattformen und Frühwarnsysteme" },
       "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" },
       "dock":        { "name": "Dock",            "desc": "Schiffsverwaltung, Missionen und Flottenoperationen" },
@@ -422,6 +439,13 @@
         "lv2": "Verstärkter Schild — absorbiert 40% eingehenden Schaden · 15 Energie · 5 Arbeiter",
         "lv3": "Festungsschild — absorbiert 60% eingehenden Schaden · 25 Energie · 8 Arbeiter"
       },
+      "farm": {
+        "name": "Acker",
+        "desc": "Saat anbauen — planetenspezifische Ressourcen alle 6–16 h ernten.",
+        "lv1": "3×3 Saatfeld · Planetensaat + Xenopilz (15 %) · 2 Energie · 1 Arbeiter",
+        "lv2": "Xenopilz-Chance +5 % · 3 Energie · 2 Arbeiter",
+        "lv3": "Xenopilz-Chance +10 % · Planetensaat-Ertrag +1 · 4 Energie · 2 Arbeiter"
+      }
     }
   }
 }

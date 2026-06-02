@@ -29,6 +29,8 @@ export function useHawkStarApi() {
     postScanSystem:    (systemId)                      => post('/galaxy/scan',          { systemId }),
     postSendMessage:   (systemId, messageKeys)          => post('/comm/send',            { systemId, messageKeys }),
     fetchCommLog:      ()                              => apiFetch('/comm/log'),
-    postDevCheat:      (action, planetId = null)       => post('/dev/cheat', { action, ...(planetId != null ? { planetId } : {}) }),
+    postDevCheat:          (action, planetId = null)  => post('/dev/cheat', { action, ...(planetId != null ? { planetId } : {}) }),
+    fetchAgricultureState: (planetId)                 => apiFetch(`/agriculture/state?planet_id=${planetId}`),
+    postHarvest:           (planetId, cellIndex)      => post('/agriculture/harvest', { planetId, cellIndex }),
   }
 }
