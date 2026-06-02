@@ -37,6 +37,36 @@ function method(string ...$allowed): void {
     if (!in_array($_SERVER['REQUEST_METHOD'], $allowed, true)) fail('Method not allowed', 405);
 }
 
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+
+function check_rate_limit(PDO $db, string $endpoint, int $maxHits = 10, int $windowSec = 900): void {
+    $ip = $_SERVER['HTTP_X_FORWARDED_FOR']
+       ?? $_SERVER['REMOTE_ADDR']
+       ?? '0.0.0.0';
+    $ip = trim(explode(',', $ip)[0]); // take first IP if behind proxy
+
+    // Prune expired windows
+    $db->prepare(
+        'DELETE FROM hs_rate_limits WHERE window_start < DATE_SUB(NOW(), INTERVAL ? SECOND)'
+    )->execute([$windowSec]);
+
+    $row = $db->prepare(
+        'SELECT id, hits FROM hs_rate_limits
+         WHERE ip=? AND endpoint=? AND window_start >= DATE_SUB(NOW(), INTERVAL ? SECOND)'
+    );
+    $row->execute([$ip, $endpoint, $windowSec]);
+    $existing = $row->fetch();
+
+    if ($existing) {
+        if ((int)$existing['hits'] >= $maxHits) fail('Too many requests — please wait before trying again', 429);
+        $db->prepare('UPDATE hs_rate_limits SET hits = hits + 1 WHERE id=?')->execute([$existing['id']]);
+    } else {
+        $db->prepare(
+            'INSERT INTO hs_rate_limits (ip, endpoint, hits, window_start) VALUES (?,?,1,NOW())'
+        )->execute([$ip, $endpoint]);
+    }
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 function jwt_secret(): string {

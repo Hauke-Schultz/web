@@ -167,6 +167,11 @@ hs_conversion_queues (
 
 hs_system_contacts (player_id, system_id, scan_state ENUM('unscanned','scanning','scanned'), scan_ends_at)
 hs_comm_log (id, player_id, system_id, direction ENUM('sent','received'), message_key, travel_ends_at, sent_msg_id, from_player_id, created_at)
+
+-- ── Rate limiting ──────────────────────────────────────────────────────────────
+
+hs_rate_limits (id, ip VARCHAR(45), endpoint VARCHAR(64), hits INT, window_start DATETIME)
+  -- Login: 10 hits / 15 min · Register: 5 hits / 1 h · check_rate_limit() in bootstrap.php
 ```
 
 ---
@@ -228,66 +233,6 @@ GET  /api/star/galaxy
 
 ---
 
-## Phase 1b — Frontend-Migration
-
-### Phase 1b — Implementiert ✅
-
-**`useHawkStarAuth.js`** — Auth-Singleton:
-- `token`, `player`, `homePlanetId`, `authError`, `authLoading`, `isAuthenticated`, `rememberMe`
-- `register(username, email, password)`, `login(email, password)`, `logout()`, `verifyToken()`
-- **Remember me** (Standard: `true`): Token in `localStorage['hawk-star-token']`; bei `false` nur in `sessionStorage` (Tab-Session).
-- Token wird beim Start aus beiden Stores gelesen (`localStorage || sessionStorage`).
-
-**Auth-Modal** (`index.vue`):
-- Standard-Tab: **Login** (nicht Register)
-- Zwei Tabs: Login (mit „Remember me"-Checkbox) / Register, Inline-Fehlermeldungen
-- Nach Erfolg → `initFromApi()` → Spiel startet
-
-**Apache-Fix — Authorization-Header:**
-- `api/.htaccess`: `RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]` als erste Regel (mod_rewrite übergibt Authorization sonst nicht an PHP).
-- `api/star/bootstrap.php` `auth()`: liest aus `$_SERVER['HTTP_AUTHORIZATION']` → `$_SERVER['REDIRECT_HTTP_AUTHORIZATION']` → `getallheaders()['Authorization']` (Fallback-Chain).
-- Galaxy-URL hat Trailing Slash `/galaxy/` in `useHawkStarApi.js` — verhindert Apache 301-Redirect auf absolute URL, der den Auth-Header beim Browser-Follow verliert.
-
-**`useHawkStarApi.js`** — dünner API-Wrapper:
-- `fetchGalaxy`, `fetchGameState(planetId)`, `postBuild`, `postResearch`, `postConvert`, `postDroneMission`, `postColonyMission`, `getMissions`
-
-**`useHawkStar.js`** — Write-Actions auf API umgestellt:
-- `startBuild(id)` — async, `postBuild`/`postResearch`, optimistische Deduktion + Rollback
-- `sendReconDrone(planetId, fromId)` — direkt `postDroneMission` (kein Inventory-Step)
-- `sendColonyShip(planetId, fromId)` — direkt `postColonyMission` (kein Inventory-Step)
-- `startConversion(buildingId, ri, count)` — async, `postConvert`
-- `canSendDrone` / `canSendColonyShip` — prüfen Building-Level + Affordability (kein Inventory)
-- `buildError` ref — Fehlerfeedback für UI
-- `gameLoaded` ref — `false` bis `initFromApi()` vollständig erfolgreich. `startBuild` blockt wenn `false`.
-- `initError` ref — Fehlermeldung wenn Galaxy-Load oder Game-State-Load fehlschlägt, im UI als rote Zeile + Retry-Button.
-- `initFromApi()` — lädt Galaxy + Game State, setzt alle Refs, ruft `saveGame()`. Setzt `gameLoaded = true` nur bei Erfolg.
-
-**Loading-Screen** (`index.vue`):
-- `v-if="isAuthenticated && !gameLoaded"` → zeigt „Loading galaxy data…" + immer sichtbaren Reload-Button.
-- Bei Fehler: `initError`-Text statt der Lademeldung, Button wird zu „Retry".
-- Hintergrund: Vite HMR resettet Module-Level-Refs (`gameLoaded = false`), läuft aber kein `onMounted` neu → Reload-Button als manueller Auslöser.
-
-**Neues Drone/Colony-Modell:**
-- `recon_drone`/`colony_ship` = Gebäude (Level 1 = Unit vorhanden, kein separater Build-Schritt)
-- Mission deducts `UNIT_COSTS` resources direkt
-- Kein Inventory (`reconDroneInventory` wird immer 0 im API-Modus)
-
-**`HsDockPanel`** — an neues Missions-Modell angepasst:
-- Kein „Build Drone" / „Build Colony Ship"-Button mehr
-- Zeigt für jede Unit: Locked / Insufficient Resources / Ready (grün)
-- Aktive Missionen mit Fortschrittsbalken darunter
-- Hinweis „Launch units from the System Map" wenn keine Missionen laufen
-
-### Phase 1c — ✅ Implementiert
-
-LocalStorage-Save (`hawk-star-save`) entfernt — API ist alleinige Source of Truth:
-- `saveGame()` und `loadGame()` entfernt
-- `initFromApi()` als einziger State-Provider
-- `auth/profile.php` — Portrait, Username, Disposition per API änderbar (`HsProfilePanel`)
-- `auth/delete.php` — Account + alle Spielerdaten löschen (DELETE/POST)
-
----
-
 ## Phase 2 — Scanning & Player Communication ✅
 
 ```
@@ -319,25 +264,9 @@ GET  /api/star/comm/log         → alle comm_log-Einträge des Spielers
   - Erstellt `received`-Einträge mit `sent_msg_id`-Rücklink (verhindert Doppel-Delivery)
   - Sender-System wird aus `hs_planet_ownership WHERE is_home=1` des Senders ermittelt
 
-### Neue Spalten in `hs_comm_log`
-
-| Spalte | Typ | Bedeutung |
-|--------|-----|-----------|
-| `sent_msg_id` | INT NULL | Rücklink zur Original-`sent`-Zeile (nur bei `received`-Einträgen) |
-| `from_player_id` | INT NULL | Sender-Spieler-ID (nur bei `received`-Einträgen) |
-
 ### Initialisierung bei Registrierung
 
 `init_system_contacts($db, $playerId, $homeSystemId)` wird in `register.php` aufgerufen → schreibt das Home-System sofort als `scanned` in `hs_system_contacts`.
-
-### Neue Dateien
-
-| Datei | Endpoint |
-|-------|---------|
-| `api/star/galaxy/contacts.php` | `GET /api/star/galaxy/contacts` |
-| `api/star/galaxy/scan.php` | `POST /api/star/galaxy/scan` |
-| `api/star/comm/send.php` | `POST /api/star/comm/send` |
-| `api/star/comm/log.php` | `GET /api/star/comm/log` |
 
 ---
 
@@ -385,71 +314,23 @@ hs_combat_logs (id, attacker_id, defender_id, planet_id, attacker_won, result JS
 
 ## Deployment (Strato Shared Hosting)
 
-**Live seit 2026-06-01 unter https://haukeschultz.com/games/hawk-star/**
-Stack: PHP 8.3, MySQL (Strato Shared Hosting). Phase 1 + 2 vollständig deployed.
+**Live: https://haukeschultz.com/games/hawk-star/** — PHP 8.3, MySQL, Apache + mod_rewrite.
 
-### Voraussetzungen
-
-| Komponente | Strato-Setup |
-|------------|--------------|
-| Webserver | Apache mit `mod_rewrite` |
-| PHP | 7.4+ (PHP 8.1 empfohlen) |
-| MySQL | 5.7 oder 8.0 — **kein** `ADD COLUMN IF NOT EXISTS` in 5.7 (separate try-catch verwenden) |
-
-### Pre-Deployment — Pflicht
-
-1. **JWT Secret** — `api/db.config.php` ergänzen (gitignored, manuell hochladen):
-   ```php
-   define('JWT_SECRET', '<starker-zufalls-string-min-32-zeichen>');
-   ```
-   Ohne diesen Eintrag fällt `bootstrap.php` auf `'dev-secret'` zurück — **kritisches Sicherheitsrisiko**.
-
-2. **`api/star/dev/` nicht uploaden** — `cheat.php` u.ä. nie auf Produktionsserver.
-
-3. **DB-Schema einrichten** — einmalig per phpMyAdmin oder SSH:
-   ```
-   docker/mysql/init/002_hawk_star_schema.sql
-   ```
-   Enthält alle `hs_*`-Tabellen + Galaxy-Seed-INSERT.
-
-### Build & Upload
+### Update-Prozess
 
 ```bash
 cd frontend && npm run build
 # Output: frontend/.output/public/
 ```
 
-| Quelle | Ziel (Strato Webroot, z.B. `/html/`) |
-|--------|--------------------------------------|
+| Quelle | Ziel |
+|--------|------|
 | `frontend/.output/public/` | `/html/` |
 | `api/` (ohne `star/dev/`) | `/html/api/` |
 | `api/db.config.php` | `/html/api/db.config.php` (gitignored, manuell) |
 
-### API-Pfade
-
-`useHawkStarApi.js` verwendet relative Pfade (`/api/star/...`) — kein API-URL-Config nötig, funktioniert automatisch auf jedem Webroot.
-
-### `.htaccess` — SPA Routing
-
-Webroot-`.htaccess` für direkten URL-Aufruf (nicht überschreiben: `api/.htaccess` ist der Authorization-Header-Fix):
-
-```apache
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
-```
-
-### Pre-Launch Checkliste
-
-- [x] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
-- [x] `api/star/dev/` nicht hochgeladen
-- [x] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
-- [x] Webroot-`.htaccess` für SPA-Routing vorhanden
-- [ ] `display_errors = Off` — Strato läuft PHP als CGI/FPM, daher kein `php_flag` in `.htaccess`; stattdessen `.user.ini` mit `display_errors = Off` in `/html/api/` ablegen
-- [ ] Rate Limiting auf `POST /api/star/auth/login` + `/register` erwägen
-- [ ] Nach erstem Login: 401-Redirect + JWT-Ablauf (7 Tage) testen
+**Hinweise:**
+- PHP läuft als CGI/FPM — kein `php_flag` in `.htaccess`, für `display_errors` stattdessen `.user.ini` verwenden
+- `api/.htaccess` nie überschreiben (Authorization-Header-Fix + CORS drin)
+- Neue DB-Tabellen per phpMyAdmin aus `002_hawk_star_schema.sql` importieren
+- `api/star/dev/` (cheat.php) nie hochladen

@@ -154,6 +154,17 @@ CREATE TABLE IF NOT EXISTS hs_comm_log (
   created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Rate limiting ────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS hs_rate_limits (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  ip           VARCHAR(45) NOT NULL,
+  endpoint     VARCHAR(64) NOT NULL,
+  hits         INT DEFAULT 1,
+  window_start DATETIME NOT NULL,
+  INDEX idx_ip_endpoint (ip, endpoint)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Galaxy seed (leer — Systeme wachsen dynamisch bei Registrierung) ──────────
 
 INSERT INTO hs_galaxies (id, name) VALUES (1, 'Hawk-Star');

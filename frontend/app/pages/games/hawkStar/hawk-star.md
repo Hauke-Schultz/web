@@ -363,46 +363,6 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 
 ---
 
-### Files Changed
-
-| File | Change | Status |
-|------|--------|--------|
-| `hawkStarConfig.js` | Added `interstellar_comm` building (global, `comm_center`, 2 levels) + `COMM_EMOJIS`, `SIGNAL_SPEED_BASE` exports | ✅ Done |
-| `useHawkStar.js` | Added `systemContacts`, `commLog`, `interstellarCommLevel`, `scanSystem()`, `sendMessage()`, `canScanSystem()`, `canMessageSystem()`, `signalTravelTime()`, signal tick loop | ✅ Done |
-| `HsGalaxyMap.vue` | Scan button, scanning indicator (pulsing badge), scanned faction display, message dropdown + Comm Log section | ✅ Done |
-| `en.json` / `de.json` | Added keys under `hawkStar.comm.*` and `hawkStar.buildings.interstellar_comm` | ✅ Done |
-| `useHawkStarApi.js` | Added `fetchContacts`, `postScanSystem`, `postSendMessage`, `fetchCommLog` | ✅ Done |
-| `useHawkStar.js` | `scanSystem()` + `sendMessage()` auf API umgestellt; `initFromApi()` lädt Contacts + CommLog | ✅ Done |
-| `bootstrap.php` | Added `init_system_contacts()`, `resolve_system_contacts()`, `resolve_comm_deliveries()` | ✅ Done |
-| `galaxy/contacts.php` | `GET /api/star/galaxy/contacts` — gibt alle Scan-States zurück | ✅ Done |
-| `galaxy/scan.php` | `POST /api/star/galaxy/scan` — startet System-Scan (gate: star_map Lv3, 1 gleichzeitig) | ✅ Done |
-| `comm/send.php` | `POST /api/star/comm/send` — sendet Emoji mit Travel-Time-Delay | ✅ Done |
-| `comm/log.php` | `GET /api/star/comm/log` — liefert CommLog inkl. lazy Delivery empfangener Nachrichten | ✅ Done |
-| `002_hawk_star_schema.sql` | `hs_comm_log` um `sent_msg_id` + `from_player_id` erweitert | ✅ Done |
-| `comm/send.php` | Multi-emoji: accept `messageKeys[]`, join space-separated, validate ≤5, cleanup last-10 | ✅ Done |
-| `comm/log.php` | resolve_comm_deliveries robustify (try-catch for missing columns) | ✅ Done |
-| `HsCommLog.vue` | Staging tray (1–5 emojis), send button, split messageKey on render | ✅ Done |
-| `useHawkStar.js` | `sendMessage(systemId, messageKeys[])` — pass array instead of single string | ✅ Done |
-| `useHawkStarApi.js` | `postSendMessage(systemId, messageKeys[])` | ✅ Done |
-
----
-
-## Data Architecture
-
-All static game data lives in `hawkStarConfig.js` and is structured to map 1:1 to future database tables:
-
-| JS export | Future DB table |
-|-----------|----------------|
-| `RESOURCES` | `resources` |
-| `TILE_TYPES` | `tile_types` |
-| `PLANET_GRID` | `planet_grid_slots` |
-| `BUILDINGS` | `buildings` |
-| `BUILDINGS[id].levels` | `building_levels` (composite PK: buildingId + level) |
-
-Player state (resources, slot unlock status, building progress) is served exclusively from the backend API (`GET /api/star/game/state`). LocalStorage only holds the JWT token and dev settings.
-
----
-
 ## Tech Stack
 
 - **Vue 3 + Nuxt** (existing project structure)
@@ -466,16 +426,10 @@ Das Spiel benötigt einen Account. Beim ersten Öffnen erscheint das **Auth-Moda
 
 - **`useHawkStar.js`** ist ein Singleton-Composable — alle Komponenten lesen und schreiben direkt darin, keine Props/Emits für Game-State.
 - **`gameLoaded`** ref (bool): wird erst `true`, nachdem `initFromApi()` vollständig erfolgreich war. `startBuild` und andere Write-Actions sind davon abhängig — solange `false`, werden sie geblockt.
-- **`initError`** ref (string): enthält die Fehlermeldung, wenn Galaxy-Load oder Game-State-Load fehlschlägt. Im UI sichtbar als rote Zeile über dem Retry-Button.
-- Aktuell: Player-State zusätzlich in **LocalStorage** unter `hawk-star-save` (Ressourcen, Slot-Unlocks, Gebäude-Fortschritt, Missionen, Galaxie-Layout, Profil). Soll entfernt werden, sobald die LocalStorage-Migration abgeschlossen ist.
-- Nach Frontend-Migration: State kommt ausschließlich aus der Backend-API (`GET /api/star/game/state?planet_id=X`), LocalStorage enthält nur noch den JWT-Token.
+- **`initError`** ref (string): enthält die Fehlermeldung wenn Galaxy-Load oder Game-State-Load fehlschlägt. Im UI sichtbar als rote Zeile über dem Retry-Button.
+- State kommt ausschließlich aus der Backend-API (`GET /api/star/game/state?planet_id=X`). LocalStorage enthält nur noch den JWT-Token und Dev-Einstellungen.
 - `allPlanetStates` ist das Kern-State-Objekt — keyed by `planetId`, enthält Ressourcen, Gebäude, Dock, Conversion-Queues pro Planet.
-- `galaxySystems`: nach `initFromApi()` von `GET /api/star/galaxy/` geladen (echter API-Stand). Fallback über `generateGalaxy()` bleibt im Code für HMR-Initialisierung, wird aber durch API-Daten überschrieben.
-- `playerPortrait` und `playerDisposition` werden im In-Game-Profil (`HsProfilePanel`) gespeichert und per API aktualisiert.
-
-### Offline Production
-
-When the game is closed and reopened, the engine calculates how many production ticks were missed while offline and applies them all at once on load, before the first live tick fires. The save file stores `savedAt` (the timestamp of the last save). On load, `offlineTicks = floor((now - savedAt) / tickRateMs)` is computed and capped at 24 hours. Per-planet offline production mirrors the live tick logic exactly: gross output per building level × ticks, energy deficit handled (negative net energy floors resources at 0), storage caps applied. Buildings/ships/missions that completed while offline are resolved on the first live tick as normal — their endsAt timestamps are in the past, so the tick loop completes them immediately.
+- `galaxySystems`: nach `initFromApi()` von `GET /api/star/galaxy/` geladen.
 
 ### Dev Mode
 
@@ -518,148 +472,28 @@ All Hawk-Star keys live under `hawkStar.*`:
 
 ### Implementation Status
 
-| Feature                                                                                       | Status |
-|-----------------------------------------------------------------------------------------------|--------|
-| Planet grid, slot unlocks                                                                     | ✅ Done |
-| Buildings (all types)                                                                         | ✅ Done |
-| Energy & staff system                                                                         | ✅ Done |
-| Resources + storage caps                                                                      | ✅ Done |
-| High-Tech conversions                                                                         | ✅ Done |
-| Recon Drones                                                                                  | ✅ Done |
-| Colony Ships                                                                                  | ✅ Done |
-| Galaxy Map (simplified, all systems visible)                                                  | ✅ Done |
-| Solar System view                                                                             | ✅ Done |
-| Dev mode — tick rate & build time factor                                                      | ✅ Done |
-| Notification Panel                                                                            | ✅ Done |
-| Localisation (i18n) — all components                                                          | ✅ Done |
-| Research → Comm Center rename + Star Map global                                               | ✅ Done |
-| `interstellar_comm` research (Comm Center, global, requires star_map Lv3)                     | ✅ Done |
-| System scanning — `systemContacts`, one scan at a time, hours-based duration                  | ✅ Done |
-| Galaxy scanning gate — `star_map` Lv3, uses actual completed level (not in-progress)          | ✅ Done |
-| Galaxy Map — scan button, scanning indicator, scanned display, ⏳ busy state                   | ✅ Done |
-| Predefined emoji messages + `commLog` (frontend-local, backend Phase 2)                       | ✅ Done |
-| Comm log in Galaxy Map view                                                                   | ✅ Done |
-| i18n — `hawkStar.comm.*` + `hawkStar.buildings.interstellar_comm`                             | ✅ Done |
-| `recon_drone` + `colony_ship` simplified to 1 level, 1 active mission at a time               | ✅ Done |
-| Commander profile — portrait picker, name edit, disposition selector (`HsProfilePanel`)       | ✅ Done |
-| `formatTime` — supports s / m s / h m / t h m s formats                                       | ✅ Done |
-| Backend — Phase 1: Foundation (auth, galaxy, building, resources, research, missions)         | ✅ Done |
-| Auth-Modal — Register/Login, JWT-Token in localStorage (`useHawkStarAuth.js`)                 | ✅ Done |
-| Auth: Login-Tab als Standard, „Remember me"-Checkbox (localStorage vs. sessionStorage)        | ✅ Done |
-| Auth: 401-Fix — `.htaccess` Authorization-Header-Passthrough + `bootstrap.php` Fallback-Chain | ✅ Done |
-| `useHawkStarApi.js` — API-Wrapper für alle Game-Actions                                       | ✅ Done |
-| `initFromApi` — lädt Galaxy + Game State nach Auth, ersetzt Mock                              | ✅ Done |
-| `gameLoaded` / `initError` — Loading-Screen + Retry-Button in `index.vue`                     | ✅ Done |
-| Write-Actions auf API: `startBuild`, `sendReconDrone`, `sendColonyShip`, `startConversion`    | ✅ Done |
-| Drone/Colony — kein Inventory mehr, direktes Mission-Modell (Building = Unit)                 | ✅ Done |
-| `HsDockPanel` — an neues Missions-Modell angepasst (kein Build-Step, direkte Mission-Anzeige) | ✅ Done |
-| Frontend migration — LocalStorage-Save entfernen, API als alleinige Source of Truth           | ✅ Done |
-| Backend — Phase 2: Scanning & Player Comm (system_contacts, comm_log server-side)             | ✅ Done |
-| Multi-emoji messages — tray UI (≤5 per row), send button, last-10 cleanup per conversation    | ✅ Done |
-| Comm log delivery — MySQL 5.7 kompatibel (separate try-catch per ALTER TABLE)                 | ✅ Done |
-| Comm log — 20s Auto-Refresh (Polling in tick(), lastCommLogSync)                              | ✅ Done |
-| Unread-Badge auf Galaxy-Tiles (localStorage `hs-comm-last-read`, recomputeUnread)             | ✅ Done |
-| Transit-Block — kein zweites Senden während Nachricht unterwegs ist (hasMessageInTransit)     | ✅ Done |
-| Recon Drone — Planet-Reveal bei Reload (droneScannedPlanets in GET /game/state)               | ✅ Done |
-| HsSolarSystem — "Go to Planet" für alle eigenen Planeten (async, refreshPlanetState first)    | ✅ Done |
-| HsSolarSystem — Colonize-Button nur via canSendColonyShip (Uninhabitable-Guard)               | ✅ Done |
-| HsSolarSystem — Siedlungs-Hinweis nur wenn command_center < Lv1 (hasCommandCenter)            | ✅ Done |
-| Backend — Phase 3: Player Interaction (trade, player messaging)                               | ⬜ Planned |
-| Backend — Phase 4: Espionage                                                                  | ⬜ Planned |
-| Backend — Phase 5: Combat                                                                     | ⬜ Planned |
+Phase 1 + 2 vollständig implementiert und live (seit 2026-06-01). Geplant:
 
-See `hawk-star-backend.md` for the full backend & multiplayer concept.
+| Feature | Status |
+|---------|--------|
+| Phase 3 — Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Planned |
+| Phase 4 — Espionage (Recon in fremden Systemen) | ⬜ Planned |
+| Phase 5 — Combat (Kriegsschiffe, stat-basierter Kampf) | ⬜ Planned |
+| Agriculture-Tile — Gebäude fehlen | ⬜ Planned |
 
-### Notes
-
-# Agriculture-Gebäude
-
-Das Agriculture-Tile existiert, ist freigeschaltet (slot 7), aber hat null Gebäude. Ocean-Planeten sind als "Farming paradise, enormous population potential" beschrieben — das
-wäre der Ort für Bevölkerungs-/Food-Gebäude.
-
-# Comm Center — Weitere Global-Forschungen
-
-Das Comm Center ist jetzt der Ort für alle globalen Technologien (star_map u.a.). Weitere geplante Forschungen könnten hier hinzugefügt werden (z.B. schnellere Schiffe, verbesserte Sichtweite). Das `global: true`-Flag in hawkStarConfig.js genügt, damit eine Technologie automatisch global behandelt wird.
-
-# Balancing-Pass
-
-Bevor Backend kommt, sollten die Zahlen stimmen: Bauzeiten, Kosten, Produktionsraten, Storage-Caps. Am besten einmal durchspielen und alle Dev-Einstellungen aufschreiben, die
-sich "richtig" anfühlen — sonst baut das Backend auf unbalancierten Daten auf.
-
-# Fog of War / Sichtbarkeit
-
-Systeme sind auf der Galaxy Map immer sichtbar (Name, Stern, Planetanzahl), aber **Bewohner sind versteckt** bis ein Scan-Signal eintrifft. Das ist die aktuelle Implementierung via `systemContacts`. Eine tiefere Dunkel-Schicht (System komplett unsichtbar bis erkundet) ist für einen späteren Phase geplant.
-
-# Colony Projects (Queue kleiner Aufgaben)                                                                                                                                      
-
-Eine kurze Warteschlange mit 30s–3min-Aufgaben: "Recrute Kolonisten" (+1 Pop), "Vorräte aufbauen" (+30 Metal), "Reparaturtrupp" (reduziert Bauzeit des nächsten Gebäudes). Jedes
-
-# Schwarzmarkt / Barter
-Konvertiere überschüssige Ressourcen schnell zu anderen — aber zu schlechtem Kurs (3:1 oder 4:1). Metal → Crystal, Crystal → Alloy etc. Kein langer Build, nur ein Klick + kurze
+Siehe `hawk-star-backend.md` für das vollständige Backend-Konzept.
 
 ---
 
-## Deployment (Strato FTP)
-
-**Live seit 2026-06-01 unter https://haukeschultz.com/games/hawk-star/**
-PHP 8.3, MySQL auf Strato Shared Hosting. Phase 1 + 2 vollständig deployed.
-
-### Pre-Deployment — Pflicht
-
-1. **JWT Secret setzen** — `api/db.config.php` ergänzen:
-   ```php
-   define('JWT_SECRET', '<starker-zufalls-string-min-32-zeichen>');
-   ```
-   Ohne diesen Eintrag fällt `bootstrap.php` auf `'dev-secret'` zurück — **kritisches Sicherheitsrisiko**.
-
-2. **`api/star/dev/` NICHT hochladen** — `cheat.php` usw. dürfen nicht auf den Produktionsserver.
-
-3. **DB-Schema prüfen** — alle `hs_*`-Tabellen müssen auf dem Strato-MySQL existieren.
-   Schema-Quelle: `docker/mysql/init/002_hawk_star_schema.sql`
-
-### Build
+### Update-Prozess
 
 ```bash
-cd frontend
-npm run build
+cd frontend && npm run build
+# Output: frontend/.output/public/
 ```
 
-Output: `frontend/.output/public/` — statische SPA (`index.html` + `_nuxt/`).
-
-### FTP Upload
-
-| Quelle | Ziel (Strato Webroot, z.B. `/html/`) |
-|--------|--------------------------------------|
-| `frontend/.output/public/` | `/html/` (komplettes Verzeichnis) |
-| `api/` (ohne `api/star/dev/`) | `/html/api/` |
-| `api/db.config.php` | `/html/api/db.config.php` (manuell, gitignored) |
-
-Reihenfolge: erst `api/`, dann `public/`, dann `db.config.php`.
-
-### SPA Routing — `.htaccess`
-
-Webroot-`.htaccess` für direkten URL-Aufruf von `/games/hawk-star/*`:
-
-```apache
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
-```
-
-Die `api/.htaccess` (Authorization-Header-Fix) ist bereits vorhanden — **nicht überschreiben**.
-
-### Pre-Launch Checkliste
-
-- [x] `JWT_SECRET` in `api/db.config.php` gesetzt (stark, zufällig, min. 32 Zeichen)
-- [x] `api/star/dev/` nicht hochgeladen
-- [x] DB-Schema auf Strato importiert (`002_hawk_star_schema.sql`)
-- [x] Webroot-`.htaccess` für SPA-Routing vorhanden
-- [ ] `display_errors = Off` — auf Strato kein `php_flag` in `.htaccess` möglich (PHP läuft als CGI/FPM); stattdessen `.user.ini` im Webroot mit `display_errors = Off` ablegen
-- [ ] Rate Limiting auf Login/Register erwägen (Brute-Force-Schutz)
-- [ ] Nach erstem Login: JWT-Token-Ablauf (7 Tage) + 401-Redirect testen
-
+| Quelle | Ziel |
+|--------|------|
+| `frontend/.output/public/` | `/html/` |
+| `api/` (ohne `star/dev/`) | `/html/api/` |
+| `api/db.config.php` | `/html/api/db.config.php` (gitignored, manuell) |

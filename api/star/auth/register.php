@@ -16,6 +16,7 @@ if (strlen($password) < 6)                             fail('Password must be at
 if (!in_array($disposition, ['friendly','neutral','hostile'], true)) $disposition = 'neutral';
 
 $db = getDB();
+check_rate_limit($db, 'register', 5, 3600); // 5 attempts per hour
 
 // Check uniqueness
 $exists = $db->prepare('SELECT id FROM hs_players WHERE username=? OR email=?');

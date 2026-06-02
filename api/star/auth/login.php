@@ -8,7 +8,8 @@ $password = $b['password'] ?? '';
 
 if (!$email || !$password) fail('Email and password required');
 
-$db   = getDB();
+$db = getDB();
+check_rate_limit($db, 'login', 10, 900); // 10 attempts per 15 min
 $stmt = $db->prepare('SELECT * FROM hs_players WHERE email=?');
 $stmt->execute([$email]);
 $player = $stmt->fetch();
