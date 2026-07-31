@@ -209,9 +209,9 @@ const BUILDINGS = [
   ]],
 
   'farm' => ['tileType'=>'agriculture','levels'=>[
-    ['level'=>1,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>300,'production'=>[],'energyDrain'=>2,'staffDrain'=>1,'storageCapacity'=>['food'=>100],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>200,'crystal'=>80],'buildTime'=>1800,'production'=>[],'energyDrain'=>3,'staffDrain'=>2,'storageCapacity'=>['food'=>300],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>450,'crystal'=>180],'buildTime'=>7200,'production'=>[],'energyDrain'=>4,'staffDrain'=>2,'storageCapacity'=>['food'=>500],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>300,'production'=>[],'energyDrain'=>2,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>2,'cost'=>['metal'=>200,'crystal'=>80],'buildTime'=>1800,'production'=>[],'energyDrain'=>3,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>3,'cost'=>['metal'=>450,'crystal'=>180],'buildTime'=>7200,'production'=>[],'energyDrain'=>4,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
   ]],
 ];
 

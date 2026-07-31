@@ -151,6 +151,8 @@ Das Agriculture-Tile führt ein **kontinuierliches Farming-System** ein. Jede de
 | **2** | 200 Metal · 80 Crystal | 30 min | Xenopilz-Chance 20 % · 3 Energie · 2 Arbeiter |
 | **3** | 450 Metal · 180 Crystal | 2 h | Xenopilz-Chance 25 % · Planetensaat-Ertrag +1 · 4 Energie · 2 Arbeiter |
 
+**Wachstum ist kostenlos** — das Nachwachsen einer Zelle nach der Ernte verbraucht keine Rohstoffe. Die einzigen laufenden Kosten des Ackers sind Energie und Arbeiter (Gebäude-Stats).
+
 ---
 
 ### Ernte-Mechanismus
@@ -158,13 +160,14 @@ Das Agriculture-Tile führt ein **kontinuierliches Farming-System** ein. Jede de
 Jede der 9 Zellen durchläuft diesen Zyklus unabhängig:
 
 ```
-1. WACHSEN  — Zelle zeigt 🌱→🌿→🪴 + Fortschrittsbalken + Countdown (6–16 h)
-2. REIF     — Timer abgelaufen, Crop-Emoji erscheint (z. B. 🌿), Zelle pulsiert grün
-              Canvas-Overlay liegt darüber (sichtbar als dunkle Schicht)
-3. RUBBELN  — Spieler wischt Canvas weg (>50 % transparent → Overlay verschwindet)
-              Crop-Emoji ist jetzt sichtbar, aber noch nicht eingesammelt
+1. WACHSEN    — Zelle zeigt 🌱→🌿→🪴 + Fortschrittsbalken + Countdown (6–16 h)
+                Kein Rohstoffverbrauch — Wachstum ist kostenlos.
+2. REIF       — Timer abgelaufen, Crop-Emoji erscheint (z. B. 🌿), Zelle pulsiert grün
+                Canvas-Overlay liegt darüber (sichtbar als dunkle Schicht)
+3. RUBBELN    — Spieler wischt Canvas weg (>50 % transparent → Overlay verschwindet)
+                Crop-Emoji ist jetzt sichtbar, aber noch nicht eingesammelt
 4. EINSAMMELN — Zweiter Klick auf die Zelle → POST /agriculture/harvest { planetId, cellIndex }
-              Ressource wird gutgeschrieben, Zelle startet sofort neu bei Schritt 1
+                Ressource wird gutgeschrieben, Zelle startet sofort kostenlos neu bei Schritt 1
 ```
 
 **Zwei Schritte bewusst:** Wischen = aufdecken, Klicken = einsammeln. Kein Auto-Harvest.

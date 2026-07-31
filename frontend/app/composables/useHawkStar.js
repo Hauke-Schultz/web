@@ -107,8 +107,9 @@ const activePlanetId = ref(null)
 
 const setActivePlanet = (planetId) => {
   if (!allPlanetStates.value[planetId]) return
-  activePlanetId.value = planetId
-  activeSlot.value = 5
+  activePlanetId.value    = planetId
+  activeSlot.value        = 5
+  lastResourceSyncMs.value = Date.now()
 }
 
 // Computed aliases — Vue tracks nested mutations through these
@@ -131,7 +132,8 @@ const homeResources   = computed(() => allPlanetStates.value[homePlanetId.value]
 const activeSlot = ref(5)
 const now = ref(Date.now())
 let tickInterval = null
-const lastResourceSync = ref(0) // stores Math.floor(timestamp / 60000) — minute number
+const lastResourceSync   = ref(0)            // stores Math.floor(timestamp / 60000) — minute number
+const lastResourceSyncMs = ref(Date.now())   // ms timestamp of last actual server resource response
 const lastCommLogSync  = ref(0) // stores Math.floor(timestamp / 1000) — second number
 
 // ── Active tile ────────────────────────────────────────────
@@ -195,8 +197,8 @@ const production = computed(() => ({
 
 const energyDeficit = computed(() => production.value.energy < 0)
 
-// 0 → 1 aligned to real wall-clock minutes (e.g. 50% at :30s)
-const tickProgress = computed(() => (now.value % 60000) / 60000)
+// 0 → 1 measured from the last server resource sync — avoids the visual drop when % 60000 resets
+const tickProgress = computed(() => Math.min((now.value - lastResourceSyncMs.value) / 60000, 1))
 
 // ── Staff / population ─────────────────────────────────────
 const totalStaffDrain = computed(() => {
@@ -848,7 +850,10 @@ const tick = () => {
     const { fetchGameState } = useHawkStarApi()
     fetchGameState(activePlanetId.value).then(state => {
       const ps = allPlanetStates.value[activePlanetId.value]
-      if (ps && state?.resources) Object.assign(ps.resources, state.resources)
+      if (ps && state?.resources) {
+        Object.assign(ps.resources, state.resources)
+        lastResourceSyncMs.value = Date.now()
+      }
     }).catch(() => {})
   }
 
@@ -873,18 +878,10 @@ const tick = () => {
       for (const [r, amt] of Object.entries(recipe.output)) {
         res[r] = (res[r] ?? 0) + amt
       }
+      // No per-batch input deduction — backend deducts all batches (input × count) upfront.
       if (q.remaining > 0) {
-        let affordable = true
-        for (const [r, amt] of Object.entries(recipe.input)) {
-          if ((res[r] ?? 0) < amt) { affordable = false; break }
-        }
-        if (affordable) {
-          for (const [r, amt] of Object.entries(recipe.input)) { res[r] -= amt }
-          q.endsAt = now.value + conversionTimeForPlanet(q.buildingId, q.recipeIndex, pid) * 1000
-          q.remaining -= 1
-        } else {
-          cqs.splice(i, 1)
-        }
+        q.endsAt = now.value + conversionTimeForPlanet(q.buildingId, q.recipeIndex, pid) * 1000
+        q.remaining -= 1
       } else {
         cqs.splice(i, 1)
       }
@@ -1162,7 +1159,8 @@ export const initFromApi = async () => {
     playerName.value        = player.value?.username    ?? ''
     playerPortrait.value    = player.value?.portrait    ?? '👨‍🚀'
     playerDisposition.value = player.value?.disposition ?? 'neutral'
-    lastResourceSync.value = Math.floor(Date.now() / 60000)
+    lastResourceSync.value   = Math.floor(Date.now() / 60000)
+    lastResourceSyncMs.value = Date.now()
     // Always open on the base tile so new players see the onboarding panel
     activeSlot.value = 5
     gameLoaded.value = true
