@@ -13,10 +13,22 @@
     "intro_text": "Ein Teil der Inhalte sind Prototypen, Spiele, Tools oder Experimente, die ich im Laufe meiner Arbeit oder in meiner Freizeit erstelle. Manche Projekte sind vollständig, andere eher Konzepte oder Tests – genau das macht diese Seite zu einem Ort für Kreativität und Lernen.",
     "features_title": "Was du hier finden kannst",
     "features": [
-      { "icon": "🎮", "text": "Kleine Spiele und Spiel-Prototypen" },
-      { "icon": "🧪", "text": "Experimente mit neuen Technologien" },
-      { "icon": "🛠️", "text": "Tools und kleine Helfer-Projekte" },
-      { "icon": "💡", "text": "Ideen und Konzepte in Entwicklung" }
+      {
+        "icon": "🎮",
+        "text": "Kleine Spiele und Spiel-Prototypen"
+      },
+      {
+        "icon": "🧪",
+        "text": "Experimente mit neuen Technologien"
+      },
+      {
+        "icon": "🛠️",
+        "text": "Tools und kleine Helfer-Projekte"
+      },
+      {
+        "icon": "💡",
+        "text": "Ideen und Konzepte in Entwicklung"
+      }
     ],
     "why_title": "Warum diese Seite existiert",
     "why_text1": "Als Entwickler ist es wichtig, Dinge einfach auszuprobieren. Diese Seite gibt mir den Raum, Ideen schnell umzusetzen, neue Technologien zu testen und daraus zu lernen.",
@@ -187,64 +199,22 @@
     "title": "Toni & Hauke Ehe-Challenge Party",
     "description": "Alle Infos zur Party.",
     "event": {
-      "title": "Toni & Hauke Ehe-Challenge Party",
-      "date": "2026-07-25",
-      "startTime": "16:00",
-      "endTime": "03:00",
-      "hotelName": "Hotel Hafen Hamburg",
-      "hotelWebsite": "https://www.hotel-hafen-hamburg.de/",
-      "address": "Seewartenstraße 9, 20459 Hamburg",
-      "description": "Wir haben nicht nur 15 Jahre Ehe-Challenge gemeistert, sondern feiern auch einen weiteren Meilenstein!\n\nToni wurde 50, oder wie sie es ausdrückt: Sie steigt im Wert.\n\nJetzt kommt das Bonuslevel:\nParty! 🥳\n\nKommt und feiert mit uns, wenn wir zusammen weiterleveln – mit Musik, Spaß und ganz viel Konfetti! 🎊",
-      "dresscode": "Nach Belieben - Hauptsache ihr fühlt euch wohl!",
-      "program": [
-        { "time": "16:00", "icon": "🍾", "activity": "Welcome-Drink & Anstoßen (Sekt, Bier oder Cola – Hauptsache Spaß!)" },
-        { "time": "17:00", "icon": "🍽️", "activity": "Feines Dinner mit guter Gesellschaft" },
-        { "time": "19:00", "icon": "🎶", "activity": "Let’s dance! Die Party startet" },
-        { "time": "03:00", "icon": "😎", "activity": "Last Call – wer bis hier bleibt, ist Legende" }
-      ]
+      "title": "Toni & Hauke Ehe-Challenge Party"
     },
-    "countdown": {
-      "days": "Tage",
-      "hours": "Stunden",
-      "minutes": "Minuten",
-      "timeUnit": "Uhr"
-    },
-    "cards": {
-      "location": {
-        "title": "📍 Ort"
-      },
-      "intro": {
-        "title": "🎉 Intro"
-      },
-      "program": {
-        "title": "📋 Programm"
-      },
-      "dresscode": {
-        "title": "👔 Dresscode"
-      },
-      "hotel": {
-        "title": "🏨 Hotel",
-        "text1": "Ihr möchtet vor Ort übernachten? Das Hotel Hafen Hamburg bietet Zimmer.",
-        "text2": "Bei Fragen zur Übernachtung meldet euch gerne bei uns!"
-      },
-      "travel": {
-        "title": "🚗 Anreise",
-        "parking": "Das Hotel verfügt über Parkplätze (ca. 25€ pro Tag).",
-        "public": "Wir empfehlen alternativ die Anreise mit öffentlichen Verkehrsmitteln. Das Hotel liegt nur 5 Gehminuten von der S-Bahn-Station Landungsbrücken entfernt."
-      },
-      "gifts": {
-        "title": "🎁 Geschenke",
-        "text1": "Das größte Geschenk ist eure Anwesenheit!",
-        "text2": "Wir haben alles, was wir brauchen. Wenn ihr etwas beisteuern möchtet, freuen wir uns über einen Beitrag im Umschlag.",
-        "text3": "Wir investieren kräftig in diese Party, damit wir einen unvergesslichen Abend haben! \uD83C\uDF89\uD83D\uDE01\uD83E\uDEF6"
-      },
-      "save": {
-        "title": "📅 Termin speichern",
-        "lead": "Damit du den Tag nicht vergisst:",
-        "google": "Google",
-        "outlook": "Outlook",
-        "apple": "Apple"
-      }
+    "gallery": {
+      "title": "📸 Fotobox-Galerie",
+      "downloadHint": "Alle {count} Fotos herunterladen:",
+      "downloadAll": "Alle als ZIP",
+      "part": "Teil {n}",
+      "photos": "Fotos",
+      "download": "Foto Herunterladen",
+      "loading": "Fotos werden geladen …",
+      "empty": "Die Fotos werden gerade hochgeladen – schaut bald wieder vorbei! 📷",
+      "close": "Schließen",
+      "prev": "Zurück",
+      "next": "Weiter",
+      "sortNewest": "Sortierung",
+      "sortOldest": "Sortierung"
     }
   }
 }

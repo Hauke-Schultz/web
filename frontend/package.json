@@ -8,6 +8,7 @@
     "pregenerate": "node scripts/bump-sw.mjs",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "gallery": "node scripts/gallery-manifest.mjs",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
@@ -19,5 +20,8 @@
     "tailwindcss": "^4.2.1",
     "vue": "^3.5.29",
     "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.5"
   }
 }

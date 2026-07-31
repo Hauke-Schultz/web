@@ -23,7 +23,10 @@
       "Bash(Remove-Item *)",
       "Bash(docker exec web-php-1 *)",
       "Bash(dir \"C:\\\\Users\\\\hauke\\\\WebstormProjects\\\\web\\\\frontend\\\\app\\\\\")",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "Bash(rm Slider.vue HotelFade.vue LevelUp.vue Rsvp.vue)",
+      "Read(//c/c/Users/hauke/WebstormProjects/web/frontend/app/components/**)",
+      "Bash(npm install *)"
     ]
   }
 }

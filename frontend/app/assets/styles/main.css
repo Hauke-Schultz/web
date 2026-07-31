@@ -212,14 +212,18 @@
     &.card--flush,
     &.card--game { padding: 0; }
 
+    &.card--full { padding: .5rem; width: 100%; }
+
     @media (min-width: 640px) {
       width: calc(50% - 8px);
       &.card--wide { width: 100%; }
+      &.card--full { padding: 1.5rem; width: 100%; }
     }
 
     @media (min-width: 1024px) {
       width: calc(33.333% - 11px);
       &.card--wide { width: calc(50% - 8px); }
+      &.card--full { width: 100%; }
     }
   }
 

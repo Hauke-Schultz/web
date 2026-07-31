@@ -22,3 +22,14 @@ logs
 .env
 .env.*
 !.env.example
+
+# Fotobox-Galerie: große Binärdateien NICHT in Git (separat auf den Server laden).
+# Die kleinen Manifest-Dateien (manifest.json, zips.json) bleiben getrackt.
+public/party/fotobox/*.jpg
+public/party/fotobox/*.jpeg
+public/party/fotobox/*.png
+public/party/fotobox/*.webp
+public/party/fotobox/*.gif
+public/party/fotobox/*.avif
+public/party/fotobox/thumbs/
+public/party/fotobox-*.zip
