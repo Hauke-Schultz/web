@@ -7,7 +7,6 @@ import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
 import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
 import HsProfilePanel from '~/components/hawk-star/HsProfilePanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
-import HsAgriculturePanel from '~/components/hawk-star/HsAgriculturePanel.vue'
 
 defineProps({ activePanel: { type: String, default: null } })
 
@@ -49,7 +48,6 @@ const { t } = useI18n()
 const isSpacebaseTile    = computed(() => activeTileType.value?.id === 'spacebase')
 const isHightechTile     = computed(() => activeTileType.value?.id === 'hightech')
 const isDockTile         = computed(() => activeTileType.value?.id === 'dock')
-const isAgricultureTile  = computed(() => activeTileType.value?.id === 'agriculture')
 
 const hightechBuildings = computed(() => {
   if (!isHightechTile.value) return []
@@ -100,9 +98,6 @@ const setConversionCount = (bId, idx, val) => {
 
   <!-- Resources -->
   <HsAllResourcePanel v-else-if="activePanel === 'resources'" />
-
-  <!-- Agriculture slot -->
-  <HsAgriculturePanel v-else-if="isAgricultureTile" />
 
   <!-- Dock slot -->
   <HsDockPanel v-else-if="isDockTile" />

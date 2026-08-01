@@ -68,12 +68,6 @@ export const RESOURCES = {
   obsidian:   { id: 'obsidian',   name: 'Obsidian',   icon: '🪨',  color: '#1f2937', planetTypes: ['volcanic'] },
   biomass:    { id: 'biomass',    name: 'Biomass',    icon: '🌿',  color: '#4ade80', planetTypes: ['ocean'] },
   energy:        { id: 'energy',        name: 'Energy',        icon: '⚡',  color: '#fbbf24' },
-  // ── Agriculture seeds (grown on specific planet types) ──────────────────
-  red_seed:   { id: 'red_seed',   name: 'Red Seed',   icon: '🔴', color: '#f87171', planetTypes: ['volcanic']     },
-  green_seed: { id: 'green_seed', name: 'Green Seed', icon: '🟢', color: '#86efac', planetTypes: ['terrestrial']  },
-  blue_seed:  { id: 'blue_seed',  name: 'Blue Seed',  icon: '🔵', color: '#60a5fa', planetTypes: ['ocean']        },
-  white_seed: { id: 'white_seed', name: 'White Seed', icon: '⚪️', color: '#f9a8d4', planetTypes: ['frozen']       },
-  xenopilz:   { id: 'xenopilz',   name: 'Xenofungus', icon: '🍄', color: '#c084fc'                                },
   // ── Refined resources (tradeable, produced via High-Tech buildings) ──────
   pure_crystal:  { id: 'pure_crystal',  name: 'Pure Crystal',  icon: '🔷',  color: '#38bdf8', refined: true },
   super_alloy:   { id: 'super_alloy',   name: 'Super Alloy',   icon: '🔩',  color: '#e2e8f0', refined: true },
@@ -90,7 +84,7 @@ export const TILE_TYPES = {
   techcenter:    { id: 'techcenter',    name: 'Tech Center',   icon: '🔬', description: 'Tech Center' },
   comm_center:   { id: 'comm_center',   name: 'Comm Center',   icon: '📡', description: 'Global technologies — researched once, applied across all planets' },
   spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for drones and colony ships' },
-  agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Daily harvest — scratch your field and collect planet-specific crops' },
+  agriculture:   { id: 'agriculture',   name: 'Agriculture',   icon: '🌿', description: 'Agriculture' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
   dock:          { id: 'dock',          name: 'Dock',          icon: '🛸', description: 'Ship management, missions and fleet operations' },
@@ -1369,50 +1363,6 @@ export const BUILDINGS = {
     ],
   },
 
-  // ── Agriculture tile ──────────────────────────────────────────────────────
-
-  farm: {
-    id:          'farm',
-    name:        'Farm',
-    tileType:    'agriculture',
-    icon:        '🚜',
-    description: 'Daily harvest — scratch the 3×3 field once per day to collect planet-specific crops.',
-    levels: [
-      {
-        level:       1,
-        cost:        { metal: 80, crystal: 30 },
-        buildTime:   300,
-        effect:      '3×3 seed grid · planet-specific seeds + Xenofungus · 6–16 h per cell',
-        production:  {},
-        energyDrain: 2,
-        staffDrain:  1,
-        unlocks:     [],
-        popBonus:    0,
-      },
-      {
-        level:       2,
-        cost:        { metal: 200, crystal: 80 },
-        buildTime:   1800,
-        effect:      'Xenofungus chance +5 %',
-        production:  {},
-        energyDrain: 3,
-        staffDrain:  2,
-        unlocks:     [],
-        popBonus:    0,
-      },
-      {
-        level:       3,
-        cost:        { metal: 450, crystal: 180 },
-        buildTime:   7200,
-        effect:      'Xenofungus chance +10 % · planet seed yield +1',
-        production:  {},
-        energyDrain: 4,
-        staffDrain:  2,
-        unlocks:     [],
-        popBonus:    0,
-      },
-    ],
-  },
 }
 
 // ── Communication — emoji picker ─────────────────────────────────────────────

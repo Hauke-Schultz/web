@@ -26,7 +26,9 @@
       "PowerShell(New-Item *)",
       "Bash(rm Slider.vue HotelFade.vue LevelUp.vue Rsvp.vue)",
       "Read(//c/c/Users/hauke/WebstormProjects/web/frontend/app/components/**)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(ls -R api/star/agriculture)",
+      "Bash(grep -rl -i \"agri\\\\|farm\\\\|harvest\\\\|crop\\\\|seed\\\\|xenopilz\" api/star)"
     ]
   }
 }

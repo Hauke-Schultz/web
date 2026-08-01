@@ -31,6 +31,12 @@ if (!empty($def['planetTypes']) && !in_array($planet['type'], $def['planetTypes'
     fail('Building not available on this planet type');
 }
 
+// Resolve any completed timers first, so a freshly-finished prerequisite
+// (e.g. power_plant that just completed client-side) counts toward the
+// requirement check below without needing a page reload. state.php does
+// the same on every load.
+resolve_timers($db, $planetId, $playerId);
+
 // Load current building state
 $bRow = $db->prepare('SELECT level, build_ends_at FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=?');
 $bRow->execute([$planetId, $playerId, $buildingKey]);

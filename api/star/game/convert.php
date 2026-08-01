@@ -30,6 +30,10 @@ $own->execute([$planetId, $playerId]);
 $planet = $own->fetch();
 if (!$planet) fail('Planet not found or not owned', 404);
 
+// Resolve completed build timers first, so a freshly-finished refinery
+// (build_ends_at just elapsed client-side) can convert without a page reload.
+resolve_timers($db, $planetId, $playerId);
+
 $bRow = $db->prepare('SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=? AND level>0 AND build_ends_at IS NULL');
 $bRow->execute([$planetId, $playerId, $buildingKey]);
 $bLevel = (int)($bRow->fetchColumn() ?: 0);

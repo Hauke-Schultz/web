@@ -16,6 +16,11 @@ if (!$def) fail('Unknown building');
 
 $db = getDB();
 
+// Resolve completed global-research timers first, so a freshly-finished
+// prerequisite (e.g. star_map that just completed client-side) counts toward
+// the requirement check below without needing a page reload.
+resolve_global_research($db, $playerId);
+
 // Load current research state
 $rRow = $db->prepare('SELECT level, build_ends_at FROM hs_global_research WHERE player_id=? AND building_key=?');
 $rRow->execute([$playerId, $buildingKey]);

@@ -54,7 +54,6 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory |
 | `comm_center` | Comm Center — global research tile. Technologies researched here apply across all planets |
 | `spacebase` | Launch pad for drones and colony ships |
-| `agriculture` | Daily harvest — crop-scratch mechanic, planet-specific yields |
 | `defense` | Planetary shields and weapons platforms |
 | `hightech` | Advanced material refinement (planet-exclusive) |
 | `dock` | Ship management, missions and fleet operations — unlocked by Space Technology Lv 1; clicking opens `HsDockPanel` |
@@ -107,20 +106,6 @@ Each planet type produces one exclusive raw resource from its High-Tech tile:
 | Cryonite | Frozen |
 | Biomass | Ocean |
 
-### Agriculture Seeds
-
-Saaten sind eigenständige Ressourcen, die ausschließlich durch den **Acker** geerntet werden (kein Passiv-Tick). Sie sollen später als Handelsware dienen.
-
-| Ressource | Symbol | Planetentyp | Ertrag/Zelle |
-|-----------|--------|-------------|-------------|
-| `red_seed` | 🌺 | Volcanic | 2 |
-| `green_seed` | 🌿 | Terrestrial | 2 |
-| `blue_seed` | 🫐 | Ocean | 2 |
-| `white_seed` | 🌸 | Frozen | 2 |
-| `xenopilz` | 🍄 | Alle | 1 |
-
-Xenopilz erscheint auf jedem Planetentyp mit steigender Chance je Acker-Level (Lv1 15 % · Lv2 20 % · Lv3 25 %). Der Rest der Zelle wächst immer zur planeteneigenen Saat heran.
-
 ### Refined Resources
 
 Each planet type produces exactly **one** refined resource in its High-Tech building. The other three must be acquired via trade.
@@ -132,145 +117,6 @@ Each planet type produces exactly **one** refined resource in its High-Tech buil
 | Frozen | `cryo_refinery` | `pure_crystal` | Crystal + Cryonite |
 | Ocean | `bio_lab` | `nano_alloy` | Metal + Biomass |
 
-
----
-
-## Agriculture Tile
-
-Das Agriculture-Tile führt ein **kontinuierliches Farming-System** ein. Jede der 9 Zellen wächst unabhängig mit einem eigenen Timer (6–16 h). Wenn eine Zelle reif ist, erscheint das Crop-Emoji — der Spieler rubbelt die Zelle frei und klickt sie an, um die Saat einzusammeln. Danach startet die Zelle sofort neu.
-
-**Unlock:** Slot 7 (Agriculture) wird durch **Command Center Lv2** freigeschaltet.
-
----
-
-### Gebäude: Acker (`farm`)
-
-| Level | Baukosten | Bauzeit | Effekt |
-|-------|-----------|---------|--------|
-| **1** | 80 Metal · 30 Crystal | 5 min | 3×3 Saatfeld · Xenopilz-Chance 15 % · 2 Energie · 1 Arbeiter |
-| **2** | 200 Metal · 80 Crystal | 30 min | Xenopilz-Chance 20 % · 3 Energie · 2 Arbeiter |
-| **3** | 450 Metal · 180 Crystal | 2 h | Xenopilz-Chance 25 % · Planetensaat-Ertrag +1 · 4 Energie · 2 Arbeiter |
-
-**Wachstum ist kostenlos** — das Nachwachsen einer Zelle nach der Ernte verbraucht keine Rohstoffe. Die einzigen laufenden Kosten des Ackers sind Energie und Arbeiter (Gebäude-Stats).
-
----
-
-### Ernte-Mechanismus
-
-Jede der 9 Zellen durchläuft diesen Zyklus unabhängig:
-
-```
-1. WACHSEN    — Zelle zeigt 🌱→🌿→🪴 + Fortschrittsbalken + Countdown (6–16 h)
-                Kein Rohstoffverbrauch — Wachstum ist kostenlos.
-2. REIF       — Timer abgelaufen, Crop-Emoji erscheint (z. B. 🌿), Zelle pulsiert grün
-                Canvas-Overlay liegt darüber (sichtbar als dunkle Schicht)
-3. RUBBELN    — Spieler wischt Canvas weg (>50 % transparent → Overlay verschwindet)
-                Crop-Emoji ist jetzt sichtbar, aber noch nicht eingesammelt
-4. EINSAMMELN — Zweiter Klick auf die Zelle → POST /agriculture/harvest { planetId, cellIndex }
-                Ressource wird gutgeschrieben, Zelle startet sofort kostenlos neu bei Schritt 1
-```
-
-**Zwei Schritte bewusst:** Wischen = aufdecken, Klicken = einsammeln. Kein Auto-Harvest.
-
----
-
-### Crop-Typen und Planetenzuordnung
-
-Jede Zelle wird beim Pflanzen entweder zur planeteneigenen Saat oder (mit Lv-abhängiger Chance) zum Xenopilz.
-
-| Crop | Key | Symbol | Planetentyp | Ertrag |
-|------|-----|--------|-------------|--------|
-| Rote Saat | `red_seed` | 🌺 | Volcanic | red_seed +2 |
-| Grüne Saat | `green_seed` | 🌿 | Terrestrial | green_seed +2 |
-| Blaue Saat | `blue_seed` | 🫐 | Ocean | blue_seed +2 |
-| Weiße Saat | `white_seed` | 🌸 | Frozen | white_seed +2 |
-| Xenopilz | `xenopilz` | 🍄 | Alle | xenopilz +1 |
-
-Xenopilz-Chance je Lv: 15 % / 20 % / 25 %. Restliche Wahrscheinlichkeit = planeteneigene Saat.
-
----
-
-### Data Model
-
-**`hs_agriculture`** (Tabelle):
-
-```sql
-planet_id    INT  PK
-player_id    INT  PK
-last_harvest DATETIME NULL   -- ungenutzt, reserviert
-streak       TINYINT DEFAULT 0  -- ungenutzt, reserviert
-current_grid JSON NULL         -- Array mit 9 Zell-Objekten
-```
-
-**Zell-Objekt in `current_grid`:**
-
-```json
-{
-  "crop":      "green_seed",
-  "symbol":    "🌿",
-  "yield":     { "green_seed": 2 },
-  "plantedAt": 1234567890000,
-  "growsAt":   1234599600000
-}
-```
-
-`plantedAt` und `growsAt` sind Unix-Timestamps in Millisekunden.
-
-**`hs_planet_resources`** — 5 neue Spalten (via ALTER TABLE):
-
-```sql
-red_seed, green_seed, blue_seed, white_seed, xenopilz  -- alle FLOAT DEFAULT 0
-```
-
----
-
-### API-Endpunkte
-
-| Methode | Pfad | Body / Query | Beschreibung |
-|---------|------|-------------|--------------|
-| `GET` | `/api/star/agriculture/state?planet_id=X` | — | 9 Zellen mit `growsAt`, `ready`-Flag, `farmLevel` |
-| `POST` | `/api/star/agriculture/harvest` | `{ planetId, cellIndex }` | Eine Zelle einsammeln, neue pflanzen |
-
-`GET`-Response:
-```json
-{
-  "farmLevel": 1,
-  "cells": [
-    { "crop": "green_seed", "symbol": "🌿", "yield": { "green_seed": 2 },
-      "plantedAt": 1234567890000, "growsAt": 1234599600000, "ready": false },
-    ...
-  ]
-}
-```
-
-`POST`-Response:
-```json
-{
-  "harvested": { "green_seed": 2 },
-  "cell": { "crop": "red_seed", "symbol": "🌺", "yield": { "red_seed": 2 },
-            "plantedAt": 1234600000000, "growsAt": 1234657600000, "ready": false }
-}
-```
-
-Die API gibt die neue Zelle direkt zurück — kein zweiter State-Call nötig.
-
----
-
-### Frontend-Komponenten
-
-| Komponente | Rolle |
-|------------|-------|
-| `HsAgriculturePanel.vue` | Panel für Agriculture-Tile — Acker-Gebäude-Zeile + HsCropGrid + Error/Retry |
-| `HsCropGrid.vue` | 3×3 Grid — verwaltet Wachstum, Canvas-Scratch und Collect-Klick pro Zelle |
-
-**`HsCropGrid.vue` Props:** `cells: Array | null`, `now: Number`
-**Emits:** `harvest(cellIndex: number)` — wird von `HsAgriculturePanel` verarbeitet
-**Exposes:** `updateCell(idx, newCellData)` — für direktes Update nach Harvest-Response
-
-Zell-Zustände intern:
-- `revealed: false` → wächst oder Canvas-Overlay aktiv
-- `revealed: true` → gewischt, wartet auf zweiten Klick
-- `collecting: true` → Klick gesendet, API-Response ausstehend
 
 ---
 
@@ -630,9 +476,7 @@ Phase 1 + 2 vollständig implementiert und live (seit 2026-06-01). Geplant:
 | Phase 3 — Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Planned |
 | Phase 4 — Espionage (Recon in fremden Systemen) | ⬜ Planned |
 | Phase 5 — Combat (Kriegsschiffe, stat-basierter Kampf) | ⬜ Planned |
-| Agriculture-Tile — Acker Lv1–3, 5 Saaten, per-Cell-Timer, 2-Step-Harvest | ✅ Live |
-| Agriculture-Tile — Wohlbefinden-Gebäude (zweites Agri-Gebäude) | ⬜ Planned |
-| Agriculture — Saaten als Handelswaren (Phase 3) | ⬜ Planned |
+| Slot 7 — neuer Tile-Typ (Agriculture Konzept offen) | ⬜ Planned |
 
 Siehe `hawk-star-backend.md` für das vollständige Backend-Konzept.
 

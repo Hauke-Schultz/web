@@ -95,30 +95,6 @@ switch ($action) {
         resolve_system_contacts($db, $playerId);
         ok(['action' => 'complete_scanning']);
 
-    case 'ready_farm':
-        if (!$planetId) fail('planetId required');
-        $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');
-        $own->execute([$planetId, $playerId]);
-        if (!$own->fetch()) fail('Planet not owned', 403);
-
-        $agriStmt = $db->prepare('SELECT current_grid FROM hs_agriculture WHERE planet_id=? AND player_id=?');
-        $agriStmt->execute([$planetId, $playerId]);
-        $agri = $agriStmt->fetch();
-        if (!$agri || !$agri['current_grid']) fail('No farm grid yet — open the agriculture tile first');
-
-        $cells = json_decode($agri['current_grid'], true);
-        $past  = (time() - 10) * 1000;
-        foreach ($cells as &$cell) {
-            $cell['plantedAt'] = $past - 3600000;
-            $cell['growsAt']   = $past;
-        }
-        unset($cell);
-
-        $db->prepare(
-            'UPDATE hs_agriculture SET current_grid=? WHERE planet_id=? AND player_id=?'
-        )->execute([json_encode($cells, JSON_UNESCAPED_UNICODE), $planetId, $playerId]);
-        ok(['action' => 'ready_farm']);
-
     default:
         fail('Unknown action');
 }

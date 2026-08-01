@@ -106,7 +106,7 @@ const downloadOne = async (i) => {
           <a
             v-for="(zip, i) in zips"
             :key="zip.name"
-            :href="`${BASE}/${zip.name}`"
+            :href="`/party/${zip.name}`"
             download
             class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 transition-colors text-white text-sm font-bold rounded-lg px-4 py-2 no-underline"
           >
