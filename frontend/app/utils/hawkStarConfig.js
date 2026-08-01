@@ -69,10 +69,10 @@ export const RESOURCES = {
   biomass:    { id: 'biomass',    name: 'Biomass',    icon: '🌿',  color: '#4ade80', planetTypes: ['ocean'] },
   energy:        { id: 'energy',        name: 'Energy',        icon: '⚡',  color: '#fbbf24' },
   // ── Agriculture seeds (grown on specific planet types) ──────────────────
-  red_seed:   { id: 'red_seed',   name: 'Red Seed',   icon: '🌺', color: '#f87171', planetTypes: ['volcanic']     },
-  green_seed: { id: 'green_seed', name: 'Green Seed', icon: '🌿', color: '#86efac', planetTypes: ['terrestrial']  },
-  blue_seed:  { id: 'blue_seed',  name: 'Blue Seed',  icon: '🫐', color: '#60a5fa', planetTypes: ['ocean']        },
-  white_seed: { id: 'white_seed', name: 'White Seed', icon: '🌸', color: '#f9a8d4', planetTypes: ['frozen']       },
+  red_seed:   { id: 'red_seed',   name: 'Red Seed',   icon: '🔴', color: '#f87171', planetTypes: ['volcanic']     },
+  green_seed: { id: 'green_seed', name: 'Green Seed', icon: '🟢', color: '#86efac', planetTypes: ['terrestrial']  },
+  blue_seed:  { id: 'blue_seed',  name: 'Blue Seed',  icon: '🔵', color: '#60a5fa', planetTypes: ['ocean']        },
+  white_seed: { id: 'white_seed', name: 'White Seed', icon: '⚪️', color: '#f9a8d4', planetTypes: ['frozen']       },
   xenopilz:   { id: 'xenopilz',   name: 'Xenofungus', icon: '🍄', color: '#c084fc'                                },
   // ── Refined resources (tradeable, produced via High-Tech buildings) ──────
   pure_crystal:  { id: 'pure_crystal',  name: 'Pure Crystal',  icon: '🔷',  color: '#38bdf8', refined: true },

@@ -310,10 +310,10 @@ const RESOURCE_KEYS = [
 // Seeds are resources; each crop yields itself.
 // 'planets' => ['all'] means it can grow on any planet type.
 const AGRI_CROPS = [
-    'red_seed'   => ['symbol' => '🌺', 'yield' => ['red_seed'   => 2], 'planets' => ['volcanic']],
-    'green_seed' => ['symbol' => '🌿', 'yield' => ['green_seed' => 2], 'planets' => ['terrestrial']],
-    'blue_seed'  => ['symbol' => '🫐', 'yield' => ['blue_seed'  => 2], 'planets' => ['ocean']],
-    'white_seed' => ['symbol' => '🌸', 'yield' => ['white_seed' => 2], 'planets' => ['frozen']],
+    'red_seed'   => ['symbol' => '🔴', 'yield' => ['red_seed'   => 2], 'planets' => ['volcanic']],
+    'green_seed' => ['symbol' => '🟢', 'yield' => ['green_seed' => 2], 'planets' => ['terrestrial']],
+    'blue_seed'  => ['symbol' => '🔵', 'yield' => ['blue_seed'  => 2], 'planets' => ['ocean']],
+    'white_seed' => ['symbol' => '⚪️', 'yield' => ['white_seed' => 2], 'planets' => ['frozen']],
     'xenopilz'   => ['symbol' => '🍄', 'yield' => ['xenopilz'   => 1], 'planets' => ['all']],
 ];
 

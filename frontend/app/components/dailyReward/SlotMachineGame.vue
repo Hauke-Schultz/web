@@ -4,8 +4,15 @@ import { ref, computed } from 'vue'
 const emit = defineEmits(['game-complete', 'spin-start'])
 const { t } = useI18n()
 
-const SYMBOLS      = ['💰', '💎', '⭐', '🍀', '🔔', '💫']
 const MAX_ATTEMPTS = 5
+
+// Drei feste Symbol-Streifen – jedes Rad dreht durch seine eigene Reihenfolge.
+// Jeder Streifen enthält alle Symbole, aber in unterschiedlicher Anordnung.
+const REEL_STRIPS = [
+  ['💰', '💎', '⭐', '🍀', '💰', '💰', '💎', '💰'],
+  ['💎', '🍀', '💰', '⭐', '💎', '💰', '💎', '💰'],
+  ['⭐', '💎', '💰', '💎', '💰', '🍀', '💰', '💎'],
+]
 
 const REWARDS = computed(() => ({
   jackpot:         { coins: 200, diamonds: 8,  label: t('games.daily_reward.slot_jackpot'),         color: '#a78bfa' },
@@ -20,13 +27,25 @@ const attemptsLeft  = ref(MAX_ATTEMPTS)
 const leverPulled   = ref(false)
 const currentReward = ref(null)
 
-const rand = () => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
+// Die drei sichtbaren Zellen (oben/mitte/unten) aus Streifen + Position ableiten
+const cellsAt = (strip, pos) => {
+  const n = strip.length
+  return {
+    top:    strip[(pos - 1 + n) % n],
+    middle: strip[((pos % n) + n) % n],
+    bottom: strip[(pos + 1) % n],
+  }
+}
 
-const reels = ref([
-  { id: 0, top: rand(), middle: '💰', bottom: rand(), spinning: false, stopCount: 0 },
-  { id: 1, top: rand(), middle: '💎', bottom: rand(), spinning: false, stopCount: 0 },
-  { id: 2, top: rand(), middle: '💰', bottom: rand(), spinning: false, stopCount: 0 },
-])
+const makeReel = (id, startPos) => {
+  const strip = REEL_STRIPS[id]
+  return { id, strip, pos: startPos, ...cellsAt(strip, startPos), spinning: false, stopCount: 0 }
+}
+
+// Zellen eines Rads nach Positionswechsel neu setzen
+const render = (reel) => Object.assign(reel, cellsAt(reel.strip, reel.pos))
+
+const reels = ref([makeReel(0, 0), makeReel(1, 1), makeReel(2, 2)])
 
 const spinIntervals = [null, null, null]
 
@@ -47,24 +66,27 @@ const doSpin = () => {
   currentReward.value = null
   attemptsLeft.value--
 
-  const finals = reels.value.map(rand)
-
   reels.value.forEach((reel, i) => {
     reel.spinning = true
+
+    // Schnelles Drehen: Position im festen Streifen vorwärtsschieben
     spinIntervals[i] = setInterval(() => {
-      reel.top    = rand()
-      reel.middle = rand()
-      reel.bottom = rand()
+      reel.pos = (reel.pos + 1) % reel.strip.length
+      render(reel)
     }, 70)
 
+    // Nacheinander an einer zufälligen Position stoppen.
+    // Die Trefferchance ergibt sich daraus, wie oft ein Symbol im Streifen steht.
     setTimeout(() => {
       clearInterval(spinIntervals[i])
-      reel.top    = rand()
-      reel.middle = finals[i]
-      reel.bottom = rand()
-      reel.spinning  = false
+      reel.pos = Math.floor(Math.random() * reel.strip.length)
+      render(reel)
+      reel.spinning = false
       reel.stopCount++
-      if (i === 2) setTimeout(() => resolveResult(finals), 350)
+      if (i === 2) {
+        const result = reels.value.map(r => r.middle)
+        setTimeout(() => resolveResult(result), 350)
+      }
     }, 900 + i * 400)
   })
 }
