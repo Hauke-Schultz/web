@@ -117,6 +117,15 @@ CREATE TABLE IF NOT EXISTS hs_global_research (
   PRIMARY KEY (player_id, building_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Power-grid battery: drains over time, click to recharge, blackout when empty.
+CREATE TABLE IF NOT EXISTS hs_power_battery (
+  planet_id         INT NOT NULL,
+  player_id         INT NOT NULL,
+  charge            FLOAT NOT NULL DEFAULT 100,
+  charge_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (planet_id, player_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS hs_missions (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   player_id      INT NOT NULL,

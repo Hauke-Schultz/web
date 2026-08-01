@@ -337,6 +337,74 @@ function resolve_conversions(PDO $db, int $planetId, int $playerId): void {
 
 // ── Lazy resource computation ─────────────────────────────────────────────────
 
+// ── Power battery (grid uptime) ───────────────────────────────────────────────
+
+function ensure_power_battery(PDO $db, int $planetId, int $playerId): void {
+    static $tableReady = false;
+    if (!$tableReady) {
+        try {
+            $db->exec(
+                'CREATE TABLE IF NOT EXISTS hs_power_battery (
+                   planet_id INT NOT NULL,
+                   player_id INT NOT NULL,
+                   charge FLOAT NOT NULL DEFAULT 100,
+                   charge_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                   PRIMARY KEY (planet_id, player_id)
+                 )'
+            );
+        } catch (\Throwable $e) {}
+        $tableReady = true;
+    }
+    // Create the row full on first sight (anchored now) so building a power_plant
+    // does not immediately black out the colony.
+    $db->prepare(
+        'INSERT IGNORE INTO hs_power_battery (planet_id, player_id, charge, charge_updated_at)
+         VALUES (?,?,?, NOW())'
+    )->execute([$planetId, $playerId, POWER_BATTERY_MAX]);
+}
+
+// Current *completed* power_plant level. Deliberately ignores build_ends_at so an
+// in-progress upgrade (e.g. Lv2 → Lv3) keeps the battery on the current level (Lv2)
+// until the upgrade actually finishes — charging stays independent of the upgrade.
+function power_plant_level(PDO $db, int $planetId, int $playerId): int {
+    $s = $db->prepare(
+        'SELECT level FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND building_key=?'
+    );
+    $s->execute([$planetId, $playerId, 'power_plant']);
+    return (int)($s->fetchColumn() ?: 0);
+}
+
+// Live battery state for the API. Returns null when there is no power_plant
+// (battery mechanic inactive). Charge is derived from the stored value + elapsed
+// time since the last write, so it is always current without needing a resolve.
+function battery_state(PDO $db, int $planetId, int $playerId): ?array {
+    $ppLevel = power_plant_level($db, $planetId, $playerId);
+    if ($ppLevel <= 0) return null;
+
+    ensure_power_battery($db, $planetId, $playerId);
+
+    $row = $db->prepare(
+        'SELECT charge, TIMESTAMPDIFF(SECOND, charge_updated_at, NOW()) AS elapsed
+         FROM hs_power_battery WHERE planet_id=? AND player_id=?'
+    );
+    $row->execute([$planetId, $playerId]);
+    $b = $row->fetch();
+
+    $drainPerHour = battery_drain_per_hour($ppLevel);
+    $stored  = $b ? (float)$b['charge'] : POWER_BATTERY_MAX;
+    $elapsed = $b ? max(0, (int)$b['elapsed']) : 0;
+    $charge  = max(0.0, $stored - $drainPerHour * ($elapsed / 3600.0));
+
+    return [
+        'charge'          => round($charge, 2),
+        'drainPerHour'    => $drainPerHour,
+        'powerPlantLevel' => $ppLevel,
+        'gridDown'        => $charge <= 0,
+        'hoursToEmpty'    => $drainPerHour > 0 ? round($charge / $drainPerHour, 2) : null,
+    ];
+}
+
 function compute_resources(PDO $db, int $planetId, int $playerId, string $planetType): void {
     $row = $db->prepare(
         'SELECT *, TIMESTAMPDIFF(SECOND, resources_computed_at, NOW()) AS elapsed
@@ -366,6 +434,30 @@ function compute_resources(PDO $db, int $planetId, int $playerId, string $planet
     }
     $energyOk = ($energyProd - $energyDrain) >= 0;
 
+    // ── Grid uptime: production only accrues while the battery had charge ─────────
+    // Use the completed power_plant level (ignores in-progress upgrades) so the
+    // battery keeps gating even while the plant is being upgraded.
+    $ppLevel     = power_plant_level($db, $planetId, $playerId);
+    $gridElapsed = $elapsed;
+    if ($ppLevel > 0) {
+        ensure_power_battery($db, $planetId, $playerId);
+        $brow = $db->prepare(
+            'SELECT charge, UNIX_TIMESTAMP(charge_updated_at) AS t0
+             FROM hs_power_battery WHERE planet_id=? AND player_id=?'
+        );
+        $brow->execute([$planetId, $playerId]);
+        $bb = $brow->fetch();
+        if ($bb) {
+            $drainPerHour = battery_drain_per_hour($ppLevel);
+            $secToDead    = $drainPerHour > 0 ? ((float)$bb['charge'] / $drainPerHour) * 3600.0 : PHP_INT_MAX;
+            $deadAt       = (int)$bb['t0'] + (int)$secToDead;   // epoch when battery hits 0
+            $nowTs        = time();
+            $startTs      = $nowTs - $elapsed;                  // = resources_computed_at (capped)
+            $gridElapsed  = max(0, min($nowTs, $deadAt) - $startTs);
+            $gridElapsed  = min($gridElapsed, $elapsed);
+        }
+    }
+
     $production = [];
     foreach ($levels as $key => $lvl) {
         $def = level_def($key, $lvl);
@@ -390,7 +482,7 @@ function compute_resources(PDO $db, int $planetId, int $playerId, string $planet
     foreach (RESOURCE_KEYS as $res) {
         if ($res === 'population') continue;
         $current       = (float)($r[$res] ?? 0);
-        $newVal        = $current + ($production[$res] ?? 0) * $elapsed / 60.0;
+        $newVal        = $current + ($production[$res] ?? 0) * $gridElapsed / 60.0;
         if (isset($caps[$res])) $newVal = min($newVal, $caps[$res]);
         $updates[$res] = max(0, $newVal);
     }

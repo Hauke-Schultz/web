@@ -132,6 +132,89 @@ The planet type is assigned on colonization and restricts or enables certain bui
 
 ---
 
+## Stromnetz — Reaktor-Batterie  *(implementiert)*
+
+**Ziel:** Langzeit-Bindung. Das Netz jeder Kolonie hängt an einer Batterie im `power_plant`, die sich langsam entlädt. Der Spieler muss regelmäßig (täglich bis alle paar Tage) reinschauen und sie per Klick nachladen — sonst fällt der Strom aus und die ganze Kolonie steht still.
+
+### Grundprinzip
+
+- Jedes gebaute `power_plant` besitzt **eine Batterie** (Ladung 0–100 %).
+- Die Batterie **entlädt sich mit der Zeit** (feste Rate pro Stunde), unabhängig von der Energieproduktion.
+- Ein **Klick lädt +10 Prozentpunkte** (auf 100 % gedeckelt), kostenlos und beliebig oft. Von leer auf voll = 10 Klicks.
+- **Batterie leer (0 %) → gesamtes Netz aus:** alle Gebäude der Kolonie gehen offline (keine Produktion), bis wieder aufgeladen wird.
+- Die Batterie füllt sich **nur durch Klicks**, nie automatisch — das ist der „du musst da sein"-Anreiz.
+
+Thematisch: Der Reaktor braucht manuelle Stabilisierung/Nachzündung — jeder Klick speist den Kern.
+
+### Kapazität & Entladung pro `power_plant`-Level
+
+Höheres Kraftwerks-Level = größere Batterie = hält länger. Das gibt einen Grund, `power_plant` über die reine Energieproduktion hinaus aufzuwerten. Richtwert: eine volle Batterie hält auf Lv1 ~3 Tage.
+
+| `power_plant`-Level | Volle Batterie hält | Entladung/Stunde |
+|---------------------|---------------------|------------------|
+| Lv1 | ~72 h (3 Tage) | ~1,4 % |
+| Lv2 | ~96 h (4 Tage) | ~1,05 % |
+| Lv3 | ~120 h (5 Tage) | ~0,83 % |
+
+Startwerte, später balancebar. Ein Dev-Faktor (analog `buildTimeFactor`) zum schnellen Testen der Entladung ist sinnvoll.
+
+### Zusammenspiel mit dem bestehenden Energiesystem
+
+Es gibt dann **zwei unabhängige Bedingungen**, damit ein Gebäude läuft:
+
+1. **Netz-Uptime (neu):** Batterie > 0 %. Ist sie leer, ist das **gesamte** Netz aus — überschreibt alles.
+2. **Energiebilanz (wie bisher):** Produktion ≥ Verbrauch. Im Defizit gehen Gebäude wie gehabt offline.
+
+Kurz: Batterie leer → alles aus. Batterie > 0 → es gelten die bisherigen Energie-Regeln.
+
+### Zustände
+
+```
+OK        — Batterie über Warnschwelle, Netz läuft normal
+NIEDRIG   — z. B. < 20 %: Warn-Anzeige (pulsierend), Aufforderung zum Nachladen
+LEER      — 0 %: Blackout, alle Gebäude offline, keine Produktion
+NACHLADEN — Klick → +10 %; ab > 0 % kommt das Netz sofort wieder hoch
+```
+
+Die während des Blackouts entgangene Produktion ist die eigentliche „Strafe" fürs Wegbleiben — kein dauerhafter Schaden, nur verlorener Ertrag.
+
+### Data Model (Backend, geplant)
+
+Neue Tabelle pro Planet (Vorschlag):
+
+```sql
+hs_power_battery (
+  planet_id, player_id,           -- PK
+  charge             FLOAT,        -- 0–100 (Prozent)
+  charge_updated_at  DATETIME      -- Basis für zeitbasierte Entladung
+)
+```
+
+- **Resolve** (bei jedem `state.php`-Load, analog zu `resolve_timers`):
+  `charge = max(0, charge − drainPerHour(level) × Stunden seit charge_updated_at)`, danach `charge_updated_at = NOW()`.
+- Ist `charge = 0`, setzt die Offline-Logik ein `grid_down`-Flag für den Planeten → alle Gebäude offline.
+- **Neuer Endpunkt** `POST /api/star/game/power/charge { planetId }`:
+  zuerst resolven (aktuellen Stand berechnen), dann `charge = min(100, charge + 10)`, `charge_updated_at = NOW()`. Antwort: neuer `charge` + `hoursToEmpty`.
+
+Konfig in `config.php` / `hawkStarConfig.js`, z. B. pro `power_plant`-Level `batteryDrainPerHour` (und optional `batteryCapacity`, falls wir später von reinem %-Modell auf absolute Kapazitäten wechseln wollen).
+
+### Frontend (geplant)
+
+- Batterie-Balken + Prozent + „hält noch ~X h"-Countdown im Energie-Tile bzw. in der `power_plant`-Zeile.
+- **„⚡ Aufladen +10 %"**-Button (oder Klick direkt auf den Balken), optional kleine Lade-Animation.
+- Farb-/Warnzustände: OK (grün) · niedrig (gelb, pulsierend) · leer (rot, Blackout-Hinweis).
+- Live-Countdown clientseitig (wie bei Bau-Timern); der Server bleibt Source of Truth.
+- Blackout klar sichtbar machen (z. B. abgedunkeltes Grid, „OFFLINE"-Badges an allen Gebäuden).
+
+### Offene Punkte / später
+
+- **Mehrere Kolonien:** Jede hat ihre eigene Batterie → mehr Pflegeaufwand. Bei vielen Kolonien evtl. mühsam. Optionen: Sammel-Aufladen, Batterie nur auf dem Heimatplaneten, oder bewusst als Kostenfaktor pro Kolonie.
+- **Erinnerung/Push** bei niedriger Batterie (späterer Retention-Verstärker).
+- **„Instant voll" ist gewollt** (Klicks kostenlos/unbegrenzt) — das Balancing steckt allein in der Entladerate.
+- Genaue Warnschwelle und Level-Kurven noch zu tunen.
+
+---
+
 ## Units
 
 Units are built at the Space Base tile and consumed on missions. Each unit type has exactly **one level** — no upgrades. Only **one active mission** per unit type at a time.
@@ -477,6 +560,7 @@ Phase 1 + 2 vollständig implementiert und live (seit 2026-06-01). Geplant:
 | Phase 4 — Espionage (Recon in fremden Systemen) | ⬜ Planned |
 | Phase 5 — Combat (Kriegsschiffe, stat-basierter Kampf) | ⬜ Planned |
 | Slot 7 — neuer Tile-Typ (Agriculture Konzept offen) | ⬜ Planned |
+| Stromnetz — Reaktor-Batterie (power_plant, Klick-Aufladen, Blackout bei leer) | ✅ Implementiert |
 
 Siehe `hawk-star-backend.md` für das vollständige Backend-Konzept.
 

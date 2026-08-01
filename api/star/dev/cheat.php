@@ -27,6 +27,19 @@ switch ($action) {
         resolve_buildings($db, $planetId, $playerId);
         ok(['action' => 'complete_buildings']);
 
+    case 'drain_battery':
+        if (!$planetId) fail('planetId required');
+        $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');
+        $own->execute([$planetId, $playerId]);
+        if (!$own->fetch()) fail('Planet not owned', 403);
+
+        ensure_power_battery($db, $planetId, $playerId);
+        $db->prepare(
+            'UPDATE hs_power_battery SET charge=0, charge_updated_at=NOW()
+             WHERE planet_id=? AND player_id=?'
+        )->execute([$planetId, $playerId]);
+        ok(['action' => 'drain_battery']);
+
     case 'complete_research':
         $db->prepare(
             "UPDATE hs_global_research SET build_ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)

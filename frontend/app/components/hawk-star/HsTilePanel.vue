@@ -7,6 +7,7 @@ import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
 import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
 import HsProfilePanel from '~/components/hawk-star/HsProfilePanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
+import HsPowerBattery from '~/components/hawk-star/HsPowerBattery.vue'
 
 defineProps({ activePanel: { type: String, default: null } })
 
@@ -48,6 +49,7 @@ const { t } = useI18n()
 const isSpacebaseTile    = computed(() => activeTileType.value?.id === 'spacebase')
 const isHightechTile     = computed(() => activeTileType.value?.id === 'hightech')
 const isDockTile         = computed(() => activeTileType.value?.id === 'dock')
+const isEnergyTile       = computed(() => activeTileType.value?.id === 'energy')
 
 const hightechBuildings = computed(() => {
   if (!isHightechTile.value) return []
@@ -109,6 +111,9 @@ const setConversionCount = (bId, idx, val) => {
       <h2 class="hs-panel-title">{{ activeTileType ? t('hawkStar.tiles.' + activeTileType.id + '.name') : t('hawkStar.tile.selectTile') }}</h2>
       <span class="hs-panel-desc">{{ activeTileType ? t('hawkStar.tiles.' + activeTileType.id + '.desc') : '' }}</span>
     </div>
+
+    <!-- Power battery — grid uptime, shown on the energy tile once a power plant exists -->
+    <HsPowerBattery v-if="isEnergyTile && getLevel('power_plant') > 0" />
 
     <!-- Onboarding hint — shown when base tile is active and Command Center not yet built -->
     <div v-if="activeTileType?.id === 'base' && getLevel('command_center') === 0" class="hs-onboarding">

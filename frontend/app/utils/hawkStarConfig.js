@@ -23,6 +23,16 @@ export const UNIT_COSTS = {
   colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 900  },
 }
 
+// ── Power battery (grid-uptime mechanic) ──────────────────────────────────────
+// The power_plant holds a battery that drains over time; click to recharge.
+// When empty the whole planet grid goes offline. Values mirror api/star/config.php.
+export const POWER_BATTERY = {
+  max:          100,   // % full
+  clickPercent: 10,    // % gained per charge click
+  // % drain per hour, keyed by power_plant level (Lv1 ≈ 72 h full→empty)
+  drainPerHour: { 1: 1.389, 2: 1.042, 3: 0.833, 4: 0.694, 5: 0.595, 6: 0.521 },
+}
+
 // ── Planet types ──────────────────────────────────────────────────────────────
 // Each type unlocks or restricts certain buildings.
 export const PLANET_TYPES = {

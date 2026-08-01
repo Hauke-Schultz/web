@@ -159,6 +159,14 @@
       "tabDock": "Dock"
     },
 
+    "battery": {
+      "title": "Reaktor-Batterie",
+      "charge": "Aufladen +10 %",
+      "timeLeft": "hält noch {time}",
+      "blackout": "Blackout — Kolonie offline",
+      "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall."
+    },
+
     "starClass": {
       "G": "Gelber Zwerg",
       "K": "Orangener Zwerg",

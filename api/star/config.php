@@ -299,6 +299,26 @@ const RESOURCE_KEYS = [
     'pure_crystal','super_alloy','quantum_shard','nano_alloy','power_cell',
 ];
 
+// ── Power battery (grid-uptime mechanic) ──────────────────────────────────────
+// The power_plant holds a battery that slowly drains over time. When empty the
+// whole planet grid goes offline. Drain is in % per hour, keyed by power_plant
+// level — higher level = larger battery = lasts longer (Lv1 ≈ 72 h full→empty).
+const POWER_BATTERY_DRAIN = [
+    1 => 1.389,  // ~72 h  (3 days)
+    2 => 1.042,  // ~96 h  (4 days)
+    3 => 0.833,  // ~120 h (5 days)
+    4 => 0.694,  // ~144 h (6 days)
+    5 => 0.595,  // ~168 h (7 days)
+    6 => 0.521,  // ~192 h (8 days)
+];
+const POWER_BATTERY_MAX   = 100.0;  // % full
+const POWER_BATTERY_CLICK = 10.0;   // % gained per charge click
+
+function battery_drain_per_hour(int $ppLevel): float {
+    if ($ppLevel <= 0) return 0.0;
+    return POWER_BATTERY_DRAIN[min($ppLevel, 6)] ?? POWER_BATTERY_DRAIN[6];
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function building_def(string $key): array|null {

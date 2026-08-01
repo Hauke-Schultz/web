@@ -28,7 +28,8 @@
       "Read(//c/c/Users/hauke/WebstormProjects/web/frontend/app/components/**)",
       "Bash(npm install *)",
       "Bash(ls -R api/star/agriculture)",
-      "Bash(grep -rl -i \"agri\\\\|farm\\\\|harvest\\\\|crop\\\\|seed\\\\|xenopilz\" api/star)"
+      "Bash(grep -rl -i \"agri\\\\|farm\\\\|harvest\\\\|crop\\\\|seed\\\\|xenopilz\" api/star)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

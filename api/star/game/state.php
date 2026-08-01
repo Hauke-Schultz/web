@@ -25,6 +25,7 @@ if (!$planet) fail('Planet not found or not owned', 404);
 
 resolve_timers($db, $planetId, $playerId);
 compute_resources($db, $planetId, $playerId, $planet['type']);
+$battery = battery_state($db, $planetId, $playerId);
 
 // ── Load current state ────────────────────────────────────────────────────────
 
@@ -121,4 +122,5 @@ ok([
     'missions'           => $missions,
     'droneScannedPlanets'=> $droneScannedPlanets,
     'conversionQueues'   => $convQueues,
+    'battery'            => $battery,
 ]);

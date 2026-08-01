@@ -158,6 +158,14 @@
       "tabDock": "Dock"
     },
 
+    "battery": {
+      "title": "Reactor Battery",
+      "charge": "Charge +10%",
+      "timeLeft": "{time} left",
+      "blackout": "Blackout — colony offline",
+      "hint": "Drains over time. Empty = total power loss."
+    },
+
     "starClass": {
       "G": "Yellow Dwarf",
       "K": "Orange Dwarf",

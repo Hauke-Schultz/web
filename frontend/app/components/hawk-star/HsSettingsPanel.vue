@@ -7,7 +7,7 @@ const { postDevCheat } = useHawkStarApi()
 
 const cheatBusy = ref(false)
 
-const PLANET_CHEATS  = ['complete_buildings', 'max_resources']
+const PLANET_CHEATS  = ['complete_buildings', 'max_resources', 'drain_battery']
 const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_scanning']
 
 async function runCheat(action) {
@@ -39,6 +39,7 @@ async function runCheat(action) {
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Drohnen-Missionen abschließen" @click="runCheat('complete_drone_missions')">✓ Drohnen</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Colony-Missionen abschließen" @click="runCheat('complete_colony_missions')">✓ Colony</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Galaxy-Scans abschließen" @click="runCheat('complete_scanning')">✓ Scan</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Reaktor-Batterie sofort leeren (Blackout testen)" @click="runCheat('drain_battery')">🔋 Leeren</button>
     </div>
   </div>
 </template>

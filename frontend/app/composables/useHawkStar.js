@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -136,6 +136,28 @@ const lastResourceSync   = ref(0)            // stores Math.floor(timestamp / 60
 const lastResourceSyncMs = ref(Date.now())   // ms timestamp of last actual server resource response
 const lastCommLogSync  = ref(0) // stores Math.floor(timestamp / 1000) — second number
 
+// ── Power battery (grid uptime) ────────────────────────────
+// Server sends { charge, drainPerHour, powerPlantLevel, gridDown, hoursToEmpty }.
+// We anchor it with syncedAt on load and decay it client-side for a live bar.
+const battery = computed(() => allPlanetStates.value[activePlanetId.value]?.battery ?? null)
+
+const batteryCharge = computed(() => {
+  const b = battery.value
+  if (!b) return null
+  const hours = (now.value - b.syncedAt) / 3600000
+  return Math.max(0, b.charge - b.drainPerHour * hours)
+})
+
+const gridDown = computed(() =>
+  !!battery.value && battery.value.powerPlantLevel > 0 && (batteryCharge.value ?? 0) <= 0
+)
+
+const batteryHoursToEmpty = computed(() => {
+  const b = battery.value
+  if (!b || !b.drainPerHour) return null
+  return (batteryCharge.value ?? 0) / b.drainPerHour
+})
+
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
   playerSlots.value.find(s => s.slot === activeSlot.value)
@@ -169,6 +191,7 @@ const effectiveLevel = (state) => state.buildEndsAt ? state.level + 1 : state.le
 
 // ── Production & energy (active planet) ───────────────────
 const grossProduction = computed(() => {
+  if (gridDown.value) return {}   // blackout: nothing produces
   const prod = {}
   for (const [id, state] of Object.entries(playerBuildings.value)) {
     if (state.level === 0) continue
@@ -181,6 +204,7 @@ const grossProduction = computed(() => {
 })
 
 const totalEnergyDrain = computed(() => {
+  if (gridDown.value) return 0   // blackout: nothing running
   let drain = 0
   for (const [id, state] of Object.entries(playerBuildings.value)) {
     const lvl = effectiveLevel(state)
@@ -370,12 +394,34 @@ const currentLevelDef = (id) => {
   return lvl > 0 ? (BUILDINGS[id]?.levels[lvl - 1] ?? null) : null
 }
 
+// ── Power battery: recharge (+clickPercent) ────────────────
+const chargeBattery = async () => {
+  const planetId = activePlanetId.value
+  const st = allPlanetStates.value[planetId]?.battery
+  if (!st) return
+  const { chargeBattery: chargeApi } = useHawkStarApi()
+
+  // Optimistic: bump the live charge by one click right away
+  const liveNow = Math.max(0, st.charge - st.drainPerHour * (Date.now() - st.syncedAt) / 3600000)
+  st.charge   = Math.min(POWER_BATTERY.max, liveNow + POWER_BATTERY.clickPercent)
+  st.syncedAt = Date.now()
+
+  try {
+    const result = await chargeApi(planetId)
+    allPlanetStates.value[planetId].battery = { ...result, syncedAt: Date.now() }
+    // Grid may have come back up → mark a fresh resource sync so the tick preview restarts
+    lastResourceSyncMs.value = Date.now()
+  } catch (e) {
+    await refreshPlanetState(planetId)   // reconcile with server on failure
+  }
+}
+
 // ── Offline status ─────────────────────────────────────────
 const isOffline = (id) => {
+  if (getLevel(id) === 0) return false
+  if (gridDown.value) return true   // blackout: every built building is offline
   if (!energyDeficit.value) return false
-  const lvl = getLevel(id)
-  if (lvl === 0) return false
-  return (BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0) > 0
+  return (BUILDINGS[id]?.levels[getLevel(id) - 1]?.energyDrain ?? 0) > 0
 }
 
 // ── Grid helpers ───────────────────────────────────────────
@@ -1046,6 +1092,7 @@ const applyGameState = (planetId, state) => {
       activeColonyMissions: colonyMissions,
     },
     conversionQueues: convQueues,
+    battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
   }
 
   globalResearch.value = { ...globalResearch.value, ...state.globalResearch }
@@ -1217,6 +1264,12 @@ export function useHawkStar() {
     hasEnoughStaff,
     staffDelta,
     isOffline,
+    // power battery
+    battery,
+    batteryCharge,
+    batteryHoursToEmpty,
+    gridDown,
+    chargeBattery,
     // production
     grossProduction,
     totalEnergyDrain,
