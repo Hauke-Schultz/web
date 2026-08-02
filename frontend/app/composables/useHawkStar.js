@@ -78,8 +78,8 @@ const dismissNotification = (id) => {
 
 const dismissAllNotifications = () => { notifications.value = [] }
 
-const HOME_START_RESOURCES   = { population: 20, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
-const COLONY_START_RESOURCES = { population: 15,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
+const HOME_START_RESOURCES   = { population: 1, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
+const COLONY_START_RESOURCES = { population: 1,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
 
 const freshDock = () => ({
   reconDroneInventory:    0,
@@ -157,6 +157,21 @@ const batteryHoursToEmpty = computed(() => {
   if (!b || !b.drainPerHour) return null
   return (batteryCharge.value ?? 0) / b.drainPerHour
 })
+
+// ── Population recruit pool (base tile) ────────────────────
+// Server sends { pool, poolMax, growthPerHour }; we anchor with syncedAt and let
+// the pool grow client-side up to poolMax for a live counter.
+const recruitState = computed(() => allPlanetStates.value[activePlanetId.value]?.recruit ?? null)
+
+const recruitPool = computed(() => {
+  const r = recruitState.value
+  if (!r) return 0
+  const hours = (now.value - r.syncedAt) / 3600000
+  return Math.min(r.poolMax, r.pool + r.growthPerHour * hours)
+})
+
+const recruitPoolMax = computed(() => recruitState.value?.poolMax ?? 0)
+const canRecruit     = computed(() => Math.floor(recruitPool.value) >= 1)
 
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
@@ -413,6 +428,30 @@ const chargeBattery = async () => {
     lastResourceSyncMs.value = Date.now()
   } catch (e) {
     await refreshPlanetState(planetId)   // reconcile with server on failure
+  }
+}
+
+// ── Population: recruit +1 (move one from the pool into population) ─────────
+const recruit = async () => {
+  const planetId = activePlanetId.value
+  const r = allPlanetStates.value[planetId]?.recruit
+  if (!r) return
+  const live = Math.min(r.poolMax, r.pool + r.growthPerHour * (Date.now() - r.syncedAt) / 3600000)
+  if (Math.floor(live) < 1) return
+
+  // Optimistic: pool −1, population +1
+  r.pool = live - 1
+  r.syncedAt = Date.now()
+  const st = allPlanetStates.value[planetId]
+  if (st?.resources) st.resources.population = (st.resources.population ?? 0) + 1
+
+  const { recruit: recruitApi } = useHawkStarApi()
+  try {
+    const result = await recruitApi(planetId)
+    st.recruit = { pool: result.pool, poolMax: result.poolMax, growthPerHour: result.growthPerHour, syncedAt: Date.now() }
+    if (st.resources) st.resources.population = result.population
+  } catch (e) {
+    await refreshPlanetState(planetId)
   }
 }
 
@@ -999,6 +1038,18 @@ const tick = () => {
       if (levelDef?.popBonus) {
         pr.population += levelDef.popBonus
       }
+      // Power plant just built/upgraded: ensure a battery object exists locally so
+      // the grid-uptime blackout applies immediately (no reload). A fresh plant's
+      // battery starts empty — mirrors the server → instant blackout until charged.
+      if (id === 'power_plant') {
+        const drain = POWER_BATTERY.drainPerHour[Math.min(state.level, 6)] ?? POWER_BATTERY.drainPerHour[6]
+        if (!pstate.battery) {
+          pstate.battery = { charge: 0, drainPerHour: drain, powerPlantLevel: state.level, syncedAt: Date.now() }
+        } else {
+          pstate.battery.powerPlantLevel = state.level
+          pstate.battery.drainPerHour    = drain
+        }
+      }
       notifications.value.push({
         id:         `notif_${Date.now()}_bld_${pid}_${id}`,
         type:       'building_done',
@@ -1093,6 +1144,7 @@ const applyGameState = (planetId, state) => {
     },
     conversionQueues: convQueues,
     battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
+    recruit: state.recruit ? { ...state.recruit, syncedAt: Date.now() } : null,
   }
 
   globalResearch.value = { ...globalResearch.value, ...state.globalResearch }
@@ -1270,6 +1322,11 @@ export function useHawkStar() {
     batteryHoursToEmpty,
     gridDown,
     chargeBattery,
+    // population recruitment
+    recruitPool,
+    recruitPoolMax,
+    canRecruit,
+    recruit,
     // production
     grossProduction,
     totalEnergyDrain,

@@ -8,6 +8,7 @@ import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
 import HsProfilePanel from '~/components/hawk-star/HsProfilePanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPowerBattery from '~/components/hawk-star/HsPowerBattery.vue'
+import HsRecruitPanel from '~/components/hawk-star/HsRecruitPanel.vue'
 
 defineProps({ activePanel: { type: String, default: null } })
 
@@ -50,6 +51,7 @@ const isSpacebaseTile    = computed(() => activeTileType.value?.id === 'spacebas
 const isHightechTile     = computed(() => activeTileType.value?.id === 'hightech')
 const isDockTile         = computed(() => activeTileType.value?.id === 'dock')
 const isEnergyTile       = computed(() => activeTileType.value?.id === 'energy')
+const isBaseTile         = computed(() => activeTileType.value?.id === 'base')
 
 const hightechBuildings = computed(() => {
   if (!isHightechTile.value) return []
@@ -123,8 +125,13 @@ const setConversionCount = (bId, idx, val) => {
         <li>{{ t('hawkStar.tile.onboarding.step2') }}</li>
         <li>{{ t('hawkStar.tile.onboarding.step3') }}</li>
         <li>{{ t('hawkStar.tile.onboarding.step4') }}</li>
+        <li>{{ t('hawkStar.tile.onboarding.step5') }}</li>
+        <li>{{ t('hawkStar.tile.onboarding.step6') }}</li>
       </ol>
     </div>
+
+    <!-- Population recruitment — base tile -->
+    <HsRecruitPanel v-if="isBaseTile" />
 
     <div class="hs-building-list">
       <div

@@ -132,86 +132,24 @@ The planet type is assigned on colonization and restricts or enables certain bui
 
 ---
 
-## Stromnetz — Reaktor-Batterie  *(implementiert)*
+## Power Battery  *(implemented)*
 
-**Ziel:** Langzeit-Bindung. Das Netz jeder Kolonie hängt an einer Batterie im `power_plant`, die sich langsam entlädt. Der Spieler muss regelmäßig (täglich bis alle paar Tage) reinschauen und sie per Klick nachladen — sonst fällt der Strom aus und die ganze Kolonie steht still.
+Every `power_plant` has a battery (0–100 %) that slowly drains over time, independent of energy production. Click **⚡ Charge +10 %** (free, unlimited) to top it up — the battery only fills by clicking, which is the return-to-play hook.
 
-### Grundprinzip
+- **At 0 % the whole planet grid goes offline** — nothing produces until recharged. This is separate from the existing energy balance (production ≥ drain); both must hold for a building to run.
+- Drain scales with `power_plant` level — higher level lasts longer (Lv1 ≈ 72 h full→empty … Lv6 ≈ 192 h).
+- A newly built power plant starts at **0 %** (blackout) so the player learns to charge it.
+- Backend: table `hs_power_battery` (charge + timestamp), resolved live from elapsed time; `POST /game/power/charge`. UI: bar + "holds ~Xh" countdown + charge button on the energy tile (`HsPowerBattery`). Dev cheat "🔋 Leeren" empties it for testing.
 
-- Jedes gebaute `power_plant` besitzt **eine Batterie** (Ladung 0–100 %).
-- Die Batterie **entlädt sich mit der Zeit** (feste Rate pro Stunde), unabhängig von der Energieproduktion.
-- Ein **Klick lädt +10 Prozentpunkte** (auf 100 % gedeckelt), kostenlos und beliebig oft. Von leer auf voll = 10 Klicks.
-- **Batterie leer (0 %) → gesamtes Netz aus:** alle Gebäude der Kolonie gehen offline (keine Produktion), bis wieder aufgeladen wird.
-- Die Batterie füllt sich **nur durch Klicks**, nie automatisch — das ist der „du musst da sein"-Anreiz.
+---
 
-Thematisch: Der Reaktor braucht manuelle Stabilisierung/Nachzündung — jeder Klick speist den Kern.
+## Population Recruitment  *(implemented)*
 
-### Kapazität & Entladung pro `power_plant`-Level
+Population starts at **1** — you grow it by recruiting on the base tile. A **recruit pool** fills over time (≈ 5/day) up to a **cap of 15**, so a long absence never queues hundreds. Click **+1 👥 Recruit** to move one recruit from the pool into your population. No timer, no mini-game.
 
-Höheres Kraftwerks-Level = größere Batterie = hält länger. Das gibt einen Grund, `power_plant` über die reine Energieproduktion hinaus aufzuwerten. Richtwert: eine volle Batterie hält auf Lv1 ~3 Tage.
-
-| `power_plant`-Level | Volle Batterie hält | Entladung/Stunde |
-|---------------------|---------------------|------------------|
-| Lv1 | ~72 h (3 Tage) | ~1,4 % |
-| Lv2 | ~96 h (4 Tage) | ~1,05 % |
-| Lv3 | ~120 h (5 Tage) | ~0,83 % |
-
-Startwerte, später balancebar. Ein Dev-Faktor (analog `buildTimeFactor`) zum schnellen Testen der Entladung ist sinnvoll.
-
-### Zusammenspiel mit dem bestehenden Energiesystem
-
-Es gibt dann **zwei unabhängige Bedingungen**, damit ein Gebäude läuft:
-
-1. **Netz-Uptime (neu):** Batterie > 0 %. Ist sie leer, ist das **gesamte** Netz aus — überschreibt alles.
-2. **Energiebilanz (wie bisher):** Produktion ≥ Verbrauch. Im Defizit gehen Gebäude wie gehabt offline.
-
-Kurz: Batterie leer → alles aus. Batterie > 0 → es gelten die bisherigen Energie-Regeln.
-
-### Zustände
-
-```
-OK        — Batterie über Warnschwelle, Netz läuft normal
-NIEDRIG   — z. B. < 20 %: Warn-Anzeige (pulsierend), Aufforderung zum Nachladen
-LEER      — 0 %: Blackout, alle Gebäude offline, keine Produktion
-NACHLADEN — Klick → +10 %; ab > 0 % kommt das Netz sofort wieder hoch
-```
-
-Die während des Blackouts entgangene Produktion ist die eigentliche „Strafe" fürs Wegbleiben — kein dauerhafter Schaden, nur verlorener Ertrag.
-
-### Data Model (Backend, geplant)
-
-Neue Tabelle pro Planet (Vorschlag):
-
-```sql
-hs_power_battery (
-  planet_id, player_id,           -- PK
-  charge             FLOAT,        -- 0–100 (Prozent)
-  charge_updated_at  DATETIME      -- Basis für zeitbasierte Entladung
-)
-```
-
-- **Resolve** (bei jedem `state.php`-Load, analog zu `resolve_timers`):
-  `charge = max(0, charge − drainPerHour(level) × Stunden seit charge_updated_at)`, danach `charge_updated_at = NOW()`.
-- Ist `charge = 0`, setzt die Offline-Logik ein `grid_down`-Flag für den Planeten → alle Gebäude offline.
-- **Neuer Endpunkt** `POST /api/star/game/power/charge { planetId }`:
-  zuerst resolven (aktuellen Stand berechnen), dann `charge = min(100, charge + 10)`, `charge_updated_at = NOW()`. Antwort: neuer `charge` + `hoursToEmpty`.
-
-Konfig in `config.php` / `hawkStarConfig.js`, z. B. pro `power_plant`-Level `batteryDrainPerHour` (und optional `batteryCapacity`, falls wir später von reinem %-Modell auf absolute Kapazitäten wechseln wollen).
-
-### Frontend (geplant)
-
-- Batterie-Balken + Prozent + „hält noch ~X h"-Countdown im Energie-Tile bzw. in der `power_plant`-Zeile.
-- **„⚡ Aufladen +10 %"**-Button (oder Klick direkt auf den Balken), optional kleine Lade-Animation.
-- Farb-/Warnzustände: OK (grün) · niedrig (gelb, pulsierend) · leer (rot, Blackout-Hinweis).
-- Live-Countdown clientseitig (wie bei Bau-Timern); der Server bleibt Source of Truth.
-- Blackout klar sichtbar machen (z. B. abgedunkeltes Grid, „OFFLINE"-Badges an allen Gebäuden).
-
-### Offene Punkte / später
-
-- **Mehrere Kolonien:** Jede hat ihre eigene Batterie → mehr Pflegeaufwand. Bei vielen Kolonien evtl. mühsam. Optionen: Sammel-Aufladen, Batterie nur auf dem Heimatplaneten, oder bewusst als Kostenfaktor pro Kolonie.
-- **Erinnerung/Push** bei niedriger Batterie (späterer Retention-Verstärker).
-- **„Instant voll" ist gewollt** (Klicks kostenlos/unbegrenzt) — das Balancing steckt allein in der Entladerate.
-- Genaue Warnschwelle und Level-Kurven noch zu tunen.
+- Population is the workforce (`freeWorkers = population − Σ staffDrain`); recruited people are permanent.
+- The old `quarters` building was **removed** — recruiting replaces its population role; `command_center` stays.
+- Backend: table `hs_recruit_pool` (pool + timestamp), resolved live; `POST /game/base/recruit`. UI: pool bar + `+1 Recruit` button on the base tile (`HsRecruitPanel`).
 
 ---
 
@@ -482,34 +420,34 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 
 ### Auth & Session
 
-Das Spiel benötigt einen Account. Beim ersten Öffnen erscheint das **Auth-Modal** (ersetzt das alte "Commander Name"-Setup-Modal).
+The game requires an account. On first open an **auth modal** appears (replaced the old "Commander Name" setup modal).
 
-**Zwei Modi — umschaltbar per Tab (Standard: Login):**
+**Two modes — switchable by tab (default: Login):**
 
-| Modus | Felder |
-|-------|--------|
-| **Anmelden** | E-Mail · Passwort · „Remember me"-Checkbox |
-| **Registrieren** | Commander-Name (username, 2–64 Zeichen) · E-Mail · Passwort (min. 6 Zeichen) |
+| Mode | Fields |
+|------|--------|
+| **Login** | Email · Password · "Remember me" checkbox |
+| **Register** | Commander name (username, 2–64 chars) · Email · Password (min. 6 chars) |
 
-- Portrait und Disposition werden **nicht** beim Register abgefragt — das gehört ins In-Game-Profil (`HsProfilePanel`).
-- **Remember me** (Standard: an): Token landet in `localStorage['hawk-star-token']` (bleibt über Tabs/Neustarts hinaus). Deaktiviert: Token nur in `sessionStorage` (verschwindet beim Tab-Schließen).
-- Beim Laden: Token in localStorage oder sessionStorage → Token verify → direkt ins Spiel; ungültig/fehlend → Auth-Modal.
-- Token-Ablauf (7 Tage): beim nächsten API-Call bekommt der Client 401 → Modal wieder zeigen.
-- Fehlermeldungen erscheinen inline im Modal (Username bereits vergeben, falsches Passwort, etc.).
+- Portrait and disposition are **not** asked at register — they belong in the in-game profile (`HsProfilePanel`).
+- **Remember me** (default: on): token stored in `localStorage['hawk-star-token']` (survives tabs/restarts). Off: token only in `sessionStorage` (gone when the tab closes).
+- On load: token from localStorage or sessionStorage → verify token → straight into the game; invalid/missing → auth modal.
+- Token expiry (7 days): the next API call returns 401 → show the modal again.
+- Errors appear inline in the modal (username already taken, wrong password, etc.).
 
 **Composables:**
-- `useHawkStarAuth.js` — Auth-Singleton: Token, Player, rememberMe, register/login/logout/verifyToken
-- `useHawkStarApi.js` — dünner API-Wrapper: alle Game-Actions (fetchGalaxy, postBuild, postDroneMission, …)
-- `useHawkStar.js` — lokale UI-State-Logik (aktiver Slot, aktive View, Tick, Ressourcen-UI)
+- `useHawkStarAuth.js` — auth singleton: token, player, rememberMe, register/login/logout/verifyToken
+- `useHawkStarApi.js` — thin API wrapper: all game actions (fetchGalaxy, postBuild, postDroneMission, …)
+- `useHawkStar.js` — local UI state logic (active slot, active view, tick, resource UI)
 
 ### State & Persistence
 
-- **`useHawkStar.js`** ist ein Singleton-Composable — alle Komponenten lesen und schreiben direkt darin, keine Props/Emits für Game-State.
-- **`gameLoaded`** ref (bool): wird erst `true`, nachdem `initFromApi()` vollständig erfolgreich war. `startBuild` und andere Write-Actions sind davon abhängig — solange `false`, werden sie geblockt.
-- **`initError`** ref (string): enthält die Fehlermeldung wenn Galaxy-Load oder Game-State-Load fehlschlägt. Im UI sichtbar als rote Zeile über dem Retry-Button.
-- State kommt ausschließlich aus der Backend-API (`GET /api/star/game/state?planet_id=X`). LocalStorage enthält nur noch den JWT-Token und Dev-Einstellungen.
-- `allPlanetStates` ist das Kern-State-Objekt — keyed by `planetId`, enthält Ressourcen, Gebäude, Dock, Conversion-Queues pro Planet.
-- `galaxySystems`: nach `initFromApi()` von `GET /api/star/galaxy/` geladen.
+- **`useHawkStar.js`** is a singleton composable — all components read and write it directly, no props/emits for game state.
+- **`gameLoaded`** ref (bool): only becomes `true` after `initFromApi()` fully succeeds. `startBuild` and other write actions depend on it — while `false` they are blocked.
+- **`initError`** ref (string): holds the error message when the galaxy load or game-state load fails. Shown in the UI as a red line above the retry button.
+- State comes solely from the backend API (`GET /api/star/game/state?planet_id=X`). LocalStorage only holds the JWT token and dev settings.
+- `allPlanetStates` is the core state object — keyed by `planetId`, holds resources, buildings, dock and conversion queues per planet.
+- `galaxySystems`: loaded from `GET /api/star/galaxy/` after `initFromApi()`.
 
 ### Dev Mode
 
@@ -552,17 +490,18 @@ All Hawk-Star keys live under `hawkStar.*`:
 
 ### Implementation Status
 
-Phase 1 + 2 vollständig implementiert und live (seit 2026-06-01). Geplant:
+Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 
 | Feature | Status |
 |---------|--------|
-| Phase 3 — Spieler-Interaktion (Trade, Player-Messaging) | ⬜ Planned |
-| Phase 4 — Espionage (Recon in fremden Systemen) | ⬜ Planned |
-| Phase 5 — Combat (Kriegsschiffe, stat-basierter Kampf) | ⬜ Planned |
-| Slot 7 — neuer Tile-Typ (Agriculture Konzept offen) | ⬜ Planned |
-| Stromnetz — Reaktor-Batterie (power_plant, Klick-Aufladen, Blackout bei leer) | ✅ Implementiert |
+| Phase 3 — Player interaction (trade, player messaging) | ⬜ Planned |
+| Phase 4 — Espionage (recon in other players' systems) | ⬜ Planned |
+| Phase 5 — Combat (warships, stat-based combat) | ⬜ Planned |
+| Slot 7 — new tile type (agriculture removed, concept open) | ⬜ Planned |
+| Power battery (power_plant, click-to-charge, blackout when empty) | ✅ Implemented |
+| Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |
 
-Siehe `hawk-star-backend.md` für das vollständige Backend-Konzept.
+See `hawk-star-backend.md` for the full backend concept.
 
 ---
 

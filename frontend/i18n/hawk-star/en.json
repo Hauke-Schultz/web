@@ -51,9 +51,11 @@
       "onboarding": {
         "title": "Welcome, Commander — your colony begins here",
         "step1": "🏛️ Build the Command Center — the heart of every colony",
-        "step2": "⛏️ Unlock Mining & Energy tiles to grow your resource income",
-        "step3": "📡 Research Star Map in the Comm Center to explore your solar system",
-        "step4": "🚀 Colonize new planets and specialize each one"
+        "step2": "👥 Recruit population on the base tile — you need workers for your buildings",
+        "step3": "🔋 Build the Power Plant and charge its battery — without charge the colony has no power",
+        "step4": "⛏️ Unlock Mining & Energy tiles to grow your resource income",
+        "step5": "📡 Research Star Map in the Comm Center to explore your solar system",
+        "step6": "🚀 Colonize new planets and specialize each one"
       }
     },
 
@@ -166,6 +168,12 @@
       "hint": "Drains over time. Empty = total power loss."
     },
 
+    "recruit": {
+      "title": "Recruitment",
+      "button": "Recruit",
+      "hint": "Grows over time (~5/day) up to 15. One click = +1 population."
+    },
+
     "starClass": {
       "G": "Yellow Dwarf",
       "K": "Orange Dwarf",
@@ -219,18 +227,6 @@
         "lv1": "First Building · 1 worker",
         "lv2": "Unlocks the Tech Center tile · +5 pop · uses 2 energy · 2 workers",
         "lv3": "+10 pop · uses 3 energy · 3 workers"
-      },
-      "quarters": {
-        "name": "Quarters",
-        "desc": "Housing for your growing workforce.",
-        "lv1": "+4 max pop · uses 1 energy · 1 worker",
-        "lv2": "+6 max pop · uses 2 energy · 1 worker",
-        "lv3": "+12 max pop · uses 3 energy · 2 workers",
-        "lv4": "+20 max pop · uses 5 energy · 3 workers",
-        "lv5": "+32 max pop · uses 7 energy · 4 workers",
-        "lv6": "+50 max pop · uses 10 energy · 5 workers",
-        "lv7": "+75 max pop · uses 14 energy · 7 workers",
-        "lv8": "+110 max pop · uses 20 energy · 10 workers"
       },
       "power_plant": {
         "name": "Power Plant",

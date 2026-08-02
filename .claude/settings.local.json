@@ -29,7 +29,11 @@
       "Bash(npm install *)",
       "Bash(ls -R api/star/agriculture)",
       "Bash(grep -rl -i \"agri\\\\|farm\\\\|harvest\\\\|crop\\\\|seed\\\\|xenopilz\" api/star)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(sed -i '194,277d' app/utils/hawkStarConfig.js)",
+      "Bash(sed -n '190,196p' app/utils/hawkStarConfig.js)",
+      "Bash(sed -i '135,257d' frontend/app/pages/games/hawkStar/hawk-star.md)",
+      "Bash(sed -n '131,140p' frontend/app/pages/games/hawkStar/hawk-star.md)"
     ]
   }
 }

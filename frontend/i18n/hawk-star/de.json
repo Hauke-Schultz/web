@@ -53,9 +53,11 @@
       "onboarding": {
         "title": "Willkommen, Commander — hier beginnt deine Kolonie",
         "step1": "🏛️ Baue das Kommandozentrum — das Herzstück jeder Kolonie",
-        "step2": "⛏️ Schalte Bergbau- & Energie-Felder frei, um Ressourcen zu gewinnen",
-        "step3": "📡 Erforsche die Sternkarte im Comm Center, um das Sonnensystem zu erkunden",
-        "step4": "🚀 Besiedle neue Planeten und spezialisiere jede Kolonie"
+        "step2": "👥 Rekrutiere auf der Base-Kachel Bevölkerung — du brauchst Arbeiter für deine Gebäude",
+        "step3": "🔋 Baue das Kraftwerk und lade seine Batterie auf — ohne Ladung bleibt die Kolonie ohne Strom",
+        "step4": "⛏️ Schalte Bergbau- & Energie-Felder frei, um Ressourcen zu gewinnen",
+        "step5": "📡 Erforsche die Sternkarte im Comm Center, um das Sonnensystem zu erkunden",
+        "step6": "🚀 Besiedle neue Planeten und spezialisiere jede Kolonie"
       }
     },
 
@@ -167,6 +169,12 @@
       "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall."
     },
 
+    "recruit": {
+      "title": "Rekrutierung",
+      "button": "Rekrutieren",
+      "hint": "Wächst über die Zeit (~5/Tag) bis max. 15. Ein Klick = +1 Bevölkerung."
+    },
+
     "starClass": {
       "G": "Gelber Zwerg",
       "K": "Orangener Zwerg",
@@ -220,18 +228,6 @@
         "lv1": "Erstes Gebäude · 1 Arbeiter",
         "lv2": "Schaltet Techzentrum-Feld frei · +5 Bev. · 2 Energie · 2 Arbeiter",
         "lv3": "+10 Bev. · 3 Energie · 3 Arbeiter"
-      },
-      "quarters": {
-        "name": "Quartiere",
-        "desc": "Unterkunft für deine wachsende Belegschaft.",
-        "lv1": "+4 max. Bev. · 1 Energie · 1 Arbeiter",
-        "lv2": "+6 max. Bev. · 2 Energie · 1 Arbeiter",
-        "lv3": "+12 max. Bev. · 3 Energie · 2 Arbeiter",
-        "lv4": "+20 max. Bev. · 5 Energie · 3 Arbeiter",
-        "lv5": "+32 max. Bev. · 7 Energie · 4 Arbeiter",
-        "lv6": "+50 max. Bev. · 10 Energie · 5 Arbeiter",
-        "lv7": "+75 max. Bev. · 14 Energie · 7 Arbeiter",
-        "lv8": "+110 max. Bev. · 20 Energie · 10 Arbeiter"
       },
       "power_plant": {
         "name": "Kraftwerk",

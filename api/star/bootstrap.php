@@ -113,10 +113,11 @@ function init_planet(PDO $db, int $planetId, int $playerId, bool $isHome): void 
         $slotStmt->execute([$planetId, $playerId, $s['slot'], $s['startsUnlocked'] ? 1 : 0]);
     }
 
-    // Starting resources
+    // Starting resources — population starts at 1 so the player must recruit
+    // workers on the base tile right away.
     $metal      = $isHome ? 400 : 200;
     $crystal    = $isHome ? 180 : 80;
-    $population = $isHome ? 20  : 15;
+    $population = 1;
     $db->prepare(
         'INSERT IGNORE INTO hs_planet_resources
          (planet_id, player_id, metal, crystal, population, resources_computed_at)
@@ -355,12 +356,12 @@ function ensure_power_battery(PDO $db, int $planetId, int $playerId): void {
         } catch (\Throwable $e) {}
         $tableReady = true;
     }
-    // Create the row full on first sight (anchored now) so building a power_plant
-    // does not immediately black out the colony.
+    // Create the row EMPTY on first sight — a freshly built power_plant starts at
+    // 0 % so the player learns they have to charge the battery to get power.
     $db->prepare(
         'INSERT IGNORE INTO hs_power_battery (planet_id, player_id, charge, charge_updated_at)
          VALUES (?,?,?, NOW())'
-    )->execute([$planetId, $playerId, POWER_BATTERY_MAX]);
+    )->execute([$planetId, $playerId, 0]);
 }
 
 // Current *completed* power_plant level. Deliberately ignores build_ends_at so an
@@ -402,6 +403,54 @@ function battery_state(PDO $db, int $planetId, int $playerId): ?array {
         'powerPlantLevel' => $ppLevel,
         'gridDown'        => $charge <= 0,
         'hoursToEmpty'    => $drainPerHour > 0 ? round($charge / $drainPerHour, 2) : null,
+    ];
+}
+
+// ── Population recruitment pool ───────────────────────────────────────────────
+
+function ensure_recruit_pool(PDO $db, int $planetId, int $playerId): void {
+    static $tableReady = false;
+    if (!$tableReady) {
+        try {
+            $db->exec(
+                'CREATE TABLE IF NOT EXISTS hs_recruit_pool (
+                   planet_id INT NOT NULL,
+                   player_id INT NOT NULL,
+                   pool FLOAT NOT NULL DEFAULT 0,
+                   pool_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                   PRIMARY KEY (planet_id, player_id)
+                 )'
+            );
+        } catch (\Throwable $e) {}
+        $tableReady = true;
+    }
+    // Start full so a fresh colony can recruit right away.
+    $db->prepare(
+        'INSERT IGNORE INTO hs_recruit_pool (planet_id, player_id, pool, pool_updated_at)
+         VALUES (?,?,?, NOW())'
+    )->execute([$planetId, $playerId, RECRUIT_POOL_MAX]);
+}
+
+// Live recruit-pool state. The pool grows over time, capped at RECRUIT_POOL_MAX,
+// derived from the stored value + elapsed time (no separate resolve needed).
+function recruit_state(PDO $db, int $planetId, int $playerId): array {
+    ensure_recruit_pool($db, $planetId, $playerId);
+    $row = $db->prepare(
+        'SELECT pool, TIMESTAMPDIFF(SECOND, pool_updated_at, NOW()) AS elapsed
+         FROM hs_recruit_pool WHERE planet_id=? AND player_id=?'
+    );
+    $row->execute([$planetId, $playerId]);
+    $r = $row->fetch();
+
+    $growthPerHour = recruit_growth_per_hour();
+    $stored  = $r ? (float)$r['pool'] : RECRUIT_POOL_MAX;
+    $elapsed = $r ? max(0, (int)$r['elapsed']) : 0;
+    $pool    = min(RECRUIT_POOL_MAX, $stored + $growthPerHour * ($elapsed / 3600.0));
+
+    return [
+        'pool'          => round($pool, 3),
+        'poolMax'       => RECRUIT_POOL_MAX,
+        'growthPerHour' => $growthPerHour,
     ];
 }
 

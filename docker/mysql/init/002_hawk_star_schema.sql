@@ -126,6 +126,15 @@ CREATE TABLE IF NOT EXISTS hs_power_battery (
   PRIMARY KEY (planet_id, player_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Population recruit pool: grows over time up to a cap; +1 click → population.
+CREATE TABLE IF NOT EXISTS hs_recruit_pool (
+  planet_id       INT NOT NULL,
+  player_id       INT NOT NULL,
+  pool            FLOAT NOT NULL DEFAULT 0,
+  pool_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (planet_id, player_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS hs_missions (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   player_id      INT NOT NULL,

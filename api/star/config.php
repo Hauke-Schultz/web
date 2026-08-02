@@ -20,17 +20,6 @@ const BUILDINGS = [
     ['level'=>3,'cost'=>['metal'=>300,'crystal'=>100],'buildTime'=>3600,'production'=>[],'energyDrain'=>3,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>10],
   ]],
 
-  'quarters' => ['tileType' => 'base', 'requiresBuilding' => 'metal_mine', 'requiresLevel' => 1, 'levels' => [
-    ['level'=>1,'cost'=>['metal'=>40],'buildTime'=>20,'production'=>[],'energyDrain'=>1,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>4],
-    ['level'=>2,'cost'=>['metal'=>100,'crystal'=>30],'buildTime'=>300,'production'=>[],'energyDrain'=>2,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>6],
-    ['level'=>3,'cost'=>['metal'=>260,'crystal'=>80],'buildTime'=>2400,'production'=>[],'energyDrain'=>3,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>12],
-    ['level'=>4,'cost'=>['metal'=>550,'crystal'=>180],'buildTime'=>7200,'production'=>[],'energyDrain'=>4,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>20],
-    ['level'=>5,'cost'=>['metal'=>1000,'crystal'=>350],'buildTime'=>18000,'production'=>[],'energyDrain'=>5,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>32],
-    ['level'=>6,'cost'=>['metal'=>1300,'crystal'=>650],'buildTime'=>28800,'production'=>[],'energyDrain'=>6,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>50],
-    ['level'=>7,'cost'=>['metal'=>1600,'crystal'=>1200],'buildTime'=>57600,'production'=>[],'energyDrain'=>10,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>75],
-    ['level'=>8,'cost'=>['metal'=>1800,'crystal'=>1400],'buildTime'=>86400,'production'=>[],'energyDrain'=>12,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>110],
-  ]],
-
   'power_plant' => ['tileType' => 'energy', 'levels' => [
     ['level'=>1,'cost'=>['crystal'=>25],'buildTime'=>20,'production'=>['energy'=>5],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>70,'crystal'=>35],'buildTime'=>600,'production'=>['energy'=>12],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
@@ -317,6 +306,16 @@ const POWER_BATTERY_CLICK = 10.0;   // % gained per charge click
 function battery_drain_per_hour(int $ppLevel): float {
     if ($ppLevel <= 0) return 0.0;
     return POWER_BATTERY_DRAIN[min($ppLevel, 6)] ?? POWER_BATTERY_DRAIN[6];
+}
+
+// ── Population recruitment (base tile, daily growth pool) ──────────────────────
+// A recruit pool refills over time up to a cap; a +1 click moves one recruit into
+// the population. Away long → pool sits at the cap (never hundreds queued).
+const RECRUIT_GROWTH_PER_DAY = 5.0;   // pool refill rate per day
+const RECRUIT_POOL_MAX       = 15.0;  // max pending recruits (~3 days)
+
+function recruit_growth_per_hour(): float {
+    return RECRUIT_GROWTH_PER_DAY / 24.0;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
