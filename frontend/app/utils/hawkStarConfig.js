@@ -20,7 +20,8 @@
 // Cost to build ONE unit (drone / probe / ship). Building level divides buildTimeBase.
 export const UNIT_COSTS = {
   recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 300  },
-  colony_ship:  { cost: { metal: 300, crystal: 150 }, buildTimeBase: 900  },
+  // crew: free workers that board the ship when it is built (gone from the planet)
+  colony_ship:  { cost: { metal: 300, crystal: 150 }, crew: 6, buildTimeBase: 900  },
 }
 
 // ── Power battery (grid-uptime mechanic) ──────────────────────────────────────

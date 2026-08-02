@@ -44,6 +44,12 @@ if ($current->fetchColumn()) fail('Unit already in production');
 // Check & deduct cost
 compute_resources($db, $planetId, $playerId, $planet['type']);
 
+// Crewed units (colony ship) take their settlers out of the free workers
+$crew = (float)($def['crew'] ?? 0);
+if ($crew > 0 && free_workers($db, $planetId, $playerId) < $crew) {
+    fail("Not enough free workers — this unit needs a crew of " . (int)$crew);
+}
+
 $cost   = $def['cost'];
 $resRow = $db->prepare('SELECT * FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
 $resRow->execute([$planetId, $playerId]);
@@ -55,6 +61,14 @@ $sets = array_map(fn($r) => "$r = $r - ?", array_keys($cost));
 $db->prepare(
     'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
 )->execute([...array_values($cost), $planetId, $playerId]);
+
+// The crew boards right away — they are gone from this planet from now on
+if ($crew > 0) {
+    $db->prepare(
+        'UPDATE hs_planet_resources SET population = GREATEST(0, population - ?)
+         WHERE planet_id=? AND player_id=?'
+    )->execute([$crew, $planetId, $playerId]);
+}
 
 // Queue the build
 $buildTime = (int)$def['buildTimeBase'];
@@ -68,4 +82,5 @@ ok([
     'unitKey'        => $unitKey,
     'endsAt'         => (time() + $buildTime) * 1000,
     'buildStartedAt' => time() * 1000,
+    'crew'           => $crew,
 ]);

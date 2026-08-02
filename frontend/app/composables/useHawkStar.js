@@ -79,7 +79,7 @@ const dismissNotification = (id) => {
 const dismissAllNotifications = () => { notifications.value = [] }
 
 const HOME_START_RESOURCES   = { population: 1, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
-const COLONY_START_RESOURCES = { population: 1,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
+const COLONY_START_RESOURCES = { population: 6,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
 
 const freshDock = () => ({
   reconDroneInventory:    0,
@@ -645,9 +645,15 @@ const colonyFlightTimeBetween = (fromId, toId) => {
   return Math.ceil(7200 * dist)
 }
 
+const colonyShipCrew = UNIT_COSTS.colony_ship.crew ?? 0
+
+// The settlers have to be on the planet — they board the ship at build time
+const hasColonyCrew = computed(() => freeWorkers.value >= colonyShipCrew)
+
 const canBuildColonyShip = computed(() =>
   colonyShipLevel.value > 0 &&
   !colonyShipBuild.value &&
+  hasColonyCrew.value &&
   canAfford(UNIT_COSTS.colony_ship.cost)
 )
 
@@ -664,6 +670,8 @@ const buildColonyShip = async () => {
     for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
       res[r] = Math.max(0, (res[r] ?? 0) - amt)
     }
+    // Crew boards the ship and leaves the planet
+    res.population = Math.max(0, (res.population ?? 0) - (result.crew ?? colonyShipCrew))
     dock.colonyShipBuild = { endsAt: result.endsAt, startedAt: result.buildStartedAt ?? Date.now() }
   } catch (e) {
     buildError.value = e.message
@@ -1031,6 +1039,8 @@ const tick = () => {
             if (planet) {
               const pType = planet.type
               initializePlanetState(m.planetId, pType, planet.name)
+              // Pull the server's starting state (population, empty recruit pool)
+              refreshPlanetState(m.planetId).catch(() => {})
             }
           }
           const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
@@ -1405,6 +1415,8 @@ export function useHawkStar() {
     activeColonyMissions,
     allActiveColonyMissions,
     colonyShipBuildTime,
+    colonyShipCrew,
+    hasColonyCrew,
     canBuildColonyShip,
     buildColonyShip,
     isColonyTarget,

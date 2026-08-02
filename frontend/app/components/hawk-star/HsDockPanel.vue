@@ -24,6 +24,8 @@ const {
   droneBuildTime,
   droneBuildProgressStyle,
   canBuildColonyShip,
+  colonyShipCrew,
+  hasColonyCrew,
   buildColonyShip,
   colonyShipBuild,
   colonyShipInventory,
@@ -114,6 +116,14 @@ const hasMissions = computed(() =>
               class="hs-cost-tag"
               :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
             >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            <span
+              class="hs-cost-tag"
+              :class="hasColonyCrew ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              :title="t('hawkStar.dock.crewHint', { crew: colonyShipCrew })"
+            >👥 {{ colonyShipCrew }}</span>
+          </div>
+          <div v-if="colonyShipLevel > 0 && !hasColonyCrew" class="hs-crew-warning">
+            {{ t('hawkStar.dock.noCrew') }}
           </div>
         </div>
         <div class="hs-building-action">
@@ -258,6 +268,12 @@ const hasMissions = computed(() =>
 .hs-building-action { flex-shrink: 0; }
 
 .hs-cost-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+
+.hs-crew-warning {
+  font-size: 0.62rem;
+  color: var(--hs-danger-muted);
+  margin-top: 3px;
+}
 
 .hs-cost-tag {
   font-size: 0.65rem;

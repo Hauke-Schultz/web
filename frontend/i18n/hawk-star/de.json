@@ -72,6 +72,9 @@
       "dispatch": "Abschicken →",
       "unitReady": "Bereit",
       "insufficientResources": "Zu wenig Ressourcen",
+      "crew": "Besatzung",
+      "crewHint": "Besatzung: {crew} freie Arbeiter gehen mit an Bord",
+      "noCrew": "Zu wenig freie Arbeiter für die Besatzung",
       "launchFromSystemMap": "Einheiten über die Systemkarte starten"
     },
 

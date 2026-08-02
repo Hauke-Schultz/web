@@ -70,6 +70,9 @@
       "dispatch": "Dispatch →",
       "unitReady": "Ready",
       "insufficientResources": "Insufficient resources",
+      "crew": "Crew",
+      "crewHint": "Crew: {crew} free workers board the ship",
+      "noCrew": "Not enough free workers for the crew",
       "launchFromSystemMap": "Launch units from the System Map"
     },
 

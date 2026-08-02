@@ -222,8 +222,11 @@ POST /api/star/game/convert    { planetId, buildingKey, recipeIndex, count }
 
 -- Einheiten bauen (Dock-Inventar)
 POST /api/star/game/unit/build { planetId, unitKey }   -- 'recon_drone' | 'colony_ship'
-  → { unitKey, endsAt, buildStartedAt }
+  → { unitKey, endsAt, buildStartedAt, crew }
   (zieht UNIT_COSTS ab; fertige Einheit landet in hs_units.quantity)
+  (colony_ship: braucht 6 freie Arbeiter (free_workers), die sofort von der
+   Bevölkerung abgezogen werden — neue Kolonie startet mit COLONY_START_POP=6
+   und leerem Recruit-Pool)
 
 -- Missionen (verbrauchen je 1 fertige Einheit aus dem Dock, kosten keine Ressourcen)
 POST /api/star/game/mission/drone   { fromPlanetId, toPlanetId }

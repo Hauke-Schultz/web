@@ -7,7 +7,9 @@
 
 const UNIT_COSTS = [
     'recon_drone' => ['cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 300,  'flightTimeBase' => 3600],
-    'colony_ship' => ['cost' => ['metal' => 300, 'crystal' => 150], 'buildTimeBase' => 900, 'flightTimeBase' => 7200],
+    // 'crew' is taken out of the planet's free workers when the ship is built —
+    // the settlers board it and leave with the ship.
+    'colony_ship' => ['cost' => ['metal' => 300, 'crystal' => 150], 'crew' => 6, 'buildTimeBase' => 900, 'flightTimeBase' => 7200],
 ];
 
 const GLOBAL_BUILDINGS = ['star_map', 'interstellar_comm'];
@@ -313,6 +315,11 @@ function battery_drain_per_hour(int $ppLevel): float {
 // the population. Away long → pool sits at the cap (never hundreds queued).
 const RECRUIT_GROWTH_PER_DAY = 5.0;   // pool refill rate per day
 const RECRUIT_POOL_MAX       = 15.0;  // max pending recruits (~3 days)
+
+// A fresh colony only wakes 6 of the ship's crew — the rest of the population has
+// to be recruited at the normal rate, from an empty pool. The home planet keeps
+// its full starting pool so a new player can recruit right away.
+const COLONY_START_POP = 6.0;
 
 function recruit_growth_per_hour(): float {
     return RECRUIT_GROWTH_PER_DAY / 24.0;

@@ -27,6 +27,7 @@ const {
   // build
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
+  colonyShipCrew, hasColonyCrew,
 } = useHawkStar()
 
 const emit = defineEmits(['go-planet'])
@@ -413,6 +414,7 @@ const planetIcon = (planet) => {
           <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
           <div class="hs-dock-cost-row">
             <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            <span class="hs-cost-tag" :class="hasColonyCrew ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'" :title="t('hawkStar.dock.crewHint', { crew: colonyShipCrew })">👥 {{ colonyShipCrew }}</span>
             <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
           </div>
           <div v-if="colonyShipBuild" class="hs-progress-row">

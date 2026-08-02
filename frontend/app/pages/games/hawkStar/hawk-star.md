@@ -150,6 +150,7 @@ Population starts at **1** — you grow it by recruiting on the base tile. A **r
 - Population is the workforce (`freeWorkers = population − Σ staffDrain`); recruited people are permanent.
 - The old `quarters` building was **removed** — recruiting replaces its population role; `command_center` stays.
 - Backend: table `hs_recruit_pool` (pool + timestamp), resolved live; `POST /game/base/recruit`. UI: pool bar + `+1 Recruit` button on the base tile (`HsRecruitPanel`).
+- The **home planet** starts with a full pool (recruit right away). A **fresh colony** starts with an **empty** pool (`init_planet`) — its people have to grow at the normal rate.
 
 ---
 
@@ -160,7 +161,13 @@ Units are built at the Space Base tile and consumed on missions. Each unit type 
 | Unit | Build cost | Purpose |
 |------|-----------|---------|
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
-| **Colony Ship** | 300 Metal · 150 Crystal | Colonizes a scanned uncolonized planet |
+| **Colony Ship** | 300 Metal · 150 Crystal · **6 crew** | Colonizes a scanned uncolonized planet |
+
+### Colony ship crew & the new colony
+
+A colony ship only leaves with settlers aboard: building it requires **6 free workers** (`UNIT_COSTS.colony_ship.crew`, `freeWorkers = population − Σ staffDrain`) and takes them off the planet's population right at build time — server-side check in `unit/build.php` via `free_workers()`.
+
+On landing, the new colony is deliberately small: `init_planet()` gives it **6 population** (`COLONY_START_POP`) and an **empty recruit pool**. The rest of the crew is not simply handed over — the colony has to grow through normal recruitment (≈ 5/day, cap 15).
 
 The `recon_drone` and `colony_ship` entries in `BUILDINGS` gate availability (the building must be constructed before units can be built). `UNIT_COSTS` holds the per-unit resource cost and `buildTimeBase`.
 

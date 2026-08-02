@@ -113,17 +113,27 @@ function init_planet(PDO $db, int $planetId, int $playerId, bool $isHome): void 
         $slotStmt->execute([$planetId, $playerId, $s['slot'], $s['startsUnlocked'] ? 1 : 0]);
     }
 
-    // Starting resources — population starts at 1 so the player must recruit
-    // workers on the base tile right away.
+    // Starting resources — population stays tiny so the player must recruit
+    // workers on the base tile. A colony starts with the awake part of the
+    // colony ship's crew (COLONY_START_POP).
     $metal      = $isHome ? 400 : 200;
     $crystal    = $isHome ? 180 : 80;
-    $population = 1;
+    $population = $isHome ? 1 : COLONY_START_POP;
     $db->prepare(
         'INSERT IGNORE INTO hs_planet_resources
          (planet_id, player_id, metal, crystal, population, resources_computed_at)
          VALUES (?,?,?,?,?, NOW())'
     )->execute([$planetId, $playerId, $metal, $crystal, $population]);
 
+    // Recruit pool: full on the home planet (instant first recruits), empty on a
+    // fresh colony — its population has to grow at the normal rate from zero.
+    ensure_recruit_pool($db, $planetId, $playerId);
+    if (!$isHome) {
+        $db->prepare(
+            'UPDATE hs_recruit_pool SET pool=0, pool_updated_at=NOW()
+             WHERE planet_id=? AND player_id=?'
+        )->execute([$planetId, $playerId]);
+    }
 }
 
 function init_global_research(PDO $db, int $playerId): void {
@@ -270,6 +280,27 @@ function resolve_global_research(PDO $db, int $playerId): void {
              WHERE player_id=? AND building_key=?'
         )->execute([(int)$r['level'] + 1, $playerId, $r['building_key']]);
     }
+}
+
+// Population not tied up by a finished building — mirrors `freeWorkers` in
+// useHawkStar.js. Used for crewed units (colony ship).
+function free_workers(PDO $db, int $planetId, int $playerId): float {
+    $popRow = $db->prepare('SELECT population FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
+    $popRow->execute([$planetId, $playerId]);
+    $population = (float)($popRow->fetchColumn() ?: 0);
+
+    $bRows = $db->prepare(
+        'SELECT building_key, level FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND level>0 AND build_ends_at IS NULL'
+    );
+    $bRows->execute([$planetId, $playerId]);
+
+    $drain = 0.0;
+    foreach ($bRows->fetchAll() as $b) {
+        $def = level_def($b['building_key'], (int)$b['level']);
+        $drain += (float)($def['staffDrain'] ?? 0);
+    }
+    return $population - $drain;
 }
 
 // ── Dock units (recon drone / colony ship inventory) ─────────────────────────
