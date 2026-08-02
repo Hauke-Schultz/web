@@ -215,6 +215,7 @@ function resolve_comm_deliveries(PDO $db, int $playerId): void {
 function resolve_timers(PDO $db, int $planetId, int $playerId): void {
     resolve_buildings($db, $planetId, $playerId);
     resolve_global_research($db, $playerId);
+    resolve_units($db, $planetId, $playerId);
     resolve_missions($db, $playerId);
     resolve_conversions($db, $planetId, $playerId);
 }
@@ -269,6 +270,72 @@ function resolve_global_research(PDO $db, int $playerId): void {
              WHERE player_id=? AND building_key=?'
         )->execute([(int)$r['level'] + 1, $playerId, $r['building_key']]);
     }
+}
+
+// ── Dock units (recon drone / colony ship inventory) ─────────────────────────
+
+function ensure_units_table(PDO $db): void {
+    static $tableReady = false;
+    if ($tableReady) return;
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS hs_units (
+               planet_id        INT NOT NULL,
+               player_id        INT NOT NULL,
+               unit_key         VARCHAR(64) NOT NULL,
+               quantity         INT NOT NULL DEFAULT 0,
+               build_ends_at    DATETIME NULL,
+               build_started_at DATETIME NULL,
+               PRIMARY KEY (planet_id, player_id, unit_key)
+             )'
+        );
+    } catch (\Throwable $e) {}
+    $tableReady = true;
+}
+
+// A finished unit build lands in the planet's inventory. Missions consume from
+// there — a built dock alone is never enough to launch anything.
+function resolve_units(PDO $db, int $planetId, int $playerId): void {
+    ensure_units_table($db);
+    $db->prepare(
+        'UPDATE hs_units
+         SET quantity = quantity + 1, build_ends_at = NULL, build_started_at = NULL
+         WHERE planet_id=? AND player_id=? AND build_ends_at IS NOT NULL AND build_ends_at <= NOW()'
+    )->execute([$planetId, $playerId]);
+}
+
+function units_state(PDO $db, int $planetId, int $playerId): array {
+    ensure_units_table($db);
+    $rows = $db->prepare(
+        'SELECT unit_key, quantity, build_ends_at, build_started_at
+         FROM hs_units WHERE planet_id=? AND player_id=?'
+    );
+    $rows->execute([$planetId, $playerId]);
+
+    $units = [];
+    foreach (array_keys(UNIT_COSTS) as $key) {
+        $units[$key] = ['quantity' => 0, 'buildEndsAt' => null, 'buildStartedAt' => null];
+    }
+    foreach ($rows->fetchAll() as $u) {
+        $units[$u['unit_key']] = [
+            'quantity'       => (int)$u['quantity'],
+            'buildEndsAt'    => $u['build_ends_at']    ? strtotime($u['build_ends_at'])    * 1000 : null,
+            'buildStartedAt' => $u['build_started_at'] ? strtotime($u['build_started_at']) * 1000 : null,
+        ];
+    }
+    return $units;
+}
+
+// Takes one unit out of the planet's inventory. Returns false when none is
+// available (nothing built yet, or the last one is already in flight).
+function consume_unit(PDO $db, int $planetId, int $playerId, string $unitKey): bool {
+    ensure_units_table($db);
+    $stmt = $db->prepare(
+        'UPDATE hs_units SET quantity = quantity - 1
+         WHERE planet_id=? AND player_id=? AND unit_key=? AND quantity > 0'
+    );
+    $stmt->execute([$planetId, $playerId, $unitKey]);
+    return $stmt->rowCount() > 0;
 }
 
 function resolve_missions(PDO $db, int $playerId): void {

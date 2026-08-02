@@ -135,6 +135,17 @@ CREATE TABLE IF NOT EXISTS hs_recruit_pool (
   PRIMARY KEY (planet_id, player_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Dock unit inventory: units are built here first, missions consume one.
+CREATE TABLE IF NOT EXISTS hs_units (
+  planet_id        INT NOT NULL,
+  player_id        INT NOT NULL,
+  unit_key         VARCHAR(64) NOT NULL,
+  quantity         INT NOT NULL DEFAULT 0,
+  build_ends_at    DATETIME NULL,
+  build_started_at DATETIME NULL,
+  PRIMARY KEY (planet_id, player_id, unit_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS hs_missions (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   player_id      INT NOT NULL,

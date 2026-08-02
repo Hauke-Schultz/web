@@ -29,6 +29,9 @@ $droneBuilt = $db->prepare(
 $droneBuilt->execute([$fromId, $playerId]);
 if (!$droneBuilt->fetch()) fail('Recon Drone not built on this planet');
 
+// A finished drone must be sitting in the dock — the facility alone is not enough
+resolve_units($db, $fromId, $playerId);
+
 // To-planet must be in the same system
 $toRow = $db->prepare('SELECT system_id FROM hs_planets WHERE id=?');
 $toRow->execute([$toId]);
@@ -42,20 +45,10 @@ $active = $db->prepare(
 $active->execute([$playerId, $fromId]);
 if ((int)$active->fetchColumn() > 0) fail('A drone mission is already active from this planet');
 
-// Build cost (UNIT_COSTS)
-compute_resources($db, $fromId, $playerId, $from['type']);
-
-$cost = UNIT_COSTS['recon_drone']['cost'];
-$resRow = $db->prepare('SELECT * FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
-$resRow->execute([$fromId, $playerId]);
-$res = $resRow->fetch();
-foreach ($cost as $resource => $amount) {
-    if (($res[$resource] ?? 0) < $amount) fail("Not enough $resource");
+// The drone itself is the cost — resources were already paid when it was built
+if (!consume_unit($db, $fromId, $playerId, 'recon_drone')) {
+    fail('No recon drone available — build one at the dock first');
 }
-$sets = array_map(fn($r) => "$r = $r - ?", array_keys($cost));
-$db->prepare(
-    'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
-)->execute([...array_values($cost), $fromId, $playerId]);
 
 $planetOrder = $db->prepare('SELECT id FROM hs_planets WHERE system_id=? ORDER BY id ASC');
 $planetOrder->execute([$from['system_id']]);

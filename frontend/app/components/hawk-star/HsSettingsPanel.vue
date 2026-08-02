@@ -7,7 +7,7 @@ const { postDevCheat } = useHawkStarApi()
 
 const cheatBusy = ref(false)
 
-const PLANET_CHEATS  = ['complete_buildings', 'max_resources', 'drain_battery']
+const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'max_resources', 'drain_battery', 'add_population']
 const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_scanning']
 
 async function runCheat(action) {
@@ -34,12 +34,14 @@ async function runCheat(action) {
     <div class="hs-dev-panel">
       <span class="hs-dev-label">CHEAT</span>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle laufenden Gebäude fertigstellen" @click="runCheat('complete_buildings')">✓ Bauten</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Laufende Einheiten (Drohne/Colony Ship) fertigstellen" @click="runCheat('complete_units')">✓ Einheiten</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Ressourcen auf Lager-Maximum setzen" @click="runCheat('max_resources')">⬆ Res max</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle globalen Forschungen fertigstellen" @click="runCheat('complete_research')">⬆ Research</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Drohnen-Missionen abschließen" @click="runCheat('complete_drone_missions')">✓ Drohnen</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Colony-Missionen abschließen" @click="runCheat('complete_colony_missions')">✓ Colony</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Galaxy-Scans abschließen" @click="runCheat('complete_scanning')">✓ Scan</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Reaktor-Batterie sofort leeren (Blackout testen)" @click="runCheat('drain_battery')">🔋 Leeren</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="+1 Bevölkerung hinzufügen" @click="runCheat('add_population')">👥 +1 Pop</button>
     </div>
   </div>
 </template>

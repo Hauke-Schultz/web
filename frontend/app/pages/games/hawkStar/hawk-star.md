@@ -164,6 +164,16 @@ Units are built at the Space Base tile and consumed on missions. Each unit type 
 
 The `recon_drone` and `colony_ship` entries in `BUILDINGS` gate availability (the building must be constructed before units can be built). `UNIT_COSTS` holds the per-unit resource cost and `buildTimeBase`.
 
+### Build → dock inventory → mission
+
+A unit is **built first and launched later** — the facility alone never allows a launch:
+
+1. **Build** — `POST /game/unit/build` `{planetId, unitKey}` checks the finished facility, deducts `UNIT_COSTS[unit].cost` and starts a timer (`buildTimeBase`). One unit per type in production at a time.
+2. **Inventory** — when the timer expires (`resolve_units()` in `bootstrap.php`, called from `resolve_timers()`) the unit lands in `hs_units.quantity` for that planet. `state.php` returns it as `units`, so the inventory survives a reload.
+3. **Launch** — `/game/mission/drone` and `/game/mission/colony` call `consume_unit()`, which decrements the inventory and fails with *"No … available"* when it is empty. Missions cost **no** resources — they were paid at build time.
+
+Frontend mirror: `reconDroneInventory` / `colonyShipInventory` come from `state.units`; `canSendDrone` / `canSendColonyShip` require inventory > 0, while `isDroneTarget` / `isColonyTarget` hold the target-side conditions only, so the solar map can show *"no drone in dock"* instead of hiding the button. Dev cheat `complete_units` finishes running unit builds on the active planet.
+
 ---
 
 ## Game Loop

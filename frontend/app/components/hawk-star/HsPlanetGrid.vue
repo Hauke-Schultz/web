@@ -26,9 +26,27 @@ const {
   notifications,
   playerPortrait,
   playerName,
+  batteryCharge,
+  gridDown,
+  recruitPool,
+  recruitPoolMax,
 } = useHawkStar()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
+
+// Top-edge status bar per tile: battery % on the energy tile, recruit pool on base.
+const tileStatus = (slot) => {
+  if (!slot.unlocked) return null
+  if (slot.tileType === 'energy' && getLevel('power_plant') > 0) {
+    const pct = Math.round(batteryCharge.value ?? 0)
+    return { kind: gridDown.value ? 'empty' : pct < 20 ? 'low' : 'battery', pct }
+  }
+  if (slot.tileType === 'base') {
+    const max = recruitPoolMax.value || 1
+    return { kind: 'recruit', pct: Math.min(100, ((recruitPool.value ?? 0) / max) * 100) }
+  }
+  return null
+}
 
 // ── Panel tile counts ─────────────────────────────────────────────────────────
 const inProgressCount = computed(() => {
@@ -143,6 +161,13 @@ const onSelectSlot = (slot) => {
         }"
         @click="onSelectSlot(slot)"
       >
+        <div
+          v-if="tileStatus(slot)"
+          class="hs-tile-bar"
+          :class="`hs-tile-bar--${tileStatus(slot).kind}`"
+        >
+          <div class="hs-tile-bar__fill" :style="{ width: tileStatus(slot).pct + '%' }" />
+        </div>
         <div class="hs-tile-main">
           <span class="hs-tile-icon">
             {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.icon : (slot.unlocked ? '?' : '🔒') }}
@@ -211,6 +236,8 @@ const onSelectSlot = (slot) => {
 }
 
 .hs-tile {
+  position: relative;
+  overflow: hidden;
   border-radius: var(--hs-r-md);
   border: 1px solid transparent;
   display: flex;
@@ -246,6 +273,31 @@ const onSelectSlot = (slot) => {
     border-color: var(--hs-active-border);
     box-shadow: 0 0 20px var(--hs-active-glow);
   }
+}
+
+// Top-edge status bar (battery / recruit pool)
+.hs-tile-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 1;
+  pointer-events: none;
+}
+.hs-tile-bar__fill {
+  height: 100%;
+  transition: width 0.4s ease, background 0.3s ease;
+  background: #10b981;
+}
+.hs-tile-bar--low     .hs-tile-bar__fill { background: #f59e0b; }
+.hs-tile-bar--recruit .hs-tile-bar__fill { background: #a78bfa; }
+
+// Empty battery: fill is 0 %, so pulse the whole bar red to signal the blackout.
+.hs-tile-bar--empty {
+  background: rgba(239, 68, 68, 0.5);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 .hs-tile-main {

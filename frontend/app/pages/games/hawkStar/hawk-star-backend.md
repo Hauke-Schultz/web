@@ -28,6 +28,8 @@ api/star/
     research.php         ← POST /api/star/game/research
     convert.php          ← POST /api/star/game/convert
     missions.php         ← GET  /api/star/game/missions
+    unit/
+      build.php          ← POST /api/star/game/unit/build
     mission/
       drone.php          ← POST /api/star/game/mission/drone
       colony.php         ← POST /api/star/game/mission/colony
@@ -153,6 +155,15 @@ hs_buildings (planet_id, player_id, building_key, level INT, build_ends_at DATET
 hs_global_research (player_id, building_key, level, build_ends_at DATETIME NULL)
   -- Keys: 'star_map', 'interstellar_comm'
 
+hs_units (
+  planet_id, player_id, unit_key,
+  quantity INT,                -- fertige Einheiten im Dock
+  build_ends_at DATETIME NULL, -- läuft gerade eine Produktion?
+  build_started_at DATETIME NULL
+)
+  -- Keys: 'recon_drone', 'colony_ship'
+  -- resolve_units() bucht fertige Builds nach quantity; Missionen ziehen per consume_unit() ab
+
 hs_missions (
   id, player_id,
   type ENUM('recon_drone','colony_ship'),
@@ -209,7 +220,12 @@ POST /api/star/game/research   { buildingKey }
 POST /api/star/game/convert    { planetId, buildingKey, recipeIndex, count }
   → { endsAt, count, totalDuration }
 
--- Missionen
+-- Einheiten bauen (Dock-Inventar)
+POST /api/star/game/unit/build { planetId, unitKey }   -- 'recon_drone' | 'colony_ship'
+  → { unitKey, endsAt, buildStartedAt }
+  (zieht UNIT_COSTS ab; fertige Einheit landet in hs_units.quantity)
+
+-- Missionen (verbrauchen je 1 fertige Einheit aus dem Dock, kosten keine Ressourcen)
 POST /api/star/game/mission/drone   { fromPlanetId, toPlanetId }
   → { missionId, endsAt }
 POST /api/star/game/mission/colony  { fromPlanetId, toPlanetId }

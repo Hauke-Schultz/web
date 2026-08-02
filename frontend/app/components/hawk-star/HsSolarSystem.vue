@@ -12,11 +12,11 @@ const {
   playerScannedPlanets, playerColonizedPlanets,
   reconDroneInventory, colonyShipInventory,
   allActiveDroneMissions,
-  canSendDrone, sendReconDrone,
+  isDroneTarget, canSendDrone, sendReconDrone,
   remainingDroneSec, droneProgressStyle,
   droneFlightTimeBetween,
   allActiveColonyMissions,
-  canSendColonyShip, sendColonyShip,
+  isColonyTarget, canSendColonyShip, sendColonyShip,
   remainingColonySec, colonyProgressStyle,
   colonyFlightTimeBetween,
   homeSystem, homePlanetId,
@@ -271,6 +271,17 @@ const planetIcon = (planet) => {
         </button>
       </div>
 
+      <!-- Valid target, but no finished colony ship parked in the dock -->
+      <div
+        v-else-if="isColonyTarget(selectedPlanet.id)"
+        class="hs-solar-settle-bar hs-solar-settle-bar--colony"
+      >
+        <span class="hs-solar-settle-hint">{{ t('hawkStar.solar.colonizeNeedsShip') }}</span>
+        <button class="hs-solar-settle-btn hs-solar-settle-btn--colony" disabled>
+          🚀 {{ t('hawkStar.solar.colonize') }}
+        </button>
+      </div>
+
       <template v-if="effectivePlanetState(selectedPlanet) === 'own'">
         <button class="hs-solar-planet-panel__res-toggle" @click.stop="resOpen = !resOpen">
           <span>📦 Resources</span>
@@ -317,6 +328,9 @@ const planetIcon = (planet) => {
         <template v-else-if="isDroneEnRoute(planet.id)">
           <div class="hs-solar-progress-bar hs-solar-progress-bar--drone" :style="droneProgressStyle(planet.id)" />
           <span class="hs-solar-tile-timer">{{ formatTime(remainingDroneSec(planet.id)) }}</span>
+        </template>
+        <template v-else-if="isDroneTarget(planet.id)">
+          <span class="hs-solar-unit-missing">{{ t('hawkStar.solar.noDroneReady') }}</span>
         </template>
       </div>
     </div>
@@ -381,6 +395,9 @@ const planetIcon = (planet) => {
             <span class="hs-solar-action-btn__full">🚀 {{ t('hawkStar.solar.colonize') }}</span>
           </button>
           <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--colony">{{ formatTime(colonyFlightTimeBetween(activePlanetId, planet.id)) }}</span>
+        </template>
+        <template v-else-if="isColonyTarget(planet.id)">
+          <span class="hs-solar-unit-missing">{{ t('hawkStar.solar.noColonyShipReady') }}</span>
         </template>
       </div>
     </div>
@@ -1321,6 +1338,15 @@ const planetIcon = (planet) => {
 
   &--drone   { color: rgba(251,191,36,0.75); }
   &--colony  { color: rgba(96,165,250,0.75); }
+}
+
+// Target would be reachable — the dock just has no finished unit for it
+.hs-solar-unit-missing {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-align: center;
+  color: rgba(255,255,255,0.28);
+  padding: 0 0.25rem;
 }
 
 

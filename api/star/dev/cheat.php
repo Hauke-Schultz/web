@@ -40,6 +40,18 @@ switch ($action) {
         )->execute([$planetId, $playerId]);
         ok(['action' => 'drain_battery']);
 
+    case 'add_population':
+        if (!$planetId) fail('planetId required');
+        $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');
+        $own->execute([$planetId, $playerId]);
+        if (!$own->fetch()) fail('Planet not owned', 403);
+
+        $db->prepare(
+            'UPDATE hs_planet_resources SET population = population + 1
+             WHERE planet_id=? AND player_id=?'
+        )->execute([$planetId, $playerId]);
+        ok(['action' => 'add_population']);
+
     case 'complete_research':
         $db->prepare(
             "UPDATE hs_global_research SET build_ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
@@ -83,6 +95,21 @@ switch ($action) {
         )->execute([...array_values($caps), $planetId, $playerId]);
 
         ok(['action' => 'max_resources', 'caps' => $caps]);
+
+    case 'complete_units':
+        if (!$planetId) fail('planetId required');
+        $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');
+        $own->execute([$planetId, $playerId]);
+        if (!$own->fetch()) fail('Planet not owned', 403);
+
+        ensure_units_table($db);
+        $db->prepare(
+            "UPDATE hs_units SET build_ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
+             WHERE planet_id=? AND player_id=? AND build_ends_at IS NOT NULL"
+        )->execute([$planetId, $playerId]);
+
+        resolve_units($db, $planetId, $playerId);
+        ok(['action' => 'complete_units']);
 
     case 'complete_drone_missions':
         $db->prepare(

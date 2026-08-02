@@ -29,6 +29,9 @@ $shipBuilt = $db->prepare(
 $shipBuilt->execute([$fromId, $playerId]);
 if (!$shipBuilt->fetch()) fail('Colony Ship not built on this planet');
 
+// A finished ship must be sitting in the dock — the facility alone is not enough
+resolve_units($db, $fromId, $playerId);
+
 // Target must be habitable, unowned, in same system, scanned by drone
 $toRow = $db->prepare(
     'SELECT p.system_id, p.type FROM hs_planets p
@@ -54,20 +57,10 @@ $active = $db->prepare(
 $active->execute([$playerId, $fromId]);
 if ((int)$active->fetchColumn() > 0) fail('A colony mission is already active from this planet');
 
-// Deduct cost
-compute_resources($db, $fromId, $playerId, $from['type']);
-
-$cost = UNIT_COSTS['colony_ship']['cost'];
-$resRow = $db->prepare('SELECT * FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
-$resRow->execute([$fromId, $playerId]);
-$res = $resRow->fetch();
-foreach ($cost as $resource => $amount) {
-    if (($res[$resource] ?? 0) < $amount) fail("Not enough $resource");
+// The ship itself is the cost — resources were already paid when it was built
+if (!consume_unit($db, $fromId, $playerId, 'colony_ship')) {
+    fail('No colony ship available — build one at the dock first');
 }
-$sets = array_map(fn($r) => "$r = $r - ?", array_keys($cost));
-$db->prepare(
-    'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
-)->execute([...array_values($cost), $fromId, $playerId]);
 
 $planetOrder = $db->prepare('SELECT id FROM hs_planets WHERE system_id=? ORDER BY id ASC');
 $planetOrder->execute([$from['system_id']]);

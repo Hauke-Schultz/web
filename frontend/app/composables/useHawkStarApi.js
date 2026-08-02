@@ -22,6 +22,7 @@ export function useHawkStarApi() {
     postResearch:      (buildingKey)                   => post('/game/research',        { buildingKey }),
     postConvert:       (planetId, buildingKey, recipeIndex, count) =>
                                                           post('/game/convert',         { planetId, buildingKey, recipeIndex, count }),
+    postUnitBuild:     (planetId, unitKey)            => post('/game/unit/build',      { planetId, unitKey }),
     postDroneMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/drone',   { fromPlanetId, toPlanetId }),
     postColonyMission: (fromPlanetId, toPlanetId)     => post('/game/mission/colony',  { fromPlanetId, toPlanetId }),
     getMissions:       ()                              => apiFetch('/game/missions'),

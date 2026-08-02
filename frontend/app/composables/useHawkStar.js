@@ -550,23 +550,38 @@ const canBuildDrone = computed(() =>
   canAfford(UNIT_COSTS.recon_drone.cost)
 )
 
-const buildReconDrone = () => {
+const buildReconDrone = async () => {
   if (!canBuildDrone.value) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  const planetId = activePlanetId.value
+  const dock = allPlanetStates.value[planetId]?.dock
   if (!dock) return
-  const res = allPlanetStates.value[activePlanetId.value].resources
-  for (const [r, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
-    res[r] -= amt
+  buildError.value = ''
+  const { postUnitBuild } = useHawkStarApi()
+  try {
+    const result = await postUnitBuild(planetId, 'recon_drone')
+    const res = allPlanetStates.value[planetId].resources
+    for (const [r, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
+      res[r] = Math.max(0, (res[r] ?? 0) - amt)
+    }
+    dock.reconDroneBuild = { endsAt: result.endsAt, startedAt: result.buildStartedAt ?? Date.now() }
+  } catch (e) {
+    buildError.value = e.message
   }
-  dock.reconDroneBuild = { endsAt: Date.now() + droneBuildTime.value * 1000, startedAt: Date.now() }
 }
 
-const canSendDrone = (planetId) =>
+// Everything about the target that makes it worth a drone — the unit itself
+// is checked separately so the UI can show "no drone available" instead of
+// silently hiding the button.
+const isDroneTarget = (planetId) =>
   reconDroneLevel.value > 0 &&
-  canAfford(UNIT_COSTS.recon_drone.cost) &&
   !playerScannedPlanets.value.includes(planetId) &&
   !activeDroneMissions.value.find(m => m.planetId === planetId) &&
   activeDroneMissions.value.length < 1
+
+// A drone has to be finished and parked in the dock — having built the
+// recon_drone facility is not enough to launch a mission.
+const canSendDrone = (planetId) =>
+  reconDroneInventory.value > 0 && isDroneTarget(planetId)
 
 const sendReconDrone = async (planetId, fromPlanetId) => {
   if (!canSendDrone(planetId)) return
@@ -576,12 +591,9 @@ const sendReconDrone = async (planetId, fromPlanetId) => {
   try {
     const result = await postDroneMission(fromId, planetId)
     const dock = allPlanetStates.value[fromId]?.dock
-    if (dock) dock.activeDroneMissions.push({ planetId, endsAt: result.endsAt })
-    const res = allPlanetStates.value[fromId]?.resources
-    if (res) {
-      for (const [r, amt] of Object.entries(UNIT_COSTS.recon_drone.cost)) {
-        res[r] = Math.max(0, (res[r] ?? 0) - amt)
-      }
+    if (dock) {
+      dock.activeDroneMissions.push({ planetId, endsAt: result.endsAt })
+      dock.reconDroneInventory = Math.max(0, dock.reconDroneInventory - 1)
     }
   } catch (e) {
     buildError.value = e.message
@@ -639,22 +651,30 @@ const canBuildColonyShip = computed(() =>
   canAfford(UNIT_COSTS.colony_ship.cost)
 )
 
-const buildColonyShip = () => {
+const buildColonyShip = async () => {
   if (!canBuildColonyShip.value) return
-  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  const planetId = activePlanetId.value
+  const dock = allPlanetStates.value[planetId]?.dock
   if (!dock) return
-  const res = allPlanetStates.value[activePlanetId.value].resources
-  for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
-    res[r] -= amt
+  buildError.value = ''
+  const { postUnitBuild } = useHawkStarApi()
+  try {
+    const result = await postUnitBuild(planetId, 'colony_ship')
+    const res = allPlanetStates.value[planetId].resources
+    for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
+      res[r] = Math.max(0, (res[r] ?? 0) - amt)
+    }
+    dock.colonyShipBuild = { endsAt: result.endsAt, startedAt: result.buildStartedAt ?? Date.now() }
+  } catch (e) {
+    buildError.value = e.message
   }
-  dock.colonyShipBuild = { endsAt: Date.now() + colonyShipBuildTime.value * 1000, startedAt: Date.now() }
 }
 
-const canSendColonyShip = (planetId) => {
+// Target-side conditions only (see isDroneTarget)
+const isColonyTarget = (planetId) => {
   const planet = homeSystem.value?.planets.find(p => p.id === planetId)
   return (
     colonyShipLevel.value > 0 &&
-    canAfford(UNIT_COSTS.colony_ship.cost) &&
     !!planet &&
     planet.type !== 'uninhabitable' &&
     planetId !== homePlanetId.value &&
@@ -666,6 +686,10 @@ const canSendColonyShip = (planetId) => {
   )
 }
 
+// Same rule as the drone: only a finished ship in the dock can be launched.
+const canSendColonyShip = (planetId) =>
+  colonyShipInventory.value > 0 && isColonyTarget(planetId)
+
 const sendColonyShip = async (planetId, fromPlanetId) => {
   if (!canSendColonyShip(planetId)) return
   const fromId = fromPlanetId ?? activePlanetId.value
@@ -674,12 +698,9 @@ const sendColonyShip = async (planetId, fromPlanetId) => {
   try {
     const result = await postColonyMission(fromId, planetId)
     const dock = allPlanetStates.value[fromId]?.dock
-    if (dock) dock.activeColonyMissions.push({ planetId, endsAt: result.endsAt })
-    const res = allPlanetStates.value[fromId]?.resources
-    if (res) {
-      for (const [r, amt] of Object.entries(UNIT_COSTS.colony_ship.cost)) {
-        res[r] = Math.max(0, (res[r] ?? 0) - amt)
-      }
+    if (dock) {
+      dock.activeColonyMissions.push({ planetId, endsAt: result.endsAt })
+      dock.colonyShipInventory = Math.max(0, dock.colonyShipInventory - 1)
     }
   } catch (e) {
     buildError.value = e.message
@@ -1118,6 +1139,20 @@ const applyGameState = (planetId, state) => {
   )
   const buildings = { ...freshBuildings, ...state.buildings }
 
+  // Dock inventory lives on the server — units survive a reload, and a mission
+  // can only be launched with a finished unit parked in the dock.
+  const unitState = (key) => {
+    const u = state.units?.[key]
+    return {
+      quantity: u?.quantity ?? 0,
+      build:    u?.buildEndsAt
+        ? { endsAt: u.buildEndsAt, startedAt: u.buildStartedAt ?? Date.now() }
+        : null,
+    }
+  }
+  const drone  = unitState('recon_drone')
+  const colony = unitState('colony_ship')
+
   const droneMissions  = (state.missions ?? []).filter(m => m.type === 'recon_drone')
     .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
   const colonyMissions = (state.missions ?? []).filter(m => m.type === 'colony_ship')
@@ -1135,11 +1170,11 @@ const applyGameState = (planetId, state) => {
     slots,
     buildings,
     dock: {
-      reconDroneInventory:  0,
-      reconDroneBuild:      null,
+      reconDroneInventory:  drone.quantity,
+      reconDroneBuild:      drone.build,
       activeDroneMissions:  droneMissions,
-      colonyShipInventory:  0,
-      colonyShipBuild:      null,
+      colonyShipInventory:  colony.quantity,
+      colonyShipBuild:      colony.build,
       activeColonyMissions: colonyMissions,
     },
     conversionQueues: convQueues,
@@ -1355,6 +1390,7 @@ export function useHawkStar() {
     droneBuildTime,
     canBuildDrone,
     buildReconDrone,
+    isDroneTarget,
     canSendDrone,
     sendReconDrone,
     droneFlightTime,
@@ -1371,6 +1407,7 @@ export function useHawkStar() {
     colonyShipBuildTime,
     canBuildColonyShip,
     buildColonyShip,
+    isColonyTarget,
     canSendColonyShip,
     sendColonyShip,
     colonyFlightTime,
