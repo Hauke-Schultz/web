@@ -19,9 +19,10 @@
 // ── Unit production costs ─────────────────────────────────────────────────────
 // Cost to build ONE unit (drone / probe / ship). Building level divides buildTimeBase.
 export const UNIT_COSTS = {
-  recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 300  },
+  recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 5400  },
   // crew: free workers that board the ship when it is built (gone from the planet)
-  colony_ship:  { cost: { metal: 300, crystal: 150 }, crew: 6, buildTimeBase: 900  },
+  // power_cell gates expansion behind the laboratory → power_cell_lab branch
+  colony_ship:  { cost: { metal: 300, crystal: 150, power_cell: 1 }, crew: 6, buildTimeBase: 21600 },
 }
 
 // ── Power battery (grid-uptime mechanic) ──────────────────────────────────────
@@ -1052,6 +1053,7 @@ export const BUILDINGS = {
     planetTypes: ['terrestrial'],
     icon:        '🧱',
     description: 'Fuses metal and alloy into Super Alloy. Terrestrial planets only.',
+    // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
@@ -1061,24 +1063,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 700, crystal: 350, alloy: 200 },
-        buildTime:   21600,
-        effect:      '2× throughput · uses 10 energy · 5 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1600, crystal: 800, alloy: 500 },
-        buildTime:   57600,
-        effect:      '4× throughput · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
       },
     ],
     conversions: [
@@ -1093,6 +1077,7 @@ export const BUILDINGS = {
     planetTypes: ['volcanic'],
     icon:        '🌋',
     description: 'Superheats obsidian and crystal under volcanic pressure into Quantum Shards. Volcanic planets only.',
+    // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
@@ -1102,24 +1087,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 700, crystal: 350, obsidian: 200 },
-        buildTime:   21600,
-        effect:      '2× throughput · uses 10 energy · 5 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1600, crystal: 800, obsidian: 500 },
-        buildTime:   57600,
-        effect:      '4× throughput · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
       },
     ],
     conversions: [
@@ -1134,6 +1101,7 @@ export const BUILDINGS = {
     planetTypes: ['frozen'],
     icon:        '🧬',
     description: 'Purifies crystal using cryonite into Pure Crystal. Frozen planets only.',
+    // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
@@ -1143,24 +1111,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 700, crystal: 350, cryo: 200 },
-        buildTime:   21600,
-        effect:      '2× throughput · uses 10 energy · 5 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1600, crystal: 800, cryo: 500 },
-        buildTime:   57600,
-        effect:      '4× throughput · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
       },
     ],
     conversions: [
@@ -1175,6 +1125,7 @@ export const BUILDINGS = {
     planetTypes: ['ocean'],
     icon:        '🧫',
     description: 'Synthesizes biomass and metal into Nano Alloy. Ocean planets only.',
+    // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
@@ -1184,24 +1135,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 700, crystal: 350, biomass: 200 },
-        buildTime:   21600,
-        effect:      '2× throughput · uses 10 energy · 5 workers',
-        production:  {},
-        energyDrain: 10,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1600, crystal: 800, biomass: 500 },
-        buildTime:   57600,
-        effect:      '4× throughput · uses 16 energy · 8 workers',
-        production:  {},
-        energyDrain: 16,
-        staffDrain:  8,
       },
     ],
     conversions: [
@@ -1217,6 +1150,7 @@ export const BUILDINGS = {
     tileType:    'hightech',
     icon:        '🔋',
     description: 'Manufactures universal power cells for starships. Available on every planet type.',
+    // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
@@ -1226,24 +1160,6 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 5,
         staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 500, crystal: 250 },
-        buildTime:   14400,
-        effect:      'Faster production · 8 energy · 4 workers',
-        production:  {},
-        energyDrain: 8,
-        staffDrain:  4,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1200, crystal: 600 },
-        buildTime:   43200,
-        effect:      'Maximum output · 12 energy · 6 workers',
-        production:  {},
-        energyDrain: 12,
-        staffDrain:  6,
       },
     ],
     conversions: [

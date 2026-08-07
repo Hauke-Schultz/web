@@ -393,37 +393,27 @@
       "alloy_refinery": {
         "name": "Legierungsraffinerie",
         "desc": "Fusioniert Metall und Legierung zu Super-Legierung. Nur auf terrestrischen Planeten.",
-        "lv1": "Schaltet Super-Legierungsproduktion frei · 6 Energie · 3 Arbeiter",
-        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
-        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+        "lv1": "Schaltet Super-Legierungsproduktion frei · 6 Energie · 3 Arbeiter"
       },
       "obsidian_foundry": {
         "name": "Obsidianschmelze",
         "desc": "Erhitzt Obsidian und Kristall zu Quantumsplittern. Nur auf vulkanischen Planeten.",
-        "lv1": "Schaltet Quantumsplitter-Produktion frei · 6 Energie · 3 Arbeiter",
-        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
-        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+        "lv1": "Schaltet Quantumsplitter-Produktion frei · 6 Energie · 3 Arbeiter"
       },
       "cryo_refinery": {
         "name": "Kryoraffinerie",
         "desc": "Reinigt Kristall mithilfe von Kryonit zu Reinkristall. Nur auf gefrorenen Planeten.",
-        "lv1": "Schaltet Reinkristall-Produktion frei · 6 Energie · 3 Arbeiter",
-        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
-        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+        "lv1": "Schaltet Reinkristall-Produktion frei · 6 Energie · 3 Arbeiter"
       },
       "bio_lab": {
         "name": "Biolabor",
         "desc": "Synthetisiert Biomasse und Metall zu Nano-Legierung. Nur auf Ozeanplaneten.",
-        "lv1": "Schaltet Nano-Legierungsproduktion frei · 6 Energie · 3 Arbeiter",
-        "lv2": "2× Durchsatz · 10 Energie · 5 Arbeiter",
-        "lv3": "4× Durchsatz · 16 Energie · 8 Arbeiter"
+        "lv1": "Schaltet Nano-Legierungsproduktion frei · 6 Energie · 3 Arbeiter"
       },
       "power_cell_lab": {
         "name": "Power-Cell-Labor",
         "desc": "Produziert universelle Energiezellen für Raumschiffe.",
-        "lv1": "Power Cells produzieren · 5 Energie · 3 Arbeiter",
-        "lv2": "Schnellere Produktion · 8 Energie · 4 Arbeiter",
-        "lv3": "Maximale Ausgabe · 12 Energie · 6 Arbeiter"
+        "lv1": "Power Cells produzieren · 5 Energie · 3 Arbeiter"
       },
       "shield_generator": {
         "name": "Schildgenerator",

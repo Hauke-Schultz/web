@@ -6,10 +6,11 @@
  */
 
 const UNIT_COSTS = [
-    'recon_drone' => ['cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 300,  'flightTimeBase' => 3600],
+    'recon_drone' => ['cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 5400,  'flightTimeBase' => 3600],
     // 'crew' is taken out of the planet's free workers when the ship is built —
     // the settlers board it and leave with the ship.
-    'colony_ship' => ['cost' => ['metal' => 300, 'crystal' => 150], 'crew' => 6, 'buildTimeBase' => 900, 'flightTimeBase' => 7200],
+    // The power_cell gates expansion behind the laboratory → power_cell_lab branch.
+    'colony_ship' => ['cost' => ['metal' => 300, 'crystal' => 150, 'power_cell' => 1], 'crew' => 6, 'buildTimeBase' => 21600, 'flightTimeBase' => 7200],
 ];
 
 const GLOBAL_BUILDINGS = ['star_map', 'interstellar_comm'];
@@ -156,41 +157,36 @@ const BUILDINGS = [
   'alloy_refinery' => ['tileType'=>'hightech','planetTypes'=>['terrestrial'],'conversions'=>[
     ['input'=>['metal'=>15,'alloy'=>8],'output'=>['super_alloy'=>1],'durationBase'=>22],
   ],'levels'=>[
+    // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'alloy'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350,'alloy'=>200],'buildTime'=>21600,'production'=>[],'energyDrain'=>10,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>1600,'crystal'=>800,'alloy'=>500],'buildTime'=>57600,'production'=>[],'energyDrain'=>16,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'obsidian_foundry' => ['tileType'=>'hightech','planetTypes'=>['volcanic'],'conversions'=>[
     ['input'=>['crystal'=>8,'obsidian'=>8],'output'=>['quantum_shard'=>1],'durationBase'=>30],
   ],'levels'=>[
+    // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'obsidian'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350,'obsidian'=>200],'buildTime'=>21600,'production'=>[],'energyDrain'=>10,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>1600,'crystal'=>800,'obsidian'=>500],'buildTime'=>57600,'production'=>[],'energyDrain'=>16,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'cryo_refinery' => ['tileType'=>'hightech','planetTypes'=>['frozen'],'conversions'=>[
     ['input'=>['crystal'=>10,'cryo'=>5],'output'=>['pure_crystal'=>1],'durationBase'=>20],
   ],'levels'=>[
+    // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'cryo'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350,'cryo'=>200],'buildTime'=>21600,'production'=>[],'energyDrain'=>10,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>1600,'crystal'=>800,'cryo'=>500],'buildTime'=>57600,'production'=>[],'energyDrain'=>16,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'bio_lab' => ['tileType'=>'hightech','planetTypes'=>['ocean'],'conversions'=>[
     ['input'=>['metal'=>12,'biomass'=>4],'output'=>['nano_alloy'=>1],'durationBase'=>18],
   ],'levels'=>[
+    // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'biomass'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350,'biomass'=>200],'buildTime'=>21600,'production'=>[],'energyDrain'=>10,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>1600,'crystal'=>800,'biomass'=>500],'buildTime'=>57600,'production'=>[],'energyDrain'=>16,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'power_cell_lab' => ['tileType'=>'hightech','conversions'=>[
     ['input'=>['metal'=>20,'crystal'=>10],'output'=>['power_cell'=>1],'durationBase'=>30],
   ],'levels'=>[
+    // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>200,'crystal'=>100],'buildTime'=>1800,'production'=>[],'energyDrain'=>5,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>500,'crystal'=>250],'buildTime'=>14400,'production'=>[],'energyDrain'=>8,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>1200,'crystal'=>600],'buildTime'=>43200,'production'=>[],'energyDrain'=>12,'staffDrain'=>6,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'shield_generator' => ['tileType'=>'defense','levels'=>[

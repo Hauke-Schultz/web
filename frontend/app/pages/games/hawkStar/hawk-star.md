@@ -117,6 +117,8 @@ Each planet type produces exactly **one** refined resource in its High-Tech buil
 | Frozen | `cryo_refinery` | `pure_crystal` | Crystal + Cryonite |
 | Ocean | `bio_lab` | `nano_alloy` | Metal + Biomass |
 
+All High-Tech buildings (the four refineries plus `power_cell_lab`) are deliberately **single-level** — they are built once and never upgraded, to keep the early game simple. Conversion speed is therefore fixed at `durationBase` (`convert.php` divides by the building level, which is always 1). Throughput is tuned via `durationBase`, not via upgrades.
+
 
 ---
 
@@ -161,7 +163,7 @@ Units are built at the Space Base tile and consumed on missions. Each unit type 
 | Unit | Build cost | Purpose |
 |------|-----------|---------|
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
-| **Colony Ship** | 300 Metal · 150 Crystal · **6 crew** | Colonizes a scanned uncolonized planet |
+| **Colony Ship** | 300 Metal · 150 Crystal · 1 Power Cell · **6 crew** | Colonizes a scanned uncolonized planet |
 
 ### Colony ship crew & the new colony
 
@@ -170,6 +172,8 @@ A colony ship only leaves with settlers aboard: building it requires **6 free wo
 On landing, the new colony is deliberately small: `init_planet()` gives it **6 population** (`COLONY_START_POP`) and an **empty recruit pool**. The rest of the crew is not simply handed over — the colony has to grow through normal recruitment (≈ 5/day, cap 15).
 
 The `recon_drone` and `colony_ship` entries in `BUILDINGS` gate availability (the building must be constructed before units can be built). `UNIT_COSTS` holds the per-unit resource cost and `buildTimeBase`.
+
+Beyond the facility, the colony ship also costs **1 Power Cell**. That puts expansion behind a second tech branch: `command_center` L2 → slot 8 (techcenter) → `laboratory` L1 → slot 9 (hightech) → `power_cell_lab`. Note that resources are per-planet, so a young colony cannot build colony ships of its own until it has its own `power_cell_lab`. The recon drone stays deliberately ungated so early scouting is possible before the laboratory exists.
 
 ### Build → dock inventory → mission
 
