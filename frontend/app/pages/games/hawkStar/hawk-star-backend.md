@@ -161,7 +161,8 @@ hs_units (
   build_ends_at DATETIME NULL, -- läuft gerade eine Produktion?
   build_started_at DATETIME NULL
 )
-  -- Keys: 'recon_drone', 'colony_ship'
+  -- Keys: 'recon_drone', 'colony_ship' (Einheiten-Keys, NICHT die Gebäude-Keys —
+  --   die Produktionsanlagen heißen 'drone_hangar' und 'shipyard')
   -- resolve_units() bucht fertige Builds nach quantity; Missionen ziehen per consume_unit() ab
 
 hs_missions (
@@ -224,6 +225,8 @@ POST /api/star/game/convert    { planetId, buildingKey, recipeIndex, count }
 POST /api/star/game/unit/build { planetId, unitKey }   -- 'recon_drone' | 'colony_ship'
   → { unitKey, endsAt, buildStartedAt, crew }
   (zieht UNIT_COSTS ab; fertige Einheit landet in hs_units.quantity)
+  (prüft die Produktionsanlage über UNIT_COSTS[unit].facility — 'drone_hangar'
+   bzw. 'shipyard'; eine Anlage bedient jeweils eine ganze Einheitenklasse)
   (colony_ship: braucht 6 freie Arbeiter (free_workers), die sofort von der
    Bevölkerung abgezogen werden — neue Kolonie startet mit COLONY_START_POP=6
    und leerem Recruit-Pool)

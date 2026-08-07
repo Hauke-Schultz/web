@@ -329,12 +329,10 @@
         "lv2": "+80 energy · 4 workers",
         "lv3": "+160 energy · 7 workers"
       },
-      "recon_drone": {
-        "name": "Recon Drone",
-        "desc": "Short-range drone that reveals planet details in the home system.",
-        "lv1": "Scout 1 planet at a time · standard speed · uses 5 energy · 2 workers",
-        "lv2": "Scout 2 planets simultaneously · 2× speed · uses 8 energy · 3 workers",
-        "lv3": "Scout 3 planets simultaneously · 3× speed · uses 14 energy · 5 workers"
+      "drone_hangar": {
+        "name": "Drone Hangar",
+        "desc": "Production facility for all drone types. Houses recon drones today, further drones later.",
+        "lv1": "Build recon drones · standard speed · uses 5 energy · 2 workers"
       },
       "star_map": {
         "name": "Star Map",
@@ -366,12 +364,10 @@
         "desc": "Military science division. Unlocks the planetary Defense tile.",
         "lv1": "Unlocks Defense tile · basic weapon blueprints · uses 5 energy · 3 workers"
       },
-      "colony_ship": {
-        "name": "Colony Ship",
-        "desc": "Transports colonists to unoccupied planets in the solar system.",
-        "lv1": "Colonize 1 uncolonized planet in home system · uses 8 energy · 4 workers",
-        "lv2": "Colonize planets in adjacent star systems · uses 14 energy · 7 workers",
-        "lv3": "Mass colonization fleet · reach distant systems · uses 24 energy · 12 workers"
+      "shipyard": {
+        "name": "Shipyard",
+        "desc": "Production facility for all starships. Builds colony ships today, further ships later.",
+        "lv1": "Build colony ships · uses 8 energy · 4 workers"
       },
       "geothermal_tap": {
         "name": "Geothermal Tap",

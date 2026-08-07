@@ -184,7 +184,18 @@ A colony ship only leaves with settlers aboard: building it requires **6 free wo
 
 On landing, the new colony is deliberately small: `init_planet()` gives it **6 population** (`COLONY_START_POP`) and an **empty recruit pool**. The rest of the crew is not simply handed over — the colony has to grow through normal recruitment (≈ 5/day, cap 15).
 
-The `recon_drone` and `colony_ship` entries in `BUILDINGS` gate availability (the building must be constructed before units can be built). `UNIT_COSTS` holds the per-unit resource cost and `buildTimeBase`.
+### Facilities vs. units
+
+Units are produced by a **facility** on the Space Base tile, and one facility serves a whole class of units:
+
+| Facility | Builds | Key |
+|----------|--------|-----|
+| 🛸 Drone Hangar | every drone type (currently `recon_drone`) | `drone_hangar` |
+| 🚀 Shipyard | every starship type (currently `colony_ship`) | `shipyard` |
+
+Each unit names its facility explicitly via `UNIT_COSTS[unit].facility`; `unit/build.php` reads that field to check the requirement. Before 2026-08-08 the facility was derived from the unit key itself (building key == unit key), which only worked while each facility built exactly one unit. Adding a second drone or ship type now needs no backend change — just a `UNIT_COSTS` entry pointing at the existing facility.
+
+`UNIT_COSTS` holds the per-unit resource cost, `buildTimeBase` and `facility`. Note that `recon_drone` and `colony_ship` remain in use as **unit keys** (`hs_units.unit_key`) and as **mission types** (`hs_missions.type`) — only the building keys were renamed.
 
 Beyond the facility, the colony ship also costs **1 Power Cell**. That puts expansion behind a second tech branch: `command_center` L2 → slot 8 (techcenter) → `laboratory` L1 → slot 9 (hightech) → `power_cell_lab`. Note that resources are per-planet, so a young colony cannot build colony ships of its own until it has its own `power_cell_lab`. The recon drone stays deliberately ungated so early scouting is possible before the laboratory exists.
 

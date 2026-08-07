@@ -5,12 +5,15 @@
  * Keep in sync with frontend/app/utils/hawkStarConfig.js.
  */
 
+// 'facility' names the spacebase building that has to stand on the planet before
+// this unit can be produced. Several units share one facility — the drone hangar
+// builds every drone, the shipyard every ship.
 const UNIT_COSTS = [
-    'recon_drone' => ['cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 5400,  'flightTimeBase' => 3600],
+    'recon_drone' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 5400,  'flightTimeBase' => 3600],
     // 'crew' is taken out of the planet's free workers when the ship is built —
     // the settlers board it and leave with the ship.
     // The power_cell gates expansion behind the laboratory → power_cell_lab branch.
-    'colony_ship' => ['cost' => ['metal' => 300, 'crystal' => 150, 'power_cell' => 1], 'crew' => 6, 'buildTimeBase' => 21600, 'flightTimeBase' => 7200],
+    'colony_ship' => ['facility' => 'shipyard', 'cost' => ['metal' => 300, 'crystal' => 150, 'power_cell' => 1], 'crew' => 6, 'buildTimeBase' => 21600, 'flightTimeBase' => 7200],
 ];
 
 const GLOBAL_BUILDINGS = ['star_map', 'interstellar_comm'];
@@ -121,11 +124,12 @@ const BUILDINGS = [
     ['level'=>3,'cost'=>['metal'=>220,'crystal'=>100],'buildTime'=>5400,'production'=>['energy'=>42],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'recon_drone' => ['tileType'=>'spacebase','levels'=>[
+  // Production facilities — each hosts a whole class of units, not a single one.
+  'drone_hangar' => ['tileType'=>'spacebase','levels'=>[
     ['level'=>1,'cost'=>['metal'=>250,'crystal'=>100],'buildTime'=>600,'production'=>[],'energyDrain'=>5,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'colony_ship' => ['tileType'=>'spacebase','levels'=>[
+  'shipyard' => ['tileType'=>'spacebase','levels'=>[
     ['level'=>1,'cost'=>['metal'=>400,'crystal'=>200],'buildTime'=>2400,'production'=>[],'energyDrain'=>8,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
   ]],
 

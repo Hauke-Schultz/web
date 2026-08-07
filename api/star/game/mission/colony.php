@@ -13,7 +13,7 @@ if (!$fromId || !$toId || $fromId === $toId) fail('fromPlanetId and toPlanetId r
 
 $db = getDB();
 
-// Verify ownership of from-planet and colony_ship building
+// Verify ownership of from-planet and shipyard building
 $fromRow = $db->prepare(
     'SELECT p.system_id, p.type FROM hs_planet_ownership po
      JOIN hs_planets p ON p.id=po.planet_id
@@ -24,7 +24,7 @@ $from = $fromRow->fetch();
 if (!$from) fail('From-planet not found or not owned', 404);
 
 $shipBuilt = $db->prepare(
-    'SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=\'colony_ship\' AND level>0 AND build_ends_at IS NULL'
+    'SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=\'shipyard\' AND level>0 AND build_ends_at IS NULL'
 );
 $shipBuilt->execute([$fromId, $playerId]);
 if (!$shipBuilt->fetch()) fail('Colony Ship not built on this planet');

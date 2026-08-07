@@ -28,12 +28,15 @@ if (!$planet) fail('Planet not found or not owned', 404);
 // Resolve timers first so a dock building that just finished counts here.
 resolve_timers($db, $planetId, $playerId);
 
-// The matching dock building must be finished before units can be produced
+// The unit's production facility must be finished before units can be produced.
+// One facility serves a whole unit class, so it is named explicitly per unit
+// rather than derived from the unit key.
+$facility = $def['facility'] ?? $unitKey;
 $builtRow = $db->prepare(
     'SELECT level FROM hs_buildings
      WHERE planet_id=? AND player_id=? AND building_key=? AND level>0 AND build_ends_at IS NULL'
 );
-$builtRow->execute([$planetId, $playerId, $unitKey]);
+$builtRow->execute([$planetId, $playerId, $facility]);
 if (!$builtRow->fetch()) fail('Facility for this unit is not built on this planet');
 
 // Only one unit of a kind in production at a time

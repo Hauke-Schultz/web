@@ -317,12 +317,13 @@ const spaceTechLevel = computed(() => {
   const state = homeBuilding('space_tech')
   return state ? effectiveLevel(state) : 0
 })
+// Facility levels — the hangar gates every drone, the shipyard every ship
 const reconDroneLevel = computed(() => {
-  const state = playerBuildings.value['recon_drone']
+  const state = playerBuildings.value['drone_hangar']
   return state?.level ?? 0
 })
 const colonyShipLevel = computed(() => {
-  const state = playerBuildings.value['colony_ship']
+  const state = playerBuildings.value['shipyard']
   return state?.level ?? 0
 })
 const isBuildingLocked = (id) => {

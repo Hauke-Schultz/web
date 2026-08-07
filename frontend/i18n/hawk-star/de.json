@@ -330,12 +330,10 @@
         "lv2": "+80 Energie · 4 Arbeiter",
         "lv3": "+160 Energie · 7 Arbeiter"
       },
-      "recon_drone": {
-        "name": "Recon Drone",
-        "desc": "Kurzstreckendrohne, die Planetendetails im Heimatsystem aufdeckt.",
-        "lv1": "1 Planet gleichzeitig erkunden · Standardgeschwindigkeit · 5 Energie · 2 Arbeiter",
-        "lv2": "2 Planeten gleichzeitig · 2× Geschwindigkeit · 8 Energie · 3 Arbeiter",
-        "lv3": "3 Planeten gleichzeitig · 3× Geschwindigkeit · 14 Energie · 5 Arbeiter"
+      "drone_hangar": {
+        "name": "Drohnen-Hangar",
+        "desc": "Produktionsanlage für alle Drohnentypen. Beherbergt derzeit Aufklärungsdrohnen, später weitere.",
+        "lv1": "Aufklärungsdrohnen bauen · Standardgeschwindigkeit · 5 Energie · 2 Arbeiter"
       },
       "star_map": {
         "name": "Sternenkarte",
@@ -367,12 +365,10 @@
         "desc": "Militärische Forschungsabteilung. Schaltet das Verteidigungs-Feld frei.",
         "lv1": "Schaltet Verteidigungs-Feld frei · grundlegende Waffenbauanleitungen · 5 Energie · 3 Arbeiter"
       },
-      "colony_ship": {
-        "name": "Kolonisierungsschiff",
-        "desc": "Transportiert Kolonisten zu unbewohnten Planeten im Sonnensystem.",
-        "lv1": "Kolonisiere 1 unbesiedelten Planeten im Heimatsystem · 8 Energie · 4 Arbeiter",
-        "lv2": "Kolonisiere Planeten in angrenzenden Sternensystemen · 14 Energie · 7 Arbeiter",
-        "lv3": "Massenkolonisierungsflotte · erreiche entfernte Systeme · 24 Energie · 12 Arbeiter"
+      "shipyard": {
+        "name": "Raumschiffwerft",
+        "desc": "Produktionsanlage für alle Raumschiffe. Baut derzeit Kolonisierungsschiffe, später weitere.",
+        "lv1": "Kolonisierungsschiffe bauen · 8 Energie · 4 Arbeiter"
       },
       "geothermal_tap": {
         "name": "Geothermiezapfstelle",

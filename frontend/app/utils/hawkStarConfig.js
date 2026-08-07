@@ -19,10 +19,12 @@
 // ── Unit production costs ─────────────────────────────────────────────────────
 // Cost to build ONE unit (drone / probe / ship). Building level divides buildTimeBase.
 export const UNIT_COSTS = {
-  recon_drone:  { cost: { metal: 60,  crystal: 25  }, buildTimeBase: 5400  },
+  // facility: the spacebase building required to produce this unit. One facility
+  // serves a whole class — the hangar every drone, the shipyard every ship.
+  recon_drone:  { facility: 'drone_hangar', cost: { metal: 60,  crystal: 25  }, buildTimeBase: 5400  },
   // crew: free workers that board the ship when it is built (gone from the planet)
   // power_cell gates expansion behind the laboratory → power_cell_lab branch
-  colony_ship:  { cost: { metal: 300, crystal: 150, power_cell: 1 }, crew: 6, buildTimeBase: 21600 },
+  colony_ship:  { facility: 'shipyard', cost: { metal: 300, crystal: 150, power_cell: 1 }, crew: 6, buildTimeBase: 21600 },
 }
 
 // ── Power battery (grid-uptime mechanic) ──────────────────────────────────────
@@ -803,18 +805,18 @@ export const BUILDINGS = {
     ],
   },
 
-  recon_drone: {
-    id:          'recon_drone',
-    name:        'Recon Drone',
+  drone_hangar: {
+    id:          'drone_hangar',
+    name:        'Drone Hangar',
     tileType:    'spacebase',
     icon:        '🛸',
-    description: 'Short-range drone that flies to planets in the home system to reveal their details.',
+    description: 'Production facility for all drone types. Houses recon drones today, further drones later.',
     levels: [
       {
         level:       1,
         cost:        { metal: 250, crystal: 100 },
         buildTime:   600,
-        effect:      'Scout 1 planet at a time · standard flight speed · uses 5 energy · 2 workers',
+        effect:      'Build recon drones · standard flight speed · uses 5 energy · 2 workers',
         production:  {},
         energyDrain: 5,
         staffDrain:  2,
@@ -952,18 +954,18 @@ export const BUILDINGS = {
     ],
   },
 
-  colony_ship: {
-    id:          'colony_ship',
-    name:        'Colony Ship',
+  shipyard: {
+    id:          'shipyard',
+    name:        'Shipyard',
     tileType:    'spacebase',
     icon:        '🚀',
-    description: 'Transports colonists to unoccupied planets in the solar system.',
+    description: 'Production facility for all starships. Builds colony ships today, further ships later.',
     levels: [
       {
         level:       1,
         cost:        { metal: 400, crystal: 200 },
         buildTime:   2400,
-        effect:      'Colonize 1 uncolonized planet in home system · uses 8 energy · 4 workers',
+        effect:      'Build colony ships · uses 8 energy · 4 workers',
         production:  {},
         energyDrain: 8,
         staffDrain:  4,
