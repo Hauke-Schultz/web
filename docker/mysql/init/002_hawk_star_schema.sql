@@ -77,17 +77,11 @@ CREATE TABLE IF NOT EXISTS hs_planet_resources (
   obsidian              FLOAT DEFAULT 0,
   cryo                  FLOAT DEFAULT 0,
   biomass               FLOAT DEFAULT 0,
-  pure_crystal          FLOAT DEFAULT 0,
-  super_alloy           FLOAT DEFAULT 0,
-  quantum_shard         FLOAT DEFAULT 0,
-  nano_alloy            FLOAT DEFAULT 0,
+  duraplate             FLOAT DEFAULT 0,
+  plasma_core           FLOAT DEFAULT 0,
+  superconductor        FLOAT DEFAULT 0,
+  vital_gel             FLOAT DEFAULT 0,
   power_cell            FLOAT DEFAULT 0,
-  food                  FLOAT DEFAULT 0,
-  red_seed              FLOAT DEFAULT 0,
-  green_seed            FLOAT DEFAULT 0,
-  blue_seed             FLOAT DEFAULT 0,
-  white_seed            FLOAT DEFAULT 0,
-  xenopilz              FLOAT DEFAULT 0,
   resources_computed_at DATETIME NOT NULL,
   PRIMARY KEY (planet_id, player_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -165,19 +159,6 @@ CREATE TABLE IF NOT EXISTS hs_conversion_queues (
   recipe_index INT NOT NULL,
   ends_at      DATETIME NOT NULL,
   remaining    INT DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ── Phase 3: Agriculture ─────────────────────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS hs_agriculture (
-  planet_id    INT NOT NULL,
-  player_id    INT NOT NULL,
-  last_harvest DATETIME NULL,
-  streak       TINYINT UNSIGNED DEFAULT 0,
-  current_grid JSON NULL,
-  PRIMARY KEY (planet_id, player_id),
-  FOREIGN KEY (planet_id) REFERENCES hs_planets(id),
-  FOREIGN KEY (player_id) REFERENCES hs_players(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Phase 2: Communication ────────────────────────────────────────────────────

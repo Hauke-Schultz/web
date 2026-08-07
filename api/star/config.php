@@ -155,28 +155,28 @@ const BUILDINGS = [
   ]],
 
   'alloy_refinery' => ['tileType'=>'hightech','planetTypes'=>['terrestrial'],'conversions'=>[
-    ['input'=>['metal'=>150,'alloy'=>60],'output'=>['super_alloy'=>1],'durationBase'=>1800],
+    ['input'=>['metal'=>150,'alloy'=>60],'output'=>['duraplate'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'alloy'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'obsidian_foundry' => ['tileType'=>'hightech','planetTypes'=>['volcanic'],'conversions'=>[
-    ['input'=>['crystal'=>80,'obsidian'=>80],'output'=>['quantum_shard'=>1],'durationBase'=>1800],
+    ['input'=>['crystal'=>80,'obsidian'=>80],'output'=>['plasma_core'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'obsidian'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'cryo_refinery' => ['tileType'=>'hightech','planetTypes'=>['frozen'],'conversions'=>[
-    ['input'=>['crystal'=>100,'cryo'=>50],'output'=>['pure_crystal'=>1],'durationBase'=>1800],
+    ['input'=>['crystal'=>100,'cryo'=>50],'output'=>['superconductor'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'cryo'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'bio_lab' => ['tileType'=>'hightech','planetTypes'=>['ocean'],'conversions'=>[
-    ['input'=>['metal'=>120,'biomass'=>40],'output'=>['nano_alloy'=>1],'durationBase'=>1800],
+    ['input'=>['metal'=>120,'biomass'=>40],'output'=>['vital_gel'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'biomass'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
@@ -189,10 +189,12 @@ const BUILDINGS = [
     ['level'=>1,'cost'=>['metal'=>200,'crystal'=>100],'buildTime'=>1800,'production'=>[],'energyDrain'=>5,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Duraplate is the structural refined resource — a shield needs plating, so it
+  // cannot be built from raw metal alone (terrestrial output or trade only).
   'shield_generator' => ['tileType'=>'defense','levels'=>[
-    ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150],'buildTime'=>900,'production'=>[],'energyDrain'=>8,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350],'buildTime'=>14400,'production'=>[],'energyDrain'=>15,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>1500,'crystal'=>750],'buildTime'=>57600,'production'=>[],'energyDrain'=>25,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'duraplate'=>3],'buildTime'=>900,'production'=>[],'energyDrain'=>8,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350,'duraplate'=>7],'buildTime'=>14400,'production'=>[],'energyDrain'=>15,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>3,'cost'=>['metal'=>1500,'crystal'=>750,'duraplate'=>15],'buildTime'=>57600,'production'=>[],'energyDrain'=>25,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
   ]],
 
 ];
@@ -283,7 +285,7 @@ function create_player_system(PDO $db): array {
 // All storable resource keys (energy excluded — computed, not stored)
 const RESOURCE_KEYS = [
     'metal','crystal','population','alloy','obsidian','cryo','biomass',
-    'pure_crystal','super_alloy','quantum_shard','nano_alloy','power_cell',
+    'duraplate','plasma_core','superconductor','vital_gel','power_cell',
 ];
 
 // ── Power battery (grid-uptime mechanic) ──────────────────────────────────────

@@ -81,10 +81,13 @@ export const RESOURCES = {
   biomass:    { id: 'biomass',    name: 'Biomass',    icon: '🌿',  color: '#4ade80', planetTypes: ['ocean'] },
   energy:        { id: 'energy',        name: 'Energy',        icon: '⚡',  color: '#fbbf24' },
   // ── Refined resources (tradeable, produced via High-Tech buildings) ──────
-  pure_crystal:  { id: 'pure_crystal',  name: 'Pure Crystal',  icon: '🔷',  color: '#38bdf8', refined: true },
-  super_alloy:   { id: 'super_alloy',   name: 'Super Alloy',   icon: '🔩',  color: '#e2e8f0', refined: true },
-  quantum_shard: { id: 'quantum_shard', name: 'Quantum Shard', icon: '💠',  color: '#818cf8', refined: true },
-  nano_alloy:    { id: 'nano_alloy',    name: 'Nano Alloy',    icon: '🔧',  color: '#93c5fd', refined: true },
+  // One per planet type, each covering a distinct function: structure, power,
+  // control and life support. Icons and colours are kept far apart so the
+  // High-Tech stock row stays readable at a glance.
+  duraplate:      { id: 'duraplate',      name: 'Duraplate',      icon: '🔷',  color: '#e2e8f0', refined: true },
+  plasma_core:    { id: 'plasma_core',    name: 'Plasma Core',    icon: '🔥',  color: '#fb7185', refined: true },
+  superconductor: { id: 'superconductor', name: 'Superconductor', icon: '🔌',  color: '#38bdf8', refined: true },
+  vital_gel:      { id: 'vital_gel',      name: 'Vital Gel',      icon: '🧬',  color: '#2dd4bf', refined: true },
   power_cell:      { id: 'power_cell',      name: 'Power Cell',      icon: '🔋',  color: '#fbbf24' },
 }
 
@@ -1052,21 +1055,21 @@ export const BUILDINGS = {
     tileType:    'hightech',
     planetTypes: ['terrestrial'],
     icon:        '🧱',
-    description: 'Fuses metal and alloy into Super Alloy. Terrestrial planets only.',
+    description: 'Fuses metal and alloy into Duraplate. Terrestrial planets only.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
         cost:        { metal: 300, crystal: 150, alloy: 80 },
         buildTime:   3600,
-        effect:      'Unlocks Super Alloy production · uses 6 energy · 3 workers',
+        effect:      'Unlocks Duraplate production · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
       },
     ],
     conversions: [
-      { input: { metal: 150, alloy: 60 }, output: { super_alloy: 1 }, durationBase: 1800 },
+      { input: { metal: 150, alloy: 60 }, output: { duraplate: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1076,21 +1079,21 @@ export const BUILDINGS = {
     tileType:    'hightech',
     planetTypes: ['volcanic'],
     icon:        '🌋',
-    description: 'Superheats obsidian and crystal under volcanic pressure into Quantum Shards. Volcanic planets only.',
+    description: 'Superheats obsidian and crystal under volcanic pressure into Plasma Cores. Volcanic planets only.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
         cost:        { metal: 300, crystal: 150, obsidian: 80 },
         buildTime:   3600,
-        effect:      'Unlocks Quantum Shard production · uses 6 energy · 3 workers',
+        effect:      'Unlocks Plasma Core production · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
       },
     ],
     conversions: [
-      { input: { crystal: 80, obsidian: 80 }, output: { quantum_shard: 1 }, durationBase: 1800 },
+      { input: { crystal: 80, obsidian: 80 }, output: { plasma_core: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1100,21 +1103,21 @@ export const BUILDINGS = {
     tileType:    'hightech',
     planetTypes: ['frozen'],
     icon:        '🧬',
-    description: 'Purifies crystal using cryonite into Pure Crystal. Frozen planets only.',
+    description: 'Purifies crystal using cryonite into Superconductor. Frozen planets only.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
         cost:        { metal: 300, crystal: 150, cryo: 80 },
         buildTime:   3600,
-        effect:      'Unlocks Pure Crystal production · uses 6 energy · 3 workers',
+        effect:      'Unlocks Superconductor production · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
       },
     ],
     conversions: [
-      { input: { crystal: 100, cryo: 50 }, output: { pure_crystal: 1 }, durationBase: 1800 },
+      { input: { crystal: 100, cryo: 50 }, output: { superconductor: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1124,21 +1127,21 @@ export const BUILDINGS = {
     tileType:    'hightech',
     planetTypes: ['ocean'],
     icon:        '🧫',
-    description: 'Synthesizes biomass and metal into Nano Alloy. Ocean planets only.',
+    description: 'Synthesizes biomass and metal into Vital Gel. Ocean planets only.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
         level:       1,
         cost:        { metal: 300, crystal: 150, biomass: 80 },
         buildTime:   3600,
-        effect:      'Unlocks Nano Alloy production · uses 6 energy · 3 workers',
+        effect:      'Unlocks Vital Gel production · uses 6 energy · 3 workers',
         production:  {},
         energyDrain: 6,
         staffDrain:  3,
       },
     ],
     conversions: [
-      { input: { metal: 120, biomass: 40 }, output: { nano_alloy: 1 }, durationBase: 1800 },
+      { input: { metal: 120, biomass: 40 }, output: { vital_gel: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1173,12 +1176,12 @@ export const BUILDINGS = {
     id:          'shield_generator',
     name:        'Shield Generator',
     tileType:    'defense',
-    icon:        '🛡️',
+    icon:        '🌐',
     description: 'Projects an energy barrier around the planet to absorb incoming damage.',
     levels: [
       {
         level:       1,
-        cost:        { metal: 300, crystal: 150 },
+        cost:        { metal: 300, crystal: 150, duraplate: 3 },
         buildTime:   900,
         effect:      'Basic shield — absorbs 20% incoming damage · uses 8 energy · 3 workers',
         production:  {},
@@ -1187,7 +1190,7 @@ export const BUILDINGS = {
       },
       {
         level:       2,
-        cost:        { metal: 700, crystal: 350 },
+        cost:        { metal: 700, crystal: 350, duraplate: 7 },
         buildTime:   14400,
         effect:      'Enhanced shield — absorbs 40% incoming damage · uses 15 energy · 5 workers',
         production:  {},
@@ -1196,7 +1199,7 @@ export const BUILDINGS = {
       },
       {
         level:       3,
-        cost:        { metal: 1500, crystal: 750 },
+        cost:        { metal: 1500, crystal: 750, duraplate: 15 },
         buildTime:   57600,
         effect:      'Fortress shield — absorbs 60% incoming damage · uses 25 energy · 8 workers',
         production:  {},

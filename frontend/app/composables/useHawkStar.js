@@ -78,8 +78,8 @@ const dismissNotification = (id) => {
 
 const dismissAllNotifications = () => { notifications.value = [] }
 
-const HOME_START_RESOURCES   = { population: 1, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
-const COLONY_START_RESOURCES = { population: 6,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, pure_crystal: 0, super_alloy: 0, quantum_shard: 0, nano_alloy: 0, power_cell: 0 }
+const HOME_START_RESOURCES   = { population: 1, metal: 400, crystal: 180, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, duraplate: 0, plasma_core: 0, superconductor: 0, vital_gel: 0, power_cell: 0 }
+const COLONY_START_RESOURCES = { population: 6,  metal: 200,  crystal: 80, alloy: 0, cryo: 0, obsidian: 0, biomass: 0, energy: 0, duraplate: 0, plasma_core: 0, superconductor: 0, vital_gel: 0, power_cell: 0 }
 
 const freshDock = () => ({
   reconDroneInventory:    0,
@@ -253,7 +253,7 @@ const totalStaffDrain = computed(() => {
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
 
 // ── Storage caps ───────────────────────────────────────────
-const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 50, cryo: 50, obsidian: 50, biomass: 50, pure_crystal: 50, super_alloy: 50, quantum_shard: 50, nano_alloy: 50 }
+const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 50, cryo: 50, obsidian: 50, biomass: 50, duraplate: 50, plasma_core: 50, superconductor: 50, vital_gel: 50 }
 
 const maxStorage = computed(() => {
   const caps = { ...BASE_STORAGE }

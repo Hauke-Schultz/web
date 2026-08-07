@@ -552,7 +552,39 @@ function recruit_state(PDO $db, int $planetId, int $playerId): array {
     ];
 }
 
+// ── Refined resource rename (2026-08-07) ──────────────────────────────────────
+// The four refinery outputs were reworked from "better metal" into four distinct
+// functional materials. RESOURCE_KEYS drives the column names in the resource
+// UPDATE, so the columns have to follow the rename. Adds the new columns and
+// carries any existing stock over once. MySQL 5.7 compatible (no IF NOT EXISTS).
+const REFINED_RENAMES = [
+    'super_alloy'   => 'duraplate',
+    'quantum_shard' => 'plasma_core',
+    'pure_crystal'  => 'superconductor',
+    'nano_alloy'    => 'vital_gel',
+];
+
+function migrate_refined_resources(PDO $db): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    // One cheap probe — if the first new column is there the migration already ran
+    try {
+        if ($db->query("SHOW COLUMNS FROM hs_planet_resources LIKE 'duraplate'")->fetch()) return;
+    } catch (\Throwable $e) { return; }
+
+    foreach (REFINED_RENAMES as $old => $new) {
+        try { $db->exec("ALTER TABLE hs_planet_resources ADD COLUMN $new FLOAT DEFAULT 0"); } catch (\Throwable $e) {}
+        // Carry the old stock over, then drop the retired column
+        try { $db->exec("UPDATE hs_planet_resources SET $new = $old"); } catch (\Throwable $e) {}
+        try { $db->exec("ALTER TABLE hs_planet_resources DROP COLUMN $old"); } catch (\Throwable $e) {}
+    }
+}
+
 function compute_resources(PDO $db, int $planetId, int $playerId, string $planetType): void {
+    migrate_refined_resources($db);
+
     $row = $db->prepare(
         'SELECT *, TIMESTAMPDIFF(SECOND, resources_computed_at, NOW()) AS elapsed
          FROM hs_planet_resources WHERE planet_id=? AND player_id=?'

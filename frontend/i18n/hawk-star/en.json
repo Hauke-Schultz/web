@@ -194,10 +194,10 @@
       "obsidian": "Obsidian",
       "biomass": "Biomass",
       "energy": "Energy",
-      "pure_crystal": "Pure Crystal",
-      "super_alloy": "Super Alloy",
-      "quantum_shard": "Quantum Shard",
-      "nano_alloy": "Nano Alloy",
+      "duraplate": "Duraplate",
+      "plasma_core": "Plasma Core",
+      "superconductor": "Superconductor",
+      "vital_gel": "Vital Gel",
       "power_cell": "Power Cell"
     },
 
@@ -389,23 +389,23 @@
       },
       "alloy_refinery": {
         "name": "Alloy Refinery",
-        "desc": "Fuses metal and alloy into Super Alloy. Terrestrial planets only.",
-        "lv1": "Unlocks Super Alloy production · uses 6 energy · 3 workers"
+        "desc": "Presses metal and alloy into Duraplate hull plating. Terrestrial planets only.",
+        "lv1": "Unlocks Duraplate production · uses 6 energy · 3 workers"
       },
       "obsidian_foundry": {
         "name": "Obsidian Foundry",
-        "desc": "Superheats obsidian and crystal into Quantum Shards. Volcanic planets only.",
-        "lv1": "Unlocks Quantum Shard production · uses 6 energy · 3 workers"
+        "desc": "Superheats obsidian and crystal into Plasma Cores. Volcanic planets only.",
+        "lv1": "Unlocks Plasma Core production · uses 6 energy · 3 workers"
       },
       "cryo_refinery": {
         "name": "Cryo Refinery",
-        "desc": "Purifies crystal using cryonite into Pure Crystal. Frozen planets only.",
-        "lv1": "Unlocks Pure Crystal production · uses 6 energy · 3 workers"
+        "desc": "Grows Superconductors from crystal in a cryonite bath. Frozen planets only.",
+        "lv1": "Unlocks Superconductor production · uses 6 energy · 3 workers"
       },
       "bio_lab": {
         "name": "Bio Lab",
-        "desc": "Synthesizes biomass and metal into Nano Alloy. Ocean planets only.",
-        "lv1": "Unlocks Nano Alloy production · uses 6 energy · 3 workers"
+        "desc": "Cultures biomass and metal into life-supporting Vital Gel. Ocean planets only.",
+        "lv1": "Unlocks Vital Gel production · uses 6 energy · 3 workers"
       },
       "power_cell_lab": {
         "name": "Power Cell Lab",

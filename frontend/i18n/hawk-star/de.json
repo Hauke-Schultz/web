@@ -195,10 +195,10 @@
       "obsidian": "Obsidian",
       "biomass": "Biomasse",
       "energy": "Energie",
-      "pure_crystal": "Reinkristall",
-      "super_alloy": "Super-Legierung",
-      "quantum_shard": "Quantumsplitter",
-      "nano_alloy": "Nano-Legierung",
+      "duraplate": "Duraplatte",
+      "plasma_core": "Plasmakern",
+      "superconductor": "Supraleiter",
+      "vital_gel": "Vitalgel",
       "power_cell": "Power Cell"
     },
 
@@ -390,23 +390,23 @@
       },
       "alloy_refinery": {
         "name": "Legierungsraffinerie",
-        "desc": "Fusioniert Metall und Legierung zu Super-Legierung. Nur auf terrestrischen Planeten.",
-        "lv1": "Schaltet Super-Legierungsproduktion frei · 6 Energie · 3 Arbeiter"
+        "desc": "Presst Metall und Legierung zu Duraplatten-Panzerung. Nur auf terrestrischen Planeten.",
+        "lv1": "Schaltet Duraplatten-Produktion frei · 6 Energie · 3 Arbeiter"
       },
       "obsidian_foundry": {
         "name": "Obsidianschmelze",
-        "desc": "Erhitzt Obsidian und Kristall zu Quantumsplittern. Nur auf vulkanischen Planeten.",
-        "lv1": "Schaltet Quantumsplitter-Produktion frei · 6 Energie · 3 Arbeiter"
+        "desc": "Erhitzt Obsidian und Kristall zu Plasmakernen. Nur auf vulkanischen Planeten.",
+        "lv1": "Schaltet Plasmakern-Produktion frei · 6 Energie · 3 Arbeiter"
       },
       "cryo_refinery": {
         "name": "Kryoraffinerie",
-        "desc": "Reinigt Kristall mithilfe von Kryonit zu Reinkristall. Nur auf gefrorenen Planeten.",
-        "lv1": "Schaltet Reinkristall-Produktion frei · 6 Energie · 3 Arbeiter"
+        "desc": "Züchtet Supraleiter aus Kristall im Kryonit-Bad. Nur auf gefrorenen Planeten.",
+        "lv1": "Schaltet Supraleiter-Produktion frei · 6 Energie · 3 Arbeiter"
       },
       "bio_lab": {
         "name": "Biolabor",
-        "desc": "Synthetisiert Biomasse und Metall zu Nano-Legierung. Nur auf Ozeanplaneten.",
-        "lv1": "Schaltet Nano-Legierungsproduktion frei · 6 Energie · 3 Arbeiter"
+        "desc": "Kultiviert Biomasse und Metall zu lebenserhaltendem Vitalgel. Nur auf Ozeanplaneten.",
+        "lv1": "Schaltet Vitalgel-Produktion frei · 6 Energie · 3 Arbeiter"
       },
       "power_cell_lab": {
         "name": "Power-Cell-Labor",

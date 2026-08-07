@@ -110,26 +110,27 @@ Each planet type produces one exclusive raw resource from its High-Tech tile:
 
 Each planet type produces exactly **one** refined resource in its High-Tech building. The other three must be acquired via trade.
 
-| Planet Type | High-Tech Building | Produces | Input |
-|-------------|-------------------|----------|-------|
-| Terrestrial | `alloy_refinery` | `super_alloy` | Metal + Alloy |
-| Volcanic | `obsidian_foundry` | `quantum_shard` | Crystal + Obsidian |
-| Frozen | `cryo_refinery` | `pure_crystal` | Crystal + Cryonite |
-| Ocean | `bio_lab` | `nano_alloy` | Metal + Biomass |
+The four are built around **functional domains**, not tiers of quality. Each one covers a capability the other three do not, so a recipe that asks for two of them is a real decision and no planet can supply everything on its own:
+
+| Planet Type | High-Tech Building | Produces | Domain | Input |
+|-------------|-------------------|----------|--------|-------|
+| Terrestrial | `alloy_refinery` | 🔷️ `duraplate` | **Structure** — hull, armour, framing | 150 Metal + 60 Alloy |
+| Volcanic | `obsidian_foundry` | 🔥 `plasma_core` | **Power** — reactors, thrusters, weapons | 80 Crystal + 80 Obsidian |
+| Frozen | `cryo_refinery` | 🔌 `superconductor` | **Control** — computing, sensors, targeting | 100 Crystal + 50 Cryonite |
+| Ocean | `bio_lab` | 🧬 `vital_gel` | **Life support** — crew, range, medical | 120 Metal + 40 Biomass |
+| *(any)* | `power_cell_lab` | 🔋 `power_cell` | Universal starship fuel cell | 200 Metal + 100 Crystal |
+
+> **Design note (2026-08-07).** These replaced an earlier set — `super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`. That set failed because three of the four were simply "metal or crystal, but better": they differed in origin, not in function, which made them interchangeable and left no way to write an interesting recipe. Their icons and colours also collided badly (two blue diamonds, two grey tools, three shades of blue). The replacements carry one distinct function, icon and colour each. The old names survive only in `REFINED_RENAMES` in `bootstrap.php`, which migrates existing stock.
 
 All High-Tech buildings (the four refineries plus `power_cell_lab`) are deliberately **single-level** — they are built once and never upgraded, to keep the early game simple. Conversion speed is therefore fixed at `durationBase` (`convert.php` divides by the building level, which is always 1). Throughput is tuned via `durationBase`, not via upgrades.
 
-Every recipe runs at **1800 s (30 min)** per unit and consumes a real chunk of raw material:
+Every recipe runs at **1800 s (30 min)** per unit. Refined output is deliberately slow *and* expensive — one unit is a half-hour plus roughly half of what the mines produce in that window. These are intended as pre-products for future starship construction and small orbital installations, so they are meant to accumulate slowly. All inputs still fit inside level-1 storage caps, so no recipe can soft-lock a fresh planet.
 
-| Output | Input |
-|--------|-------|
-| `super_alloy` | 150 Metal + 60 Alloy |
-| `quantum_shard` | 80 Crystal + 80 Obsidian |
-| `pure_crystal` | 100 Crystal + 50 Cryonite |
-| `nano_alloy` | 120 Metal + 40 Biomass |
-| `power_cell` | 200 Metal + 100 Crystal |
+**First consumer: `shield_generator`.** The planetary shield costs 3 / 7 / 15 Duraplate on top of its metal and crystal — plating a shield emitter is a Structure job, so it cannot be built from raw metal alone. This is the first place a refined resource gates a building rather than a ship.
 
-Refined output is deliberately slow *and* expensive — one unit is a half-hour plus roughly half of what the mines produce in that window. These are intended as pre-products for future starship construction, so they are meant to accumulate slowly. All inputs still fit inside level-1 storage caps, so no recipe can soft-lock a fresh planet.
+Consequence worth knowing: Duraplate is produced by `alloy_refinery`, which is **terrestrial only**. Until trade or freighters can move goods between planets, a volcanic, frozen or ocean colony cannot build a shield at all. That is the intended shape of the domain system — no planet is self-sufficient — but right now it reads as "unbuildable" rather than "needs an import".
+
+Planned consumers (not implemented yet): satellites (Structure + Control), repair drones (Structure + Life support), sensor buoys (Control), gun turrets (Structure + Power) and escape pods (Life support + Structure) — small builds that use the domains before large starships exist.
 
 
 ---
@@ -205,7 +206,7 @@ A rough progression arc for a single player:
 
 1. **Colony Phase** — Build up the home planet: unlock slots, raise Metal/Crystal income, balance Energy.
 2. **Expansion** — Research the Star Map in the Comm Center (global, unlocks on all planets), scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
-3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four refined resources (`super_alloy`, `quantum_shard`, `pure_crystal`, `nano_alloy`).
+3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four functional domains (`duraplate`, `plasma_core`, `superconductor`, `vital_gel`).
 4. **Contact & Diplomacy** — Research Interstellar Communication in the Comm Center, send signals to inhabited systems, negotiate Friend or Foe relationships with NPC factions and other players.
 5. **Conflict** — Hostile factions may attack; allied factions open future trade and coordination options (Phase 4+).
 

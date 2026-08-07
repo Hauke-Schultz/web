@@ -19,7 +19,7 @@ const BAR_IDS = ['population', 'metal', 'crystal', 'alloy', 'cryo', 'obsidian', 
 // High-Tech output — shown as a compact icon+count row, always visible so the
 // stock of a planet is readable at a glance. These are not produced per minute,
 // so they get no rate or storage line.
-const REFINED_IDS = ['power_cell', 'pure_crystal', 'super_alloy', 'quantum_shard', 'nano_alloy']
+const REFINED_IDS = ['power_cell', 'duraplate', 'plasma_core', 'superconductor', 'vital_gel']
 
 const visibleResources = computed(() =>
   Object.values(RESOURCES).filter(r =>

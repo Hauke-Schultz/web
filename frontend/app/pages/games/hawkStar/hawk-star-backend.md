@@ -138,12 +138,12 @@ hs_planet_resources (
   planet_id, player_id,            -- PK
   metal, crystal, population,
   alloy, obsidian, cryo, biomass,  -- planetenspezifische Rohstoffe
-  pure_crystal, super_alloy, quantum_shard, nano_alloy, power_cell,
+  duraplate, plasma_core, superconductor, vital_gel, power_cell,
   resources_computed_at DATETIME
 )
-  -- Hinweis: die Spalten red_seed/green_seed/blue_seed/white_seed/xenopilz sowie
-  --   die Tabelle hs_agriculture existieren noch in der DB, werden aber nicht mehr
-  --   genutzt (Agriculture-Tile entfernt).
+  -- Hinweis: die Agriculture-Reste wurden am 2026-08-07 vollständig entfernt —
+  --   die Spalten food/red_seed/green_seed/blue_seed/white_seed/xenopilz und
+  --   die Tabelle hs_agriculture.
 
 hs_planet_slots (planet_id, player_id, slot_index, unlocked TINYINT(1))
   -- 12 Slots pro Planet, Slot 5 startet freigeschaltet
