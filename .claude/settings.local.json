@@ -36,7 +36,8 @@
       "Bash(sed -n '131,140p' frontend/app/pages/games/hawkStar/hawk-star.md)",
       "Bash(MSYS_NO_PATHCONV=1 docker exec web-php-1 sh -c 'for f in bootstrap.php config.php game/unit/build.php; do php -l /var/www/html/api/star/$f; done')",
       "Bash(npx --no-install acorn --ecma2022 --module app/composables/useHawkStar.js)",
-      "Bash(php -l api/star/config.php)"
+      "Bash(php -l api/star/config.php)",
+      "Bash(npx nuxt *)"
     ]
   }
 }

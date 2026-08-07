@@ -45,9 +45,7 @@
       "lockedRequires": "🔒 {name} Lv{level}",
       "lockedGeneric": "🔒 Gesperrt",
       "convTitle": "⚗️ Umwandlungen",
-      "convConverting": "Wandelt um…",
       "btnConvert": "Umwandeln",
-      "convQueued": "+{n} in Warteschlange",
       "convEmptyNoRefinery": "Bau die Raffinerie um Umwandlungen freizuschalten",
       "convEmptyNoFacility": "Bau eine Hightech-Anlage um Umwandlungen freizuschalten",
       "onboarding": {

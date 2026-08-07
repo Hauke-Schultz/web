@@ -1066,7 +1066,7 @@ export const BUILDINGS = {
       },
     ],
     conversions: [
-      { input: { metal: 15, alloy: 8 }, output: { super_alloy: 1 }, durationBase: 22 },
+      { input: { metal: 150, alloy: 60 }, output: { super_alloy: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1090,7 +1090,7 @@ export const BUILDINGS = {
       },
     ],
     conversions: [
-      { input: { crystal: 8, obsidian: 8 }, output: { quantum_shard: 1 }, durationBase: 30 },
+      { input: { crystal: 80, obsidian: 80 }, output: { quantum_shard: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1114,7 +1114,7 @@ export const BUILDINGS = {
       },
     ],
     conversions: [
-      { input: { crystal: 10, cryo: 5 }, output: { pure_crystal: 1 }, durationBase: 20 },
+      { input: { crystal: 100, cryo: 50 }, output: { pure_crystal: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1138,7 +1138,7 @@ export const BUILDINGS = {
       },
     ],
     conversions: [
-      { input: { metal: 12, biomass: 4 }, output: { nano_alloy: 1 }, durationBase: 18 },
+      { input: { metal: 120, biomass: 40 }, output: { nano_alloy: 1 }, durationBase: 1800 },
     ],
   },
 
@@ -1163,7 +1163,7 @@ export const BUILDINGS = {
       },
     ],
     conversions: [
-      { input: { metal: 20, crystal: 10 }, output: { power_cell: 1 }, durationBase: 30 },
+      { input: { metal: 200, crystal: 100 }, output: { power_cell: 1 }, durationBase: 1800 },
     ],
   },
 

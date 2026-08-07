@@ -864,17 +864,6 @@ const conversionTimeForPlanet = (buildingId, recipeIndex, planetId) => {
 const conversionTime = (buildingId, recipeIndex) =>
   conversionTimeForPlanet(buildingId, recipeIndex, activePlanetId.value)
 
-// Max batch size the player can queue (based on active planet's building level)
-const conversionMaxBatch = (buildingId) => {
-  const lvl = getLevel(buildingId)
-  if (lvl >= 3) return 20
-  if (lvl >= 2) return 10
-  return 1
-}
-
-const isConversionRunning = (buildingId, recipeIndex) =>
-  conversionQueues.value.some(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex)
-
 // canConvert: checks level/lock/affordability for starting a new job
 const canConvert = (buildingId, recipeIndex) => {
   const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
@@ -1442,8 +1431,6 @@ export function useHawkStar() {
     // conversions
     conversionQueues,
     conversionTime,
-    conversionMaxBatch,
-    isConversionRunning,
     canConvert,
     startConversion,
     remainingConversionSec,

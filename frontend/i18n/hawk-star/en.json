@@ -43,9 +43,7 @@
       "lockedRequires": "🔒 {name} Lv{level}",
       "lockedGeneric": "🔒 Locked",
       "convTitle": "⚗️ Conversions",
-      "convConverting": "Converting…",
       "btnConvert": "Convert",
-      "convQueued": "+{n} queued",
       "convEmptyNoRefinery": "Build the refinery to unlock conversions",
       "convEmptyNoFacility": "Build a High-Tech facility to unlock conversions",
       "onboarding": {

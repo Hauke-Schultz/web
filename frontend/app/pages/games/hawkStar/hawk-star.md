@@ -119,6 +119,18 @@ Each planet type produces exactly **one** refined resource in its High-Tech buil
 
 All High-Tech buildings (the four refineries plus `power_cell_lab`) are deliberately **single-level** — they are built once and never upgraded, to keep the early game simple. Conversion speed is therefore fixed at `durationBase` (`convert.php` divides by the building level, which is always 1). Throughput is tuned via `durationBase`, not via upgrades.
 
+Every recipe runs at **1800 s (30 min)** per unit and consumes a real chunk of raw material:
+
+| Output | Input |
+|--------|-------|
+| `super_alloy` | 150 Metal + 60 Alloy |
+| `quantum_shard` | 80 Crystal + 80 Obsidian |
+| `pure_crystal` | 100 Crystal + 50 Cryonite |
+| `nano_alloy` | 120 Metal + 40 Biomass |
+| `power_cell` | 200 Metal + 100 Crystal |
+
+Refined output is deliberately slow *and* expensive — one unit is a half-hour plus roughly half of what the mines produce in that window. These are intended as pre-products for future starship construction, so they are meant to accumulate slowly. All inputs still fit inside level-1 storage caps, so no recipe can soft-lock a fresh planet.
+
 
 ---
 

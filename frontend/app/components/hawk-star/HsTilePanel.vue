@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RESOURCES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
@@ -37,8 +37,6 @@ const {
   // conversions
   conversionQueues,
   conversionTime,
-  conversionMaxBatch,
-  isConversionRunning,
   canConvert,
   startConversion,
   remainingConversionSec,
@@ -58,38 +56,21 @@ const hightechBuildings = computed(() => {
   return buildingsForActiveSlot.value.filter(b => BUILDINGS[b.id]?.conversions?.length > 0)
 })
 
-const queueOutputResource = (q) => {
-  const recipe = BUILDINGS[q.buildingId]?.conversions?.[q.recipeIndex]
-  if (!recipe) return null
-  const resId = Object.keys(recipe.output)[0]
-  return RESOURCES[resId] ?? null
-}
-
-// Per-planet queues for all active hightech buildings in this slot
-const activeConversionQueues = computed(() => {
-  const ids = new Set(hightechBuildings.value.map(b => b.id))
-  return conversionQueues.value.filter(q => ids.has(q.buildingId))
-})
-
+// Only facilities that actually stand on the planet offer a recipe.
 const availableConversions = computed(() =>
-  hightechBuildings.value.flatMap(b => {
-    const lvl = getLevel(b.id)
-    return (BUILDINGS[b.id]?.conversions ?? []).map((recipe, index) => ({
+  hightechBuildings.value
+    .filter(b => getLevel(b.id) > 0)
+    .flatMap(b => (BUILDINGS[b.id]?.conversions ?? []).map((recipe, index) => ({
       ...recipe,
       index,
       buildingId: b.id,
-      unlocked: !recipe.requiresLevel || lvl >= recipe.requiresLevel,
-    }))
-  })
+      key: `${b.id}_${index}`,
+    })))
 )
 
-// Per-recipe batch count selection (keyed by "buildingId_recipeIndex")
-const conversionCounts = ref({})
-const getConversionCount = (bId, idx) => conversionCounts.value[`${bId}_${idx}`] ?? 1
-const setConversionCount = (bId, idx, val) => {
-  const max = conversionMaxBatch(bId)
-  conversionCounts.value[`${bId}_${idx}`] = Math.min(Math.max(1, Math.floor(val)), max)
-}
+// The running job for a recipe, if any — drives the fill inside its button.
+const queueFor = (buildingId, recipeIndex) =>
+  conversionQueues.value.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex) ?? null
 
 </script>
 
@@ -241,31 +222,12 @@ const setConversionCount = (bId, idx, val) => {
     <div v-if="isHightechTile && hightechBuildings.length" class="hs-conv-section">
       <div class="hs-conv-section-title">{{ t('hawkStar.tile.convTitle') }}</div>
 
-      <!-- Active conversion queues (one row per running job) -->
-      <div
-        v-for="q in activeConversionQueues"
-        :key="`${q.buildingId}_${q.recipeIndex}`"
-        class="hs-conv-queue-row"
-      >
-        <div class="hs-conv-queue-bar" :style="conversionProgressStyle(q)" />
-        <span class="hs-conv-queue-icon">{{ queueOutputResource(q)?.icon }}</span>
-        <span class="hs-conv-queue-name">{{ queueOutputResource(q) ? t('hawkStar.res.' + queueOutputResource(q).id) : '' }}</span>
-        <span class="hs-conv-queue-label">{{ t('hawkStar.tile.convConverting') }}</span>
-        <span class="hs-conv-queue-time">{{ formatTime(remainingConversionSec(q)) }}</span>
-        <span v-if="q.remaining > 0" class="hs-conv-queue-remaining">{{ t('hawkStar.tile.convQueued', { n: q.remaining }) }}</span>
-      </div>
-
       <div v-if="availableConversions.length === 0" class="hs-conv-empty">
         {{ t('hawkStar.tile.convEmptyNoRefinery') }}
       </div>
 
       <div class="hs-conv-list">
-        <div
-          v-for="recipe in availableConversions"
-          :key="recipe.index"
-          class="hs-conv-row"
-          :class="{ 'hs-conv-row--locked': !recipe.unlocked }"
-        >
+        <div v-for="recipe in availableConversions" :key="recipe.key" class="hs-conv-row">
           <!-- Input → Output -->
           <div class="hs-conv-formula">
             <span
@@ -282,27 +244,31 @@ const setConversionCount = (bId, idx, val) => {
             >{{ RESOURCES[resId]?.icon }} {{ t('hawkStar.res.' + resId) }}</span>
           </div>
 
-          <!-- Duration + action -->
-          <div class="hs-conv-action">
-            <template v-if="!recipe.unlocked">
-              <span class="hs-conv-locked">🔒 Lv{{ recipe.requiresLevel }}</span>
-            </template>
-            <template v-else>
-              <span class="hs-conv-time">⏱ {{ formatTime(conversionTime(recipe.buildingId, recipe.index)) }}</span>
-              <!-- Batch size stepper (only shown at Lv2+) -->
-              <div v-if="conversionMaxBatch(recipe.buildingId) > 1" class="hs-stepper hs-stepper--conv">
-                <button class="hs-stepper__btn" :disabled="getConversionCount(recipe.buildingId, recipe.index) <= 1" @click="setConversionCount(recipe.buildingId, recipe.index, getConversionCount(recipe.buildingId, recipe.index) - 1)">−</button>
-                <span class="hs-stepper__val">{{ getConversionCount(recipe.buildingId, recipe.index) }}</span>
-                <button class="hs-stepper__btn" :disabled="getConversionCount(recipe.buildingId, recipe.index) >= conversionMaxBatch(recipe.buildingId)" @click="setConversionCount(recipe.buildingId, recipe.index, getConversionCount(recipe.buildingId, recipe.index) + 1)">+</button>
-              </div>
-              <button
-                class="hs-btn-convert"
-                :class="{ 'hs-btn-convert--disabled': !isConversionRunning(recipe.buildingId, recipe.index) && !canConvert(recipe.buildingId, recipe.index) }"
-                :disabled="!isConversionRunning(recipe.buildingId, recipe.index) && !canConvert(recipe.buildingId, recipe.index)"
-                @click="startConversion(recipe.buildingId, recipe.index, getConversionCount(recipe.buildingId, recipe.index))"
-              >{{ isConversionRunning(recipe.buildingId, recipe.index) ? '+' + getConversionCount(recipe.buildingId, recipe.index) : t('hawkStar.tile.btnConvert') }}</button>
-            </template>
-          </div>
+          <!-- One button. It fills up while the job runs and shows the time left. -->
+          <button
+            class="hs-btn-convert"
+            :class="{ 'hs-btn-convert--running': queueFor(recipe.buildingId, recipe.index) }"
+            :disabled="!canConvert(recipe.buildingId, recipe.index)"
+            @click="startConversion(recipe.buildingId, recipe.index, 1)"
+          >
+            <span
+              v-if="queueFor(recipe.buildingId, recipe.index)"
+              class="hs-btn-convert__fill"
+              :style="conversionProgressStyle(queueFor(recipe.buildingId, recipe.index))"
+            />
+            <span class="hs-btn-convert__label">
+              <template v-if="queueFor(recipe.buildingId, recipe.index)">
+                {{ formatTime(remainingConversionSec(queueFor(recipe.buildingId, recipe.index))) }}
+                <span v-if="queueFor(recipe.buildingId, recipe.index).remaining > 0" class="hs-btn-convert__queued">
+                  +{{ queueFor(recipe.buildingId, recipe.index).remaining }}
+                </span>
+              </template>
+              <template v-else>
+                ⚡ {{ t('hawkStar.tile.btnConvert') }}
+                <span class="hs-btn-convert__dur">{{ formatTime(conversionTime(recipe.buildingId, recipe.index)) }}</span>
+              </template>
+            </span>
+          </button>
         </div>
       </div>
     </div>
@@ -505,60 +471,6 @@ const setConversionCount = (bId, idx, val) => {
 
 .hs-empty { text-align: center; padding: 1.5rem; opacity: 0.25; font-size: 0.875rem; }
 
-// ── Stepper control (shared) ──────────────────────────────────────────────────
-.hs-stepper {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  border: 1px solid var(--hs-line-sm);
-  border-radius: 6px;
-  overflow: hidden;
-
-  &--conv {
-    border-color: rgba(139,92,246,0.3);
-  }
-}
-
-.hs-stepper__btn {
-  flex-shrink: 0;
-  width: 1.5rem;
-  height: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--hs-glass-lg);
-  border: none;
-  color: rgba(255,255,255,0.7);
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-  user-select: none;
-
-  &:hover:not(:disabled) { background: var(--hs-glass-xl); color: #fff; }
-  &:disabled { opacity: 0.25; cursor: not-allowed; }
-
-  .hs-stepper--conv & { width: 1.4rem; height: 1.4rem; font-size: 0.8rem; }
-}
-
-.hs-stepper__val {
-  flex: 1;
-  text-align: center;
-  font-size: 0.65rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--hs-glass-sm);
-  padding: 0 2px;
-  line-height: 1.5rem;
-  min-width: 1.5rem;
-
-  .hs-stepper--conv & {
-    font-size: 0.6rem;
-    line-height: 1.4rem;
-    color: rgba(167,139,250,0.9);
-  }
-}
-
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
@@ -582,42 +494,6 @@ const setConversionCount = (bId, idx, val) => {
   text-transform: uppercase;
 }
 
-.hs-conv-queue-row {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.625rem;
-  border-radius: var(--hs-r-md);
-  border: 1px solid rgba(139,92,246,0.3);
-  background: rgba(139,92,246,0.07);
-  font-size: 0.65rem;
-}
-
-.hs-conv-queue-bar {
-  position: absolute;
-  bottom: 0; left: 0;
-  height: 2px;
-  background: rgba(139,92,246,0.6);
-}
-
-.hs-conv-queue-icon  { font-size: 0.875rem; }
-.hs-conv-queue-name  { font-weight: 600; color: rgba(167,139,250,0.95); flex: 1; }
-.hs-conv-queue-label { color: rgba(167,139,250,0.6); font-style: italic; }
-.hs-conv-queue-time  {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: rgba(167,139,250,0.95);
-  flex-shrink: 0;
-}
-.hs-conv-queue-remaining {
-  font-size: 0.55rem;
-  color: rgba(167,139,250,0.6);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 .hs-conv-list { display: flex; flex-direction: column; gap: 0.375rem; }
 
 .hs-conv-row {
@@ -628,9 +504,6 @@ const setConversionCount = (bId, idx, val) => {
   border: 1px solid var(--hs-line-sm);
   border-radius: var(--hs-r-md);
   padding: 0.5rem 0.6rem;
-  transition: opacity 0.2s;
-
-  &--locked { opacity: 0.4; }
 }
 
 .hs-conv-formula {
@@ -653,27 +526,6 @@ const setConversionCount = (bId, idx, val) => {
 
 .hs-conv-arrow { font-size: 0.7rem; opacity: 0.4; }
 
-.hs-conv-action {
-  flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-}
-
-.hs-conv-time {
-  font-size: 0.6rem;
-  color: rgba(255,255,255,0.35);
-  white-space: nowrap;
-}
-
-
-.hs-conv-locked {
-  font-size: 0.62rem;
-  color: rgba(255,255,255,0.2);
-  white-space: nowrap;
-}
-
 .hs-conv-empty {
   text-align: center;
   padding: 0.75rem;
@@ -682,8 +534,13 @@ const setConversionCount = (bId, idx, val) => {
   font-style: italic;
 }
 
+// The button doubles as the progress bar: __fill grows underneath the label.
 .hs-btn-convert {
-  padding: 0.3rem 0.65rem;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  min-width: 7.5rem;
+  padding: 0.4rem 0.7rem;
   border-radius: var(--hs-r-sm);
   font-size: 0.72rem;
   font-weight: 700;
@@ -699,9 +556,46 @@ const setConversionCount = (bId, idx, val) => {
     border-color: rgba(139,92,246,0.7);
   }
 
-  &--disabled, &:disabled {
+  &:active:not(:disabled) { transform: translateY(1px); }
+
+  &:disabled {
     opacity: 0.35;
     cursor: not-allowed;
   }
+
+  // While a job runs the button stays clickable to queue another one
+  &--running {
+    border-color: rgba(139,92,246,0.7);
+    &:disabled { opacity: 0.6; }
+  }
+}
+
+.hs-btn-convert__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(139,92,246,0.35);
+  transition: width 0.4s linear;
+  pointer-events: none;
+}
+
+.hs-btn-convert__label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-btn-convert__dur {
+  font-weight: 500;
+  opacity: 0.5;
+}
+
+.hs-btn-convert__queued {
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(167,139,250,0.25);
+  font-size: 0.6rem;
 }
 </style>
