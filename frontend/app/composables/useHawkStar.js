@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, CARGO } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -88,6 +88,10 @@ const freshDock = () => ({
   colonyShipInventory:    0,
   colonyShipBuild:        null,
   activeColonyMissions:   [],
+  cargoDroneInventory:    0,
+  cargoDroneBuild:        null,
+  activeCargoMissions:    [],   // outbound legs — one entry per target planet
+  returningCargoMissions: [],   // empty return legs — target is this planet
 })
 
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
@@ -735,6 +739,184 @@ const colonyShipBuildProgressStyle = computed(() => {
   return { width: `${pct}%` }
 })
 
+// ── Cargo Drone (goods transfer between planets) ───────────
+// Resources are stored per planet and the refined goods are planet-type
+// exclusive, so a frozen colony can never make Duraplate itself. The cargo drone
+// is the first way to move goods — one per planet, four items per run, one-way
+// delivery followed by an automatic empty return flight.
+
+// Shares the drone hangar with the recon drone
+const cargoDroneLevel = computed(() => playerBuildings.value['drone_hangar']?.level ?? 0)
+
+const cargoDroneInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.cargoDroneInventory ?? 0)
+const cargoDroneBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.cargoDroneBuild ?? null)
+const activeCargoMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeCargoMissions ?? [])
+const allActiveCargoMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeCargoMissions ?? []))
+const returningCargoMission  = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.returningCargoMissions?.[0] ?? null)
+
+// null when this planet has no cargo drone at all — that is what the UI uses to
+// decide between showing a build button and showing the loading picker.
+const cargoState = computed(() => allPlanetStates.value[activePlanetId.value]?.cargo ?? null)
+
+const cargoManifest = computed(() => cargoState.value?.cargo ?? {})
+const cargoLoaded   = computed(() => Object.values(cargoManifest.value).reduce((a, b) => a + b, 0))
+const cargoCapacity = CARGO.capacity
+const cargoLoadable = CARGO.loadable
+
+// A drone exists once it is in production — the planet's slot is taken from then
+// on, so no second one can be queued.
+const hasCargoDrone = computed(() => !!cargoState.value || !!cargoDroneBuild.value)
+
+// Loadable only with the hold record actually in hand — right after a build
+// completes the inventory is already 1 locally while the manifest is still being
+// fetched, and the picker must not open on a hold it cannot write to.
+const cargoDroneReady = computed(() =>
+  cargoDroneInventory.value > 0 && !!cargoState.value && !cargoState.value.missionId
+)
+
+const cargoBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.cargo_drone.buildTimeBase * buildTimeFactor.value)
+)
+
+const cargoFlightTimeBetween = (fromId, toId) => {
+  const ps = homeSystem.value?.planets ?? []
+  const fi = ps.findIndex(p => p.id === fromId)
+  const ti = ps.findIndex(p => p.id === toId)
+  return Math.ceil(3600 * Math.max(1, Math.abs(fi - ti)))
+}
+
+const canBuildCargoDrone = computed(() =>
+  cargoDroneLevel.value > 0 &&
+  !hasCargoDrone.value &&
+  canAfford(UNIT_COSTS.cargo_drone.cost)
+)
+
+const buildCargoDrone = async () => {
+  if (!canBuildCargoDrone.value) return
+  const planetId = activePlanetId.value
+  const dock = allPlanetStates.value[planetId]?.dock
+  if (!dock) return
+  buildError.value = ''
+  const { postUnitBuild } = useHawkStarApi()
+  try {
+    const result = await postUnitBuild(planetId, 'cargo_drone')
+    const res = allPlanetStates.value[planetId].resources
+    for (const [r, amt] of Object.entries(UNIT_COSTS.cargo_drone.cost)) {
+      res[r] = Math.max(0, (res[r] ?? 0) - amt)
+    }
+    dock.cargoDroneBuild = { endsAt: result.endsAt, startedAt: result.buildStartedAt ?? Date.now() }
+  } catch (e) {
+    buildError.value = e.message
+  }
+}
+
+const cargoBuildProgressStyle = computed(() => {
+  const build = cargoDroneBuild.value
+  if (!build) return {}
+  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
+  return { width: `${pct}%` }
+})
+
+// A `+` is blocked by a full hold or by an empty stock on the planet — the goods
+// leave the planet the moment they go aboard.
+const canLoadMore = (res) =>
+  cargoDroneReady.value &&
+  cargoLoaded.value < cargoCapacity &&
+  (playerResources.value[res] ?? 0) >= 1
+
+// Writes the whole manifest, so this covers +1, −1 and "unload all" alike.
+// Optimistic: the item moves between planet and hold right away, the server
+// response is the correction.
+const setCargo = async (manifest) => {
+  const planetId = activePlanetId.value
+  const st = allPlanetStates.value[planetId]
+  if (!st?.cargo) return
+
+  const before = { ...(st.cargo.cargo ?? {}) }
+  const target = Object.fromEntries(Object.entries(manifest).filter(([, n]) => n > 0))
+  if (Object.values(target).reduce((a, b) => a + b, 0) > cargoCapacity) return
+
+  for (const res of cargoLoadable) {
+    const diff = (target[res] ?? 0) - (before[res] ?? 0)
+    if (diff) st.resources[res] = Math.max(0, (st.resources[res] ?? 0) - diff)
+  }
+  st.cargo = { ...st.cargo, cargo: target, total: Object.values(target).reduce((a, b) => a + b, 0) }
+
+  buildError.value = ''
+  const { postCargoLoad } = useHawkStarApi()
+  try {
+    const result = await postCargoLoad(planetId, target)
+    st.cargo = { ...st.cargo, cargo: result.cargo ?? {}, total: result.total ?? 0 }
+  } catch (e) {
+    buildError.value = e.message
+    await refreshPlanetState(planetId)   // reconcile with the server on failure
+  }
+}
+
+const loadCargo   = (res) => canLoadMore(res)
+  ? setCargo({ ...cargoManifest.value, [res]: (cargoManifest.value[res] ?? 0) + 1 })
+  : undefined
+const unloadCargo = (res) => (cargoManifest.value[res] ?? 0) > 0
+  ? setCargo({ ...cargoManifest.value, [res]: cargoManifest.value[res] - 1 })
+  : undefined
+const unloadAllCargo = () => cargoLoaded.value > 0 ? setCargo({}) : undefined
+
+// Ownership is deliberately not a condition — foreign and uncolonized planets are
+// valid destinations. The only gate is that the planet is known: scanned by a
+// recon drone, or owned (your own home planet is never scanned by your drones).
+const isCargoTarget = (planetId) =>
+  cargoDroneLevel.value > 0 &&
+  planetId !== activePlanetId.value &&
+  (playerScannedPlanets.value.includes(planetId) || playerColonizedPlanets.value.includes(planetId)) &&
+  !activeCargoMissions.value.length &&
+  !returningCargoMission.value
+
+const canSendCargo = (planetId) =>
+  cargoDroneReady.value && cargoLoaded.value > 0 && isCargoTarget(planetId)
+
+const sendCargoDrone = async (planetId, fromPlanetId) => {
+  if (!canSendCargo(planetId)) return
+  const fromId = fromPlanetId ?? activePlanetId.value
+  buildError.value = ''
+  const { postCargoMission } = useHawkStarApi()
+  try {
+    const result = await postCargoMission(fromId, planetId)
+    const st   = allPlanetStates.value[fromId]
+    const dock = st?.dock
+    if (dock) {
+      dock.activeCargoMissions.push({ planetId, endsAt: result.endsAt })
+      dock.cargoDroneInventory = Math.max(0, dock.cargoDroneInventory - 1)
+    }
+    if (st?.cargo) st.cargo = { ...st.cargo, missionId: result.missionId }
+  } catch (e) {
+    buildError.value = e.message
+  }
+}
+
+const remainingCargoSec = (planetId) => {
+  const m = allActiveCargoMissions.value.find(m => m.planetId === planetId)
+  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
+}
+
+const remainingCargoReturnSec = computed(() => {
+  const m = returningCargoMission.value
+  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
+})
+
+const cargoProgressStyle = (planetId) => {
+  const m = allActiveCargoMissions.value.find(m => m.planetId === planetId)
+  if (!m) return {}
+  return { animationDuration: `${cargoFlightTimeBetween(activePlanetId.value, planetId)}s` }
+}
+
+// The return leg flies the same distance back — its mission entry carries the
+// planet it is coming FROM, so the duration is measured against that.
+const cargoReturnProgressStyle = computed(() => {
+  const m = returningCargoMission.value
+  if (!m) return {}
+  return { animationDuration: `${cargoFlightTimeBetween(activePlanetId.value, m.planetId)}s` }
+})
+
 // Helper: storage caps for any planet (used when delivering cargo)
 const maxStorageForPlanet = (planetId) => {
   const pb = allPlanetStates.value[planetId]?.buildings ?? {}
@@ -1038,6 +1220,36 @@ const tick = () => {
           dock.activeColonyMissions.splice(i, 1)
         }
       }
+      // Cargo drone build
+      if (dock.cargoDroneBuild && dock.cargoDroneBuild.endsAt <= now.value) {
+        dock.cargoDroneInventory += 1
+        dock.cargoDroneBuild = null
+        // The hold only exists once the drone does — pull it in from the server
+        if (!pstate.cargo) refreshPlanetState(pid).catch(() => {})
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_cargo`, type: 'unit_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.cargoReady', timestamp: Date.now() })
+      }
+      // Cargo delivery arrived → the server unloads and starts the return leg,
+      // so pull the truth in rather than guessing at it locally.
+      for (let i = dock.activeCargoMissions.length - 1; i >= 0; i--) {
+        const m = dock.activeCargoMissions[i]
+        if (m.endsAt <= now.value) {
+          const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_cargo_${m.planetId}`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.cargoDelivered', details: `→ ${tgt}`, timestamp: Date.now() })
+          dock.activeCargoMissions.splice(i, 1)
+          refreshPlanetState(pid).catch(() => {})
+          // The goods landed on the target planet — refresh it too if we hold it
+          if (allPlanetStates.value[m.planetId]) refreshPlanetState(m.planetId).catch(() => {})
+        }
+      }
+      // Empty return leg landed → the drone is back in the dock
+      for (let i = dock.returningCargoMissions.length - 1; i >= 0; i--) {
+        const m = dock.returningCargoMissions[i]
+        if (m.endsAt <= now.value) {
+          notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_cargo_back`, type: 'mission_done', icon: '📦', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.cargoReturned', timestamp: Date.now() })
+          dock.returningCargoMissions.splice(i, 1)
+          refreshPlanetState(pid).catch(() => {})
+        }
+      }
     }
     const pb = pstate.buildings
     const pr = pstate.resources
@@ -1152,11 +1364,21 @@ const applyGameState = (planetId, state) => {
   }
   const drone  = unitState('recon_drone')
   const colony = unitState('colony_ship')
+  const cargo  = unitState('cargo_drone')
 
   const droneMissions  = (state.missions ?? []).filter(m => m.type === 'recon_drone')
     .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
   const colonyMissions = (state.missions ?? []).filter(m => m.type === 'colony_ship')
     .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+
+  // A cargo run is two mission rows: the loaded outbound leg and the empty return
+  // leg created on arrival. Only the outbound one points at a destination.
+  const cargoOut = (state.missions ?? [])
+    .filter(m => m.type === 'cargo_drone' && m.leg !== 'back' && m.fromPlanetId === planetId)
+    .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+  const cargoBack = (state.missions ?? [])
+    .filter(m => m.type === 'cargo_drone' && m.leg === 'back' && m.toPlanetId === planetId)
+    .map(m => ({ planetId: m.fromPlanetId, endsAt: m.endsAt }))
 
   const convQueues = (state.conversionQueues ?? []).map(q => ({
     buildingId: q.buildingKey, recipeIndex: q.recipeIndex,
@@ -1176,10 +1398,16 @@ const applyGameState = (planetId, state) => {
       colonyShipInventory:  colony.quantity,
       colonyShipBuild:      colony.build,
       activeColonyMissions: colonyMissions,
+      cargoDroneInventory:  cargo.quantity,
+      cargoDroneBuild:      cargo.build,
+      activeCargoMissions:  cargoOut,
+      returningCargoMissions: cargoBack,
     },
     conversionQueues: convQueues,
     battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
     recruit: state.recruit ? { ...state.recruit, syncedAt: Date.now() } : null,
+    // null when the planet has never built a cargo drone
+    cargo: state.cargo ? { ...state.cargo, cargo: { ...(state.cargo.cargo ?? {}) } } : null,
   }
 
   globalResearch.value = { ...globalResearch.value, ...state.globalResearch }
@@ -1417,6 +1645,36 @@ export function useHawkStar() {
     colonyProgressStyle,
     colonyShipBuildProgressStyle,
     colonyFlightTimeBetween,
+    // cargo drone
+    cargoDroneLevel,
+    cargoDroneInventory,
+    cargoDroneBuild,
+    cargoDroneReady,
+    hasCargoDrone,
+    cargoState,
+    cargoManifest,
+    cargoLoaded,
+    cargoCapacity,
+    cargoLoadable,
+    cargoBuildTime,
+    canBuildCargoDrone,
+    buildCargoDrone,
+    cargoBuildProgressStyle,
+    canLoadMore,
+    loadCargo,
+    unloadCargo,
+    unloadAllCargo,
+    isCargoTarget,
+    canSendCargo,
+    sendCargoDrone,
+    activeCargoMissions,
+    allActiveCargoMissions,
+    returningCargoMission,
+    remainingCargoSec,
+    remainingCargoReturnSec,
+    cargoProgressStyle,
+    cargoReturnProgressStyle,
+    cargoFlightTimeBetween,
     getPlanetName,
     getPlanetResources,
     planetHasDock,

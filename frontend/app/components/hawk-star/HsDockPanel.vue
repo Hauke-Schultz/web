@@ -31,6 +31,24 @@ const {
   colonyShipInventory,
   colonyShipBuildTime,
   colonyShipBuildProgressStyle,
+  // cargo drone — shares the drone hangar with the recon drone
+  cargoDroneLevel,
+  canBuildCargoDrone,
+  buildCargoDrone,
+  cargoDroneBuild,
+  cargoDroneInventory,
+  cargoDroneReady,
+  hasCargoDrone,
+  cargoLoaded,
+  cargoCapacity,
+  cargoBuildTime,
+  cargoBuildProgressStyle,
+  activeCargoMissions,
+  remainingCargoSec,
+  cargoProgressStyle,
+  returningCargoMission,
+  remainingCargoReturnSec,
+  cargoReturnProgressStyle,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -41,7 +59,10 @@ const getPlanetLabel = (planetId) => {
 }
 
 const hasMissions = computed(() =>
-  activeDroneMissions.value.length || activeColonyMissions.value.length
+  activeDroneMissions.value.length ||
+  activeColonyMissions.value.length ||
+  activeCargoMissions.value.length ||
+  !!returningCargoMission.value
 )
 </script>
 
@@ -95,6 +116,57 @@ const hasMissions = computed(() =>
                 @click="buildReconDrone"
               >{{ t('hawkStar.tile.btnBuild') }}</button>
               <span class="hs-build-time">⏱ {{ formatTime(droneBuildTime) }}</span>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Cargo Drone — same facility as the recon drone, but limited to one per
+           planet in existence, so there is no build button once one is around. -->
+      <div class="hs-building-row">
+        <div class="hs-building-icon-wrap">
+          <span class="hs-building-icon">📦</span>
+          <span v-if="cargoDroneInventory > 0" class="hs-building-badge hs-building-badge--cargo">{{ cargoDroneInventory }}</span>
+        </div>
+        <div class="hs-building-info">
+          <div class="hs-building-name">{{ t('hawkStar.dock.cargoDrone') }}</div>
+          <div class="hs-building-effect">{{ t('hawkStar.dock.cargoDroneDesc') }}</div>
+          <div v-if="cargoDroneLevel > 0 && !hasCargoDrone" class="hs-cost-row">
+            <span
+              v-for="(amt, resId) in UNIT_COSTS.cargo_drone.cost"
+              :key="resId"
+              class="hs-cost-tag"
+              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+          </div>
+          <div v-if="cargoDroneReady" class="hs-cargo-hold">
+            {{ t('hawkStar.solar.cargoHold') }} {{ cargoLoaded }} / {{ cargoCapacity }} ·
+            {{ t('hawkStar.dock.launchFromSystemMap') }}
+          </div>
+          <div v-else-if="hasCargoDrone && !cargoDroneBuild" class="hs-cargo-hold">
+            {{ t('hawkStar.solar.cargoOnePerPlanet') }}
+          </div>
+        </div>
+        <div class="hs-building-action">
+          <span v-if="cargoDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
+          <template v-else-if="cargoDroneBuild">
+            <div class="hs-build-progress-wrap">
+              <div class="hs-progress-track">
+                <div class="hs-progress-fill hs-progress-fill--cargo" :style="cargoBuildProgressStyle" />
+              </div>
+              <span class="hs-progress-time">{{ formatTime(Math.ceil((cargoDroneBuild.endsAt - Date.now()) / 1000)) }}</span>
+            </div>
+          </template>
+          <span v-else-if="hasCargoDrone" class="hs-status-ready">{{ t('hawkStar.dock.unitReady') }}</span>
+          <template v-else>
+            <div class="hs-btn-wrap">
+              <button
+                class="hs-btn-build"
+                :class="{ 'hs-btn-build--disabled': !canBuildCargoDrone }"
+                :disabled="!canBuildCargoDrone"
+                @click="buildCargoDrone"
+              >{{ t('hawkStar.tile.btnBuild') }}</button>
+              <span class="hs-build-time">⏱ {{ formatTime(cargoBuildTime) }}</span>
             </div>
           </template>
         </div>
@@ -178,10 +250,36 @@ const hasMissions = computed(() =>
           </div>
         </div>
       </div>
+      <!-- Outbound delivery -->
+      <div v-for="m in activeCargoMissions" :key="`cargo-${m.planetId}`" class="hs-dock-mission-row">
+        <span class="hs-dock-mission-icon">📦</span>
+        <div class="hs-dock-mission-info">
+          <span class="hs-dock-mission-label">Cargo → {{ getPlanetLabel(m.planetId) }}</span>
+          <div class="hs-progress-row">
+            <div class="hs-progress-track">
+              <div class="hs-progress-fill hs-progress-fill--cargo" :key="m.endsAt" :style="cargoProgressStyle(m.planetId)" />
+            </div>
+            <span class="hs-progress-time">{{ formatTime(remainingCargoSec(m.planetId)) }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- Empty return flight -->
+      <div v-if="returningCargoMission" class="hs-dock-mission-row">
+        <span class="hs-dock-mission-icon">📦</span>
+        <div class="hs-dock-mission-info">
+          <span class="hs-dock-mission-label">Cargo ← {{ getPlanetLabel(returningCargoMission.planetId) }}</span>
+          <div class="hs-progress-row">
+            <div class="hs-progress-track">
+              <div class="hs-progress-fill hs-progress-fill--cargo" :key="returningCargoMission.endsAt" :style="cargoReturnProgressStyle" />
+            </div>
+            <span class="hs-progress-time">{{ formatTime(remainingCargoReturnSec) }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Empty missions hint -->
-    <p v-else-if="reconDroneLevel > 0 || colonyShipLevel > 0" class="hs-dock-hint">
+    <p v-else-if="reconDroneLevel > 0 || colonyShipLevel > 0 || cargoDroneLevel > 0" class="hs-dock-hint">
       {{ t('hawkStar.dock.launchFromSystemMap') }}
     </p>
 
@@ -261,6 +359,7 @@ const hasMissions = computed(() =>
   line-height: 1;
 
   &--colony { background: #60a5fa; }
+  &--cargo  { background: #fbbf24; }
 }
 .hs-building-info   { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hs-building-name   { font-size: 0.825rem; font-weight: 600; display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; }
@@ -284,6 +383,13 @@ const hasMissions = computed(() =>
 }
 
 .hs-status-locked { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
+.hs-status-ready  { font-size: 0.68rem; font-weight: 700; color: rgba(251,191,36,0.9);  white-space: nowrap; text-align: right; }
+
+.hs-cargo-hold {
+  font-size: 0.62rem;
+  color: rgba(251,191,36,0.6);
+  margin-top: 3px;
+}
 
 .hs-btn-wrap {
   display: flex;
@@ -333,6 +439,7 @@ const hasMissions = computed(() =>
 
 .hs-progress-fill--unit   { background: #f59e0b; }
 .hs-progress-fill--colony { background: #60a5fa; }
+.hs-progress-fill--cargo  { background: #fbbf24; }
 
 .hs-dock-missions {
   border-top: 1px solid rgba(255,255,255,0.06);

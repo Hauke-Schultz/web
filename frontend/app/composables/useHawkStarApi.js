@@ -25,6 +25,10 @@ export function useHawkStarApi() {
     postUnitBuild:     (planetId, unitKey)            => post('/game/unit/build',      { planetId, unitKey }),
     postDroneMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/drone',   { fromPlanetId, toPlanetId }),
     postColonyMission: (fromPlanetId, toPlanetId)     => post('/game/mission/colony',  { fromPlanetId, toPlanetId }),
+    postCargoMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/cargo',   { fromPlanetId, toPlanetId }),
+    // Sends the FULL desired manifest, not a delta — the server diffs it against
+    // the stored hold, so `{}` means "unload everything".
+    postCargoLoad:     (planetId, cargo)              => post('/game/cargo/load',      { planetId, cargo }),
     getMissions:       ()                              => apiFetch('/game/missions'),
     fetchContacts:     ()                              => apiFetch('/galaxy/contacts'),
     postScanSystem:    (systemId)                      => post('/galaxy/scan',          { systemId }),

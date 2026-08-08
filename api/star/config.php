@@ -14,7 +14,20 @@ const UNIT_COSTS = [
     // the settlers board it and leave with the ship.
     // The power_cell gates expansion behind the laboratory → power_cell_lab branch.
     'colony_ship' => ['facility' => 'shipyard', 'cost' => ['metal' => 300, 'crystal' => 150, 'power_cell' => 1], 'crew' => 6, 'buildTimeBase' => 21600, 'flightTimeBase' => 7200],
+    // One per planet (see CARGO_* below) — the only way to move goods between
+    // planets. flightTimeBase applies to each leg, so a neighbour is 1 h out, 1 h back.
+    'cargo_drone' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 120, 'crystal' => 60, 'power_cell' => 2], 'buildTimeBase' => 5400, 'flightTimeBase' => 3600],
 ];
+
+// ── Cargo drone ───────────────────────────────────────────────────────────────
+// Only high-tech goods can be shipped. Raw resources are deliberately excluded:
+// they are the ones with a storageCapacity, and compute_resources() clamps stored
+// values to their cap on every tick — an overshooting delivery would silently
+// evaporate. Keeping the hold to uncapped goods removes the problem entirely.
+const CARGO_LOADABLE = ['power_cell', 'duraplate', 'plasma_core', 'superconductor', 'vital_gel'];
+
+// Four single items, freely mixed — not four stacks.
+const CARGO_CAPACITY = 4;
 
 const GLOBAL_BUILDINGS = ['star_map', 'interstellar_comm'];
 

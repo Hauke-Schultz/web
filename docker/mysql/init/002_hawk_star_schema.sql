@@ -140,15 +140,30 @@ CREATE TABLE IF NOT EXISTS hs_units (
   PRIMARY KEY (planet_id, player_id, unit_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- `leg` only applies to cargo_drone: 'out' = delivery, 'back' = the empty return
+-- flight. Every other mission type is one-way and leaves it NULL.
 CREATE TABLE IF NOT EXISTS hs_missions (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   player_id      INT NOT NULL,
-  type           ENUM('recon_drone','colony_ship') NOT NULL,
+  type           ENUM('recon_drone','colony_ship','cargo_drone') NOT NULL,
   from_planet_id INT NULL REFERENCES hs_planets(id),
   to_planet_id   INT NULL REFERENCES hs_planets(id),
   ends_at        DATETIME NOT NULL,
   status         ENUM('in_flight','done') DEFAULT 'in_flight',
+  leg            VARCHAR(8) NULL,
   created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per cargo drone in existence, keyed by its home planet. The row is
+-- created when the drone is built and never deleted — that is what enforces the
+-- "one cargo drone per planet" rule across production, dock and flight.
+-- `cargo` is the JSON manifest, `mission_id` the flight it is currently on.
+CREATE TABLE IF NOT EXISTS hs_cargo (
+  planet_id  INT NOT NULL,
+  player_id  INT NOT NULL,
+  cargo      TEXT NULL,
+  mission_id INT NULL,
+  PRIMARY KEY (planet_id, player_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS hs_conversion_queues (

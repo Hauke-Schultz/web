@@ -25,6 +25,18 @@ export const UNIT_COSTS = {
   // crew: free workers that board the ship when it is built (gone from the planet)
   // power_cell gates expansion behind the laboratory → power_cell_lab branch
   colony_ship:  { facility: 'shipyard', cost: { metal: 300, crystal: 150, power_cell: 1 }, crew: 6, buildTimeBase: 21600 },
+  // One per planet — the only way to move goods between planets. Each leg takes
+  // flightTimeBase × distance, so a neighbour is 1 h out and 1 h back.
+  cargo_drone:  { facility: 'drone_hangar', cost: { metal: 120, crystal: 60, power_cell: 2 }, buildTimeBase: 5400 },
+}
+
+// ── Cargo drone ───────────────────────────────────────────────────────────────
+// Only high-tech goods can be shipped — raw resources are the capped ones, and a
+// delivery overshooting a storage cap would be clamped away. Mirrors CARGO_* in
+// api/star/config.php.
+export const CARGO = {
+  capacity: 4,   // single items, freely mixed — not four stacks
+  loadable: ['power_cell', 'duraplate', 'plasma_core', 'superconductor', 'vital_gel'],
 }
 
 // ── Power battery (grid-uptime mechanic) ──────────────────────────────────────

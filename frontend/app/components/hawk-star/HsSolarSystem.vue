@@ -19,6 +19,7 @@ const {
   isColonyTarget, canSendColonyShip, sendColonyShip,
   remainingColonySec, colonyProgressStyle,
   colonyFlightTimeBetween,
+  allActiveCargoMissions,
   homeSystem, homePlanetId,
   activePlanetId, setActivePlanet,
   formatTime,
@@ -28,6 +29,14 @@ const {
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
   colonyShipCrew, hasColonyCrew,
+  // cargo drone
+  cargoDroneLevel, cargoDroneInventory, cargoDroneBuild, cargoDroneReady, hasCargoDrone,
+  cargoManifest, cargoLoaded, cargoCapacity, cargoLoadable,
+  cargoBuildTime, canBuildCargoDrone, buildCargoDrone, cargoBuildProgressStyle,
+  canLoadMore, loadCargo, unloadCargo, unloadAllCargo,
+  isCargoTarget, canSendCargo, sendCargoDrone,
+  remainingCargoSec, remainingCargoReturnSec, cargoProgressStyle, cargoReturnProgressStyle,
+  returningCargoMission, cargoFlightTimeBetween,
 } = useHawkStar()
 
 const emit = defineEmits(['go-planet'])
@@ -51,6 +60,8 @@ const goToPlanet = async (planetId) => {
   emit('go-planet')
 }
 
+const isCargoEnRoute = (id) => !!allActiveCargoMissions.value.find(m => m.planetId === id)
+
 const isScanned      = (id) => playerScannedPlanets.value.includes(id)
 const isColonized    = (id) => playerColonizedPlanets.value.includes(id)
 const isDroneEnRoute = (id) => !!allActiveDroneMissions.value.find(m => m.planetId === id)
@@ -67,12 +78,14 @@ const effectivePlanetState = (planet) => {
 // ── Selection ─────────────────────────────────────────────
 const selectedPlanetId = ref(activePlanetId.value)
 
-const toggleSelect = (planet) => {
+const toggleSelect = async (planet) => {
   selectedPlanetId.value = planet.id
-  if (effectivePlanetState(planet) === 'own') {
-    setActivePlanet(planet.id)
-    closeBuildRow()
-  }
+  if (effectivePlanetState(planet) !== 'own') return
+  // setActivePlanet bails out when the planet's state was never loaded (a colony
+  // we have not visited this session) — pull it in first, like goToPlanet does.
+  if (!allPlanetStates.value[planet.id]) await refreshPlanetState(planet.id)
+  setActivePlanet(planet.id)
+  closeBuildRow()
 }
 
 const selectedPlanet = computed(() => planets.value.find(p => p.id === selectedPlanetId.value) ?? null)
@@ -429,6 +442,120 @@ const planetIcon = (planet) => {
       </div>
     </div>
 
+    <!-- ── Cargo Drone row ──────────────────────────────────────────────────── -->
+    <div v-if="cargoDroneLevel > 0 && planetHasDock(activePlanetId)" class="hs-solar-cargo-row">
+      <div class="hs-solar-cargo-label">
+        <div class="hs-solar-unit-label__icon-wrap">
+          <span class="hs-solar-unit-label__icon">📦</span>
+          <span v-if="cargoDroneInventory > 0" class="hs-solar-unit-label__badge hs-solar-unit-label__badge--cargo">{{ cargoLoaded }}</span>
+        </div>
+        <span class="hs-solar-unit-label__name">{{ t('hawkStar.dock.cargoDrone') }}</span>
+      </div>
+      <div class="hs-solar-connector hs-solar-connector--phantom" aria-hidden="true" />
+      <div
+        v-for="planet in planets"
+        :key="planet.id"
+        class="hs-solar-unit-cell hs-solar-cargo-cell"
+        :class="{
+          'hs-solar-cargo-cell--active': planet.id === activePlanetId,
+          'hs-solar-unit-cell--selected': planet.id === selectedPlanetId,
+        }"
+      >
+        <!-- The drone lives on the active planet: build it, load it, or watch it come home -->
+        <template v-if="planet.id === activePlanetId && planetHasDock(planet.id)">
+          <template v-if="returningCargoMission">
+            <div class="hs-solar-progress-bar hs-solar-progress-bar--cargo" :style="cargoReturnProgressStyle" />
+            <span class="hs-solar-tile-timer hs-solar-tile-timer--cargo">{{ formatTime(remainingCargoReturnSec) }}</span>
+          </template>
+          <button v-else class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('cargo')">
+            <span class="hs-solar-unit-build-trigger__name">
+              {{ cargoDroneBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.cargoDrone') }}
+            </span>
+            <span v-if="cargoDroneReady" class="hs-solar-unit-build-trigger__btn hs-solar-unit-build-trigger__btn--cargo">
+              {{ cargoLoaded }} / {{ cargoCapacity }}
+            </span>
+            <span v-else-if="!cargoDroneBuild" class="hs-solar-unit-build-trigger__btn">{{ t('hawkStar.dock.btnBuild') }}</span>
+          </button>
+        </template>
+        <template v-else-if="isCargoEnRoute(planet.id)">
+          <div class="hs-solar-progress-bar hs-solar-progress-bar--cargo" :style="cargoProgressStyle(planet.id)" />
+          <span class="hs-solar-tile-timer hs-solar-tile-timer--cargo">{{ formatTime(remainingCargoSec(planet.id)) }}</span>
+        </template>
+        <template v-else-if="canSendCargo(planet.id)">
+          <button class="hs-solar-action-btn hs-solar-action-btn--cargo" @click.stop="sendCargoDrone(planet.id, activePlanetId)">
+            <span class="hs-solar-action-btn__mobile">Send</span>
+            <span class="hs-solar-action-btn__full">📦 {{ t('hawkStar.solar.sendCargo') }}</span>
+          </button>
+          <span class="hs-solar-unit-flight-time hs-solar-unit-flight-time--cargo">{{ formatTime(cargoFlightTimeBetween(activePlanetId, planet.id)) }}</span>
+        </template>
+        <!-- Reachable destination — the drone just has nothing aboard yet -->
+        <template v-else-if="isCargoTarget(planet.id)">
+          <span class="hs-solar-unit-missing">
+            {{ hasCargoDrone ? t('hawkStar.solar.cargoEmpty') : t('hawkStar.solar.noCargoDrone') }}
+          </span>
+        </template>
+      </div>
+    </div>
+
+    <!-- Cargo build / loading accordion -->
+    <div v-if="cargoDroneLevel > 0 && planetHasDock(activePlanetId) && expandedBuildRow === 'cargo'" class="hs-solar-build-expanded-row">
+      <!-- No drone yet → ordinary unit build row -->
+      <div v-if="!cargoDroneReady" class="hs-dock-row">
+        <div class="hs-dock-icon-wrap">
+          <span class="hs-dock-icon">📦</span>
+        </div>
+        <div class="hs-dock-info">
+          <div class="hs-dock-name">{{ t('hawkStar.dock.cargoDrone') }}</div>
+          <div class="hs-dock-cost-row">
+            <span v-for="(amt, resId) in UNIT_COSTS.cargo_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            <span class="hs-unit-time-tag">⏱ {{ formatTime(cargoBuildTime) }}</span>
+          </div>
+          <div v-if="cargoDroneBuild" class="hs-progress-row">
+            <div class="hs-progress-track"><div :key="cargoDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--cargo" :style="cargoBuildProgressStyle" /></div>
+            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((cargoDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
+          </div>
+          <div v-else-if="hasCargoDrone" class="hs-cargo-hint">{{ t('hawkStar.solar.cargoOnePerPlanet') }}</div>
+        </div>
+        <div class="hs-dock-action">
+          <span v-if="cargoDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+          <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildCargoDrone }" :disabled="!canBuildCargoDrone" @click.stop="buildCargoDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
+        </div>
+      </div>
+
+      <!-- Drone in the dock → load the hold: four items total, freely mixed -->
+      <div v-else class="hs-cargo-picker">
+        <div v-for="resId in cargoLoadable" :key="resId" class="hs-cargo-picker__row">
+          <span class="hs-cargo-picker__icon">{{ RESOURCES[resId]?.icon }}</span>
+          <span class="hs-cargo-picker__name">{{ t(`hawkStar.res.${resId}`, RESOURCES[resId]?.name ?? resId) }}</span>
+          <span class="hs-cargo-picker__stock">{{ Math.floor(playerResources[resId] ?? 0) }}</span>
+          <div class="hs-cargo-picker__stepper">
+            <button
+              class="hs-cargo-picker__btn"
+              :disabled="(cargoManifest[resId] ?? 0) < 1"
+              @click.stop="unloadCargo(resId)"
+            >−</button>
+            <span class="hs-cargo-picker__count">{{ cargoManifest[resId] ?? 0 }}</span>
+            <button
+              class="hs-cargo-picker__btn"
+              :disabled="!canLoadMore(resId)"
+              @click.stop="loadCargo(resId)"
+            >+</button>
+          </div>
+        </div>
+        <div class="hs-cargo-picker__foot">
+          <span class="hs-cargo-picker__total" :class="{ 'hs-cargo-picker__total--full': cargoLoaded >= cargoCapacity }">
+            {{ t('hawkStar.solar.cargoHold') }} {{ cargoLoaded }} / {{ cargoCapacity }}
+          </span>
+          <button
+            class="hs-cargo-picker__unload"
+            :disabled="cargoLoaded < 1"
+            @click.stop="unloadAllCargo()"
+          >{{ t('hawkStar.solar.cargoUnloadAll') }}</button>
+        </div>
+        <div class="hs-cargo-hint">{{ t('hawkStar.solar.cargoSendHint') }}</div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -552,6 +679,7 @@ const planetIcon = (planet) => {
 
   &--drone   { background: rgba(251,191,36,0.5); }
   &--colony  { background: rgba(96,165,250,0.5); }
+  &--cargo   { background: rgba(251,191,36,0.65); }
 }
 
 @keyframes hs-bar-fill {
@@ -628,6 +756,8 @@ const planetIcon = (planet) => {
   color: rgba(251,191,36,0.9);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+
+  &--cargo { font-size: 0.6rem; }
 }
 
 .hs-solar-tile-hint {
@@ -674,6 +804,13 @@ const planetIcon = (planet) => {
     background: rgba(96,165,250,0.08);
     color: rgba(96,165,250,0.9);
     &:hover { background: rgba(96,165,250,0.18); border-color: rgba(96,165,250,0.6); }
+  }
+
+  &--cargo {
+    border: 1px solid rgba(251,191,36,0.4);
+    background: rgba(251,191,36,0.1);
+    color: rgba(251,191,36,0.95);
+    &:hover { background: rgba(251,191,36,0.2); border-color: rgba(251,191,36,0.65); }
   }
 }
 
@@ -1081,6 +1218,7 @@ const planetIcon = (planet) => {
 
   &--unit   { background: #f59e0b; }
   &--colony { background: #60a5fa; }
+  &--cargo  { background: #fbbf24; }
 }
 
 .hs-progress-time { font-size: 0.55rem; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.4); flex-shrink: 0; }
@@ -1156,7 +1294,8 @@ const planetIcon = (planet) => {
 // ── Unit rows (drone / colony) ────────────────────────────────────────────────
 
 .hs-solar-drone-row,
-.hs-solar-colony-row {
+.hs-solar-colony-row,
+.hs-solar-cargo-row {
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -1177,7 +1316,8 @@ const planetIcon = (planet) => {
 // ── Unit label (leftmost cell, same width as sun tile) ────────────────────────
 
 .hs-solar-drone-label,
-.hs-solar-colony-label {
+.hs-solar-colony-label,
+.hs-solar-cargo-label {
   flex-shrink: 0;
   width: 1.25rem;
   display: flex;
@@ -1194,6 +1334,7 @@ const planetIcon = (planet) => {
 
 .hs-solar-drone-label  { border: 1px solid rgba(251,191,36,0.15); }
 .hs-solar-colony-label { border: 1px solid rgba(96,165,250,0.15); }
+.hs-solar-cargo-label  { border: 1px solid rgba(251,191,36,0.22); }
 
 // ── Shared label internals ────────────────────────────────────────────────────
 
@@ -1223,6 +1364,7 @@ const planetIcon = (planet) => {
   line-height: 1.4;
 
   &--colony { background: #60a5fa; }
+  &--cargo  { background: #fbbf24; }
 }
 
 .hs-solar-unit-label__name {
@@ -1260,6 +1402,14 @@ const planetIcon = (planet) => {
     padding: 0.3rem 0.25rem;
   }
 
+  // Mirrors the planet tile's selection highlight so the whole column — tile plus
+  // its drone, colony and cargo cells — reads as one selected unit. Without this
+  // the class is set but renders nothing outside the mobile width rule below.
+  &--selected {
+    outline: 2px solid var(--hs-active-border);
+    outline-offset: -1px;
+    box-shadow: 0 0 20px var(--hs-active-glow);
+  }
 }
 
 
@@ -1273,6 +1423,7 @@ const planetIcon = (planet) => {
 
 .hs-solar-drone-cell--active  { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
 .hs-solar-colony-cell--active { border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.04); }
+.hs-solar-cargo-cell--active  { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.05); }
 
 // ── Build accordion (shared) ─────────────────────────────────────────────────
 
@@ -1323,6 +1474,19 @@ const planetIcon = (planet) => {
   border-color: rgba(52,211,153,0.6);
 }
 
+// Loaded cargo drone: the trigger shows the hold instead of a build action
+.hs-solar-unit-build-trigger__btn--cargo {
+  border-color: rgba(251,191,36,0.4);
+  background: rgba(251,191,36,0.1);
+  color: rgba(251,191,36,0.95);
+  font-variant-numeric: tabular-nums;
+
+  .hs-solar-unit-build-trigger:hover & {
+    background: rgba(251,191,36,0.2);
+    border-color: rgba(251,191,36,0.65);
+  }
+}
+
 .hs-solar-build-expanded-row {
   align-self: flex-start;
   background: var(--hs-glass-sm);
@@ -1340,6 +1504,121 @@ const planetIcon = (planet) => {
 
   &--drone   { color: rgba(251,191,36,0.75); }
   &--colony  { color: rgba(96,165,250,0.75); }
+  &--cargo   { color: rgba(251,191,36,0.85); }
+}
+
+// ── Cargo picker (hold loading) ───────────────────────────────────────────────
+
+.hs-cargo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 15rem;
+}
+
+.hs-cargo-picker__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2px 0;
+}
+
+.hs-cargo-picker__icon { font-size: 0.8rem; line-height: 1; flex-shrink: 0; }
+
+.hs-cargo-picker__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hs-cargo-picker__stock {
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.35);
+  min-width: 1.75rem;
+  text-align: right;
+}
+
+.hs-cargo-picker__stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.hs-cargo-picker__btn {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid rgba(251,191,36,0.3);
+  background: rgba(251,191,36,0.07);
+  color: rgba(251,191,36,0.9);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) { background: rgba(251,191,36,0.18); border-color: rgba(251,191,36,0.6); }
+  &:disabled { opacity: 0.25; cursor: not-allowed; }
+}
+
+.hs-cargo-picker__count {
+  min-width: 0.9rem;
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.75);
+}
+
+.hs-cargo-picker__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--hs-line-sm);
+}
+
+.hs-cargo-picker__total {
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.5);
+
+  &--full { color: rgba(251,191,36,0.95); }
+}
+
+.hs-cargo-picker__unload {
+  padding: 2px 7px;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.55rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(248,113,113,0.3);
+  background: rgba(248,113,113,0.07);
+  color: rgba(248,113,113,0.85);
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) { background: rgba(248,113,113,0.16); border-color: rgba(248,113,113,0.55); }
+  &:disabled { opacity: 0.25; cursor: not-allowed; }
+}
+
+.hs-cargo-hint {
+  font-size: 0.55rem;
+  font-style: italic;
+  color: rgba(255,255,255,0.3);
+  margin-top: 0.15rem;
 }
 
 // Target would be reachable — the dock just has no finished unit for it

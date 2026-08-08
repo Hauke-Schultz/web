@@ -369,9 +369,103 @@ function consume_unit(PDO $db, int $planetId, int $playerId, string $unitKey): b
     return $stmt->rowCount() > 0;
 }
 
+// ── Cargo drone ───────────────────────────────────────────────────────────────
+
+// One row per cargo drone in existence, keyed by its HOME planet. Created when
+// the drone is built and never deleted — that is what enforces "one drone per
+// planet" across production, dock and flight. `cargo` holds the JSON manifest,
+// `mission_id` the flight the drone is currently on (NULL while docked).
+function ensure_cargo_table(PDO $db): void {
+    static $tableReady = false;
+    if ($tableReady) return;
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS hs_cargo (
+               planet_id  INT NOT NULL,
+               player_id  INT NOT NULL,
+               cargo      TEXT NULL,
+               mission_id INT NULL,
+               PRIMARY KEY (planet_id, player_id)
+             )'
+        );
+    } catch (\Throwable $e) {}
+    $tableReady = true;
+}
+
+// hs_missions predates the cargo drone: `type` is an ENUM that has to learn the
+// new value, and the return leg needs a marker. Fresh installs get both from the
+// schema; existing databases are migrated here on first access.
+function migrate_cargo_missions(PDO $db): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    // One cheap probe — `leg` is added last, so its presence means both ran
+    try {
+        if ($db->query("SHOW COLUMNS FROM hs_missions LIKE 'leg'")->fetch()) return;
+    } catch (\Throwable $e) { return; }
+
+    try {
+        $db->exec("ALTER TABLE hs_missions MODIFY type ENUM('recon_drone','colony_ship','cargo_drone') NOT NULL");
+    } catch (\Throwable $e) {}
+    try { $db->exec('ALTER TABLE hs_missions ADD COLUMN leg VARCHAR(8) NULL'); } catch (\Throwable $e) {}
+}
+
+// Distance between two planets = how many orbits apart they are, minimum 1.
+// Mirrors the inline calculation in mission/drone.php and mission/colony.php.
+function planet_distance(PDO $db, int $systemId, int $fromId, int $toId): int {
+    $order = $db->prepare('SELECT id FROM hs_planets WHERE system_id=? ORDER BY id ASC');
+    $order->execute([$systemId]);
+    $ids = array_column($order->fetchAll(), 'id');
+    return max(1, abs((int)array_search($fromId, $ids) - (int)array_search($toId, $ids)));
+}
+
+// Live cargo state for the API. Returns null when this planet has no cargo drone
+// at all — the frontend uses that to decide between "build" and "load".
+function cargo_state(PDO $db, int $planetId, int $playerId): ?array {
+    ensure_cargo_table($db);
+    $row = $db->prepare('SELECT cargo, mission_id FROM hs_cargo WHERE planet_id=? AND player_id=?');
+    $row->execute([$planetId, $playerId]);
+    $c = $row->fetch();
+    if (!$c) return null;
+
+    $cargo = json_decode($c['cargo'] ?? '{}', true);
+    if (!is_array($cargo)) $cargo = [];
+
+    return [
+        'cargo'     => (object)$cargo,   // cast so an empty hold serialises as {} not []
+        'total'     => array_sum($cargo),
+        'capacity'  => CARGO_CAPACITY,
+        'missionId' => $c['mission_id'] !== null ? (int)$c['mission_id'] : null,
+    ];
+}
+
+// Hands the manifest to whoever owns the target planet. An uncolonized target has
+// no resource row to unload into, so the drone keeps its cargo and flies home with
+// it rather than dropping the goods on an empty rock.
+function deliver_cargo(PDO $db, int $targetPlanetId, array $cargo): bool {
+    if (!$cargo) return true;
+
+    $ownerRow = $db->prepare('SELECT player_id FROM hs_planet_ownership WHERE planet_id=?');
+    $ownerRow->execute([$targetPlanetId]);
+    $ownerId = $ownerRow->fetchColumn();
+    if (!$ownerId) return false;
+
+    foreach ($cargo as $res => $amt) {
+        // Whitelisted at load time — re-checked here because the value reaches SQL
+        if (!in_array($res, CARGO_LOADABLE, true) || $amt <= 0) continue;
+        $db->prepare(
+            "UPDATE hs_planet_resources SET $res = $res + ? WHERE planet_id=? AND player_id=?"
+        )->execute([(int)$amt, $targetPlanetId, (int)$ownerId]);
+    }
+    return true;
+}
+
 function resolve_missions(PDO $db, int $playerId): void {
+    migrate_cargo_missions($db);
+
     $done = $db->prepare(
-        "SELECT id, type, from_planet_id, to_planet_id
+        "SELECT id, type, from_planet_id, to_planet_id, leg
          FROM hs_missions WHERE player_id=? AND status='in_flight' AND ends_at <= NOW()"
     );
     $done->execute([$playerId]);
@@ -379,6 +473,56 @@ function resolve_missions(PDO $db, int $playerId): void {
     foreach ($done->fetchAll() as $m) {
         $missionId = (int)$m['id'];
         $toId      = (int)$m['to_planet_id'];
+        $fromId    = (int)$m['from_planet_id'];
+
+        if ($m['type'] === 'cargo_drone') {
+            ensure_cargo_table($db);
+
+            if ($m['leg'] === 'back') {
+                // Landed at home: the drone re-enters the dock, ready to load again
+                ensure_units_table($db);
+                $db->prepare(
+                    "INSERT INTO hs_units (planet_id, player_id, unit_key, quantity)
+                     VALUES (?,?,'cargo_drone',1)
+                     ON DUPLICATE KEY UPDATE quantity = quantity + 1"
+                )->execute([$toId, $playerId]);
+                // Only the flight ends here. The hold was already emptied on
+                // delivery — clearing it again would destroy the cargo of a drone
+                // that came home still loaded (refused delivery, see below).
+                $db->prepare(
+                    'UPDATE hs_cargo SET mission_id=NULL WHERE planet_id=? AND player_id=?'
+                )->execute([$toId, $playerId]);
+            } else {
+                // Arrived at the target: unload, then start the empty return leg.
+                // The cargo row is keyed by the drone's home planet ($fromId).
+                $cargoRow = $db->prepare('SELECT cargo FROM hs_cargo WHERE planet_id=? AND player_id=?');
+                $cargoRow->execute([$fromId, $playerId]);
+                $cargo = json_decode($cargoRow->fetchColumn() ?: '{}', true);
+                if (!is_array($cargo)) $cargo = [];
+
+                $delivered = deliver_cargo($db, $toId, $cargo);
+
+                $sysRow = $db->prepare('SELECT system_id FROM hs_planets WHERE id=?');
+                $sysRow->execute([$fromId]);
+                $systemId   = (int)$sysRow->fetchColumn();
+                $flightTime = UNIT_COSTS['cargo_drone']['flightTimeBase']
+                            * planet_distance($db, $systemId, $fromId, $toId);
+
+                $db->prepare(
+                    "INSERT INTO hs_missions (player_id, type, from_planet_id, to_planet_id, ends_at, leg)
+                     VALUES (?,'cargo_drone',?,?, DATE_ADD(NOW(), INTERVAL ? SECOND), 'back')"
+                )->execute([$playerId, $toId, $fromId, $flightTime]);
+                $returnId = (int)$db->lastInsertId();
+
+                // A refused delivery (uncolonized target) flies home still loaded
+                $db->prepare(
+                    'UPDATE hs_cargo SET cargo=?, mission_id=? WHERE planet_id=? AND player_id=?'
+                )->execute([
+                    $delivered ? '{}' : json_encode($cargo),
+                    $returnId, $fromId, $playerId,
+                ]);
+            }
+        }
 
         if ($m['type'] === 'colony_ship') {
             $alreadyOwned = $db->prepare('SELECT id FROM hs_planet_ownership WHERE planet_id=?');

@@ -44,6 +44,16 @@ $current = $db->prepare('SELECT build_ends_at FROM hs_units WHERE planet_id=? AN
 $current->execute([$planetId, $playerId, $unitKey]);
 if ($current->fetchColumn()) fail('Unit already in production');
 
+// The cargo drone is limited to one per planet — not one in the dock, one in
+// existence. Its hs_cargo row is created here and never deleted, so it blocks a
+// rebuild whether the drone is in production, docked, loaded or away on a run.
+if ($unitKey === 'cargo_drone') {
+    ensure_cargo_table($db);
+    $existing = $db->prepare('SELECT 1 FROM hs_cargo WHERE planet_id=? AND player_id=?');
+    $existing->execute([$planetId, $playerId]);
+    if ($existing->fetch()) fail('This planet already has a cargo drone');
+}
+
 // Check & deduct cost
 compute_resources($db, $planetId, $playerId, $planet['type']);
 
@@ -80,6 +90,13 @@ $db->prepare(
      VALUES (?,?,?,0, DATE_ADD(NOW(), INTERVAL ? SECOND), NOW())
      ON DUPLICATE KEY UPDATE build_ends_at = DATE_ADD(NOW(), INTERVAL ? SECOND), build_started_at = NOW()'
 )->execute([$planetId, $playerId, $unitKey, $buildTime, $buildTime]);
+
+// Claim the planet's cargo-drone slot as soon as the build starts
+if ($unitKey === 'cargo_drone') {
+    $db->prepare(
+        "INSERT IGNORE INTO hs_cargo (planet_id, player_id, cargo, mission_id) VALUES (?,?,'{}',NULL)"
+    )->execute([$planetId, $playerId]);
+}
 
 ok([
     'unitKey'        => $unitKey,

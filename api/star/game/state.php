@@ -28,6 +28,7 @@ compute_resources($db, $planetId, $playerId, $planet['type']);
 $battery = battery_state($db, $planetId, $playerId);
 $recruit = recruit_state($db, $planetId, $playerId);
 $units   = units_state($db, $planetId, $playerId);
+$cargo   = cargo_state($db, $planetId, $playerId);
 
 // ── Load current state ────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ foreach ($slotsRaw->fetchAll() as $s) {
 }
 
 $missionsRaw = $db->prepare(
-    'SELECT id, type, from_planet_id, to_planet_id, ends_at
+    'SELECT id, type, from_planet_id, to_planet_id, ends_at, leg
      FROM hs_missions WHERE player_id=? AND status=\'in_flight\' ORDER BY ends_at ASC'
 );
 $missionsRaw->execute([$playerId]);
@@ -82,6 +83,8 @@ foreach ($missionsRaw->fetchAll() as $m) {
         'fromPlanetId' => (int)$m['from_planet_id'],
         'toPlanetId'   => (int)$m['to_planet_id'],
         'endsAt'       => strtotime($m['ends_at']) * 1000,
+        // 'out' / 'back' on cargo runs, null on every one-way mission type
+        'leg'          => $m['leg'],
     ];
 }
 
@@ -127,4 +130,5 @@ ok([
     'conversionQueues'   => $convQueues,
     'battery'            => $battery,
     'recruit'            => $recruit,
+    'cargo'              => $cargo,
 ]);

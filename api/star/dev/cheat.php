@@ -127,6 +127,18 @@ switch ($action) {
         resolve_missions($db, $playerId);
         ok(['action' => 'complete_colony_missions']);
 
+    case 'complete_cargo_missions':
+        // Resolve twice: the first pass lands the outbound leg and creates the
+        // return leg, the second pass brings the drone home.
+        for ($i = 0; $i < 2; $i++) {
+            $db->prepare(
+                "UPDATE hs_missions SET ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
+                 WHERE player_id=? AND type='cargo_drone' AND status='in_flight'"
+            )->execute([$playerId]);
+            resolve_missions($db, $playerId);
+        }
+        ok(['action' => 'complete_cargo_missions']);
+
     case 'complete_scanning':
         $db->prepare(
             "UPDATE hs_system_contacts SET scan_ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
