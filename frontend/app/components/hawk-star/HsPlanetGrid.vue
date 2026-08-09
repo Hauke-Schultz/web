@@ -18,6 +18,7 @@ const {
   playerSlots,
   activeSlot,
   activePlanetId,
+  homePlanetId,
   selectSlot,
   slotsOnSlot,
   unlockRequirement,
@@ -33,6 +34,16 @@ const {
 } = useHawkStar()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
+
+// The base tile marks itself as the home base — that is where the onboarding
+// checklist lives, and a colony's base tile stays a plain "Base".
+const isHomePlanet = computed(() => activePlanetId.value === homePlanetId.value)
+
+const tileLabel = (slot) => {
+  if (!slot.unlocked || !slot.tileType) return '???'
+  if (slot.tileType === 'base' && isHomePlanet.value) return 'Home Base'
+  return TILE_TYPES[slot.tileType]?.name
+}
 
 // Top-edge status bar per tile: battery % on the energy tile, recruit pool on base.
 const tileStatus = (slot) => {
@@ -173,7 +184,7 @@ const onSelectSlot = (slot) => {
             {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.icon : (slot.unlocked ? '?' : '🔒') }}
           </span>
           <span class="hs-tile-label">
-            {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.name : '???' }}
+            {{ tileLabel(slot) }}
           </span>
         </div>
         <div class="hs-tile-dots">

@@ -25,98 +25,120 @@ const timeLeft = computed(() => {
   const rest = Math.round(h % 24)
   return rest ? `~${d} d ${rest} h` : `~${d} d`
 })
+
+const desc = computed(() => `${t('hawkStar.battery.title')} — ${t('hawkStar.battery.hint')}`)
 </script>
 
 <template>
-  <div class="hs-battery" :class="`hs-battery--${level}`">
-    <div class="hs-battery__head">
-      <span class="hs-battery__title">🔋 {{ t('hawkStar.battery.title') }}</span>
-      <span class="hs-battery__pct">{{ pct }}%</span>
-    </div>
+  <button
+    class="hs-meter-btn hs-battery"
+    :class="`hs-battery--${level}`"
+    @click="chargeBattery"
+  >
+    <span class="hs-meter-btn__track">
+      <span class="hs-meter-btn__fill" :style="{ width: pct + '%' }" />
+    </span>
 
-    <div class="hs-battery__track">
-      <div class="hs-battery__fill" :style="{ width: pct + '%' }" />
-    </div>
+    <span class="hs-meter-btn__row">
+      <span class="hs-meter-btn__label">⚡ {{ t('hawkStar.battery.charge') }}</span>
 
-    <div class="hs-battery__foot">
-      <span v-if="gridDown" class="hs-battery__status hs-battery__status--empty">
+      <span v-if="gridDown" class="hs-meter-btn__value hs-meter-btn__value--alert">
         ⚠ {{ t('hawkStar.battery.blackout') }}
       </span>
-      <span v-else class="hs-battery__status">
-        {{ t('hawkStar.battery.timeLeft', { time: timeLeft }) }}
+      <span v-else class="hs-meter-btn__value">
+        {{ pct }}%<template v-if="timeLeft"> · {{ timeLeft }}</template>
       </span>
+    </span>
 
-      <button class="hs-battery__btn" @click="chargeBattery">
-        ⚡ {{ t('hawkStar.battery.charge') }}
-      </button>
-    </div>
-
-    <p class="hs-battery__hint">{{ t('hawkStar.battery.hint') }}</p>
-  </div>
+    <span class="hs-meter-btn__desc">{{ desc }}</span>
+  </button>
 </template>
 
 <style lang="scss" scoped>
-.hs-battery {
-  --bat: #10b981;
-  background: var(--hs-glass-sm);
-  border: 1px solid var(--hs-line-sm);
-  border-radius: var(--hs-r-md);
-  padding: 0.75rem;
-  margin-bottom: 0.875rem;
+/* Shares its shape with HsRecruitPanel: one slim button, status bar on the top edge. */
+.hs-meter-btn {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  align-items: stretch;
+  gap: 0.15rem;
+  padding: 0.4rem 0.6rem;
+  padding-top: calc(0.4rem + 3px);
+  margin-bottom: 0.5rem;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
 
-  &--ok    { --bat: #10b981; }
-  &--mid   { --bat: #fbbf24; }
-  &--low   { --bat: #f59e0b; }
-  &--empty {
-    --bat: #ef4444;
-    border-color: rgba(239, 68, 68, 0.5);
-    background: rgba(239, 68, 68, 0.08);
-    animation: hs-battery-pulse 1.6s ease-in-out infinite;
-  }
+  &:hover:not(:disabled)  { background: var(--accent-bg-hover); border-color: var(--accent-line-hover); }
+  &:active:not(:disabled) { transform: scale(0.99); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
-.hs-battery__head { display: flex; align-items: center; justify-content: space-between; }
-.hs-battery__title { font-size: 0.8rem; font-weight: 700; color: #fff; }
-.hs-battery__pct   { font-size: 0.8rem; font-weight: 700; color: var(--bat); font-variant-numeric: tabular-nums; }
-
-.hs-battery__track {
-  height: 0.75rem;
-  border-radius: 9999px;
+.hs-meter-btn__track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
   background: var(--hs-glass-3xl);
-  overflow: hidden;
 }
-.hs-battery__fill {
+.hs-meter-btn__fill {
+  display: block;
   height: 100%;
-  border-radius: 9999px;
-  background: var(--bat);
+  background: var(--accent);
   transition: width 0.4s ease, background 0.3s ease;
 }
 
-.hs-battery__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-
-.hs-battery__status { font-size: 0.68rem; color: rgba(255, 255, 255, 0.55); font-variant-numeric: tabular-nums; }
-.hs-battery__status--empty { color: #fca5a5; font-weight: 700; }
-
-.hs-battery__btn {
-  padding: 0.35rem 0.7rem;
-  border-radius: var(--hs-r-sm);
-  font-size: 0.72rem;
+.hs-meter-btn__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.hs-meter-btn__label {
+  font-size: 0.74rem;
   font-weight: 700;
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  background: rgba(251, 191, 36, 0.14);
-  color: #fde68a;
-  cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, transform 0.05s;
-
-  &:hover  { background: rgba(251, 191, 36, 0.28); border-color: rgba(251, 191, 36, 0.7); }
-  &:active { transform: scale(0.96); }
+}
+.hs-meter-btn__value {
+  font-size: 0.66rem;
+  font-weight: 600;
+  opacity: 0.7;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hs-meter-btn__value--alert { opacity: 1; color: #fca5a5; font-weight: 700; }
+.hs-meter-btn__desc {
+  font-size: 0.6rem;
+  font-weight: 400;
+  line-height: 1.3;
+  opacity: 0.55;
 }
 
-.hs-battery__hint { font-size: 0.6rem; opacity: 0.4; margin: 0; }
+.hs-battery {
+  --accent: #10b981;
+  --accent-line: rgba(251, 191, 36, 0.45);
+  --accent-line-hover: rgba(251, 191, 36, 0.7);
+  --accent-bg: rgba(251, 191, 36, 0.14);
+  --accent-bg-hover: rgba(251, 191, 36, 0.28);
+  --accent-fg: #fde68a;
+
+  &--ok    { --accent: #10b981; }
+  &--mid   { --accent: #fbbf24; }
+  &--low   { --accent: #f59e0b; }
+  &--empty {
+    --accent: #ef4444;
+    --accent-line: rgba(239, 68, 68, 0.5);
+    --accent-bg: rgba(239, 68, 68, 0.1);
+    animation: hs-battery-pulse 1.6s ease-in-out infinite;
+  }
+}
 
 @keyframes hs-battery-pulse {
   0%, 100% { border-color: rgba(239, 68, 68, 0.5); }

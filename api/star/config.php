@@ -328,8 +328,8 @@ function battery_drain_per_hour(int $ppLevel): float {
 // ── Population recruitment (base tile, daily growth pool) ──────────────────────
 // A recruit pool refills over time up to a cap; a +1 click moves one recruit into
 // the population. Away long → pool sits at the cap (never hundreds queued).
-const RECRUIT_GROWTH_PER_DAY = 5.0;   // pool refill rate per day
-const RECRUIT_POOL_MAX       = 15.0;  // max pending recruits (~3 days)
+const RECRUIT_GROWTH_PER_DAY = 12.0;  // pool refill rate per day
+const RECRUIT_POOL_MAX       = 18.0;  // max pending recruits (~1.5 days)
 
 // A fresh colony only wakes 6 of the ship's crew — the rest of the population has
 // to be recruited at the normal rate, from an empty pool. The home planet keeps

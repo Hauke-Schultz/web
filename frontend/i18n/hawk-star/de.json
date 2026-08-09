@@ -56,9 +56,12 @@
         "step1": "🏛️ Baue das Kommandozentrum — das Herzstück jeder Kolonie",
         "step2": "👥 Rekrutiere auf der Base-Kachel Bevölkerung — du brauchst Arbeiter für deine Gebäude",
         "step3": "🔋 Baue das Kraftwerk und lade seine Batterie auf — ohne Ladung bleibt die Kolonie ohne Strom",
-        "step4": "⛏️ Schalte Bergbau- & Energie-Felder frei, um Ressourcen zu gewinnen",
+        "step4": "⛏️ Bringe Metallmine und Kristallbohrer auf Stufe 1 — dein Grundeinkommen",
         "step5": "📡 Erforsche die Sternkarte im Comm Center, um das Sonnensystem zu erkunden",
-        "step6": "🚀 Besiedle neue Planeten und spezialisiere jede Kolonie"
+        "step6": "🛸 Entdecke mit einer Aufklärungsdrohne einen fremden Planeten",
+        "step7": "🚀 Besiedle einen zweiten Planeten und spezialisiere jede Kolonie",
+        "step8": "📦 Schicke eine Frachtdrohne zu einem anderen Planeten",
+        "step9": "🔭 Scanne ein fremdes Sternensystem auf der Galaxiekarte"
       }
     },
 
@@ -101,6 +104,7 @@
       "sendCargo": "Fracht senden",
       "noCargoDrone": "Keine Frachtdrohne",
       "cargoEmpty": "Frachtdrohne leer",
+      "cargoEnRoute": "unterwegs",
       "cargoHold": "Laderaum",
       "cargoUnloadAll": "Alles entladen",
       "cargoSendHint": "Beladen — jetzt einen bekannten Planeten als Ziel wählen",
@@ -188,7 +192,7 @@
     "recruit": {
       "title": "Rekrutierung",
       "button": "Rekrutieren",
-      "hint": "Wächst über die Zeit (~5/Tag) bis max. 15. Ein Klick = +1 Bevölkerung."
+      "hint": "Wächst über die Zeit (~12/Tag) bis max. 18. Ein Klick = +1 Bevölkerung."
     },
 
     "starClass": {

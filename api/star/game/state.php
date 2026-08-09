@@ -96,6 +96,16 @@ $droneScannedRaw = $db->prepare(
 $droneScannedRaw->execute([$playerId]);
 $droneScannedPlanets = array_values(array_map('intval', $droneScannedRaw->fetchAll(PDO::FETCH_COLUMN)));
 
+// Cargo runs that actually landed. The outbound leg is the delivery; the return
+// leg is bookkeeping. Drives the onboarding checklist, which needs a durable
+// flag rather than the in-flight missions above.
+$cargoDoneRaw = $db->prepare(
+    'SELECT COUNT(*) FROM hs_missions
+     WHERE player_id=? AND type=\'cargo_drone\' AND status=\'done\' AND leg=\'out\''
+);
+$cargoDoneRaw->execute([$playerId]);
+$cargoDeliveries = (int)$cargoDoneRaw->fetchColumn();
+
 $convRaw = $db->prepare(
     'SELECT id, building_key, recipe_index, ends_at, remaining
      FROM hs_conversion_queues WHERE planet_id=? AND player_id=? ORDER BY ends_at ASC'
@@ -127,6 +137,7 @@ ok([
     'units'              => $units,
     'missions'           => $missions,
     'droneScannedPlanets'=> $droneScannedPlanets,
+    'cargoDeliveries'    => $cargoDeliveries,
     'conversionQueues'   => $convQueues,
     'battery'            => $battery,
     'recruit'            => $recruit,

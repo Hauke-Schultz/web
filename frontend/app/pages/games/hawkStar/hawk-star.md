@@ -40,7 +40,7 @@ The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also rend
 | **Activity** | `'notifications'` | `HsNotificationPanel` + `HsSettingsPanel` (dev controls) |
 | *(empty)* | — | — |
 
-### Planet building slots (rows 2–4)
+### Planet building slots (rows 2–5)
 
 Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`). Slots start locked and are unlocked by completing specific building levels (via the `unlocks` field on a building level). The center slot (slot 5, Base) and a few others start unlocked from the beginning.
 
@@ -160,7 +160,7 @@ Every `power_plant` has a battery (0–100 %) that slowly drains over time, inde
 
 ## Population Recruitment  *(implemented)*
 
-Population starts at **1** — you grow it by recruiting on the base tile. A **recruit pool** fills over time (≈ 5/day) up to a **cap of 15**, so a long absence never queues hundreds. Click **+1 👥 Recruit** to move one recruit from the pool into your population. No timer, no mini-game.
+Population starts at **1** — you grow it by recruiting on the base tile. A **recruit pool** fills over time (≈ 12/day) up to a **cap of 18**, so a long absence never queues hundreds. Click **+1 👥 Recruit** to move one recruit from the pool into your population. No timer, no mini-game.
 
 - Population is the workforce (`freeWorkers = population − Σ staffDrain`); recruited people are permanent.
 - The old `quarters` building was **removed** — recruiting replaces its population role; `command_center` stays.
@@ -185,7 +185,7 @@ Units are built at the Space Base tile and consumed on missions. Each unit type 
 
 A colony ship only leaves with settlers aboard: building it requires **6 free workers** (`UNIT_COSTS.colony_ship.crew`, `freeWorkers = population − Σ staffDrain`) and takes them off the planet's population right at build time — server-side check in `unit/build.php` via `free_workers()`.
 
-On landing, the new colony is deliberately small: `init_planet()` gives it **6 population** (`COLONY_START_POP`) and an **empty recruit pool**. The rest of the crew is not simply handed over — the colony has to grow through normal recruitment (≈ 5/day, cap 15).
+On landing, the new colony is deliberately small: `init_planet()` gives it **6 population** (`COLONY_START_POP`) and an **empty recruit pool**. The rest of the crew is not simply handed over — the colony has to grow through normal recruitment (≈ 12/day, cap 18).
 
 ### Facilities vs. units
 
@@ -216,24 +216,18 @@ Frontend mirror: `reconDroneInventory` / `colonyShipInventory` come from `state.
 
 ## Cargo Drone  *(implemented)*
 
-> **Status: implemented 2026-08-08**, as specified below. It is deliberately the **simple** version; a proper freighter with larger holds, multi-leg routes and two-way trade is a later design.
+Resources are stored **per planet** and refined goods are planet-type exclusive — a frozen colony can never produce Duraplate and therefore cannot build a `shield_generator` on its own. The cargo drone is the first way to move goods between planets, and the missing half of the functional-domain system.
 
-### Why
-
-Resources are stored **per planet**. Refined goods are planet-type exclusive, so a frozen colony can never produce Duraplate and currently cannot build a `shield_generator` at all. The cargo drone is the first way to move goods between planets and the missing half of the functional-domain system: no planet is self-sufficient, so goods have to travel.
+Implemented 2026-08-08 as the deliberately **simple** version; a real freighter (bigger hold, multi-leg routes, two-way trade) is a later design.
 
 ### Rules
 
-- **One cargo drone per planet.** Not one in the dock — one *in existence*. The planet is blocked from building another while a drone is in production, sitting in the dock, loaded, or away on a mission. It frees up only when the drone lands back home.
-- **Capacity is 4 items total.** Not 4 slots of a stack — four single items, freely mixed. `2 × power_cell + 2 × duraplate` is a valid load, so is `4 × superconductor`.
-- **Loading is a counter per resource.** All five loadable goods are listed at once, each with a `−` / `+` stepper. A shared counter shows `n / 4`; at 4 the `+` buttons disable and the drone is ready. `+` is also blocked when the planet has none of that resource left. No slot assignment, no drag and drop.
-- **Only high-tech goods can be loaded:** `power_cell`, `duraplate`, `plasma_core`, `superconductor`, `vital_gel`. Raw resources (Metal, Crystal, Alloy, Obsidian, Cryonite, Biomass) cannot be shipped.
-- **Loading deducts immediately.** The moment an item is put aboard it leaves `hs_planet_resources` on the origin planet. It exists only as cargo from then on — this is what prevents spending the same unit twice while the drone is en route.
-- **Unloading before launch is allowed** and returns the items to the origin planet. Once launched, the load is fixed.
-- **One-way delivery.** The drone unloads everything at the target and flies home empty. There is no pick-up leg.
-- **Target: any *known* planet, regardless of who owns it.** Ownership is explicitly **not** a condition — foreign and uncolonized planets are valid targets, which is what makes this the foundation for player-to-player trade later. The only gate is that the planet must be revealed: it has to be in `playerScannedPlanets`, the same set `isColonyTarget` already checks. Unknown planets cannot be selected.
-  - **Edge case to handle:** the **home planet is normally not in `playerScannedPlanets`** — you never send a recon drone to your own starting planet. A pure "must be scanned" check would therefore make it impossible to ship goods *back home* from a colony. The condition must be **scanned OR owned by the player**.
-  - Server-side, `playerScannedPlanets` is derived in `state.php` from completed `recon_drone` missions (`type='recon_drone' AND status='done'`). The mission endpoint has to re-check this itself — the frontend condition is not a security boundary.
+- **One drone per planet — in existence, not in the dock.** Production, docked, loaded and in-flight all block a rebuild; the slot frees only when the drone lands back home.
+- **Hold: 4 items total**, freely mixed (`2 × power_cell + 2 × duraplate` is as valid as `4 × superconductor`).
+- **Loadable are only the five high-tech goods:** `power_cell`, `duraplate`, `plasma_core`, `superconductor`, `vital_gel`. Raw resources cannot be shipped.
+- **Loading deducts immediately** from the origin planet — that is what stops the same unit being spent twice while in flight. Unloading before launch returns it; after launch the manifest is fixed.
+- **One-way delivery:** unload everything at the target, fly home empty.
+- **Target: any planet that is scanned *or* owned** — ownership is deliberately no condition, which makes this the base for player trade later. The *or owned* half matters because the **home planet is never in `playerScannedPlanets`** (you don't scout your own start), so without it a colony could not ship anything home. `mission/cargo.php` re-checks this server-side; the frontend condition is not a security boundary.
 
 ### Flow
 
@@ -243,7 +237,7 @@ build  →  load (≤4 items, deducted here)  →  choose target  →  outbound 
                      └──────  return flight (empty)  ←────  unload at target
 ```
 
-1. **Build** — normal unit build via `drone_hangar`. Cost: **120 Metal + 60 Crystal + 2 Power Cells**, `buildTimeBase` **5400 s** (1.5 h).
+1. **Build** — normal unit build, `cargo_drone` / `facility: 'drone_hangar'`. Cost **120 Metal + 60 Crystal + 2 Power Cells**, `buildTimeBase` **5400 s** (1.5 h).
 2. **Load** — pick up to 4 items from the five allowed resources. Deducted from the planet on confirm.
 3. **Launch** — pick a target planet. `flightTimeBase` **3600 s** per distance step, same as the recon drone, so a neighbour is 1 h out and 1 h back.
 4. **Arrive** — the full cargo is added to the target planet's resources, then the return leg starts automatically.
@@ -251,81 +245,25 @@ build  →  load (≤4 items, deducted here)  →  choose target  →  outbound 
 
 The Power Cell cost puts the drone behind `power_cell_lab`, which sits on the **same High-Tech tile as the refineries** (slot 9) and has no planet-type restriction. Any planet that can refine goods can therefore also build the drone to ship them — the two buildings coexist on one tile, so there is no chicken-and-egg problem. It does mean a planet without a High-Tech tile can never send anything, only receive.
 
-### UI — a third unit row in the Solar System view
+### UI
 
-Loading and dispatching live in `HsSolarSystem.vue`, as a **new row below the drone and colony rows**, following the exact pattern those two already use (`hs-solar-drone-row` / `hs-solar-colony-row`):
+**Solar System view** — a third unit row below the drone and colony rows, same pattern (`hs-solar-cargo-row`, accent **amber** `#fbbf24` next to drone green and colony blue). The active planet's cell (`hs-solar-cargo-cell--active`) holds the drone: build trigger while there is none, **cargo picker** once one is docked. Every other cell shows the send button, disabled until the hold is non-empty and only for planets passing the scanned-or-owned check. The picker expands under the row via the existing accordion (`toggleBuildRow` / `expandedBuildRow`, key `'cargo'`) and lists all five goods with stock, a `−`/`+` stepper, an `n / 4` counter and *Unload all*. Row visibility follows the drone row: facility built + planet has a dock.
 
-```
-[ 📦 Cargo Drone ]│[ P I ]│[ P II ]│[ P III ]│[ P IV ]│ …
-     label        │ target │ ACTIVE │ target  │ target │
-                  │  send  │  load  │  send   │  send  │
-```
+**Dock panel** — build only, listed after the Recon Drone (same hangar). Once a drone exists the build button becomes a **"Bereit"** status with `Laderaum n / 4` and a pointer to the system map; loading and dispatching stay exclusive to the solar view. Both legs appear in the active-missions list (`Cargo → target`, `Cargo ← origin`).
 
-- **The active planet's cell** (`hs-solar-cargo-cell--active`, mirroring `hs-solar-drone-cell--active`) is where the drone lives. It carries the build trigger when there is no drone yet, and opens the **cargo picker** once one is in the dock.
-- **The cargo picker** is a list of all five loadable goods, each row showing icon, the planet's current stock, and a `−` / `+` stepper, with a `n / 4` counter and an *Unload all* action:
+### Implementation notes
 
-```
-  🔋 Power Cell     12   [ − ]  2  [ + ]
-  🔷 Duraplate       5   [ − ]  2  [ + ]
-  🔥 Plasma Core     0   [ − ]  0  [ + ]   ← + disabled, none in stock
-  🔌 Superconductor  3   [ − ]  0  [ + ]   ← + disabled, hold is full
-  🧬 Vital Gel       1   [ − ]  0  [ + ]
+- **`hs_cargo`** (`planet_id`, `player_id`, `cargo` JSON, `mission_id`), keyed by the drone's **home** planet. Created when the build is queued and **never deleted** — this row is what enforces one drone per planet. `mission_id` doubles as the in-flight flag: non-null means the manifest is frozen.
+- **The return leg is a second mission row** with `leg='back'`, created by `resolve_missions()` on arrival, so every row still describes exactly one flight. Its branch does an `INSERT … ON DUPLICATE KEY UPDATE quantity+1` on `hs_units` — the only place a unit is added outside a completed build.
+- **`hs_missions.type` is an ENUM:** `migrate_cargo_missions()` (`bootstrap.php`) adds the enum value and the `leg` column on first access, guarded by a `SHOW COLUMNS … LIKE 'leg'` probe. Fresh installs get both from the schema.
+- **Endpoints:** `POST /game/cargo/load` takes the **full desired manifest**, not a delta — the server diffs it against the stored hold, which makes it idempotent and turns *unload all* into a plain write of `{}`. `POST /game/mission/cargo` launches.
+- **Delivery to an uncolonized planet** has no resource row to unload into: `deliver_cargo()` returns false and the drone flies home **still loaded** rather than dropping goods on an empty rock. Hence the return leg clears `mission_id` but never the cargo.
+- **No storage-cap handling needed:** `compute_resources()` clamps to `$caps` on *every* tick, so an overshooting delivery would silently evaporate — but none of the five loadable goods has a `storageCapacity`, so no clamp applies. **Any future freighter carrying raw resources must handle this explicitly.**
+- **Dev cheat** `✓ Fracht` (`complete_cargo_missions`) resolves twice: land the delivery + create the return leg, then bring the drone home.
 
-                              Load  4 / 4     [ Unload all ]
-```
+### Out of scope for v1
 
-- **Every other cell** is a potential target and shows the **send** button for that planet, exactly like `canSendDrone(planet.id)` drives the drone row today. The button stays disabled until the drone carries at least one item, and appears only for planets that pass the known-or-owned target check.
-- Cargo selection reuses the existing **accordion** mechanism (`toggleBuildRow` / `expandedBuildRow`, extended with a `'cargo'` key) so the picker expands under the row instead of crowding the cell.
-- Row visibility follows the drone row: only when the cargo drone facility exists and the planet has a dock.
-- Per-type colour, matching the pattern at `hs-solar-drone-cell--active` (green) and `hs-solar-colony-cell--active` (blue): the cargo row uses **amber**, picking up the Power Cell colour `#fbbf24`.
-
-This keeps all three unit types visually parallel: one row per unit class, the active planet acts, the other planets are destinations.
-
-### UI — the Dock panel
-
-The drone can also be **built** from `HsDockPanel` (the dock tile), listed directly after the Recon Drone since both come out of the drone hangar. Because only one drone may exist per planet, that row has an extra state the other two units do not: once a drone is around the build button is replaced by a **"Bereit"** status, with the current hold (`Laderaum n / 4`) and a pointer to the system map underneath. Loading and dispatching stay exclusive to the solar view — the dock only produces. Both flight legs also appear in the panel's active-missions list (`Cargo → target`, `Cargo ← origin`).
-
-### Why no storage-cap handling is needed
-
-`compute_resources()` clamps stored values to `$caps` on **every** tick, not just on production — so a delivery that overshoots a storage cap would silently evaporate on the next state load. This does not affect the cargo drone: none of the five loadable resources has a `storageCapacity` on any building, so `isset($caps[$res])` is false and no clamp applies. Restricting the cargo to high-tech goods removes the problem entirely rather than solving it. **Any future freighter that carries raw resources must handle this explicitly.**
-
-### How it was built
-
-The five gaps identified during design, and how each was closed:
-
-| Gap | Resolution |
-|-----|-----------|
-| **No cargo storage** | New table **`hs_cargo`** (`planet_id`, `player_id`, `cargo` JSON, `mission_id`), keyed by the drone's **home** planet. |
-| **No return leg** | `resolve_missions()` creates a **second mission row** on arrival with `leg='back'`, so every row still describes exactly one flight. |
-| **Units are never returned** | The `leg='back'` branch does an `INSERT … ON DUPLICATE KEY UPDATE quantity+1` on `hs_units` — the first time anything is added outside a completed build. |
-| **`hs_missions.type` is an ENUM** | `migrate_cargo_missions()` in `bootstrap.php` runs the `ALTER TABLE` on first access (adds the enum value **and** the `leg` column), guarded by a `SHOW COLUMNS … LIKE 'leg'` probe. Fresh installs get both from the schema. |
-| **No third unit row in the solar view** | Added to `HsSolarSystem.vue` alongside the cargo picker widget. |
-
-**The `hs_cargo` row is what enforces "one drone per planet".** It is created when the build is queued and **never deleted** — so it blocks a rebuild whether the drone is in production, docked, loaded, or away. `mission_id` doubles as the in-flight flag: non-null means the manifest is frozen.
-
-**Endpoints:** `POST /game/cargo/load` takes the **full desired manifest**, not a delta — the server diffs it against the stored hold and moves the difference. That makes it idempotent and turns "unload all" into an ordinary write of `{}`. `POST /game/mission/cargo` launches.
-
-**Edge case — delivery to an uncolonized planet.** There is no resource row to unload into, so `deliver_cargo()` returns false and the drone **flies home still loaded** rather than dropping the goods on an empty rock. This is why the return leg only clears `mission_id` and never the cargo.
-
-**Dev cheat:** `✓ Fracht` (`complete_cargo_missions`) resolves twice — once to land the delivery and create the return leg, once to bring the drone home.
-
-### Deliberately out of scope for v1
-
-Return cargo · more than one drone per planet · targets outside the home system (`flightTimeBase * dist` uses the planet index within the home system) · cancelling or redirecting a mission in flight · raw resources · queuing multiple deliveries.
-
-### Settled values
-
-| | |
-|---|---|
-| Unit key | `cargo_drone`, `facility: 'drone_hangar'` |
-| Build cost | 120 Metal + 60 Crystal + 2 Power Cells |
-| `buildTimeBase` | 5400 s (1.5 h) |
-| `flightTimeBase` | 3600 s per distance step (each leg) |
-| Hold | 4 items total, mixed freely |
-| Loadable | `power_cell`, `duraplate`, `plasma_core`, `superconductor`, `vital_gel` |
-| Limit | one drone per planet, counting production + dock + flight |
-| Target | any planet in `playerScannedPlanets` **or** owned by the player |
-| Row accent | amber `#fbbf24` |
+Return cargo · more than one drone per planet · targets outside the home system (`flightTimeBase × dist` uses the planet index within the home system) · cancelling or redirecting in flight · raw resources · queued deliveries.
 
 ### Files
 
@@ -583,10 +521,10 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 |-----------|------|
 | `HsNavBar` | View switching (Planet / Solar System / Galaxy Map) + gate checks. First item is `HsPlanetHeader` (planet name + type, clickable to switch to planet view). |
 | `HsResourceBar` | Compact resource bar shown at top of all views. Two rows: the raw resources (icon, name, amount, rate) and below them a High-Tech stock row (`hs-res-card--mini`) showing only icon + count for `power_cell` and the four refined resources. Both rows are per active planet. |
-| `HsPlanetGrid` | 4×3 unified tile grid — 3 panel tiles (row 1) + 9 planet building slots (rows 2–4). Manages single active-tile state across all 12 tiles. |
+| `HsPlanetGrid` | 5×3 unified tile grid — 2 panel tiles (row 1) + 12 planet building slots (rows 2–5). Manages single active-tile state across all 15 cells. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
-| `HsSolarSystem` | Home system view — all planets, drone & colony actions |
+| `HsSolarSystem` | Home system view — all planets + one action row per unit class (drone / colony / cargo). Clicking a planet tile selects it (`hs-solar-tile--selected`); if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
 | `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |

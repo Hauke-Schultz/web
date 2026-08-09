@@ -29,6 +29,15 @@ const {
   staffDelta,
   isOffline,
   freeWorkers,
+  batteryCharge,
+  starMapLevel,
+  playerColonizedPlanets,
+  playerScannedPlanets,
+  cargoDeliveries,
+  systemContacts,
+  homeSystemId,
+  homePlanetId,
+  activePlanetId,
   currentLevelDef,
   remainingSec,
   formatTime,
@@ -50,6 +59,7 @@ const isHightechTile     = computed(() => activeTileType.value?.id === 'hightech
 const isDockTile         = computed(() => activeTileType.value?.id === 'dock')
 const isEnergyTile       = computed(() => activeTileType.value?.id === 'energy')
 const isBaseTile         = computed(() => activeTileType.value?.id === 'base')
+const isHomePlanet       = computed(() => activePlanetId.value === homePlanetId.value)
 
 const hightechBuildings = computed(() => {
   if (!isHightechTile.value) return []
@@ -71,6 +81,34 @@ const availableConversions = computed(() =>
 // The running job for a recipe, if any — drives the fill inside its button.
 const queueFor = (buildingId, recipeIndex) =>
   conversionQueues.value.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex) ?? null
+
+// ── Onboarding checklist ──────────────────────────────────────────────────────
+// Permanent guide on the base tile. Each step ticks itself off from real state,
+// so it doubles as a progress overview once the early game is behind you.
+// A foreign system counts once it is fully scanned — the home system is scanned
+// from the start and must not tick this off.
+const foreignSystemScanned = computed(() =>
+  Object.entries(systemContacts.value).some(([sysId, c]) =>
+    c?.scanState === 'scanned' && String(sysId) !== String(homeSystemId.value)
+  )
+)
+
+const onboardingSteps = computed(() => [
+  { key: 'step1', done: getLevel('command_center') >= 1 },
+  // The home planet starts at 1 population — anything above it came from recruiting.
+  { key: 'step2', done: (playerResources.value.population ?? 0) >= 2 },
+  { key: 'step3', done: getLevel('power_plant') >= 1 && (batteryCharge.value ?? 0) > 0 },
+  { key: 'step4', done: getLevel('metal_mine') >= 1 && getLevel('crystal_drill') >= 1 },
+  { key: 'step5', done: starMapLevel.value >= 1 },
+  // playerScannedPlanets is seeded with the home planet — only a foreign one counts
+  { key: 'step6', done: playerScannedPlanets.value.some(id => id !== homePlanetId.value) },
+  // You start with one settlement, so only the second one is an achievement.
+  { key: 'step7', done: playerColonizedPlanets.value.length > 1 },
+  { key: 'step8', done: cargoDeliveries.value > 0 },
+  { key: 'step9', done: foreignSystemScanned.value },
+])
+
+const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.done).length)
 
 </script>
 
@@ -97,19 +135,6 @@ const queueFor = (buildingId, recipeIndex) =>
 
     <!-- Power battery — grid uptime, shown on the energy tile once a power plant exists -->
     <HsPowerBattery v-if="isEnergyTile && getLevel('power_plant') > 0" />
-
-    <!-- Onboarding hint — shown when base tile is active and Command Center not yet built -->
-    <div v-if="activeTileType?.id === 'base' && getLevel('command_center') === 0" class="hs-onboarding">
-      <div class="hs-onboarding-title">{{ t('hawkStar.tile.onboarding.title') }}</div>
-      <ol class="hs-onboarding-steps">
-        <li>{{ t('hawkStar.tile.onboarding.step1') }}</li>
-        <li>{{ t('hawkStar.tile.onboarding.step2') }}</li>
-        <li>{{ t('hawkStar.tile.onboarding.step3') }}</li>
-        <li>{{ t('hawkStar.tile.onboarding.step4') }}</li>
-        <li>{{ t('hawkStar.tile.onboarding.step5') }}</li>
-        <li>{{ t('hawkStar.tile.onboarding.step6') }}</li>
-      </ol>
-    </div>
 
     <!-- Population recruitment — base tile -->
     <HsRecruitPanel v-if="isBaseTile" />
@@ -277,6 +302,24 @@ const queueFor = (buildingId, recipeIndex) =>
       {{ t('hawkStar.tile.convEmptyNoFacility') }}
     </div>
 
+    <!-- Onboarding checklist — permanent on the home planet's base tile -->
+    <div v-if="isBaseTile && isHomePlanet" class="hs-onboarding">
+      <div class="hs-onboarding-head">
+        <span class="hs-onboarding-title">{{ t('hawkStar.tile.onboarding.title') }}</span>
+        <span class="hs-onboarding-count">{{ onboardingDoneCount }} / {{ onboardingSteps.length }}</span>
+      </div>
+      <ul class="hs-onboarding-steps">
+        <li
+          v-for="step in onboardingSteps"
+          :key="step.key"
+          :class="{ 'hs-onboarding-step--done': step.done }"
+        >
+          <span class="hs-onboarding-check">{{ step.done ? '✓' : '' }}</span>
+          <span class="hs-onboarding-text">{{ t('hawkStar.tile.onboarding.' + step.key) }}</span>
+        </li>
+      </ul>
+    </div>
+
   </div>
 </template>
 
@@ -287,10 +330,17 @@ const queueFor = (buildingId, recipeIndex) =>
   border: 1px solid rgba(80, 120, 255, 0.2);
   border-radius: var(--hs-r-md);
   padding: 0.7rem 0.9rem;
-  margin-bottom: 0.75rem;
+  margin-top: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+}
+
+.hs-onboarding-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .hs-onboarding-title {
@@ -300,18 +350,56 @@ const queueFor = (buildingId, recipeIndex) =>
   letter-spacing: 0.03em;
 }
 
+.hs-onboarding-count {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: rgba(150, 180, 255, 0.75);
+  font-variant-numeric: tabular-nums;
+}
+
 .hs-onboarding-steps {
   margin: 0;
-  padding-left: 1.1rem;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 0.28rem;
 
   li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
     font-size: 0.67rem;
     color: rgba(255, 255, 255, 0.55);
     line-height: 1.45;
   }
+}
+
+.hs-onboarding-check {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.12rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(150, 180, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  line-height: 1;
+  color: transparent;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.hs-onboarding-step--done {
+  color: rgba(255, 255, 255, 0.32);
+
+  .hs-onboarding-check {
+    background: rgba(52, 211, 153, 0.2);
+    border-color: rgba(52, 211, 153, 0.55);
+    color: #6ee7b7;
+  }
+  .hs-onboarding-text { text-decoration: line-through; }
 }
 
 .hs-panel {

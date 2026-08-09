@@ -19,7 +19,7 @@ const {
   isColonyTarget, canSendColonyShip, sendColonyShip,
   remainingColonySec, colonyProgressStyle,
   colonyFlightTimeBetween,
-  allActiveCargoMissions,
+  allActiveCargoMissions, activeCargoMissions,
   homeSystem, homePlanetId,
   activePlanetId, setActivePlanet,
   formatTime,
@@ -467,6 +467,10 @@ const planetIcon = (planet) => {
             <div class="hs-solar-progress-bar hs-solar-progress-bar--cargo" :style="cargoReturnProgressStyle" />
             <span class="hs-solar-tile-timer hs-solar-tile-timer--cargo">{{ formatTime(remainingCargoReturnSec) }}</span>
           </template>
+          <!-- Outbound: the drone is gone, so no build trigger — the target cell has the timer -->
+          <span v-else-if="activeCargoMissions.length" class="hs-solar-unit-missing hs-solar-unit-missing--cargo">
+            {{ t('hawkStar.solar.cargoEnRoute') }}
+          </span>
           <button v-else class="hs-solar-unit-build-trigger" @click.stop="toggleBuildRow('cargo')">
             <span class="hs-solar-unit-build-trigger__name">
               {{ cargoDroneBuild ? t('hawkStar.dock.statusBuilding') : t('hawkStar.dock.cargoDrone') }}
@@ -1629,6 +1633,9 @@ const planetIcon = (planet) => {
   color: rgba(255,255,255,0.28);
   padding: 0 0.25rem;
 }
+
+// The drone is away, not missing — keep it in the cargo row's amber
+.hs-solar-unit-missing--cargo { color: rgba(251, 191, 36, 0.65); }
 
 
 </style>

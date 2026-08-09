@@ -627,6 +627,8 @@ const droneBuildProgressStyle = computed(() => {
 
 // ── Colony Ships (home system colonization) ────────────────
 const playerColonizedPlanets = ref([])
+// Completed cargo deliveries across all planets — server-side count, survives a reload
+const cargoDeliveries = ref(0)
 // Per-planet dock aliases
 const colonyShipInventory  = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipInventory ?? 0)
 const colonyShipBuild      = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.colonyShipBuild ?? null)
@@ -1416,6 +1418,9 @@ const applyGameState = (planetId, state) => {
   for (const pid of (state.droneScannedPlanets ?? [])) {
     if (!playerScannedPlanets.value.includes(pid)) playerScannedPlanets.value.push(pid)
   }
+
+  // Player-wide, not per planet — every state load reports the same total
+  cargoDeliveries.value = state.cargoDeliveries ?? 0
 }
 
 export const refreshPlanetState = async (planetId) => {
@@ -1628,6 +1633,7 @@ export function useHawkStar() {
     droneFlightTimeBetween,
     // colony ships
     playerColonizedPlanets,
+    cargoDeliveries,
     colonyShipInventory,
     colonyShipBuild,
     activeColonyMissions,

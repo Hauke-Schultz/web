@@ -38,7 +38,9 @@
       "Bash(npx --no-install acorn --ecma2022 --module app/composables/useHawkStar.js)",
       "Bash(php -l api/star/config.php)",
       "Bash(npx nuxt *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(grep -n \"^  [a-z_]*: *{$\" frontend/app/utils/hawkStarConfig.js)",
+      "Bash(php -l api/star/game/state.php)"
     ]
   }
 }
