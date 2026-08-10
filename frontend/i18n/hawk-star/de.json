@@ -317,7 +317,7 @@
         "lv1": "+2 Metall/s · 300 Lager · 3 Energie · 2 Arbeiter",
         "lv2": "+5 Metall/s · 700 Lager · 5 Energie · 4 Arbeiter",
         "lv3": "+12 Metall/s · 1500 Lager · 9 Energie · 6 Arbeiter",
-        "lv4": "+16 Metall/s · 1900 Lager · 9 Energie · 6 Arbeiter",
+        "lv4": "+16 Metall/s · 2000 Lager · 9 Energie · 6 Arbeiter",
         "lv5": "+22 Metall/s · 2500 Lager · 9 Energie · 6 Arbeiter",
         "lv6": "+28 Metall/s · 3000 Lager · 9 Energie · 6 Arbeiter"
       },
@@ -329,7 +329,8 @@
         "lv3": "+7 Kristall/s · 1000 Lager · 7 Energie · 5 Arbeiter",
         "lv4": "+10 Kristall/s · 1300 Lager · 7 Energie · 5 Arbeiter",
         "lv5": "+15 Kristall/s · 1700 Lager · 7 Energie · 5 Arbeiter",
-        "lv6": "+25 Kristall/s · 2500 Lager · 7 Energie · 5 Arbeiter"
+        "lv6": "+18 Kristall/s · 2000 Lager · 7 Energie · 5 Arbeiter",
+        "lv7": "+25 Kristall/s · 2500 Lager · 7 Energie · 5 Arbeiter"
       },
       "alloy_forge": {
         "name": "Legierungsschmiede",

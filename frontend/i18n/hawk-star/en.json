@@ -316,7 +316,7 @@
         "lv1": "+2 metal/s · 300 storage · uses 3 energy · 2 workers",
         "lv2": "+5 metal/s · 700 storage · uses 5 energy · 4 workers",
         "lv3": "+12 metal/s · 1500 storage · uses 9 energy · 6 workers",
-        "lv4": "+16 metal/s · 1900 storage · uses 9 energy · 6 workers",
+        "lv4": "+16 metal/s · 2000 storage · uses 9 energy · 6 workers",
         "lv5": "+22 metal/s · 2500 storage · uses 9 energy · 6 workers",
         "lv6": "+28 metal/s · 3000 storage · uses 9 energy · 6 workers"
       },
@@ -328,7 +328,8 @@
         "lv3": "+7 crystal/s · 1000 storage · uses 7 energy · 5 workers",
         "lv4": "+10 crystal/s · 1300 storage · uses 7 energy · 5 workers",
         "lv5": "+15 crystal/s · 1700 storage · uses 7 energy · 5 workers",
-        "lv6": "+25 crystal/s · 2500 storage · uses 7 energy · 5 workers"
+        "lv6": "+18 crystal/s · 2000 storage · uses 7 energy · 5 workers",
+        "lv7": "+25 crystal/s · 2500 storage · uses 7 energy · 5 workers"
       },
       "alloy_forge": {
         "name": "Alloy Forge",

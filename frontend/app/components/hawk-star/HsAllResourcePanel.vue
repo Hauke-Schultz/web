@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RESOURCES, PLANET_TYPES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
-const { playerResources, production, maxStorage, planetName, planetType } = useHawkStar()
+const { production, maxStorage, isStorageFull, resourceDisplay, planetName, planetType } = useHawkStar()
 const { t } = useI18n()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
@@ -38,9 +38,17 @@ const allResources = computed(() =>
         <span class="hs-res-icon">{{ res.icon }}</span>
         <div class="hs-res-info">
           <span class="hs-res-name">{{ t('hawkStar.res.' + res.id) }}</span>
-          <span class="hs-res-amount">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
-          <span v-if="production[res.id]" class="hs-res-rate">+{{ production[res.id] }}/m</span>
-          <span v-if="maxStorage[res.id]" class="hs-res-cap">/{{ maxStorage[res.id] }}</span>
+          <span class="hs-res-amount">{{ Math.floor(resourceDisplay(res.id)) }}</span>
+          <span
+            v-if="production[res.id]"
+            class="hs-res-rate"
+            :class="{ 'hs-res-rate--paused': isStorageFull(res.id) }"
+          >+{{ production[res.id] }}/m</span>
+          <span
+            v-if="maxStorage[res.id]"
+            class="hs-res-cap"
+            :class="{ 'hs-res-cap--full': isStorageFull(res.id) }"
+          >/{{ maxStorage[res.id] }}</span>
         </div>
       </div>
     </div>
@@ -111,4 +119,8 @@ const allResources = computed(() =>
 .hs-res-amount { font-size: 0.8rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
 .hs-res-rate   { font-size: 0.5rem; color: var(--hs-ok); font-variant-numeric: tabular-nums; line-height: 1; }
 .hs-res-cap    { font-size: 0.5rem; opacity: 0.35; font-variant-numeric: tabular-nums; line-height: 1; }
+
+/* Store at the cap: production is paused until something is spent */
+.hs-res-rate--paused { color: #fbbf24; text-decoration: line-through; opacity: 0.7; }
+.hs-res-cap--full    { color: #fbbf24; opacity: 0.8; }
 </style>

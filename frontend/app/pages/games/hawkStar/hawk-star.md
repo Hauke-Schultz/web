@@ -80,6 +80,10 @@ All buildings are defined in `BUILDINGS` (`hawkStarConfig.js`). Each building en
 
 A building goes offline (stops producing) if energy is in deficit.
 
+**The storage cap is the summed `storageCapacity` of the finished buildings — nothing is added on top.** A resource with no capacity building has no cap at all and is not clamped. `maxStorage` in `useHawkStar.js` and `storage_caps_from_levels()` in `bootstrap.php` must produce the same number: the server is the side that enforces it, so any extra the frontend invents shows up as a max the player can never reach.
+
+**A full store pauses production**, and the display has to show that. The counter between the minute syncs is a *preview*: the last server value plus the elapsed share of this minute's rate. `resourceDisplay(id)` in `useHawkStar.js` is the single place that computes it, and it clamps at the cap — an unclamped preview ran a full mine up to 2001, 2002 … before the next sync snapped it back. `isStorageFull(id)` goes with it: both the bar and the resource panel strike the rate through and turn the cap amber while it applies.
+
 ---
 
 ## Resources
@@ -197,6 +201,7 @@ The open anomaly is drawn as **one closed card**: the head (icon, name, descript
 - **Choices are materialised at creation, not at resolve.** The roll turns each template into concrete deltas and stores them as JSON on the row. That is what lets the panel promise exact numbers, and it means a later config or storage-cap change can never alter an offer the player is already looking at.
 - **Raw payouts are a share of the planet's storage cap, not a flat number.** `compute_resources()` clamps to the cap on every tick, so a flat amount tuned for the late game would silently evaporate on an early planet. `ANOMALY_CAP_BASELINE` stands in before any storage building exists, where the real cap is still 0.
 - The exclusive raws sit on much smaller caps than crystal, so the comet's **paid** option needs the *larger* share (0.60 vs 0.20) to stay worth paying for.
+- **The payout is credited through `credit_resources()`, which clamps at the storage cap** (`LEAST(res + amt, GREATEST(res, cap))`). A haul landing on a nearly full silo fills it to the cap and stops. Without that the stock briefly showed an over-cap number that the next `compute_resources()` tick silently shaved back down. Stock already sitting above its cap is left untouched — the helper only ever adds.
 - **The interval measures from `MAX(COALESCE(resolved_at, expires_at))`** — the moment the tile last became free. Measuring from `created_at` would let an anomaly that sat around longer than the interval spawn its successor the instant it is answered.
 - **`apply_anomaly_choice()` is the only place an effect executes**, for every type. Adding an anomaly is a config entry, not code. Resource keys come out of stored JSON straight into SQL column names, so they are checked against `RESOURCE_KEYS` first.
 - Resolving **claims the row first** (`UPDATE … WHERE resolved_at IS NULL`) and only then pays out — a double click cannot collect twice. If the cost turns out to be unaffordable the claim is rolled back so the other option stays open.
@@ -204,7 +209,7 @@ The open anomaly is drawn as **one closed card**: the head (icon, name, descript
 
 ### Files
 
-`ANOMALY_*` / `ANOMALIES` in `api/star/config.php` · `anomaly_state`, `create_anomaly`, `materialize_anomaly_choice`, `apply_anomaly_choice` in `api/star/bootstrap.php` · `api/star/game/anomaly/resolve.php` · table `hs_anomalies` · `HsAnomalyPanel.vue` · `anomaly`/`hasAnomaly`/`resolveAnomaly` in `useHawkStar.js`
+`ANOMALY_*` / `ANOMALIES` in `api/star/config.php` · `anomaly_state`, `create_anomaly`, `materialize_anomaly_choice`, `apply_anomaly_choice`, `credit_resources` in `api/star/bootstrap.php` · `api/star/game/anomaly/resolve.php` · table `hs_anomalies` · `HsAnomalyPanel.vue` · `anomaly`/`hasAnomaly`/`resolveAnomaly` in `useHawkStar.js`
 
 ---
 

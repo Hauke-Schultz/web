@@ -280,10 +280,15 @@ const totalStaffDrain = computed(() => {
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
 
 // ── Storage caps ───────────────────────────────────────────
-const BASE_STORAGE = { metal: 100, crystal: 50, alloy: 50, cryo: 50, obsidian: 50, biomass: 50, duraplate: 50, plasma_core: 50, superconductor: 50, vital_gel: 50 }
-
+// The cap is the summed storageCapacity of the finished buildings and nothing
+// else — same rule as storage_caps_from_levels() on the server, which is the
+// side that actually clamps. There used to be a free base amount added here;
+// it existed only in the frontend, so a metal mine Lv4 advertised 2100 while
+// the server enforced 2000. A resource with no capacity building has no entry
+// at all — both display sites skip the "/max" then, matching the server, where
+// such a resource is simply not clamped.
 const maxStorage = computed(() => {
-  const caps = { ...BASE_STORAGE }
+  const caps = {}
   for (const [id, state] of Object.entries(playerBuildings.value)) {
     if (state.level === 0) continue
     const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
@@ -293,6 +298,28 @@ const maxStorage = computed(() => {
   }
   return caps
 })
+
+// A full store produces nothing — the server stops at the cap on every tick.
+const isStorageFull = (id) => {
+  const cap = maxStorage.value[id]
+  return cap != null && (playerResources.value[id] ?? 0) >= cap
+}
+
+// What a resource reads *right now*: the last synced server value plus the part
+// of this minute's production that has already elapsed. Every display goes
+// through here so they can never disagree.
+//
+// The cap is what makes it honest. The server clamps at the cap on each tick,
+// so a mine sitting at its 2000 limit produces nothing — but the raw preview
+// kept counting and showed 2001, 2002 … until the next sync snapped it back.
+// A stock somehow above its cap is held where it is rather than pulled down,
+// mirroring credit_resources() on the server.
+const resourceDisplay = (id) => {
+  const base = playerResources.value[id] ?? 0
+  const live = base + tickProgress.value * (production.value[id] ?? 0)
+  const cap  = maxStorage.value[id]
+  return cap == null ? live : Math.min(live, Math.max(base, cap))
+}
 
 // ── Build checks ───────────────────────────────────────────
 const canAfford = (cost) => {
@@ -977,7 +1004,7 @@ const cargoReturnProgressStyle = computed(() => {
 // Helper: storage caps for any planet (used when delivering cargo)
 const maxStorageForPlanet = (planetId) => {
   const pb = allPlanetStates.value[planetId]?.buildings ?? {}
-  const caps = { ...BASE_STORAGE }
+  const caps = {}
   for (const [id, state] of Object.entries(pb)) {
     if (state.level === 0) continue
     const storage = BUILDINGS[id]?.levels[state.level - 1]?.storageCapacity ?? {}
@@ -1672,6 +1699,8 @@ export function useHawkStar() {
     freeWorkers,
     // storage
     maxStorage,
+    isStorageFull,
+    resourceDisplay,
     // current level stats
     currentLevelDef,
     // navigation

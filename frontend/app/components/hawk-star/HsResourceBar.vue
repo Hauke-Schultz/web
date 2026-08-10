@@ -9,9 +9,10 @@ const {
   grossProduction,
   freeWorkers,
   maxStorage,
+  isStorageFull,
+  resourceDisplay,
   energyDeficit,
   planetType,
-  tickProgress,
 } = useHawkStar()
 
 const BAR_IDS = ['population', 'metal', 'crystal', 'alloy', 'cryo', 'obsidian', 'biomass', 'energy']
@@ -54,7 +55,7 @@ const refinedResources = computed(() =>
         >
           <template v-if="res.id === 'energy'">{{ production.energy > 0 ? `+${production.energy}` : production.energy }}</template>
           <template v-else-if="res.id === 'population'">{{ freeWorkers > 0 ? `+${freeWorkers}` : freeWorkers }}</template>
-          <template v-else>{{ Math.floor(playerResources[res.id] + tickProgress * (production[res.id] || 0)) }}</template>
+          <template v-else>{{ Math.floor(resourceDisplay(res.id)) }}</template>
         </span>
         <span
           v-if="res.id === 'energy'"
@@ -66,12 +67,17 @@ const refinedResources = computed(() =>
           class="hs-res-prod"
           :class="freeWorkers < 0 ? 'hs-res-prod--neg' : ''"
         >{{ freeWorkers }}/{{ playerResources[res.id] }}</span>
+        <!-- A full store produces nothing, so the rate is struck through rather
+             than left standing next to a number that has stopped moving -->
         <span
           v-else
           class="hs-res-prod"
-          :class="production[res.id] > 0 ? 'hs-res-prod--pos' : ''"
+          :class="{
+            'hs-res-prod--pos':  production[res.id] > 0 && !isStorageFull(res.id),
+            'hs-res-prod--full': isStorageFull(res.id),
+          }"
         >
-          {{ production[res.id] ? `+${production[res.id]}/m` : '' }}
+          <span v-if="production[res.id]" class="hs-res-rate">+{{ production[res.id] }}/m</span>
           <template v-if="maxStorage[res.id]"> · /{{ maxStorage[res.id] }}</template>
         </span>
       </div>
@@ -189,5 +195,11 @@ const refinedResources = computed(() =>
 
   &--pos { color: var(--hs-ok); }
   &--neg { color: var(--hs-danger); }
+
+  /* Storage at the cap: production is paused until something is spent */
+  &--full {
+    color: #fbbf24;
+    .hs-res-rate { text-decoration: line-through; opacity: 0.7; }
+  }
 }
 </style>

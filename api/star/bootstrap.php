@@ -718,6 +718,30 @@ function planet_storage_caps(PDO $db, int $planetId, int $playerId): array {
     return storage_caps_from_levels(completed_building_levels($db, $planetId, $playerId));
 }
 
+// Adds resources without ever pushing a stock past its storage cap. Doing the
+// clamp at the moment of the payout instead of leaving it to the next
+// compute_resources() tick is what keeps a full store honest: the player sees
+// the number they actually keep, not one that quietly shrinks a second later.
+// A stock that already sits above its cap is left alone rather than trimmed —
+// this credits, it never takes anything away.
+function credit_resources(PDO $db, int $planetId, int $playerId, array $gain, array $caps): void {
+    foreach ($gain as $res => $amt) {
+        if (!in_array($res, RESOURCE_KEYS, true) || $amt <= 0) continue;
+
+        if (isset($caps[$res])) {
+            $db->prepare(
+                "UPDATE hs_planet_resources SET $res = LEAST($res + ?, GREATEST($res, ?))
+                 WHERE planet_id=? AND player_id=?"
+            )->execute([$amt, (float)$caps[$res], $planetId, $playerId]);
+        } else {
+            $db->prepare(
+                "UPDATE hs_planet_resources SET $res = $res + ?
+                 WHERE planet_id=? AND player_id=?"
+            )->execute([$amt, $planetId, $playerId]);
+        }
+    }
+}
+
 // building_key => level for everything standing (build finished) on the planet.
 function completed_building_levels(PDO $db, int $planetId, int $playerId): array {
     $rows = $db->prepare(
@@ -911,12 +935,9 @@ function apply_anomaly_choice(PDO $db, int $planetId, int $playerId, array $choi
              WHERE planet_id=? AND player_id=?"
         )->execute([$amt, $planetId, $playerId]);
     }
-    foreach ($gain as $res => $amt) {
-        $db->prepare(
-            "UPDATE hs_planet_resources SET $res = $res + ?
-             WHERE planet_id=? AND player_id=?"
-        )->execute([$amt, $planetId, $playerId]);
-    }
+    // Paid out through the cap-aware credit: a meteor haul on a nearly full
+    // store tops the silo up and stops there instead of overshooting.
+    credit_resources($db, $planetId, $playerId, $gain, planet_storage_caps($db, $planetId, $playerId));
 
     $delta = (float)($choice['battery'] ?? 0);
     if ($delta != 0.0) {
