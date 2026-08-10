@@ -31,6 +31,7 @@ const {
   gridDown,
   recruitPool,
   recruitPoolMax,
+  hasAnomaly,
 } = useHawkStar()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
@@ -208,6 +209,10 @@ const onSelectSlot = (slot) => {
               class="hs-dot"
               :class="type === 'building' ? 'hs-dot--building' : 'hs-dot--mission'"
             />
+          </template>
+          <!-- The anomaly tile holds no buildings — the dot means "something is waiting" -->
+          <template v-else-if="slot.tileType === 'anomaly'">
+            <span v-if="hasAnomaly" class="hs-dot hs-dot--anomaly" />
           </template>
           <template v-else>
             <span
@@ -387,6 +392,7 @@ const onSelectSlot = (slot) => {
   &--building { background: var(--hs-warn); animation: pulse 1.2s ease-in-out infinite; }
   &--offline  { background: var(--hs-danger); animation: pulse 1.5s ease-in-out infinite; }
   &--mission  { background: #60a5fa; animation: pulse 1.4s ease-in-out infinite; }
+  &--anomaly  { background: #818cf8; animation: pulse 1.1s ease-in-out infinite; }
 }
 
 .hs-dock-inv {

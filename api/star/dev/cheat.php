@@ -71,21 +71,7 @@ switch ($action) {
         $planet = $ownRow->fetch();
         if (!$planet) fail('Planet not owned', 403);
 
-        // Compute storage caps from active buildings
-        $bRows = $db->prepare(
-            'SELECT building_key, level FROM hs_buildings
-             WHERE planet_id=? AND player_id=? AND level>0 AND build_ends_at IS NULL'
-        );
-        $bRows->execute([$planetId, $playerId]);
-        $caps = [];
-        foreach ($bRows->fetchAll() as $row) {
-            $def = level_def($row['building_key'], (int)$row['level']);
-            if (!$def) continue;
-            foreach (($def['storageCapacity'] ?? []) as $res => $cap) {
-                $caps[$res] = ($caps[$res] ?? 0) + $cap;
-            }
-        }
-
+        $caps = planet_storage_caps($db, $planetId, $playerId);
         if (empty($caps)) ok(['action' => 'max_resources', 'note' => 'no storage caps']);
 
         $sets = array_map(fn($r) => "$r = ?", array_keys($caps));
@@ -110,6 +96,27 @@ switch ($action) {
 
         resolve_units($db, $planetId, $playerId);
         ok(['action' => 'complete_units']);
+
+    case 'roll_anomaly':
+        if (!$planetId) fail('planetId required');
+        $ownRow = $db->prepare(
+            'SELECT p.type FROM hs_planet_ownership po JOIN hs_planets p ON p.id=po.planet_id
+             WHERE po.planet_id=? AND po.player_id=?'
+        );
+        $ownRow->execute([$planetId, $playerId]);
+        $planet = $ownRow->fetch();
+        if (!$planet) fail('Planet not owned', 403);
+
+        // Expire whatever is open, then roll immediately — otherwise testing an
+        // anomaly means waiting out ANOMALY_INTERVAL_HOURS.
+        ensure_anomaly_table($db);
+        $db->prepare(
+            'UPDATE hs_anomalies SET expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
+             WHERE planet_id=? AND player_id=? AND resolved_at IS NULL'
+        )->execute([$planetId, $playerId]);
+
+        $rolled = create_anomaly($db, $planetId, $playerId, $planet['type']);
+        ok(['action' => 'roll_anomaly', 'rolled' => $rolled['type'] ?? null]);
 
     case 'complete_conversions':
         if (!$planetId) fail('planetId required');

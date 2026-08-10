@@ -9,6 +9,7 @@ import HsProfilePanel from '~/components/hawk-star/HsProfilePanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPowerBattery from '~/components/hawk-star/HsPowerBattery.vue'
 import HsRecruitPanel from '~/components/hawk-star/HsRecruitPanel.vue'
+import HsAnomalyPanel from '~/components/hawk-star/HsAnomalyPanel.vue'
 
 defineProps({ activePanel: { type: String, default: null } })
 
@@ -59,6 +60,7 @@ const isHightechTile     = computed(() => activeTileType.value?.id === 'hightech
 const isDockTile         = computed(() => activeTileType.value?.id === 'dock')
 const isEnergyTile       = computed(() => activeTileType.value?.id === 'energy')
 const isBaseTile         = computed(() => activeTileType.value?.id === 'base')
+const isAnomalyTile      = computed(() => activeTileType.value?.id === 'anomaly')
 const isHomePlanet       = computed(() => activePlanetId.value === homePlanetId.value)
 
 const hightechBuildings = computed(() => {
@@ -138,6 +140,9 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
 
     <!-- Population recruitment — base tile -->
     <HsRecruitPanel v-if="isBaseTile" />
+
+    <!-- Passing events — anomaly tile (has no buildings of its own) -->
+    <HsAnomalyPanel v-if="isAnomalyTile" />
 
     <div class="hs-building-list">
       <div
@@ -239,7 +244,7 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
     </div>
 
 
-    <div v-if="buildingsForActiveSlot.length === 0 && !isSpacebaseTile" class="hs-empty">
+    <div v-if="buildingsForActiveSlot.length === 0 && !isSpacebaseTile && !isAnomalyTile" class="hs-empty">
       {{ t('hawkStar.tile.selectTile') }}
     </div>
 

@@ -29,6 +29,7 @@ $battery = battery_state($db, $planetId, $playerId);
 $recruit = recruit_state($db, $planetId, $playerId);
 $units   = units_state($db, $planetId, $playerId);
 $cargo   = cargo_state($db, $planetId, $playerId);
+$anomaly = anomaly_state($db, $planetId, $playerId, $planet['type']);
 
 // ── Load current state ────────────────────────────────────────────────────────
 
@@ -142,4 +143,5 @@ ok([
     'battery'            => $battery,
     'recruit'            => $recruit,
     'cargo'              => $cargo,
+    'anomaly'            => $anomaly,
 ]);

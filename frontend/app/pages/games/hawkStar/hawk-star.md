@@ -169,6 +169,45 @@ Population starts at **1** — you grow it by recruiting on the base tile. A **r
 
 ---
 
+## Anomalies  *(implemented)*
+
+Every few hours something drifts past a planet and waits on the **anomaly tile** (slot 7, the old agriculture placeholder). Each anomaly is a fork between **two guaranteed, fully visible outcomes** — the randomness sits in *which* anomaly turns up, never in what a choice pays out. Ignoring one costs nothing but the opportunity: every outcome is a gift, and an untouched anomaly simply expires.
+
+| Type | Choice A | Choice B |
+|------|----------|----------|
+| ☄️ Meteor Shower | crystal share | metal share |
+| 🛰️ Derelict Freighter | 2 high-tech goods (rolled at creation, shown up front) | metal + crystal share |
+| 🌞 Solar Storm | battery +40 % | 2 × power cell |
+| 👥 Refugee Convoy | +4 population, costs metal | 2 × power cell |
+| 🧊 Comet Core | planet-exclusive raw (costs 2 power cells) | crystal share |
+
+### Rules
+
+- **One open anomaly per planet.** Lifetime `ANOMALY_TTL_HOURS` (12 h), next roll no earlier than `ANOMALY_INTERVAL_HOURS` (6 h) after the tile last became free.
+- **Rolled on read**, from elapsed time — same no-cron trick as the recruit pool. An absent player never accumulates a backlog.
+- **The tile must be unlocked** (`command_center` Lv2) before anomalies start landing, otherwise the first ones would tick away behind a lock.
+- Anomalies that would produce a dud option are **filtered out before the roll**: the solar storm needs a `power_plant` to charge, the comet needs a planet type with an exclusive raw resource.
+
+### Panel
+
+The open anomaly is drawn as **one closed card**: the head (icon, name, description, ⏳ remaining) sits on a tinted strip, below it the line *"Wähle eine der beiden Optionen — die andere verfällt"*, and at the bottom the two options **side by side, left and right, split by an "oder"**. The fork is the layout, so the tile no longer needs to be read to be understood. Each option button carries its label plus its deltas stacked one per line (green gains, red costs) — legible even in a half-width column. Without an open anomaly the tile shows only the dashed idle hint.
+
+### Implementation notes
+
+- **Choices are materialised at creation, not at resolve.** The roll turns each template into concrete deltas and stores them as JSON on the row. That is what lets the panel promise exact numbers, and it means a later config or storage-cap change can never alter an offer the player is already looking at.
+- **Raw payouts are a share of the planet's storage cap, not a flat number.** `compute_resources()` clamps to the cap on every tick, so a flat amount tuned for the late game would silently evaporate on an early planet. `ANOMALY_CAP_BASELINE` stands in before any storage building exists, where the real cap is still 0.
+- The exclusive raws sit on much smaller caps than crystal, so the comet's **paid** option needs the *larger* share (0.60 vs 0.20) to stay worth paying for.
+- **The interval measures from `MAX(COALESCE(resolved_at, expires_at))`** — the moment the tile last became free. Measuring from `created_at` would let an anomaly that sat around longer than the interval spawn its successor the instant it is answered.
+- **`apply_anomaly_choice()` is the only place an effect executes**, for every type. Adding an anomaly is a config entry, not code. Resource keys come out of stored JSON straight into SQL column names, so they are checked against `RESOURCE_KEYS` first.
+- Resolving **claims the row first** (`UPDATE … WHERE resolved_at IS NULL`) and only then pays out — a double click cannot collect twice. If the cost turns out to be unaffordable the claim is rolled back so the other option stays open.
+- Dev cheat **☄️ Anomalie** forces an immediate roll — otherwise testing means waiting out the 6 h interval.
+
+### Files
+
+`ANOMALY_*` / `ANOMALIES` in `api/star/config.php` · `anomaly_state`, `create_anomaly`, `materialize_anomaly_choice`, `apply_anomaly_choice` in `api/star/bootstrap.php` · `api/star/game/anomaly/resolve.php` · table `hs_anomalies` · `HsAnomalyPanel.vue` · `anomaly`/`hasAnomaly`/`resolveAnomaly` in `useHawkStar.js`
+
+---
+
 ## Units
 
 Units are built at the Space Base tile and consumed on missions. Each unit type has exactly **one level** — no upgrades. Only **one active mission** per unit type at a time.
@@ -611,10 +650,10 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 | Phase 3 — Player interaction (trade, player messaging) | ⬜ Planned |
 | Phase 4 — Espionage (recon in other players' systems) | ⬜ Planned |
 | Phase 5 — Combat (warships, stat-based combat) | ⬜ Planned |
-| Slot 7 — new tile type (agriculture removed, concept open) | ⬜ Planned |
 | Power battery (power_plant, click-to-charge, blackout when empty) | ✅ Implemented |
 | Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |
 | Cargo drone (one per planet, 4 items, one-way delivery + empty return) | ✅ Implemented |
+| Slot 7 — anomaly tile (timed events, two guaranteed outcomes each) | ✅ Implemented |
 
 See `hawk-star-backend.md` for the full backend concept.
 

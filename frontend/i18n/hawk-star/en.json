@@ -188,6 +188,57 @@
       "hint": "Drains over time. Empty = total power loss."
     },
 
+    "anomaly": {
+      "idle": "Quiet out there. The next event reaches the planet in a few hours.",
+      "expiresHint": "After that the event moves on",
+      "prompt": "Pick one of the two options — the other is lost",
+      "or": "or",
+      "cannotAfford": "Not enough resources",
+      "batteryDelta": "Battery +{pct}%",
+      "types": {
+        "meteor": {
+          "name": "Meteor Shower",
+          "desc": "A debris stream grazes the orbit. The salvage teams can only take one haul.",
+          "choices": {
+            "crystal": "Melt out crystal veins",
+            "metal":   "Collect metal chunks"
+          }
+        },
+        "wreck": {
+          "name": "Derelict Freighter",
+          "desc": "An abandoned freighter drifts in orbit. Salvage the hold or strip the hull?",
+          "choices": {
+            "salvage": "Salvage the cargo",
+            "scrap":   "Strip the hull"
+          }
+        },
+        "solar_storm": {
+          "name": "Solar Storm",
+          "desc": "The magnetosphere is glowing. The ion surge can be tapped once.",
+          "choices": {
+            "channel": "Route into the battery",
+            "harvest": "Bottle the ions"
+          }
+        },
+        "refugees": {
+          "name": "Refugee Convoy",
+          "desc": "A convoy asks to dock. They can stay — or just refuel and move on.",
+          "choices": {
+            "accept": "Take them in",
+            "trade":  "Sell them fuel"
+          }
+        },
+        "comet": {
+          "name": "Comet Core",
+          "desc": "An ice core passes close by. Capturing it costs power cells.",
+          "choices": {
+            "capture": "Capture the core",
+            "scan":    "Scan only"
+          }
+        }
+      }
+    },
+
     "recruit": {
       "title": "Recruitment",
       "perClick": "+1 worker per click",
@@ -225,7 +276,7 @@
       "techcenter":  { "name": "Tech Center", "desc": "Technology research" },
       "comm_center": { "name": "Comm Center",  "desc": "Global technologies — researched once, applied across all planets" },
       "spacebase":   { "name": "Space Base",  "desc": "Launch pad for drones and colony ships" },
-      "agriculture": { "name": "Agriculture", "desc": "Grow seeds" },
+      "anomaly":     { "name": "Anomaly", "desc": "Passing events — each one a choice between two guaranteed outcomes" },
       "defense":     { "name": "Defense",     "desc": "Planetary shields, weapons platforms and early-warning systems" },
       "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" },
       "dock":        { "name": "Dock",        "desc": "Ship management, missions and fleet operations" },

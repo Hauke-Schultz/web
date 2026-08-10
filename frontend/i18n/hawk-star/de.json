@@ -189,6 +189,57 @@
       "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall."
     },
 
+    "anomaly": {
+      "idle": "Ruhig da draußen. Das nächste Ereignis erreicht den Planeten in einigen Stunden.",
+      "expiresHint": "Danach zieht das Ereignis weiter",
+      "prompt": "Wähle eine der beiden Optionen — die andere verfällt",
+      "or": "oder",
+      "cannotAfford": "Nicht genug Ressourcen",
+      "batteryDelta": "Batterie +{pct} %",
+      "types": {
+        "meteor": {
+          "name": "Meteoritenschauer",
+          "desc": "Ein Trümmerstrom streift den Orbit. Die Bergungsteams schaffen nur eine Fracht.",
+          "choices": {
+            "crystal": "Kristalladern ausschmelzen",
+            "metal":   "Metallbrocken einsammeln"
+          }
+        },
+        "wreck": {
+          "name": "Wrackfund",
+          "desc": "Ein havarierter Frachter treibt herrenlos im Orbit. Bergen oder ausschlachten?",
+          "choices": {
+            "salvage": "Ladung bergen",
+            "scrap":   "Rumpf ausschlachten"
+          }
+        },
+        "solar_storm": {
+          "name": "Sonnensturm",
+          "desc": "Die Magnetosphäre glüht. Die Ionenflut lässt sich einmalig anzapfen.",
+          "choices": {
+            "channel": "In die Batterie leiten",
+            "harvest": "Ionen abfüllen"
+          }
+        },
+        "refugees": {
+          "name": "Flüchtlingskonvoi",
+          "desc": "Ein Konvoi bittet um Aufnahme. Sie können bleiben — oder nur auftanken und weiterziehen.",
+          "choices": {
+            "accept": "Aufnehmen und versorgen",
+            "trade":  "Treibstoff verkaufen"
+          }
+        },
+        "comet": {
+          "name": "Kometenkern",
+          "desc": "Ein Eiskern zieht knapp am Planeten vorbei. Einfangen kostet Energiezellen.",
+          "choices": {
+            "capture": "Kern einfangen",
+            "scan":    "Nur scannen"
+          }
+        }
+      }
+    },
+
     "recruit": {
       "title": "Rekrutierung",
       "perClick": "+1 Arbeiter pro Klick",
@@ -226,7 +277,7 @@
       "techcenter":  { "name": "Techzentrum",     "desc": "Technologieforschung" },
       "comm_center": { "name": "Komm-Zentrum",    "desc": "Globale Technologien — einmal erforscht, auf allen Planeten aktiv" },
       "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Drohnen und Kolonisierungsschiffe" },
-      "agriculture": { "name": "Landwirtschaft",  "desc": "Saat anbauen" },
+      "anomaly":     { "name": "Anomalie",        "desc": "Vorbeiziehende Ereignisse — jedes eine Wahl zwischen zwei sicheren Ausgängen" },
       "defense":     { "name": "Verteidigung",    "desc": "Planetarische Schilde, Waffenplattformen und Frühwarnsysteme" },
       "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" },
       "dock":        { "name": "Dock",            "desc": "Schiffsverwaltung, Missionen und Flottenoperationen" },

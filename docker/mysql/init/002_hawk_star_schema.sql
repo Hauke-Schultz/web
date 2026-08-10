@@ -129,6 +129,24 @@ CREATE TABLE IF NOT EXISTS hs_recruit_pool (
   PRIMARY KEY (planet_id, player_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Planet anomalies: one open event per planet, rolled on read once the interval
+-- has passed. `choices` holds the fully materialised offer (concrete resource
+-- deltas) as JSON, decided at creation so the payout can never drift from what
+-- the player was shown. Answered and expired rows are kept for a week — the roll
+-- interval measures from MAX(COALESCE(resolved_at, expires_at)).
+CREATE TABLE IF NOT EXISTS hs_anomalies (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  planet_id       INT NOT NULL,
+  player_id       INT NOT NULL,
+  type            VARCHAR(32) NOT NULL,
+  choices         TEXT NOT NULL,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at      DATETIME NOT NULL,
+  resolved_at     DATETIME NULL,
+  resolved_choice VARCHAR(32) NULL,
+  INDEX idx_planet_open (planet_id, player_id, resolved_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Dock unit inventory: units are built here first, missions consume one.
 CREATE TABLE IF NOT EXISTS hs_units (
   planet_id        INT NOT NULL,

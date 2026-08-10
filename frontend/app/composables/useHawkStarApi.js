@@ -37,5 +37,6 @@ export function useHawkStarApi() {
     postDevCheat:          (action, planetId = null)  => post('/dev/cheat', { action, ...(planetId != null ? { planetId } : {}) }),
     chargeBattery:         (planetId)                 => post('/game/power/charge', { planetId }),
     recruit:               (planetId)                 => post('/game/base/recruit', { planetId }),
+    resolveAnomaly:        (planetId, choice)         => post('/game/anomaly/resolve', { planetId, choice }),
   }
 }

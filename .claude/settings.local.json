@@ -41,7 +41,9 @@
       "Bash(python -c ' *)",
       "Bash(grep -n \"^  [a-z_]*: *{$\" frontend/app/utils/hawkStarConfig.js)",
       "Bash(php -l api/star/game/state.php)",
-      "Bash(php -l api/star/dev/cheat.php)"
+      "Bash(php -l api/star/dev/cheat.php)",
+      "Bash(docker run *)",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"//c/Users/hauke/WebstormProjects/web/api:/app\" -v \"//c/Users/hauke/AppData/Local/Temp/claude/C--Users-hauke-WebstormProjects-web/4c3c99fd-fc1e-4b2d-a949-19f5b7a2e8cf/scratchpad:/probe\" web-php:latest php /probe/anomaly_probe.php)"
     ]
   }
 }

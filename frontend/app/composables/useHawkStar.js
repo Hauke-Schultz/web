@@ -179,6 +179,27 @@ const canRecruit     = computed(() => Math.floor(recruitPool.value) >= 1)
 // For the UI hint — server-driven so it can't drift from RECRUIT_GROWTH_PER_DAY.
 const recruitGrowthPerDay = computed(() => Math.round((recruitState.value?.growthPerHour ?? 0) * 24))
 
+// ── Anomaly (planet event) ─────────────────────────────────
+// The server ships the offer fully materialised — concrete resource deltas per
+// choice — so nothing here recomputes amounts, it only renders what it was given.
+const anomaly = computed(() => allPlanetStates.value[activePlanetId.value]?.anomaly ?? null)
+
+const hasAnomaly = computed(() =>
+  !!anomaly.value && (anomaly.value.expiresAt ?? 0) > now.value
+)
+
+const anomalySecondsLeft = computed(() => {
+  if (!anomaly.value) return 0
+  return Math.max(0, Math.floor((anomaly.value.expiresAt - now.value) / 1000))
+})
+
+// Any planet with something waiting — drives the badge on the planet switcher.
+const planetsWithAnomaly = computed(() =>
+  Object.entries(allPlanetStates.value)
+    .filter(([, st]) => (st.anomaly?.expiresAt ?? 0) > now.value)
+    .map(([pid]) => Number(pid))
+)
+
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
   playerSlots.value.find(s => s.slot === activeSlot.value)
@@ -459,6 +480,38 @@ const recruit = async () => {
     if (st.resources) st.resources.population = result.population
   } catch (e) {
     await refreshPlanetState(planetId)
+  }
+}
+
+// ── Anomaly: take one of the two offers ────────────────────
+// No optimistic update here: the payout can touch resources, population and the
+// battery at once, and the server is the only thing that knows whether the cost
+// was affordable. A full planet refresh right after keeps all three honest.
+const anomalyError = ref(null)
+const anomalyBusy  = ref(false)
+
+const resolveAnomaly = async (choiceKey) => {
+  const planetId = activePlanetId.value
+  if (anomalyBusy.value || !hasAnomaly.value) return
+  anomalyBusy.value  = true
+  anomalyError.value = null
+
+  const { resolveAnomaly: resolveApi } = useHawkStarApi()
+  try {
+    const result = await resolveApi(planetId, choiceKey)
+    const st = allPlanetStates.value[planetId]
+    if (st) {
+      st.resources = result.resources
+      st.anomaly   = result.anomaly ?? null
+      if (result.battery) st.battery = { ...result.battery, syncedAt: Date.now() }
+    }
+    // Production restarts from this moment — the tick preview must not replay it
+    lastResourceSyncMs.value = Date.now()
+  } catch (e) {
+    anomalyError.value = e.message
+    await refreshPlanetState(planetId)
+  } finally {
+    anomalyBusy.value = false
   }
 }
 
@@ -1412,6 +1465,8 @@ const applyGameState = (planetId, state) => {
     recruit: state.recruit ? { ...state.recruit, syncedAt: Date.now() } : null,
     // null when the planet has never built a cargo drone
     cargo: state.cargo ? { ...state.cargo, cargo: { ...(state.cargo.cargo ?? {}) } } : null,
+    // null while the anomaly tile is locked or the next roll is not due yet
+    anomaly: state.anomaly ?? null,
   }
 
   globalResearch.value = { ...globalResearch.value, ...state.globalResearch }
@@ -1598,6 +1653,14 @@ export function useHawkStar() {
     recruitGrowthPerDay,
     canRecruit,
     recruit,
+    // anomalies
+    anomaly,
+    hasAnomaly,
+    anomalySecondsLeft,
+    planetsWithAnomaly,
+    anomalyBusy,
+    anomalyError,
+    resolveAnomaly,
     // production
     grossProduction,
     totalEnergyDrain,

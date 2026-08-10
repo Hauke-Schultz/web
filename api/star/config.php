@@ -340,6 +340,119 @@ function recruit_growth_per_hour(): float {
     return RECRUIT_GROWTH_PER_DAY / 24.0;
 }
 
+// ── Anomalies (planet events) ─────────────────────────────────────────────────
+// Every few hours something happens on a planet and waits on the anomaly tile.
+// Each anomaly is a fork between two *fully visible, guaranteed* outcomes — the
+// randomness is in which anomaly shows up, never in what a choice pays out.
+//
+// Templates below are materialised into concrete numbers the moment an anomaly
+// is rolled (materialize_anomaly_choice) and stored on the row. Everything after
+// that reads the stored deltas, so the panel can promise exact amounts and a
+// later config change can never alter an offer the player is already looking at.
+//
+// Adding an anomaly is a config entry — apply_anomaly_choice() stays untouched.
+const ANOMALY_INTERVAL_HOURS = 6;   // earliest next roll after the previous one
+const ANOMALY_TTL_HOURS      = 12;  // an untouched anomaly expires after this
+
+// Raw-resource payouts are a share of the planet's *storage capacity*, not flat
+// numbers: compute_resources() clamps to the cap on every tick, so a flat amount
+// tuned for the late game would silently evaporate on an early planet. A share
+// scales itself and stays worth clicking at every stage.
+//
+// The baseline stands in before any storage building exists, where the real cap
+// is still 0 and a share of it would pay out nothing.
+const ANOMALY_CAP_BASELINE = [
+    'metal' => 300, 'crystal' => 200,
+    'alloy' => 150, 'obsidian' => 150, 'cryo' => 150, 'biomass' => 150,
+];
+
+// The planet-exclusive raw resource, mirrors the planetTypes gates on the
+// alloy_forge / obsidian_quarry / cryo_extractor / biomass_collector buildings.
+const ANOMALY_PLANET_RAW = [
+    'terrestrial' => 'alloy',
+    'volcanic'    => 'obsidian',
+    'frozen'      => 'cryo',
+    'ocean'       => 'biomass',
+];
+
+// Goods a wreck can be carrying. High-tech only — they have no storageCapacity,
+// so a salvage find is never clamped away.
+const ANOMALY_SALVAGE_POOL = ['power_cell','duraplate','plasma_core','superconductor','vital_gel'];
+
+// Template keys per choice:
+//   gain          – flat resource deltas (high-tech goods, population)
+//   cost          – flat resource deltas subtracted; the choice is refused if unaffordable
+//   gainShareOfCap / costShareOfCap – share of that resource's storage cap
+//                   ('@planetRaw' resolves to the planet's exclusive raw resource)
+//   salvage       – N random high-tech goods, rolled at creation so the offer is exact
+//   battery       – percentage points added to the reactor battery (clamped 0…max)
+const ANOMALIES = [
+
+    // Debris field: pure resource pick — which of the two do you need right now?
+    'meteor' => ['icon' => '☄️', 'weight' => 30, 'choices' => [
+        'crystal' => ['gainShareOfCap' => ['crystal' => 0.35]],
+        'metal'   => ['gainShareOfCap' => ['metal'   => 0.35]],
+    ]],
+
+    // Derelict freighter: rare refined goods vs. a solid pile of raw material.
+    'wreck' => ['icon' => '🛰️', 'weight' => 20, 'choices' => [
+        'salvage' => ['salvage' => 2],
+        'scrap'   => ['gainShareOfCap' => ['metal' => 0.30, 'crystal' => 0.20]],
+    ]],
+
+    // Ion storm: free grid uptime vs. bottled energy you can ship or spend later.
+    // Needs a reactor — without one the battery choice would be a dud option.
+    'solar_storm' => ['icon' => '🌞', 'weight' => 20, 'requiresBuilding' => 'power_plant', 'choices' => [
+        'channel' => ['battery' => 40],
+        'harvest' => ['gain' => ['power_cell' => 2]],
+    ]],
+
+    // Convoy asking to dock: workers cost you supplies, waving them through pays.
+    'refugees' => ['icon' => '👥', 'weight' => 15, 'choices' => [
+        'accept' => ['gain' => ['population' => 4], 'costShareOfCap' => ['metal' => 0.25]],
+        'trade'  => ['gain' => ['power_cell' => 2]],
+    ]],
+
+    // Passing comet: spend power cells to catch the planet-exclusive raw resource,
+    // or take the safe crystal reading. The exclusive raws sit on much smaller
+    // storage caps than crystal, so their share has to be the larger one for the
+    // paid option to stay worth paying for.
+    'comet' => ['icon' => '🧊', 'weight' => 15, 'choices' => [
+        'capture' => ['cost' => ['power_cell' => 2], 'gainShareOfCap' => ['@planetRaw' => 0.60]],
+        'scan'    => ['gainShareOfCap' => ['crystal' => 0.20]],
+    ]],
+];
+
+// The planet slot the anomaly tile lives on.
+const ANOMALY_SLOT = 7;
+
+function anomaly_def(string $type): array|null {
+    return ANOMALIES[$type] ?? null;
+}
+
+// Weighted pick over the anomalies that make sense on this planet. Anything that
+// would resolve into a dud choice — a comet on a planet with no exclusive raw
+// resource, an ion storm with no reactor to charge — is filtered out first.
+function pick_anomaly_type(string $planetType, array $buildingLevels): string|null {
+    $hasRaw   = isset(ANOMALY_PLANET_RAW[$planetType]);
+    $eligible = [];
+
+    foreach (ANOMALIES as $type => $a) {
+        $needs = $a['requiresBuilding'] ?? null;
+        if ($needs && (int)($buildingLevels[$needs] ?? 0) < 1) continue;
+        if (!$hasRaw && str_contains(json_encode($a['choices']), '@planetRaw')) continue;
+        $eligible[$type] = $a['weight'];
+    }
+    if (!$eligible) return null;
+
+    $roll = mt_rand(1, array_sum($eligible));
+    foreach ($eligible as $type => $weight) {
+        $roll -= $weight;
+        if ($roll <= 0) return $type;
+    }
+    return array_key_first($eligible);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function building_def(string $key): array|null {

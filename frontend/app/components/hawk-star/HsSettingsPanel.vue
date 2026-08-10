@@ -7,7 +7,7 @@ const { postDevCheat } = useHawkStarApi()
 
 const cheatBusy = ref(false)
 
-const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'complete_conversions', 'max_resources', 'drain_battery', 'add_population']
+const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'complete_conversions', 'max_resources', 'drain_battery', 'add_population', 'roll_anomaly']
 const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_cargo_missions', 'complete_scanning']
 
 async function runCheat(action) {
@@ -44,6 +44,7 @@ async function runCheat(action) {
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Galaxy-Scans abschließen" @click="runCheat('complete_scanning')">✓ Scan</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Reaktor-Batterie sofort leeren (Blackout testen)" @click="runCheat('drain_battery')">🔋 Leeren</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="+1 Bevölkerung hinzufügen" @click="runCheat('add_population')">👥 +1 Pop</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Sofort eine neue Anomalie auf diesem Planeten auswürfeln" @click="runCheat('roll_anomaly')">☄️ Anomalie</button>
     </div>
   </div>
 </template>

@@ -696,6 +696,253 @@ function recruit_state(PDO $db, int $planetId, int $playerId): array {
     ];
 }
 
+// ── Storage caps ──────────────────────────────────────────────────────────────
+// Summed storageCapacity of every completed building. compute_resources (for the
+// clamp), the max_resources cheat and the anomaly payouts all need this exact
+// number, so it lives in one place. The pure variant takes the levels a caller
+// already has in hand; the DB variant looks them up first.
+
+function storage_caps_from_levels(array $levels): array {
+    $caps = [];
+    foreach ($levels as $key => $lvl) {
+        $def = level_def($key, (int)$lvl);
+        if (!$def) continue;
+        foreach (($def['storageCapacity'] ?? []) as $res => $cap) {
+            $caps[$res] = ($caps[$res] ?? 0) + $cap;
+        }
+    }
+    return $caps;
+}
+
+function planet_storage_caps(PDO $db, int $planetId, int $playerId): array {
+    return storage_caps_from_levels(completed_building_levels($db, $planetId, $playerId));
+}
+
+// building_key => level for everything standing (build finished) on the planet.
+function completed_building_levels(PDO $db, int $planetId, int $playerId): array {
+    $rows = $db->prepare(
+        'SELECT building_key, level FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND level>0 AND build_ends_at IS NULL'
+    );
+    $rows->execute([$planetId, $playerId]);
+    $levels = [];
+    foreach ($rows->fetchAll() as $b) $levels[$b['building_key']] = (int)$b['level'];
+    return $levels;
+}
+
+// ── Anomalies (planet events) ─────────────────────────────────────────────────
+// One open anomaly per planet at a time, rolled on read once the interval since
+// the last roll has passed — same no-cron trick as the recruit pool. An anomaly
+// that is never answered simply expires; every outcome is a gift, so missing one
+// costs nothing but the opportunity.
+
+function ensure_anomaly_table(PDO $db): void {
+    static $ready = false;
+    if ($ready) return;
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS hs_anomalies (
+               id INT AUTO_INCREMENT PRIMARY KEY,
+               planet_id INT NOT NULL,
+               player_id INT NOT NULL,
+               type VARCHAR(32) NOT NULL,
+               choices TEXT NOT NULL,
+               created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+               expires_at DATETIME NOT NULL,
+               resolved_at DATETIME NULL,
+               resolved_choice VARCHAR(32) NULL,
+               INDEX idx_planet_open (planet_id, player_id, resolved_at)
+             )'
+        );
+    } catch (\Throwable $e) {}
+    $ready = true;
+}
+
+// '@planetRaw' resolves to the planet's exclusive raw resource. The amount is a
+// share of that resource's storage cap, with a baseline for the stage where no
+// storage building exists yet and the cap would still be 0.
+function anomaly_share_amount(string $res, float $share, array $caps, string $planetType): array {
+    if ($res === '@planetRaw') {
+        $res = ANOMALY_PLANET_RAW[$planetType] ?? '';
+        if ($res === '') return ['', 0];
+    }
+    $cap = max((float)($caps[$res] ?? 0), (float)(ANOMALY_CAP_BASELINE[$res] ?? 0));
+    return [$res, (int)round($cap * $share)];
+}
+
+// Turns one choice template into the concrete deltas the player is promised.
+// Everything variable (cap shares, salvage contents) is decided here, once, at
+// creation time — never again when the choice is actually taken.
+function materialize_anomaly_choice(string $key, array $tpl, array $caps, string $planetType): array {
+    $out = ['key' => $key, 'gain' => [], 'cost' => [], 'battery' => 0];
+
+    foreach (($tpl['gain'] ?? []) as $res => $amt) $out['gain'][$res] = $amt;
+    foreach (($tpl['cost'] ?? []) as $res => $amt) $out['cost'][$res] = $amt;
+
+    foreach (($tpl['gainShareOfCap'] ?? []) as $res => $share) {
+        [$r, $amt] = anomaly_share_amount($res, $share, $caps, $planetType);
+        if ($r !== '') $out['gain'][$r] = ($out['gain'][$r] ?? 0) + $amt;
+    }
+    foreach (($tpl['costShareOfCap'] ?? []) as $res => $share) {
+        [$r, $amt] = anomaly_share_amount($res, $share, $caps, $planetType);
+        if ($r !== '') $out['cost'][$r] = ($out['cost'][$r] ?? 0) + $amt;
+    }
+
+    for ($i = 0; $i < (int)($tpl['salvage'] ?? 0); $i++) {
+        $res = ANOMALY_SALVAGE_POOL[array_rand(ANOMALY_SALVAGE_POOL)];
+        $out['gain'][$res] = ($out['gain'][$res] ?? 0) + 1;
+    }
+
+    $out['battery'] = (float)($tpl['battery'] ?? 0);
+    return $out;
+}
+
+// Rolls a new anomaly and stores its materialised choices. Returns the DB row.
+function create_anomaly(PDO $db, int $planetId, int $playerId, string $planetType): array|null {
+    $levels = completed_building_levels($db, $planetId, $playerId);
+    $type   = pick_anomaly_type($planetType, $levels);
+    if (!$type) return null;
+
+    $def  = anomaly_def($type);
+    $caps = storage_caps_from_levels($levels);
+
+    $choices = [];
+    foreach ($def['choices'] as $key => $tpl) {
+        $choices[] = materialize_anomaly_choice($key, $tpl, $caps, $planetType);
+    }
+
+    $db->prepare(
+        'INSERT INTO hs_anomalies (planet_id, player_id, type, choices, created_at, expires_at)
+         VALUES (?,?,?,?, NOW(), DATE_ADD(NOW(), INTERVAL ' . ANOMALY_TTL_HOURS . ' HOUR))'
+    )->execute([$planetId, $playerId, $type, json_encode($choices)]);
+
+    // Answered and expired rows are only kept so the roll interval has something
+    // to measure against — anything older than a week is dead weight.
+    $db->prepare(
+        'DELETE FROM hs_anomalies
+         WHERE planet_id=? AND player_id=? AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)'
+    )->execute([$planetId, $playerId]);
+
+    return open_anomaly_row($db, $planetId, $playerId);
+}
+
+// The one open, unexpired anomaly on this planet, or null.
+function open_anomaly_row(PDO $db, int $planetId, int $playerId): array|null {
+    $row = $db->prepare(
+        'SELECT id, type, choices, UNIX_TIMESTAMP(expires_at) AS expires
+         FROM hs_anomalies
+         WHERE planet_id=? AND player_id=? AND resolved_at IS NULL AND expires_at > NOW()
+         ORDER BY id DESC LIMIT 1'
+    );
+    $row->execute([$planetId, $playerId]);
+    return $row->fetch() ?: null;
+}
+
+// Live anomaly state for the API. Null means "nothing to show": either the tile
+// is still locked or the next roll is not due yet.
+function anomaly_state(PDO $db, int $planetId, int $playerId, string $planetType): ?array {
+    ensure_anomaly_table($db);
+
+    // The tile has to exist before anomalies start landing on it, otherwise the
+    // first ones would tick away behind a lock.
+    $slot = $db->prepare(
+        'SELECT unlocked FROM hs_planet_slots WHERE planet_id=? AND player_id=? AND slot_index=?'
+    );
+    $slot->execute([$planetId, $playerId, ANOMALY_SLOT]);
+    if (!$slot->fetchColumn()) return null;
+
+    $row = open_anomaly_row($db, $planetId, $playerId);
+
+    if (!$row) {
+        // Measure the interval from the moment the tile last became free — the
+        // answer for a resolved anomaly, the expiry for an ignored one. Measuring
+        // from created_at instead would let an anomaly that sat around for longer
+        // than the interval spawn its successor the instant it is answered.
+        $last = $db->prepare(
+            'SELECT TIMESTAMPDIFF(SECOND, MAX(COALESCE(resolved_at, expires_at)), NOW())
+             FROM hs_anomalies WHERE planet_id=? AND player_id=?'
+        );
+        $last->execute([$planetId, $playerId]);
+        $sinceFree = $last->fetchColumn();
+
+        if ($sinceFree === null || (int)$sinceFree >= ANOMALY_INTERVAL_HOURS * 3600) {
+            $row = create_anomaly($db, $planetId, $playerId, $planetType);
+        }
+    }
+    if (!$row) return null;
+
+    return [
+        'id'        => (int)$row['id'],
+        'type'      => $row['type'],
+        'icon'      => anomaly_def($row['type'])['icon'] ?? '❔',
+        'choices'   => json_decode($row['choices'], true) ?: [],
+        'expiresAt' => (int)$row['expires'] * 1000,
+    ];
+}
+
+// Applies one materialised choice. The deltas are already concrete, so this is
+// the only place an anomaly effect is ever executed, no matter how many types
+// exist. Returns null on success, or the resource key that was missing.
+function apply_anomaly_choice(PDO $db, int $planetId, int $playerId, array $choice): ?string {
+    // Resource keys come out of stored JSON and go straight into SQL — only ever
+    // trust the known column names.
+    $cost = [];
+    foreach (($choice['cost'] ?? []) as $res => $amt) {
+        if (in_array($res, RESOURCE_KEYS, true) && $amt > 0) $cost[$res] = (float)$amt;
+    }
+    $gain = [];
+    foreach (($choice['gain'] ?? []) as $res => $amt) {
+        if (in_array($res, RESOURCE_KEYS, true) && $amt > 0) $gain[$res] = (float)$amt;
+    }
+
+    // Check affordability up front — a half-applied choice is worse than a refusal.
+    if ($cost) {
+        $have = $db->prepare('SELECT * FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
+        $have->execute([$planetId, $playerId]);
+        $r = $have->fetch() ?: [];
+        foreach ($cost as $res => $amt) {
+            if ((float)($r[$res] ?? 0) < $amt) return $res;
+        }
+    }
+
+    foreach ($cost as $res => $amt) {
+        $db->prepare(
+            "UPDATE hs_planet_resources SET $res = GREATEST(0, $res - ?)
+             WHERE planet_id=? AND player_id=?"
+        )->execute([$amt, $planetId, $playerId]);
+    }
+    foreach ($gain as $res => $amt) {
+        $db->prepare(
+            "UPDATE hs_planet_resources SET $res = $res + ?
+             WHERE planet_id=? AND player_id=?"
+        )->execute([$amt, $planetId, $playerId]);
+    }
+
+    $delta = (float)($choice['battery'] ?? 0);
+    if ($delta != 0.0) {
+        $ppLevel = power_plant_level($db, $planetId, $playerId);
+        if ($ppLevel > 0) {
+            ensure_power_battery($db, $planetId, $playerId);
+            $row = $db->prepare(
+                'SELECT charge, TIMESTAMPDIFF(SECOND, charge_updated_at, NOW()) AS elapsed
+                 FROM hs_power_battery WHERE planet_id=? AND player_id=?'
+            );
+            $row->execute([$planetId, $playerId]);
+            $bb    = $row->fetch();
+            $drain = battery_drain_per_hour($ppLevel);
+            $live  = max(0.0, (float)$bb['charge'] - $drain * ((int)$bb['elapsed'] / 3600.0));
+            $new   = max(0.0, min(POWER_BATTERY_MAX, $live + $delta));
+
+            $db->prepare(
+                'UPDATE hs_power_battery SET charge=?, charge_updated_at=NOW()
+                 WHERE planet_id=? AND player_id=?'
+            )->execute([$new, $planetId, $playerId]);
+        }
+    }
+
+    return null;
+}
+
 // ── Refined resource rename (2026-08-07) ──────────────────────────────────────
 // The four refinery outputs were reworked from "better metal" into four distinct
 // functional materials. RESOURCE_KEYS drives the column names in the resource
@@ -739,13 +986,7 @@ function compute_resources(PDO $db, int $planetId, int $playerId, string $planet
 
     $elapsed = min((int)$r['elapsed'], 86400);
 
-    $bRows = $db->prepare(
-        'SELECT building_key, level FROM hs_buildings
-         WHERE planet_id=? AND player_id=? AND level>0 AND build_ends_at IS NULL'
-    );
-    $bRows->execute([$planetId, $playerId]);
-    $levels = [];
-    foreach ($bRows->fetchAll() as $b) $levels[$b['building_key']] = (int)$b['level'];
+    $levels = completed_building_levels($db, $planetId, $playerId);
 
     $energyProd  = 0;
     $energyDrain = 0;
@@ -792,14 +1033,7 @@ function compute_resources(PDO $db, int $planetId, int $playerId, string $planet
         }
     }
 
-    $caps = [];
-    foreach ($levels as $key => $lvl) {
-        $def = level_def($key, $lvl);
-        if (!$def) continue;
-        foreach (($def['storageCapacity'] ?? []) as $res => $cap) {
-            $caps[$res] = ($caps[$res] ?? 0) + $cap;
-        }
-    }
+    $caps = storage_caps_from_levels($levels);
 
     $updates = [];
     foreach (RESOURCE_KEYS as $res) {
