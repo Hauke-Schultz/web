@@ -40,7 +40,8 @@
       "Bash(npx nuxt *)",
       "Bash(python -c ' *)",
       "Bash(grep -n \"^  [a-z_]*: *{$\" frontend/app/utils/hawkStarConfig.js)",
-      "Bash(php -l api/star/game/state.php)"
+      "Bash(php -l api/star/game/state.php)",
+      "Bash(php -l api/star/dev/cheat.php)"
     ]
   }
 }

@@ -182,7 +182,7 @@
 
     "battery": {
       "title": "Reactor Battery",
-      "charge": "Charge +10%",
+      "charge": "+{n}% charge per click",
       "timeLeft": "{time} left",
       "blackout": "Blackout — colony offline",
       "hint": "Drains over time. Empty = total power loss."
@@ -190,8 +190,9 @@
 
     "recruit": {
       "title": "Recruitment",
-      "button": "Recruit",
-      "hint": "Grows over time (~12/day) up to 18. One click = +1 population."
+      "perClick": "+1 worker per click",
+      "available": "{n} available",
+      "hint": "Grows ~{rate}/day up to {max}."
     },
 
     "starClass": {

@@ -183,7 +183,7 @@
 
     "battery": {
       "title": "Reaktor-Batterie",
-      "charge": "Aufladen +10 %",
+      "charge": "+{n} % Ladung pro Klick",
       "timeLeft": "hält noch {time}",
       "blackout": "Blackout — Kolonie offline",
       "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall."
@@ -191,8 +191,9 @@
 
     "recruit": {
       "title": "Rekrutierung",
-      "button": "Rekrutieren",
-      "hint": "Wächst über die Zeit (~12/Tag) bis max. 18. Ein Klick = +1 Bevölkerung."
+      "perClick": "+1 Arbeiter pro Klick",
+      "available": "{n} verfügbar",
+      "hint": "Wächst um ~{rate}/Tag bis max. {max}."
     },
 
     "starClass": {

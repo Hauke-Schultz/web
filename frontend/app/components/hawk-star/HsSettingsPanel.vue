@@ -7,7 +7,7 @@ const { postDevCheat } = useHawkStarApi()
 
 const cheatBusy = ref(false)
 
-const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'max_resources', 'drain_battery', 'add_population']
+const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'complete_conversions', 'max_resources', 'drain_battery', 'add_population']
 const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_cargo_missions', 'complete_scanning']
 
 async function runCheat(action) {
@@ -35,6 +35,7 @@ async function runCheat(action) {
       <span class="hs-dev-label">CHEAT</span>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle laufenden Gebäude fertigstellen" @click="runCheat('complete_buildings')">✓ Bauten</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Laufende Einheiten (Drohne/Colony Ship) fertigstellen" @click="runCheat('complete_units')">✓ Einheiten</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle laufenden High-Tech-Umwandlungen inkl. Warteschlange fertigstellen" @click="runCheat('complete_conversions')">⚡ Convert</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Ressourcen auf Lager-Maximum setzen" @click="runCheat('max_resources')">⬆ Res max</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle globalen Forschungen fertigstellen" @click="runCheat('complete_research')">⬆ Research</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Drohnen-Missionen abschließen" @click="runCheat('complete_drone_missions')">✓ Drohnen</button>
@@ -67,8 +68,9 @@ async function runCheat(action) {
 
 .hs-dev-panel {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.4rem 0.5rem;
   padding: 0.5rem 0.75rem;
   background: rgba(255, 200, 0, 0.06);
   border: 1px solid rgba(255, 200, 0, 0.2);
@@ -83,6 +85,7 @@ async function runCheat(action) {
   letter-spacing: 0.1em;
   color: rgba(255, 200, 0, 0.5);
   flex-shrink: 0;
+  margin-right: 0.35rem;
 }
 
 .hs-dev-field {
@@ -144,6 +147,7 @@ async function runCheat(action) {
   color: rgba(200, 140, 255, 0.7);
   font-size: 0.7rem;
   font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 

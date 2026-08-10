@@ -4,12 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const { t } = useI18n()
-const { recruitPool, recruitPoolMax, canRecruit, recruit } = useHawkStar()
+const { recruitPool, recruitPoolMax, recruitGrowthPerDay, canRecruit, recruit } = useHawkStar()
 
 const pool = computed(() => Math.floor(recruitPool.value ?? 0))
 const pct  = computed(() => recruitPoolMax.value ? Math.min(100, (recruitPool.value / recruitPoolMax.value) * 100) : 0)
 
-const desc = computed(() => `${t('hawkStar.recruit.title')} — ${t('hawkStar.recruit.hint')}`)
+const desc = computed(() => `${t('hawkStar.recruit.title')} — ${t('hawkStar.recruit.hint', {
+  rate: recruitGrowthPerDay.value,
+  max: Math.floor(recruitPoolMax.value),
+})}`)
 </script>
 
 <template>
@@ -23,8 +26,8 @@ const desc = computed(() => `${t('hawkStar.recruit.title')} — ${t('hawkStar.re
     </span>
 
     <span class="hs-meter-btn__row">
-      <span class="hs-meter-btn__label">👥 +1 {{ t('hawkStar.recruit.button') }}</span>
-      <span class="hs-meter-btn__value">{{ pool }} / {{ recruitPoolMax }}</span>
+      <span class="hs-meter-btn__label">👥 {{ t('hawkStar.recruit.perClick') }}</span>
+      <span class="hs-meter-btn__value">{{ t('hawkStar.recruit.available', { n: pool }) }}</span>
     </span>
 
     <span class="hs-meter-btn__desc">{{ desc }}</span>

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
+import { POWER_BATTERY } from '~/utils/hawkStarConfig.js'
 
 const { t } = useI18n()
 const { batteryCharge, batteryHoursToEmpty, gridDown, chargeBattery } = useHawkStar()
@@ -26,7 +27,14 @@ const timeLeft = computed(() => {
   return rest ? `~${d} d ${rest} h` : `~${d} d`
 })
 
-const desc = computed(() => `${t('hawkStar.battery.title')} — ${t('hawkStar.battery.hint')}`)
+// Runtime status lives in the desc line, which can wrap — the row above stays
+// short so label + value never collide on a narrow tile.
+const desc = computed(() => {
+  const head = timeLeft.value
+    ? `${t('hawkStar.battery.title')} · ${t('hawkStar.battery.timeLeft', { time: timeLeft.value })}`
+    : t('hawkStar.battery.title')
+  return `${head} — ${t('hawkStar.battery.hint')}`
+})
 </script>
 
 <template>
@@ -40,14 +48,14 @@ const desc = computed(() => `${t('hawkStar.battery.title')} — ${t('hawkStar.ba
     </span>
 
     <span class="hs-meter-btn__row">
-      <span class="hs-meter-btn__label">⚡ {{ t('hawkStar.battery.charge') }}</span>
+      <span class="hs-meter-btn__label">
+        ⚡ {{ t('hawkStar.battery.charge', { n: POWER_BATTERY.clickPercent }) }}
+      </span>
 
       <span v-if="gridDown" class="hs-meter-btn__value hs-meter-btn__value--alert">
         ⚠ {{ t('hawkStar.battery.blackout') }}
       </span>
-      <span v-else class="hs-meter-btn__value">
-        {{ pct }}%<template v-if="timeLeft"> · {{ timeLeft }}</template>
-      </span>
+      <span v-else class="hs-meter-btn__value">{{ pct }}%</span>
     </span>
 
     <span class="hs-meter-btn__desc">{{ desc }}</span>

@@ -176,6 +176,8 @@ const recruitPool = computed(() => {
 
 const recruitPoolMax = computed(() => recruitState.value?.poolMax ?? 0)
 const canRecruit     = computed(() => Math.floor(recruitPool.value) >= 1)
+// For the UI hint — server-driven so it can't drift from RECRUIT_GROWTH_PER_DAY.
+const recruitGrowthPerDay = computed(() => Math.round((recruitState.value?.growthPerHour ?? 0) * 24))
 
 // ── Active tile ────────────────────────────────────────────
 const activeSlotDef = computed(() =>
@@ -1593,6 +1595,7 @@ export function useHawkStar() {
     // population recruitment
     recruitPool,
     recruitPoolMax,
+    recruitGrowthPerDay,
     canRecruit,
     recruit,
     // production
