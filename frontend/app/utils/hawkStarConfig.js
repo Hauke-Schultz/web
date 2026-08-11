@@ -221,6 +221,32 @@ export const BUILDINGS = {
     ],
   },
 
+  // Med Station — the only conversion whose output is a person. Gets past the
+  // recruit pool's ~12/day ceiling, at a price that keeps recruiting worthwhile.
+  med_station: {
+    id:               'med_station',
+    name:             'Med Station',
+    tileType:         'base',
+    icon:             '🏥',
+    description:      'Grows colonists from vital gel cultures.',
+    requiresBuilding: 'command_center',
+    requiresLevel:    3,
+    conversions: [
+      { input: { metal: 120, vital_gel: 2 }, output: { population: 1 }, durationBase: 1800 },
+    ],
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 400, crystal: 200, vital_gel: 3, superconductor: 2 },
+        buildTime:   3600,
+        effect:      '2 vital gel + 120 metal → 1 population · uses 6 energy · 2 workers',
+        production:  {},
+        energyDrain: 6,
+        staffDrain:  2,
+      },
+    ],
+  },
+
   // Power Plant — produces energy, no drain. Moved to energy tile.
   power_plant: {
     id:          'power_plant',
@@ -973,6 +999,32 @@ export const BUILDINGS = {
         energyDrain: 5,
         staffDrain:  3,
         unlocks:     [{ slot: 1 }],
+      },
+    ],
+  },
+
+  // Plasma Compressor — a core is three fuel cells. Same 30 min slot as the
+  // power_cell_lab, triple the output: the gain is throughput, not a discount.
+  plasma_compressor: {
+    id:               'plasma_compressor',
+    name:             'Plasma Compressor',
+    tileType:         'techcenter',
+    icon:             '⚙️',
+    description:      'Compresses plasma cores into starship fuel cells.',
+    requiresBuilding: 'laboratory',
+    requiresLevel:    2,
+    conversions: [
+      { input: { metal: 150, plasma_core: 1 }, output: { power_cell: 3 }, durationBase: 1800 },
+    ],
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 500, crystal: 250, duraplate: 4, superconductor: 2 },
+        buildTime:   5400,
+        effect:      '1 plasma core + 150 metal → 3 power cells · uses 8 energy · 3 workers',
+        production:  {},
+        energyDrain: 8,
+        staffDrain:  3,
       },
     ],
   },

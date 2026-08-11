@@ -39,6 +39,18 @@ const BUILDINGS = [
     ['level'=>3,'cost'=>['metal'=>300,'crystal'=>100],'buildTime'=>3600,'production'=>[],'energyDrain'=>3,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>10],
   ]],
 
+  // Life support is the domain that turns into people: vital gel plus supplies
+  // buys a colonist outright. The recruit pool hard-caps growth at ~12/day, so
+  // this is the only way past it — and the only conversion whose output is a
+  // person. Priced so it never undercuts plain recruiting: one head costs two
+  // vital gel (an hour of bio lab) on top of the metal.
+  'med_station' => ['tileType'=>'base','requiresBuilding'=>'command_center','requiresLevel'=>3,'conversions'=>[
+    ['input'=>['metal'=>120,'vital_gel'=>2],'output'=>['population'=>1],'durationBase'=>1800],
+  ],'levels'=>[
+    // Single level, like the refineries — throughput is tuned via durationBase.
+    ['level'=>1,'cost'=>['metal'=>400,'crystal'=>200,'vital_gel'=>3,'superconductor'=>2],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
+  ]],
+
   'power_plant' => ['tileType' => 'energy', 'levels' => [
     ['level'=>1,'cost'=>['crystal'=>25],'buildTime'=>20,'production'=>['energy'=>5],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>70,'crystal'=>35],'buildTime'=>600,'production'=>['energy'=>12],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
@@ -158,6 +170,17 @@ const BUILDINGS = [
 
   'weapons_building' => ['tileType'=>'techcenter','levels'=>[
     ['level'=>1,'cost'=>['metal'=>180,'crystal'=>100],'buildTime'=>600,'production'=>[],'energyDrain'=>5,'staffDrain'=>3,'unlocks'=>[['slot'=>1]],'popBonus'=>0],
+  ]],
+
+  // The power domain's purpose: a plasma core is three fuel cells. The
+  // power_cell_lab makes one cell per 30 min from raw material — the compressor
+  // makes three in the same slot if you feed it a core, which turns volcanic
+  // planets into the fleet's fuel supply and gives the cargo drone something to
+  // haul. Same durationBase, so the gain is throughput, not a cheaper recipe.
+  'plasma_compressor' => ['tileType'=>'techcenter','requiresBuilding'=>'laboratory','requiresLevel'=>2,'conversions'=>[
+    ['input'=>['metal'=>150,'plasma_core'=>1],'output'=>['power_cell'=>3],'durationBase'=>1800],
+  ],'levels'=>[
+    ['level'=>1,'cost'=>['metal'=>500,'crystal'=>250,'duraplate'=>4,'superconductor'=>2],'buildTime'=>5400,'production'=>[],'energyDrain'=>8,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'star_map' => ['tileType'=>'comm_center','global'=>true,'levels'=>[

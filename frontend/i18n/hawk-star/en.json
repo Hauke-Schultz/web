@@ -364,6 +364,11 @@
         "lv2": "Unlocks the Tech Center tile · +5 pop",
         "lv3": "+10 pop"
       },
+      "med_station": {
+        "name": "Med Station",
+        "desc": "Grows colonists from vital gel cultures — the only way to grow faster than recruitment allows.",
+        "lv1": "2 vital gel + 120 metal → 1 population"
+      },
       "power_plant": {
         "name": "Power Plant",
         "desc": "Powers the colony. Build and upgrade to support more buildings.",
@@ -496,6 +501,11 @@
         "name": "Weapon Technology",
         "desc": "Military science division. Unlocks the planetary Defense tile.",
         "lv1": "Unlocks Defense tile · basic weapon blueprints"
+      },
+      "plasma_compressor": {
+        "name": "Plasma Compressor",
+        "desc": "Presses plasma cores into fuel cells. Triple the output per run compared to the power cell lab.",
+        "lv1": "1 plasma core + 150 metal → 3 power cells"
       },
       "shipyard": {
         "name": "Shipyard",

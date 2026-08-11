@@ -62,14 +62,16 @@ const isBaseTile         = computed(() => activeTileType.value?.id === 'base')
 const isAnomalyTile      = computed(() => activeTileType.value?.id === 'anomaly')
 const isHomePlanet       = computed(() => activePlanetId.value === homePlanetId.value)
 
-const hightechBuildings = computed(() => {
-  if (!isHightechTile.value) return []
-  return buildingsForActiveSlot.value.filter(b => BUILDINGS[b.id]?.conversions?.length > 0)
-})
+// Recipes are no longer a High-Tech privilege: the med station sits on the base
+// tile and the plasma compressor in the tech center. Any tile showing a building
+// with conversions gets the section — the tile id is not the deciding factor.
+const conversionBuildings = computed(() =>
+  buildingsForActiveSlot.value.filter(b => BUILDINGS[b.id]?.conversions?.length > 0)
+)
 
 // Only facilities that actually stand on the planet offer a recipe.
 const availableConversions = computed(() =>
-  hightechBuildings.value
+  conversionBuildings.value
     .filter(b => getLevel(b.id) > 0)
     .flatMap(b => (BUILDINGS[b.id]?.conversions ?? []).map((recipe, index) => ({
       ...recipe,
@@ -245,13 +247,9 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
       {{ t('hawkStar.tile.selectTile') }}
     </div>
 
-    <!-- ── High-Tech conversion section ── -->
-    <div v-if="isHightechTile && hightechBuildings.length" class="hs-conv-section">
+    <!-- ── Conversion section — shown wherever a built facility offers a recipe ── -->
+    <div v-if="availableConversions.length" class="hs-conv-section">
       <div class="hs-conv-section-title">{{ t('hawkStar.tile.convTitle') }}</div>
-
-      <div v-if="availableConversions.length === 0" class="hs-conv-empty">
-        {{ t('hawkStar.tile.convEmptyNoRefinery') }}
-      </div>
 
       <div class="hs-conv-list">
         <div v-for="recipe in availableConversions" :key="recipe.key" class="hs-conv-row">
@@ -300,7 +298,12 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
       </div>
     </div>
 
-    <div v-else-if="isHightechTile && !hightechBuildings.length" class="hs-conv-empty">
+    <!-- The High-Tech tile keeps its two hints, because conversion is that tile's
+         whole purpose: refinery buildable but not built vs. planet type has none. -->
+    <div v-else-if="isHightechTile && conversionBuildings.length" class="hs-conv-empty">
+      {{ t('hawkStar.tile.convEmptyNoRefinery') }}
+    </div>
+    <div v-else-if="isHightechTile" class="hs-conv-empty">
       {{ t('hawkStar.tile.convEmptyNoFacility') }}
     </div>
 

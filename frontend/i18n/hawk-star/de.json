@@ -365,6 +365,11 @@
         "lv2": "Schaltet Techzentrum-Feld frei · +5 Bev.",
         "lv3": "+10 Bev."
       },
+      "med_station": {
+        "name": "Med-Station",
+        "desc": "Züchtet Kolonisten aus Vitalgel-Kulturen — der einzige Weg, schneller zu wachsen als die Rekrutierung erlaubt.",
+        "lv1": "2 Vitalgel + 120 Metall → 1 Bevölkerung"
+      },
       "power_plant": {
         "name": "Kraftwerk",
         "desc": "Versorgt die Kolonie mit Energie. Ausbauen, um mehr Gebäude zu unterstützen.",
@@ -497,6 +502,11 @@
         "name": "Waffentechnologie",
         "desc": "Militärische Forschungsabteilung. Schaltet das Verteidigungs-Feld frei.",
         "lv1": "Schaltet Verteidigungs-Feld frei · grundlegende Waffenbauanleitungen"
+      },
+      "plasma_compressor": {
+        "name": "Plasma-Verdichter",
+        "desc": "Presst Plasmakerne zu Treibstoffzellen. Dreifacher Ausstoß pro Durchgang gegenüber dem Energiezellen-Labor.",
+        "lv1": "1 Plasmakern + 150 Metall → 3 Energiezellen"
       },
       "shipyard": {
         "name": "Raumschiffwerft",

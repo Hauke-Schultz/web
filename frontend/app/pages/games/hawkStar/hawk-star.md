@@ -48,10 +48,10 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 
 | ID | Description |
 |----|-------------|
-| `base` | Colony command center — must be built first |
+| `base` | Colony command center — must be built first · Med Station (Vital Gel → population) |
 | `mining` | Raw resource extraction (Metal, Crystal) |
 | `energy` | Power generation — Energy is a utility, not stockpiled |
-| `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory |
+| `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory, Plasma Compressor |
 | `comm_center` | Comm Center — global research tile. Technologies researched here apply across all planets |
 | `spacebase` | Launch pad for drones and colony ships |
 | `defense` | Planetary shields and weapons platforms |
@@ -169,7 +169,25 @@ All High-Tech buildings (the four refineries plus `power_cell_lab`) are delibera
 
 Every recipe runs at **1800 s (30 min)** per unit. Refined output is deliberately slow *and* expensive — one unit is a half-hour plus roughly half of what the mines produce in that window. These are intended as pre-products for future starship construction and small orbital installations, so they are meant to accumulate slowly. All inputs still fit inside level-1 storage caps, so no recipe can soft-lock a fresh planet.
 
-**First consumer: `shield_generator`.** The planetary shield costs 3 / 7 / 15 Duraplate on top of its metal and crystal — plating a shield emitter is a Structure job, so it cannot be built from raw metal alone. This is the first place a refined resource gates a building rather than a ship.
+### Where refined goods are spent  *(2026-08-11)*
+
+Until now only Duraplate had a consumer at all — Plasma Core, Superconductor and Vital Gel could be refined, shipped and salvaged, and then sat in the silo forever. Two buildings close that:
+
+| Building | Tile | Gate | Recipe | Build cost |
+|---|---|---|---|---|
+| 🏥 **Med Station** | base | `command_center` Lv3 | 2 Vital Gel + 120 Metal → **1 population** (30 min) | 400 M · 200 C · 3 Vital Gel · 2 Superconductor |
+| ⚙️ **Plasma Compressor** | techcenter | `laboratory` Lv2 | 1 Plasma Core + 150 Metal → **3 Power Cells** (30 min) | 500 M · 250 C · 4 Duraplate · 2 Superconductor |
+
+The pattern is deliberate and should be kept for anything added later: **the recipe consumes one domain continuously, the construction cost demands two more once.** That way every new building needs goods from at least two planet types, which is what makes the cargo drone — and later trade — necessary rather than decorative.
+
+- The **Med Station** is the only conversion whose output is a person. The recruit pool hard-caps growth at ~12/day; this is the way past it, priced so recruiting stays worthwhile (one head ≈ an hour of bio lab plus 360 metal). No backend work was needed: `resolve_conversions()` writes its output straight into `hs_planet_resources`, `population` is a normal column there, and `compute_resources()` deliberately never touches population.
+- The **Plasma Compressor** gives the power domain its purpose. The `power_cell_lab` makes one cell per 30 min from raw material; the compressor makes three in the same slot if fed a core. Same `durationBase` on purpose — the gain is **throughput, not a discount** — which turns volcanic planets into the fleet's fuel supply.
+
+Both are single-level like the refineries.
+
+**Conversions are no longer a High-Tech privilege.** `HsTilePanel` used to gate the whole recipe section on `isHightechTile`; it now shows wherever the active tile holds a *built* building with `conversions`. The two High-Tech-specific empty states ("no refinery built" / "this planet type has none") stayed behind that tile check, because conversion is that tile's entire purpose. `convert.php` never needed a change — it only ever checked that the building has recipes and stands finished.
+
+**First building consumer: `shield_generator`.** The planetary shield costs 3 / 7 / 15 Duraplate on top of its metal and crystal — plating a shield emitter is a Structure job, so it cannot be built from raw metal alone. This is the first place a refined resource gates a building rather than a ship.
 
 Consequence worth knowing: Duraplate is produced by `alloy_refinery`, which is **terrestrial only**. Until goods can move between planets, a volcanic, frozen or ocean colony cannot build a shield at all. That is the intended shape of the domain system — no planet is self-sufficient. The **Cargo Drone** (see below) is what closes this gap: the Duraplate is shipped in from a terrestrial planet.
 
@@ -712,6 +730,7 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 | Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |
 | Cargo drone (one per planet, 4 items, one-way delivery + empty return) | ✅ Implemented |
 | Slot 7 — anomaly tile (timed events, two guaranteed outcomes each) | ✅ Implemented |
+| Med Station + Plasma Compressor (first consumers for Vital Gel / Plasma Core) | ✅ Implemented |
 
 See `hawk-star-backend.md` for the full backend concept.
 
