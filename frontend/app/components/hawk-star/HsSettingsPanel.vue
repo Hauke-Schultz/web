@@ -1,11 +1,21 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { useHawkStar, resetGame, refreshPlanetState, initFromApi } from '~/composables/useHawkStar.js'
 import { useHawkStarApi } from '~/composables/useHawkStarApi.js'
+import { ANOMALY_TYPES } from '~/utils/hawkStarConfig.js'
 
+const { t } = useI18n()
 const { tickRateMs, buildTimeFactor, saveDevSettings, activePlanetId } = useHawkStar()
 const { postDevCheat } = useHawkStarApi()
 
 const cheatBusy = ref(false)
+
+// Empty = the normal weighted roll. Picking a type forces exactly that event,
+// which is the only practical way to look at one of thirteen on demand.
+const anomalyType = ref('')
+const anomalyOptions = computed(() =>
+  ANOMALY_TYPES.map(id => ({ id, label: t('hawkStar.anomaly.types.' + id + '.name') }))
+)
 
 const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'complete_conversions', 'max_resources', 'drain_battery', 'add_population', 'roll_anomaly']
 const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_cargo_missions', 'complete_scanning']
@@ -15,7 +25,8 @@ async function runCheat(action) {
   cheatBusy.value = true
   try {
     const pid = PLANET_CHEATS.includes(action) ? activePlanetId.value : null
-    await postDevCheat(action, pid)
+    const extra = action === 'roll_anomaly' && anomalyType.value ? { anomalyType: anomalyType.value } : {}
+    await postDevCheat(action, pid, extra)
     if (FULL_RELOAD.includes(action)) {
       await initFromApi()
     } else {
@@ -45,6 +56,10 @@ async function runCheat(action) {
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Reaktor-Batterie sofort leeren (Blackout testen)" @click="runCheat('drain_battery')">🔋 Leeren</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="+1 Bevölkerung hinzufügen" @click="runCheat('add_population')">👥 +1 Pop</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Sofort eine neue Anomalie auf diesem Planeten auswürfeln" @click="runCheat('roll_anomaly')">☄️ Anomalie</button>
+      <select v-model="anomalyType" class="hs-cheat-select" :disabled="cheatBusy" title="Anomalie-Typ erzwingen (leer = zufällig)">
+        <option value="">Zufällig</option>
+        <option v-for="o in anomalyOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
+      </select>
     </div>
   </div>
 </template>
@@ -153,6 +168,23 @@ async function runCheat(action) {
   transition: color 0.15s, border-color 0.15s;
 
   &:hover:not(:disabled) { color: rgb(210, 160, 255); border-color: rgba(180, 100, 255, 0.6); }
+  &:disabled { opacity: 0.4; cursor: default; }
+}
+
+/* Belongs to the anomaly button next to it, so it borrows its colours. */
+.hs-cheat-select {
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(180, 100, 255, 0.3);
+  background: rgba(180, 100, 255, 0.07);
+  color: rgba(200, 140, 255, 0.7);
+  font-size: 0.7rem;
+  font-weight: 700;
+  max-width: 9rem;
+  cursor: pointer;
+  outline: none;
+
+  option { background: #1b1030; color: rgba(255, 255, 255, 0.85); }
   &:disabled { opacity: 0.4; cursor: default; }
 }
 </style>

@@ -80,6 +80,45 @@ All buildings are defined in `BUILDINGS` (`hawkStarConfig.js`). Each building en
 
 A building goes offline (stops producing) if energy is in deficit.
 
+### Upgrade curve  *(rebalanced 2026-08-11)*
+
+Two rules every multi-level building follows, checkable with a script over `BUILDINGS`:
+
+1. **The gain per level never shrinks.** `1 → 2 → 4 → 8` is the house shape (the four raw collectors); flatter is fine, backwards is not.
+2. **The cost per point of gain rises smoothly.** Later levels are worse value — that is what makes them a decision — but the slope stays gentle. Nothing may be *cheaper per point* than the level before it, because then the earlier upgrade was a trap.
+
+Levels 4+ of `power_plant`, `metal_mine` and `crystal_drill` broke both rules: they had been appended after the original three-level curves and their increments went flat while their costs kept climbing. The power plant's Lv5 was the clearest case — more metal, more crystal *and an extra worker* for **+4 energy**, while Lv3 had given +13. Measured in metal-equivalent (`metal + 2 × crystal`, roughly the mine ratio) it cost 107 per point where the top solar array costs 32.
+
+New values:
+
+| Building | Levels | Gain per level | Cost per point |
+|---|---|---|---|
+| `power_plant` | 5 · 12 · 25 · **40 · 56 · 75** | 5/7/13/**15/16/19** | 10/20/28/**30/36/42** |
+| `metal_mine` | 2 · 5 · 12 · **20 · 30 · 42** /min | 2/3/7/**8/10/12** | 15/40/49/**60/72/85** |
+| `crystal_drill` | 1 · 3 · 7 · **11 · 17 · 24 · 33** /min | 1/2/4/**4/6/7/9** | 50/85/110/**135/160/190/224** |
+
+The mines' **energy drain now scales past Lv3** as well (metal 9 → 12/16/21, crystal 7 → 9/12/15/19) — it used to flatline, which is why the late mine levels felt free apart from the resource cost. A fully built planet needs **135** energy and the two universal sources give **113**, so the planet-exclusive reactor stays the thing that closes the gap. Storage caps were widened to match the higher rates (metal 3000 → 5200, crystal 2500 → 4000); anomaly payouts follow automatically, since they are cap shares.
+
+> Any change here has to be made in **both** `hawkStarConfig.js` and `api/star/config.php` — the server computes production, the client only draws it. A drifted number shows up as a UI that promises something the backend never pays.
+
+### Building row layout
+
+`hs-building-row` (in `HsTilePanel`) splits along one question: *what is this* on the left, *what does the next level cost me* on the right.
+
+| Left (`hs-building-ident`) | Right (`hs-building-action`) |
+|---|---|
+| Icon with the `Lv n` badge, building name, description (`hawkStar.buildings.<id>.desc`) | Cost tags (resources, ⚡ energy, 👥 workers) → build/upgrade button → one grey line with ⏱ build time and the next level's effect (`…lv<n>`) |
+
+Below 640 px the two stack; above it they sit side by side, split by a border, with the right column at a fixed `12.5rem`. The statuses (building / offline / max / locked) and the progress bar all live in the right column and replace cost + button while they apply.
+
+**The effect line states the *gain from that upgrade*, not the new total** (2026-08-11). It sits under the Build/Upgrade button and answers "what do I get for this click", exactly like the cost tags next to it — `staffDelta()` has always shown the extra workers rather than the new headcount. Energy was where a total actively misled: a Lv6 power plant reading `+40 Energie` looked like a huge upgrade when the step from Lv5 was worth **+4**. Every producing building now carries per-level deltas for **both** rate and storage (`+8 Metall/min · +900 Lager`). Level 1 is unchanged — from nothing, the delta *is* the total.
+
+The rate unit was corrected at the same time: `compute_resources()` multiplies by `elapsed / 60`, so production is **per minute**. The old `/s` in the mine and collector strings was simply wrong; the resource bar had `+X/m` right all along.
+
+The per-level production tags that used to sit under the name were **removed** — they repeated the effect line in a different unit and made the row read as two competing summaries. For the same reason the level effect strings (`…lvN`) in `de.json` / `en.json` no longer carry **worker counts or energy drain**: both already appear as cost tags on the right, so `"+2 Metall/s · 300 Lager · 3 Energie · 2 Arbeiter"` is now just `"+2 Metall/s · 300 Lager"`. Energy *production* stays (`"+12 Energie"` is a power plant's whole point) — only the `N Energie` / `uses N energy` drain segments went.
+
+`HsDockPanel` uses the same two columns for its unit rows: left the ship icon with its inventory badge, name and description; right the cost, the build button and ⏱ build time. The cargo drone's *Bereit* / hold state and the colony ship's missing-crew warning are statuses, so they sit in the right column too.
+
 **The storage cap is the summed `storageCapacity` of the finished buildings — nothing is added on top.** A resource with no capacity building has no cap at all and is not clamped. `maxStorage` in `useHawkStar.js` and `storage_caps_from_levels()` in `bootstrap.php` must produce the same number: the server is the side that enforces it, so any extra the frontend invents shows up as a max the player can never reach.
 
 **A full store pauses production**, and the display has to show that. The counter between the minute syncs is a *preview*: the last server value plus the elapsed share of this minute's rate. `resourceDisplay(id)` in `useHawkStar.js` is the single place that computes it, and it clamps at the cap — an unclamped preview ran a full mine up to 2001, 2002 … before the next sync snapped it back. `isStorageFull(id)` goes with it: both the bar and the resource panel strike the rate through and turn the cap amber while it applies.
@@ -177,13 +216,27 @@ Population starts at **1** — you grow it by recruiting on the base tile. A **r
 
 Every few hours something drifts past a planet and waits on the **anomaly tile** (slot 7, the old agriculture placeholder). Each anomaly is a fork between **two guaranteed, fully visible outcomes** — the randomness sits in *which* anomaly turns up, never in what a choice pays out. Ignoring one costs nothing but the opportunity: every outcome is a gift, and an untouched anomaly simply expires.
 
-| Type | Choice A | Choice B |
-|------|----------|----------|
-| ☄️ Meteor Shower | crystal share | metal share |
-| 🛰️ Derelict Freighter | 2 high-tech goods (rolled at creation, shown up front) | metal + crystal share |
-| 🌞 Solar Storm | battery +40 % | 2 × power cell |
-| 👥 Refugee Convoy | +4 population, costs metal | 2 × power cell |
-| 🧊 Comet Core | planet-exclusive raw (costs 2 power cells) | crystal share |
+| Type | Weight | Choice A | Choice B |
+|------|--------|----------|----------|
+| ☄️ Meteor Shower | 20 | crystal share | metal share |
+| 🛰️ Derelict Freighter | 20 | 2 high-tech goods (rolled at creation, shown up front) | metal + crystal share |
+| 🌞 Solar Storm | 20 | battery +40 % | 2 × power cell |
+| 👥 Refugee Convoy | 15 | +4 population, costs metal | 2 × power cell |
+| 🧊 Comet Core | 15 | planet-exclusive raw (costs 2 power cells) | crystal share |
+| 🏗️ Drifting Drydock | 8 | **2 × duraplate**, costs metal | metal share (large) |
+| 🔥 Ejected Reactor Core | 8 | **2 × plasma core**, costs crystal | 2 × power cell |
+| 📶 Dead Relay | 8 | **2 × superconductor**, costs crystal | crystal share |
+| 🦠 Crashed Bio Pod | 8 | **2 × vital gel**, costs metal | planet-exclusive raw share |
+| ⛽ Lost Fuel Depot | 8 | **3 × power cell**, costs metal | metal + crystal share |
+| 🤝 Wandering Trader | 10 | 2 high-tech goods, costs a lot of metal | crystal share |
+| 👻 Ghost Ship | 8 | 3 high-tech goods, costs 1 power cell | 1 high-tech good, free |
+| 🌌 Stardust Cloud | 12 | planet-exclusive raw share (free) | metal + crystal share |
+
+### One event per high-tech good
+
+The five middle rows exist so that **every refinery output can also arrive from the sky** on a planet that cannot produce it. They all share one shape: pay a share of a raw stock for the finished good, or skip it and take a plain raw haul.
+
+The paid side is deliberately **strongest early and mid game**: the cost is a share of the storage cap while the payout is a flat 2–3 units, so a late-game planet with a big silo pays a lot for very little and will simply take option B. That is the intended curve — this is a young colony's stopgap until it has its own refinery or a cargo drone route, never a replacement for either.
 
 ### Rules
 
@@ -205,7 +258,7 @@ The open anomaly is drawn as **one closed card**: the head (icon, name, descript
 - **The interval measures from `MAX(COALESCE(resolved_at, expires_at))`** — the moment the tile last became free. Measuring from `created_at` would let an anomaly that sat around longer than the interval spawn its successor the instant it is answered.
 - **`apply_anomaly_choice()` is the only place an effect executes**, for every type. Adding an anomaly is a config entry, not code. Resource keys come out of stored JSON straight into SQL column names, so they are checked against `RESOURCE_KEYS` first.
 - Resolving **claims the row first** (`UPDATE … WHERE resolved_at IS NULL`) and only then pays out — a double click cannot collect twice. If the cost turns out to be unaffordable the claim is rolled back so the other option stays open.
-- Dev cheat **☄️ Anomalie** forces an immediate roll — otherwise testing means waiting out the 6 h interval.
+- Dev cheat **☄️ Anomalie** forces an immediate roll — otherwise testing means waiting out the 6 h interval. The dropdown next to it **forces one specific type** (empty = the normal weighted roll); with thirteen types, waiting for a particular one to come up is not a test plan. `ANOMALY_TYPES` in `hawkStarConfig.js` feeds that dropdown and is the only frontend mirror of the anomaly list — the game itself never needs it, since an open anomaly arrives from the server with icon and materialised choices.
 
 ### Files
 

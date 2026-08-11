@@ -39,7 +39,6 @@ const {
   homeSystemId,
   homePlanetId,
   activePlanetId,
-  currentLevelDef,
   remainingSec,
   formatTime,
   buildProgressStyle,
@@ -151,52 +150,24 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
         class="hs-building-row"
         :class="{ 'hs-building-row--offline': isOffline(bDef.id) }"
       >
-        <!-- Icon + level badge -->
-        <div class="hs-building-icon-wrap">
-          <span class="hs-building-icon">{{ bDef.icon }}</span>
-          <span v-if="getLevel(bDef.id) > 0" class="hs-level-badge">Lv{{ getLevel(bDef.id) }}</span>
+        <!-- Left column — what the building is right now: icon, level, description -->
+        <div class="hs-building-ident">
+          <div class="hs-building-icon-wrap">
+            <span class="hs-building-icon">{{ bDef.icon }}</span>
+            <span v-if="getLevel(bDef.id) > 0" class="hs-level-badge">Lv{{ getLevel(bDef.id) }}</span>
+          </div>
+
+          <div class="hs-building-info">
+            <div class="hs-building-name">{{ t('hawkStar.buildings.' + bDef.id + '.name') }}</div>
+            <div class="hs-building-desc">{{ t('hawkStar.buildings.' + bDef.id + '.desc') }}</div>
+          </div>
         </div>
 
-        <!-- Info block -->
-        <div class="hs-building-info">
-          <div class="hs-building-name">{{ t('hawkStar.buildings.' + bDef.id + '.name') }}</div>
-          <div v-if="currentLevelDef(bDef.id)" class="hs-building-stats">
-            <span v-for="(amt, resId) in currentLevelDef(bDef.id).production" :key="resId">{{ RESOURCES[resId]?.icon }} +{{ amt }}/m</span>
-            <span v-if="currentLevelDef(bDef.id).energyDrain">⚡ -{{ currentLevelDef(bDef.id).energyDrain }}</span>
-            <span v-if="currentLevelDef(bDef.id).staffDrain">👥 {{ currentLevelDef(bDef.id).staffDrain }}</span>
-          </div>
-          <div class="hs-building-effect">
-            <template v-if="nextLevelDef(bDef.id)">
-              {{ getLevel(bDef.id) === 0 ? '' : '→ ' }}{{ t('hawkStar.buildings.' + bDef.id + '.lv' + nextLevelDef(bDef.id).level) }}
-            </template>
-            <template v-else>{{ t('hawkStar.tile.maxLevel') }}</template>
-          </div>
-
-          <!-- Cost row -->
-          <div
-            v-if="nextLevelDef(bDef.id) && !isBuildingInProgress(bDef.id) && (Object.keys(nextLevelDef(bDef.id).cost).length || staffDelta(bDef.id) > 0 || nextLevelDef(bDef.id).energyDrain > 0)"
-            class="hs-cost-row"
-          >
-            <span
-              v-if="nextLevelDef(bDef.id).energyDrain > 0"
-              class="hs-cost-tag"
-              :class="hasEnoughPower(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-            >⚡ -{{ nextLevelDef(bDef.id).energyDrain }}</span>
-            <span
-              v-if="staffDelta(bDef.id) > 0"
-              class="hs-cost-tag"
-              :class="freeWorkers >= staffDelta(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-            >👥 {{ staffDelta(bDef.id) }}</span>
-            <span
-              v-for="(amt, resId) in nextLevelDef(bDef.id).cost"
-              :key="resId"
-              class="hs-cost-tag"
-              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-          </div>
-
-          <!-- Progress bar -->
+        <!-- Right column — the deal: what it costs, the button, what you get and how long it takes -->
+        <div class="hs-building-action">
+          <!-- Under construction: the bar replaces cost + button -->
           <template v-if="isBuildingInProgress(bDef.id)">
+            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
             <div class="hs-progress-row">
               <div class="hs-progress-track">
                 <div
@@ -208,36 +179,62 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
               <span class="hs-progress-time">{{ formatTime(remainingSec(playerBuildings[bDef.id].buildEndsAt)) }}</span>
             </div>
           </template>
-        </div>
 
-        <!-- Action button -->
-        <div class="hs-building-action">
-          <template v-if="isBuildingInProgress(bDef.id)">
-            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
-          </template>
           <template v-else-if="isOffline(bDef.id)">
             <span class="hs-status-offline">{{ t('hawkStar.tile.statusOffline') }}</span>
           </template>
+
           <template v-else-if="!nextLevelDef(bDef.id)">
             <span class="hs-status-max">{{ t('hawkStar.tile.statusMax') }}</span>
+            <span class="hs-building-effect">{{ t('hawkStar.tile.maxLevel') }}</span>
           </template>
+
           <template v-else-if="isBuildingLocked(bDef.id)">
             <span class="hs-status-locked">
               {{ lockedRequirementInfo(bDef.id) ? t('hawkStar.tile.lockedRequires', { name: t('hawkStar.buildings.' + lockedRequirementInfo(bDef.id).building + '.name'), level: lockedRequirementInfo(bDef.id).level }) : t('hawkStar.tile.lockedGeneric') }}
             </span>
           </template>
+
           <template v-else>
-            <div class="hs-btn-wrap">
-              <button
-                class="hs-btn-build"
-                :class="{ 'hs-btn-build--disabled': !canBuild(bDef.id) }"
-                :disabled="!canBuild(bDef.id)"
-                @click.stop="startBuild(bDef.id)"
-              >{{ BUILDINGS[bDef.id]?.global ? t('hawkStar.tile.btnResearch') : getLevel(bDef.id) === 0 ? t('hawkStar.tile.btnBuild') : t('hawkStar.tile.btnUpgrade') }}</button>
-              <span class="hs-build-time">⏱ {{ formatTime(nextLevelDef(bDef.id).buildTime) }}</span>
-              <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">{{ t('hawkStar.tile.needPower') }}</span>
-              <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">{{ t('hawkStar.tile.needStaff') }}</span>
+            <!-- Cost -->
+            <div
+              v-if="Object.keys(nextLevelDef(bDef.id).cost).length || staffDelta(bDef.id) > 0 || nextLevelDef(bDef.id).energyDrain > 0"
+              class="hs-cost-row"
+            >
+              <span
+                v-for="(amt, resId) in nextLevelDef(bDef.id).cost"
+                :key="resId"
+                class="hs-cost-tag"
+                :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <span
+                v-if="nextLevelDef(bDef.id).energyDrain > 0"
+                class="hs-cost-tag"
+                :class="hasEnoughPower(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >⚡ {{ nextLevelDef(bDef.id).energyDrain }}</span>
+              <span
+                v-if="staffDelta(bDef.id) > 0"
+                class="hs-cost-tag"
+                :class="freeWorkers >= staffDelta(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >👥 {{ staffDelta(bDef.id) }}</span>
             </div>
+
+            <!-- Button -->
+            <button
+              class="hs-btn-build"
+              :class="{ 'hs-btn-build--disabled': !canBuild(bDef.id) }"
+              :disabled="!canBuild(bDef.id)"
+              @click.stop="startBuild(bDef.id)"
+            >{{ BUILDINGS[bDef.id]?.global ? t('hawkStar.tile.btnResearch') : getLevel(bDef.id) === 0 ? t('hawkStar.tile.btnBuild') : t('hawkStar.tile.btnUpgrade') }}</button>
+
+            <!-- What you get, and how long it takes -->
+            <div class="hs-building-effect">
+              <span class="hs-build-time">⏱ {{ formatTime(nextLevelDef(bDef.id).buildTime) }}</span>
+              <span class="hs-effect-text">{{ t('hawkStar.buildings.' + bDef.id + '.lv' + nextLevelDef(bDef.id).level) }}</span>
+            </div>
+
+            <span v-if="!hasEnoughPower(bDef.id)" class="hs-no-power">{{ t('hawkStar.tile.needPower') }}</span>
+            <span v-if="!hasEnoughStaff(bDef.id)" class="hs-no-staff">{{ t('hawkStar.tile.needStaff') }}</span>
           </template>
         </div>
       </div>
@@ -433,9 +430,11 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
 
 .hs-building-list { display: flex; flex-direction: column; gap: 0.5rem; }
 
+// Two columns: left = what the building is, right = what building it costs and gives.
+// Stacked below 640px, side by side above it with a divider between them.
 .hs-building-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-line-sm);
@@ -444,6 +443,8 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
   transition: background 0.3s, border-color 0.3s, opacity 0.3s;
 
   @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: stretch;
     gap: 0.75rem;
     padding: 0.75rem;
   }
@@ -452,6 +453,18 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
     background: var(--hs-danger-bg);
     border-color: var(--hs-danger-border);
     opacity: 0.75;
+  }
+}
+
+.hs-building-ident {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  @media (min-width: 640px) {
+    gap: 0.75rem;
   }
 }
 
@@ -484,23 +497,27 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
 
 .hs-building-info   { flex: 1; min-width: 0; }
 .hs-building-name   { font-size: 0.825rem; font-weight: 600; }
-.hs-building-stats  {
+.hs-building-desc   { font-size: 0.68rem; opacity: 0.45; margin-top: 2px; line-height: 1.35; }
+
+// Time and effect flow as one wrapping text line, so a long effect string keeps
+// filling the column instead of pushing the clock onto a line of its own.
+.hs-building-effect {
+  font-size: 0.62rem;
+  line-height: 1.4;
+  opacity: 0.55;
+
+  @media (min-width: 640px) { text-align: right; }
+
+  .hs-build-time::after { content: ' · '; }
+}
+
+.hs-cost-row {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 3px;
 
-  span {
-    font-size: 0.6rem;
-    color: var(--hs-ok);
-    background: var(--hs-ok-bg);
-    padding: 1px 5px;
-    border-radius: 4px;
-  }
+  @media (min-width: 640px) { justify-content: flex-end; }
 }
-.hs-building-effect { font-size: 0.68rem; opacity: 0.5; margin-top: 2px; }
-
-.hs-cost-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 
 .hs-cost-tag {
   font-size: 0.65rem;
@@ -511,7 +528,7 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
   &--no { background: var(--hs-danger-bg-cost); color: var(--hs-danger-muted); }
 }
 
-.hs-progress-row   { display: flex; align-items: center; gap: 0.5rem; margin-top: 6px; }
+.hs-progress-row   { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
 .hs-progress-track { flex: 1; height: 4px; background: var(--hs-glass-3xl); border-radius: 9999px; overflow: hidden; }
 
 .hs-progress-fill {
@@ -529,14 +546,31 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
   flex-shrink: 0;
 }
 
-.hs-building-action { flex-shrink: 0; }
+.hs-building-action {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
 
-.hs-btn-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.hs-build-time { font-size: 0.6rem; color: rgba(255,255,255,0.4); white-space: nowrap; }
+  @media (min-width: 640px) {
+    width: 12.5rem;
+    align-items: flex-end;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--hs-line-sm);
+  }
+}
+
+.hs-build-time { font-size: 0.6rem; color: rgba(255,255,255,0.5); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hs-no-power   { font-size: 0.6rem; color: var(--hs-danger); white-space: nowrap; }
 .hs-no-staff   { font-size: 0.6rem; color: var(--hs-staff);  white-space: nowrap; }
 
+@media (min-width: 640px) {
+  .hs-no-power, .hs-no-staff { text-align: right; }
+}
+
 .hs-btn-build {
+  width: 100%;
   padding: 0.375rem 0.75rem;
   border-radius: var(--hs-r-sm);
   font-size: 0.75rem;

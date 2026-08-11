@@ -81,26 +81,22 @@ const hasMissions = computed(() =>
 
       <!-- Recon Drone -->
       <div class="hs-building-row">
-        <div class="hs-building-icon-wrap">
-          <span class="hs-building-icon">🛸</span>
-          <span v-if="reconDroneInventory > 0" class="hs-building-badge">{{ reconDroneInventory }}</span>
-        </div>
-        <div class="hs-building-info">
-          <div class="hs-building-name">{{ t('hawkStar.dock.reconDrone') }}</div>
-          <div class="hs-building-effect">{{ t('hawkStar.dock.reconDroneDesc') }}</div>
-          <div v-if="reconDroneLevel > 0" class="hs-cost-row">
-            <span
-              v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost"
-              :key="resId"
-              class="hs-cost-tag"
-              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+        <div class="hs-building-ident">
+          <div class="hs-building-icon-wrap">
+            <span class="hs-building-icon">🛸</span>
+            <span v-if="reconDroneInventory > 0" class="hs-building-badge">{{ reconDroneInventory }}</span>
+          </div>
+          <div class="hs-building-info">
+            <div class="hs-building-name">{{ t('hawkStar.dock.reconDrone') }}</div>
+            <div class="hs-building-desc">{{ t('hawkStar.dock.reconDroneDesc') }}</div>
           </div>
         </div>
+
         <div class="hs-building-action">
           <span v-if="reconDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
           <template v-else-if="reconDroneBuild">
-            <div class="hs-build-progress-wrap">
+            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
+            <div class="hs-progress-row">
               <div class="hs-progress-track">
                 <div class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" />
               </div>
@@ -108,15 +104,21 @@ const hasMissions = computed(() =>
             </div>
           </template>
           <template v-else>
-            <div class="hs-btn-wrap">
-              <button
-                class="hs-btn-build"
-                :class="{ 'hs-btn-build--disabled': !canBuildDrone }"
-                :disabled="!canBuildDrone"
-                @click="buildReconDrone"
-              >{{ t('hawkStar.tile.btnBuild') }}</button>
-              <span class="hs-build-time">⏱ {{ formatTime(droneBuildTime) }}</span>
+            <div class="hs-cost-row">
+              <span
+                v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost"
+                :key="resId"
+                class="hs-cost-tag"
+                :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             </div>
+            <button
+              class="hs-btn-build"
+              :class="{ 'hs-btn-build--disabled': !canBuildDrone }"
+              :disabled="!canBuildDrone"
+              @click="buildReconDrone"
+            >{{ t('hawkStar.tile.btnBuild') }}</button>
+            <div class="hs-building-meta"><span class="hs-build-time">⏱ {{ formatTime(droneBuildTime) }}</span></div>
           </template>
         </div>
       </div>
@@ -124,84 +126,75 @@ const hasMissions = computed(() =>
       <!-- Cargo Drone — same facility as the recon drone, but limited to one per
            planet in existence, so there is no build button once one is around. -->
       <div class="hs-building-row">
-        <div class="hs-building-icon-wrap">
-          <span class="hs-building-icon">📦</span>
-          <span v-if="cargoDroneInventory > 0" class="hs-building-badge hs-building-badge--cargo">{{ cargoDroneInventory }}</span>
-        </div>
-        <div class="hs-building-info">
-          <div class="hs-building-name">{{ t('hawkStar.dock.cargoDrone') }}</div>
-          <div class="hs-building-effect">{{ t('hawkStar.dock.cargoDroneDesc') }}</div>
-          <div v-if="cargoDroneLevel > 0 && !hasCargoDrone" class="hs-cost-row">
-            <span
-              v-for="(amt, resId) in UNIT_COSTS.cargo_drone.cost"
-              :key="resId"
-              class="hs-cost-tag"
-              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+        <div class="hs-building-ident">
+          <div class="hs-building-icon-wrap">
+            <span class="hs-building-icon">📦</span>
+            <span v-if="cargoDroneInventory > 0" class="hs-building-badge hs-building-badge--cargo">{{ cargoDroneInventory }}</span>
           </div>
-          <div v-if="cargoDroneReady" class="hs-cargo-hold">
-            {{ t('hawkStar.solar.cargoHold') }} {{ cargoLoaded }} / {{ cargoCapacity }} ·
-            {{ t('hawkStar.dock.launchFromSystemMap') }}
-          </div>
-          <div v-else-if="hasCargoDrone && !cargoDroneBuild" class="hs-cargo-hold">
-            {{ t('hawkStar.solar.cargoOnePerPlanet') }}
+          <div class="hs-building-info">
+            <div class="hs-building-name">{{ t('hawkStar.dock.cargoDrone') }}</div>
+            <div class="hs-building-desc">{{ t('hawkStar.dock.cargoDroneDesc') }}</div>
           </div>
         </div>
+
         <div class="hs-building-action">
           <span v-if="cargoDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
           <template v-else-if="cargoDroneBuild">
-            <div class="hs-build-progress-wrap">
+            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
+            <div class="hs-progress-row">
               <div class="hs-progress-track">
                 <div class="hs-progress-fill hs-progress-fill--cargo" :style="cargoBuildProgressStyle" />
               </div>
               <span class="hs-progress-time">{{ formatTime(Math.ceil((cargoDroneBuild.endsAt - Date.now()) / 1000)) }}</span>
             </div>
           </template>
-          <span v-else-if="hasCargoDrone" class="hs-status-ready">{{ t('hawkStar.dock.unitReady') }}</span>
-          <template v-else>
-            <div class="hs-btn-wrap">
-              <button
-                class="hs-btn-build"
-                :class="{ 'hs-btn-build--disabled': !canBuildCargoDrone }"
-                :disabled="!canBuildCargoDrone"
-                @click="buildCargoDrone"
-              >{{ t('hawkStar.tile.btnBuild') }}</button>
-              <span class="hs-build-time">⏱ {{ formatTime(cargoBuildTime) }}</span>
+          <!-- One drone per planet: an existing one is a status, never a build offer -->
+          <template v-else-if="hasCargoDrone">
+            <span class="hs-status-ready">{{ t('hawkStar.dock.unitReady') }}</span>
+            <div v-if="cargoDroneReady" class="hs-cargo-hold">
+              {{ t('hawkStar.solar.cargoHold') }} {{ cargoLoaded }} / {{ cargoCapacity }} ·
+              {{ t('hawkStar.dock.launchFromSystemMap') }}
             </div>
+            <div v-else class="hs-cargo-hold">{{ t('hawkStar.solar.cargoOnePerPlanet') }}</div>
+          </template>
+          <template v-else>
+            <div class="hs-cost-row">
+              <span
+                v-for="(amt, resId) in UNIT_COSTS.cargo_drone.cost"
+                :key="resId"
+                class="hs-cost-tag"
+                :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            </div>
+            <button
+              class="hs-btn-build"
+              :class="{ 'hs-btn-build--disabled': !canBuildCargoDrone }"
+              :disabled="!canBuildCargoDrone"
+              @click="buildCargoDrone"
+            >{{ t('hawkStar.tile.btnBuild') }}</button>
+            <div class="hs-building-meta"><span class="hs-build-time">⏱ {{ formatTime(cargoBuildTime) }}</span></div>
           </template>
         </div>
       </div>
 
       <!-- Colony Ship -->
       <div class="hs-building-row">
-        <div class="hs-building-icon-wrap">
-          <span class="hs-building-icon">🚀</span>
-          <span v-if="colonyShipInventory > 0" class="hs-building-badge hs-building-badge--colony">{{ colonyShipInventory }}</span>
-        </div>
-        <div class="hs-building-info">
-          <div class="hs-building-name">{{ t('hawkStar.dock.colonyShip') }}</div>
-          <div class="hs-building-effect">{{ t('hawkStar.dock.colonyShipDesc') }}</div>
-          <div v-if="colonyShipLevel > 0" class="hs-cost-row">
-            <span
-              v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost"
-              :key="resId"
-              class="hs-cost-tag"
-              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-            <span
-              class="hs-cost-tag"
-              :class="hasColonyCrew ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-              :title="t('hawkStar.dock.crewHint', { crew: colonyShipCrew })"
-            >👥 {{ colonyShipCrew }}</span>
+        <div class="hs-building-ident">
+          <div class="hs-building-icon-wrap">
+            <span class="hs-building-icon">🚀</span>
+            <span v-if="colonyShipInventory > 0" class="hs-building-badge hs-building-badge--colony">{{ colonyShipInventory }}</span>
           </div>
-          <div v-if="colonyShipLevel > 0 && !hasColonyCrew" class="hs-crew-warning">
-            {{ t('hawkStar.dock.noCrew') }}
+          <div class="hs-building-info">
+            <div class="hs-building-name">{{ t('hawkStar.dock.colonyShip') }}</div>
+            <div class="hs-building-desc">{{ t('hawkStar.dock.colonyShipDesc') }}</div>
           </div>
         </div>
+
         <div class="hs-building-action">
           <span v-if="colonyShipLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
           <template v-else-if="colonyShipBuild">
-            <div class="hs-build-progress-wrap">
+            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
+            <div class="hs-progress-row">
               <div class="hs-progress-track">
                 <div class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" />
               </div>
@@ -209,15 +202,27 @@ const hasMissions = computed(() =>
             </div>
           </template>
           <template v-else>
-            <div class="hs-btn-wrap">
-              <button
-                class="hs-btn-build"
-                :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }"
-                :disabled="!canBuildColonyShip"
-                @click="buildColonyShip"
-              >{{ t('hawkStar.tile.btnBuild') }}</button>
-              <span class="hs-build-time">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
+            <div class="hs-cost-row">
+              <span
+                v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost"
+                :key="resId"
+                class="hs-cost-tag"
+                :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <span
+                class="hs-cost-tag"
+                :class="hasColonyCrew ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+                :title="t('hawkStar.dock.crewHint', { crew: colonyShipCrew })"
+              >👥 {{ colonyShipCrew }}</span>
             </div>
+            <button
+              class="hs-btn-build"
+              :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }"
+              :disabled="!canBuildColonyShip"
+              @click="buildColonyShip"
+            >{{ t('hawkStar.tile.btnBuild') }}</button>
+            <div class="hs-building-meta"><span class="hs-build-time">⏱ {{ formatTime(colonyShipBuildTime) }}</span></div>
+            <div v-if="!hasColonyCrew" class="hs-crew-warning">{{ t('hawkStar.dock.noCrew') }}</div>
           </template>
         </div>
       </div>
@@ -314,9 +319,11 @@ const hasMissions = computed(() =>
 
 .hs-building-list { display: flex; flex-direction: column; gap: 0.5rem; }
 
+// Same two-column split as the building rows in HsTilePanel: left is what the
+// unit is, right is what it costs and how long it takes.
 .hs-building-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-line-sm);
@@ -324,7 +331,22 @@ const hasMissions = computed(() =>
   padding: 0.6rem;
   transition: background 0.3s, border-color 0.3s;
 
-  @media (min-width: 640px) { gap: 0.75rem; padding: 0.75rem; }
+  @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+}
+
+.hs-building-ident {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  @media (min-width: 640px) { gap: 0.75rem; }
 }
 
 .hs-building-icon-wrap {
@@ -363,15 +385,44 @@ const hasMissions = computed(() =>
 }
 .hs-building-info   { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hs-building-name   { font-size: 0.825rem; font-weight: 600; display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; }
-.hs-building-effect { font-size: 0.68rem; opacity: 0.5; }
-.hs-building-action { flex-shrink: 0; }
+.hs-building-desc   { font-size: 0.68rem; opacity: 0.45; line-height: 1.35; }
 
-.hs-cost-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.hs-building-action {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+
+  @media (min-width: 640px) {
+    width: 12.5rem;
+    align-items: flex-end;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--hs-line-sm);
+  }
+}
+
+.hs-building-meta {
+  font-size: 0.62rem;
+  line-height: 1.4;
+  opacity: 0.55;
+
+  @media (min-width: 640px) { text-align: right; }
+}
+
+.hs-cost-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+
+  @media (min-width: 640px) { justify-content: flex-end; }
+}
 
 .hs-crew-warning {
   font-size: 0.62rem;
   color: var(--hs-danger-muted);
-  margin-top: 3px;
+
+  @media (min-width: 640px) { text-align: right; }
 }
 
 .hs-cost-tag {
@@ -382,23 +433,20 @@ const hasMissions = computed(() =>
   &--no { background: var(--hs-danger-bg-cost);  color: var(--hs-danger-muted); }
 }
 
-.hs-status-locked { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
-.hs-status-ready  { font-size: 0.68rem; font-weight: 700; color: rgba(251,191,36,0.9);  white-space: nowrap; text-align: right; }
+.hs-status-locked   { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
+.hs-status-ready    { font-size: 0.68rem; font-weight: 700; color: rgba(251,191,36,0.9);  white-space: nowrap; text-align: right; }
+.hs-status-building { font-size: 0.7rem;  font-weight: 600; color: var(--hs-warn);        white-space: nowrap; }
 
 .hs-cargo-hold {
   font-size: 0.62rem;
   color: rgba(251,191,36,0.6);
-  margin-top: 3px;
-}
+  line-height: 1.4;
 
-.hs-btn-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
+  @media (min-width: 640px) { text-align: right; }
 }
 
 .hs-btn-build {
+  width: 100%;
   padding: 0.375rem 0.75rem;
   border-radius: var(--hs-r-sm);
   font-size: 0.75rem;
@@ -420,19 +468,17 @@ const hasMissions = computed(() =>
 }
 
 .hs-build-time {
-  font-size: 0.62rem;
-  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.5);
   white-space: nowrap;
-}
-
-.hs-build-progress-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 7rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .hs-progress-row   { display: flex; align-items: center; gap: 0.5rem; margin-top: 6px; }
+
+// In the action column the bar is its own row, so the mission-row spacing does not apply
+.hs-building-action .hs-progress-row { width: 100%; margin-top: 0; }
+
 .hs-progress-track { flex: 1; height: 4px; background: var(--hs-glass-3xl); border-radius: 9999px; overflow: hidden; }
 .hs-progress-fill  { height: 100%; border-radius: 9999px; }
 .hs-progress-time  { font-size: 0.65rem; color: var(--hs-warn-text); font-variant-numeric: tabular-nums; width: 3.5rem; text-align: right; flex-shrink: 0; }

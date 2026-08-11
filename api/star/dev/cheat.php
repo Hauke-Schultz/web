@@ -115,7 +115,9 @@ switch ($action) {
              WHERE planet_id=? AND player_id=? AND resolved_at IS NULL'
         )->execute([$planetId, $playerId]);
 
-        $rolled = create_anomaly($db, $planetId, $playerId, $planet['type']);
+        // Optional: force one specific type instead of the weighted roll.
+        $forced = trim($body['anomalyType'] ?? '');
+        $rolled = create_anomaly($db, $planetId, $playerId, $planet['type'], $forced ?: null);
         ok(['action' => 'roll_anomaly', 'rolled' => $rolled['type'] ?? null]);
 
     case 'complete_conversions':

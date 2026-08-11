@@ -222,7 +222,7 @@ const typeKey  = computed(() => anomaly.value?.type ?? '')
 /* Stacked, not wrapped: in a half-width column one delta per line stays legible. */
 .hs-anomaly-deltas {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
   gap: 0.2rem;
   margin-top: auto;

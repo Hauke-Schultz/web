@@ -235,6 +235,70 @@
             "capture": "Capture the core",
             "scan":    "Scan only"
           }
+        },
+        "drydock": {
+          "name": "Drifting Drydock",
+          "desc": "A discarded orbital dock drifts past. Its hull presses still run — with enough metal you can cut armour plating.",
+          "choices": {
+            "plating": "Press armour plating",
+            "spares":  "Loot the spare parts"
+          }
+        },
+        "reactor_core": {
+          "name": "Ejected Reactor Core",
+          "desc": "A jettisoned reactor core is still glowing. Containing it costs crystal — or you let it burn out in a controlled vent.",
+          "choices": {
+            "contain": "Contain the core",
+            "vent":    "Burn it out"
+          }
+        },
+        "dead_relay": {
+          "name": "Dead Relay",
+          "desc": "A burnt-out relay station stopped answering. Its switching cores hold superconductor, its buffers hold old survey data.",
+          "choices": {
+            "cores": "Pull the switching cores",
+            "tap":   "Tap the data buffers"
+          }
+        },
+        "bio_pod": {
+          "name": "Crashed Bio Pod",
+          "desc": "A research pod with living cultures comes down. Growing them needs materials — or you just skim off the nutrient bath.",
+          "choices": {
+            "cultivate": "Grow the cultures",
+            "nutrients": "Skim the nutrients"
+          }
+        },
+        "fuel_depot": {
+          "name": "Lost Fuel Depot",
+          "desc": "A forgotten tank depot drifts in orbit. Pumping it out costs lines and metal; scrapping it pays out at once.",
+          "choices": {
+            "siphon": "Siphon the tanks",
+            "strip":  "Scrap the depot"
+          }
+        },
+        "trader": {
+          "name": "Wandering Trader",
+          "desc": "A freighter docks and opens its hold. He takes raw metal, nothing else.",
+          "choices": {
+            "buy":    "Buy the cargo",
+            "barter": "Just trade charts"
+          }
+        },
+        "ghost_ship": {
+          "name": "Ghost Ship",
+          "desc": "A crewless ship drifts past with its locks wide open. Boarding it costs a power cell.",
+          "choices": {
+            "board": "Board her",
+            "pod":   "Take the escape pod only"
+          }
+        },
+        "stardust": {
+          "name": "Stardust Cloud",
+          "desc": "The planet ploughs through a dense dust cloud. The filters catch whatever comes through.",
+          "choices": {
+            "collect": "Collect heavy elements",
+            "filter":  "Coarse filtering"
+          }
         }
       }
     },
@@ -296,193 +360,193 @@
       "command_center": {
         "name": "Command Center",
         "desc": "The heart of your colony. Must be built before anything else.",
-        "lv1": "First Building · 1 worker",
-        "lv2": "Unlocks the Tech Center tile · +5 pop · uses 2 energy · 2 workers",
-        "lv3": "+10 pop · uses 3 energy · 3 workers"
+        "lv1": "First Building",
+        "lv2": "Unlocks the Tech Center tile · +5 pop",
+        "lv3": "+10 pop"
       },
       "power_plant": {
         "name": "Power Plant",
         "desc": "Powers the colony. Build and upgrade to support more buildings.",
-        "lv1": "+5 energy · 1 worker",
-        "lv2": "+12 energy · 2 workers",
-        "lv3": "+25 energy · 3 workers",
-        "lv4": "+32 energy · 3 workers",
-        "lv5": "+36 energy · 4 workers",
-        "lv6": "+40 energy · 4 workers"
+        "lv1": "+5 energy",
+        "lv2": "+7 energy",
+        "lv3": "+13 energy",
+        "lv4": "+15 energy",
+        "lv5": "+16 energy",
+        "lv6": "+19 energy"
       },
       "metal_mine": {
         "name": "Metal Mine",
         "desc": "Extracts metal ore from the surface.",
-        "lv1": "+2 metal/s · 300 storage · uses 3 energy · 2 workers",
-        "lv2": "+5 metal/s · 700 storage · uses 5 energy · 4 workers",
-        "lv3": "+12 metal/s · 1500 storage · uses 9 energy · 6 workers",
-        "lv4": "+16 metal/s · 2000 storage · uses 9 energy · 6 workers",
-        "lv5": "+22 metal/s · 2500 storage · uses 9 energy · 6 workers",
-        "lv6": "+28 metal/s · 3000 storage · uses 9 energy · 6 workers"
+        "lv1": "+2 metal/min · +300 storage",
+        "lv2": "+3 metal/min · +400 storage",
+        "lv3": "+7 metal/min · +800 storage",
+        "lv4": "+8 metal/min · +900 storage",
+        "lv5": "+10 metal/min · +1200 storage",
+        "lv6": "+12 metal/min · +1600 storage"
       },
       "crystal_drill": {
         "name": "Crystal Drill",
         "desc": "Bores deep into crystal veins.",
-        "lv1": "+1 crystal/s · 200 storage · uses 2 energy · 2 workers",
-        "lv2": "+3 crystal/s · 500 storage · uses 4 energy · 3 workers",
-        "lv3": "+7 crystal/s · 1000 storage · uses 7 energy · 5 workers",
-        "lv4": "+10 crystal/s · 1300 storage · uses 7 energy · 5 workers",
-        "lv5": "+15 crystal/s · 1700 storage · uses 7 energy · 5 workers",
-        "lv6": "+18 crystal/s · 2000 storage · uses 7 energy · 5 workers",
-        "lv7": "+25 crystal/s · 2500 storage · uses 7 energy · 5 workers"
+        "lv1": "+1 crystal/min · +200 storage",
+        "lv2": "+2 crystal/min · +300 storage",
+        "lv3": "+4 crystal/min · +500 storage",
+        "lv4": "+4 crystal/min · +500 storage",
+        "lv5": "+6 crystal/min · +600 storage",
+        "lv6": "+7 crystal/min · +800 storage",
+        "lv7": "+9 crystal/min · +1100 storage"
       },
       "alloy_forge": {
         "name": "Alloy Forge",
         "desc": "Smelts metal into refined alloy. Requires Laboratory Lv 2.",
-        "lv1": "+1 alloy/s · 150 storage · uses 4 energy · 3 workers",
-        "lv2": "+3 alloy/s · 400 storage · uses 7 energy · 5 workers",
-        "lv3": "+7 alloy/s · 900 storage · uses 12 energy · 8 workers",
-        "lv4": "+15 alloy/s · 2000 storage · uses 20 energy · 12 workers"
+        "lv1": "+1 alloy/min · +150 storage",
+        "lv2": "+2 alloy/min · +250 storage",
+        "lv3": "+4 alloy/min · +500 storage",
+        "lv4": "+8 alloy/min · +1100 storage"
       },
       "biomass_collector": {
         "name": "Biomass Collector",
         "desc": "Harvests organic biomass from ocean floors. Requires Laboratory Lv 2.",
-        "lv1": "+1 biomass/s · 150 storage · uses 4 energy · 3 workers",
-        "lv2": "+3 biomass/s · 400 storage · uses 7 energy · 5 workers",
-        "lv3": "+7 biomass/s · 900 storage · uses 12 energy · 8 workers",
-        "lv4": "+15 biomass/s · 2000 storage · uses 20 energy · 12 workers"
+        "lv1": "+1 biomass/min · +150 storage",
+        "lv2": "+2 biomass/min · +250 storage",
+        "lv3": "+4 biomass/min · +500 storage",
+        "lv4": "+8 biomass/min · +1100 storage"
       },
       "obsidian_quarry": {
         "name": "Obsidian Quarry",
         "desc": "Excavates volcanic obsidian from lava fields. Requires Laboratory Lv 2.",
-        "lv1": "+1 obsidian/s · 150 storage · uses 4 energy · 3 workers",
-        "lv2": "+3 obsidian/s · 400 storage · uses 7 energy · 5 workers",
-        "lv3": "+7 obsidian/s · 900 storage · uses 12 energy · 8 workers",
-        "lv4": "+15 obsidian/s · 2000 storage · uses 20 energy · 12 workers"
+        "lv1": "+1 obsidian/min · +150 storage",
+        "lv2": "+2 obsidian/min · +250 storage",
+        "lv3": "+4 obsidian/min · +500 storage",
+        "lv4": "+8 obsidian/min · +1100 storage"
       },
       "cryo_extractor": {
         "name": "Cryo Extractor",
         "desc": "Harvests cryonite from frozen veins. Requires Laboratory Lv 2.",
-        "lv1": "+1 cryo/s · 150 storage · uses 4 energy · 3 workers",
-        "lv2": "+3 cryo/s · 400 storage · uses 7 energy · 5 workers",
-        "lv3": "+7 cryo/s · 900 storage · uses 12 energy · 8 workers",
-        "lv4": "+15 cryo/s · 2000 storage · uses 20 energy · 12 workers"
+        "lv1": "+1 cryo/min · +150 storage",
+        "lv2": "+2 cryo/min · +250 storage",
+        "lv3": "+4 cryo/min · +500 storage",
+        "lv4": "+8 cryo/min · +1100 storage"
       },
       "solar_array": {
         "name": "Solar Array",
         "desc": "Harvests solar energy. No energy drain.",
-        "lv1": "+8 energy · 1 worker",
-        "lv2": "+18 energy · 2 workers",
-        "lv3": "+38 energy · 3 workers"
+        "lv1": "+8 energy",
+        "lv2": "+10 energy",
+        "lv3": "+20 energy"
       },
       "cryo_reactor": {
         "name": "Cryo Reactor",
         "desc": "Harnesses extreme cold for high-yield energy. Frozen planets only.",
-        "lv1": "+40 energy · 2 workers",
-        "lv2": "+90 energy · 4 workers",
-        "lv3": "+180 energy · 7 workers"
+        "lv1": "+40 energy",
+        "lv2": "+50 energy",
+        "lv3": "+90 energy"
       },
       "alloy_fusion_reactor": {
         "name": "Alloy Fusion Reactor",
         "desc": "Fuses refined alloy for high-yield energy. Terrestrial planets only.",
-        "lv1": "+40 energy · 2 workers",
-        "lv2": "+90 energy · 4 workers",
-        "lv3": "+180 energy · 7 workers"
+        "lv1": "+40 energy",
+        "lv2": "+50 energy",
+        "lv3": "+90 energy"
       },
       "obsidian_plasma_core": {
         "name": "Obsidian Plasma Core",
         "desc": "Superheats obsidian into plasma for massive energy output. Volcanic planets only.",
-        "lv1": "+45 energy · 2 workers",
-        "lv2": "+100 energy · 4 workers",
-        "lv3": "+200 energy · 7 workers"
+        "lv1": "+45 energy",
+        "lv2": "+55 energy",
+        "lv3": "+100 energy"
       },
       "biomass_reactor": {
         "name": "Biomass Reactor",
         "desc": "Converts biomass into clean sustained energy. Ocean planets only.",
-        "lv1": "+35 energy · 2 workers",
-        "lv2": "+80 energy · 4 workers",
-        "lv3": "+160 energy · 7 workers"
+        "lv1": "+35 energy",
+        "lv2": "+45 energy",
+        "lv3": "+80 energy"
       },
       "drone_hangar": {
         "name": "Drone Hangar",
         "desc": "Production facility for all drone types. Houses recon drones today, further drones later.",
-        "lv1": "Build recon drones · standard speed · uses 5 energy · 2 workers"
+        "lv1": "Build recon drones · standard speed"
       },
       "star_map": {
         "name": "Star Map",
         "desc": "Charts the known galaxy. Required for interplanetary navigation.",
-        "lv1": "Unlocks Solar System view · uses 3 energy · 2 workers",
-        "lv2": "Unlocks Galaxy view · nearby systems visible · uses 5 energy · 3 workers",
-        "lv3": "Full galaxy scan — all systems visible · uses 9 energy · 5 workers"
+        "lv1": "Unlocks Solar System view",
+        "lv2": "Unlocks Galaxy view · nearby systems visible",
+        "lv3": "Full galaxy scan — all systems visible"
       },
       "interstellar_comm": {
         "name": "Interstellar Communication",
         "desc": "Scan distant star systems and contact their inhabitants. Researched once, applied galaxy-wide.",
-        "lv1": "Unlock system scanning + predefined messages · uses 4 energy · 2 workers",
-        "lv2": "Halve signal travel time · uses 7 energy · 3 workers"
+        "lv1": "Unlock system scanning + predefined messages",
+        "lv2": "Halve signal travel time"
       },
       "space_building": {
         "name": "Space Technology",
         "desc": "Advances propulsion and navigation science. Unlocks the Space Base tile.",
-        "lv1": "Unlocks Space Base tile · uses 6 energy · 3 workers",
-        "lv2": "Unlocks Warship Bay · uses 10 energy · 5 workers"
+        "lv1": "Unlocks Space Base tile",
+        "lv2": "Unlocks Warship Bay"
       },
       "laboratory": {
         "name": "Laboratory",
         "desc": "Drives scientific progress. High energy consumer.",
-        "lv1": "Unlocks High-Tech tile · uses 5 energy · 3 workers",
-        "lv2": "Unlocks Alloy Forge · +50% research speed · uses 8 energy · 5 workers"
+        "lv1": "Unlocks High-Tech tile",
+        "lv2": "Unlocks Alloy Forge · +50% research speed"
       },
       "weapons_building": {
         "name": "Weapon Technology",
         "desc": "Military science division. Unlocks the planetary Defense tile.",
-        "lv1": "Unlocks Defense tile · basic weapon blueprints · uses 5 energy · 3 workers"
+        "lv1": "Unlocks Defense tile · basic weapon blueprints"
       },
       "shipyard": {
         "name": "Shipyard",
         "desc": "Production facility for all starships. Builds colony ships today, further ships later.",
-        "lv1": "Build colony ships · uses 8 energy · 4 workers"
+        "lv1": "Build colony ships"
       },
       "geothermal_tap": {
         "name": "Geothermal Tap",
         "desc": "Harnesses volcanic heat for cheap, reliable energy output.",
-        "lv1": "+10 energy · 1 worker",
-        "lv2": "+24 energy · 2 workers",
-        "lv3": "+50 energy · 3 workers"
+        "lv1": "+10 energy",
+        "lv2": "+14 energy",
+        "lv3": "+26 energy"
       },
       "tidal_generator": {
         "name": "Tidal Generator",
         "desc": "Harvests kinetic energy from ocean tides. Cheap and reliable.",
-        "lv1": "+9 energy · 1 worker",
-        "lv2": "+20 energy · 2 workers",
-        "lv3": "+42 energy · 3 workers"
+        "lv1": "+9 energy",
+        "lv2": "+11 energy",
+        "lv3": "+22 energy"
       },
       "alloy_refinery": {
         "name": "Alloy Refinery",
         "desc": "Presses metal and alloy into Duraplate hull plating. Terrestrial planets only.",
-        "lv1": "Unlocks Duraplate production · uses 6 energy · 3 workers"
+        "lv1": "Unlocks Duraplate production"
       },
       "obsidian_foundry": {
         "name": "Obsidian Foundry",
         "desc": "Superheats obsidian and crystal into Plasma Cores. Volcanic planets only.",
-        "lv1": "Unlocks Plasma Core production · uses 6 energy · 3 workers"
+        "lv1": "Unlocks Plasma Core production"
       },
       "cryo_refinery": {
         "name": "Cryo Refinery",
         "desc": "Grows Superconductors from crystal in a cryonite bath. Frozen planets only.",
-        "lv1": "Unlocks Superconductor production · uses 6 energy · 3 workers"
+        "lv1": "Unlocks Superconductor production"
       },
       "bio_lab": {
         "name": "Bio Lab",
         "desc": "Cultures biomass and metal into life-supporting Vital Gel. Ocean planets only.",
-        "lv1": "Unlocks Vital Gel production · uses 6 energy · 3 workers"
+        "lv1": "Unlocks Vital Gel production"
       },
       "power_cell_lab": {
         "name": "Power Cell Lab",
         "desc": "Manufactures universal power cells for starships.",
-        "lv1": "Produce Power Cells · uses 5 energy · 3 workers"
+        "lv1": "Produce Power Cells"
       },
       "shield_generator": {
         "name": "Shield Generator",
         "desc": "Projects an energy barrier around the planet.",
-        "lv1": "Basic shield — absorbs 20% incoming damage · uses 8 energy · 3 workers",
-        "lv2": "Enhanced shield — absorbs 40% incoming damage · uses 15 energy · 5 workers",
-        "lv3": "Fortress shield — absorbs 60% incoming damage · uses 25 energy · 8 workers"
+        "lv1": "Basic shield — absorbs 20% incoming damage",
+        "lv2": "Enhanced shield — absorbs 40% incoming damage",
+        "lv3": "Fortress shield — absorbs 60% incoming damage"
       }
     }
   }

@@ -43,28 +43,28 @@ const BUILDINGS = [
     ['level'=>1,'cost'=>['crystal'=>25],'buildTime'=>20,'production'=>['energy'=>5],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>70,'crystal'=>35],'buildTime'=>600,'production'=>['energy'=>12],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>180,'crystal'=>90],'buildTime'=>3600,'production'=>['energy'=>25],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>4,'cost'=>['metal'=>200,'crystal'=>100],'buildTime'=>10800,'production'=>['energy'=>32],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>5,'cost'=>['metal'=>210,'crystal'=>110],'buildTime'=>21600,'production'=>['energy'=>36],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>6,'cost'=>['metal'=>250,'crystal'=>130],'buildTime'=>43200,'production'=>['energy'=>40],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>4,'cost'=>['metal'=>250,'crystal'=>100],'buildTime'=>10800,'production'=>['energy'=>40],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>5,'cost'=>['metal'=>320,'crystal'=>130],'buildTime'=>21600,'production'=>['energy'=>56],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>6,'cost'=>['metal'=>440,'crystal'=>180],'buildTime'=>43200,'production'=>['energy'=>75],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'metal_mine' => ['tileType' => 'mining', 'levels' => [
     ['level'=>1,'cost'=>['metal'=>30],'buildTime'=>20,'production'=>['metal'=>2],'energyDrain'=>3,'staffDrain'=>2,'storageCapacity'=>['metal'=>300],'unlocks'=>[],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>80,'crystal'=>20],'buildTime'=>600,'production'=>['metal'=>5],'energyDrain'=>5,'staffDrain'=>4,'storageCapacity'=>['metal'=>700],'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>220,'crystal'=>60],'buildTime'=>5400,'production'=>['metal'=>12],'energyDrain'=>9,'staffDrain'=>6,'storageCapacity'=>['metal'=>1500],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>4,'cost'=>['metal'=>240,'crystal'=>80],'buildTime'=>14400,'production'=>['metal'=>16],'energyDrain'=>9,'staffDrain'=>6,'storageCapacity'=>['metal'=>2000],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>5,'cost'=>['metal'=>340,'crystal'=>100],'buildTime'=>28800,'production'=>['metal'=>22],'energyDrain'=>9,'staffDrain'=>6,'storageCapacity'=>['metal'=>2500],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>6,'cost'=>['metal'=>440,'crystal'=>130],'buildTime'=>57600,'production'=>['metal'=>28],'energyDrain'=>9,'staffDrain'=>6,'storageCapacity'=>['metal'=>3000],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>4,'cost'=>['metal'=>280,'crystal'=>100],'buildTime'=>14400,'production'=>['metal'=>20],'energyDrain'=>12,'staffDrain'=>6,'storageCapacity'=>['metal'=>2400],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>5,'cost'=>['metal'=>420,'crystal'=>150],'buildTime'=>28800,'production'=>['metal'=>30],'energyDrain'=>16,'staffDrain'=>6,'storageCapacity'=>['metal'=>3600],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>6,'cost'=>['metal'=>600,'crystal'=>210],'buildTime'=>57600,'production'=>['metal'=>42],'energyDrain'=>21,'staffDrain'=>6,'storageCapacity'=>['metal'=>5200],'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'crystal_drill' => ['tileType' => 'mining', 'levels' => [
     ['level'=>1,'cost'=>['metal'=>50],'buildTime'=>20,'production'=>['crystal'=>1],'energyDrain'=>2,'staffDrain'=>2,'storageCapacity'=>['crystal'=>200],'unlocks'=>[],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>110,'crystal'=>30],'buildTime'=>1500,'production'=>['crystal'=>3],'energyDrain'=>4,'staffDrain'=>3,'storageCapacity'=>['crystal'=>500],'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>280,'crystal'=>80],'buildTime'=>5400,'production'=>['crystal'=>7],'energyDrain'=>7,'staffDrain'=>5,'storageCapacity'=>['crystal'=>1000],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>4,'cost'=>['metal'=>300,'crystal'=>100],'buildTime'=>14400,'production'=>['crystal'=>10],'energyDrain'=>7,'staffDrain'=>5,'storageCapacity'=>['crystal'=>1300],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>5,'cost'=>['metal'=>400,'crystal'=>130],'buildTime'=>25200,'production'=>['crystal'=>15],'energyDrain'=>7,'staffDrain'=>5,'storageCapacity'=>['crystal'=>1700],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>6,'cost'=>['metal'=>420,'crystal'=>160],'buildTime'=>43200,'production'=>['crystal'=>18],'energyDrain'=>7,'staffDrain'=>5,'storageCapacity'=>['crystal'=>2000],'unlocks'=>[],'popBonus'=>0],
-    ['level'=>7,'cost'=>['metal'=>480,'crystal'=>200],'buildTime'=>86400,'production'=>['crystal'=>25],'energyDrain'=>7,'staffDrain'=>5,'storageCapacity'=>['crystal'=>2500],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>4,'cost'=>['metal'=>340,'crystal'=>100],'buildTime'=>14400,'production'=>['crystal'=>11],'energyDrain'=>9,'staffDrain'=>5,'storageCapacity'=>['crystal'=>1500],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>5,'cost'=>['metal'=>460,'crystal'=>250],'buildTime'=>25200,'production'=>['crystal'=>17],'energyDrain'=>12,'staffDrain'=>5,'storageCapacity'=>['crystal'=>2100],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>6,'cost'=>['metal'=>630,'crystal'=>350],'buildTime'=>43200,'production'=>['crystal'=>24],'energyDrain'=>15,'staffDrain'=>5,'storageCapacity'=>['crystal'=>2900],'unlocks'=>[],'popBonus'=>0],
+    ['level'=>7,'cost'=>['metal'=>820,'crystal'=>600],'buildTime'=>86400,'production'=>['crystal'=>33],'energyDrain'=>19,'staffDrain'=>5,'storageCapacity'=>['crystal'=>4000],'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'alloy_forge' => ['tileType'=>'mining','planetTypes'=>['terrestrial'],'requiresBuilding'=>'laboratory','requiresLevel'=>2,'levels'=>[
@@ -389,7 +389,7 @@ const ANOMALY_SALVAGE_POOL = ['power_cell','duraplate','plasma_core','supercondu
 const ANOMALIES = [
 
     // Debris field: pure resource pick — which of the two do you need right now?
-    'meteor' => ['icon' => '☄️', 'weight' => 30, 'choices' => [
+    'meteor' => ['icon' => '☄️', 'weight' => 20, 'choices' => [
         'crystal' => ['gainShareOfCap' => ['crystal' => 0.35]],
         'metal'   => ['gainShareOfCap' => ['metal'   => 0.35]],
     ]],
@@ -420,6 +420,70 @@ const ANOMALIES = [
     'comet' => ['icon' => '🧊', 'weight' => 15, 'choices' => [
         'capture' => ['cost' => ['power_cell' => 2], 'gainShareOfCap' => ['@planetRaw' => 0.60]],
         'scan'    => ['gainShareOfCap' => ['crystal' => 0.20]],
+    ]],
+
+    // ── One event per high-tech good ─────────────────────────────────────────
+    // Every refinery output can also *arrive* on a planet that cannot produce
+    // it. All five share the same shape: pay raw material for the finished
+    // good, or skip it and take a plain raw haul instead.
+    //
+    // The paid side is strongest early and mid game — the cost is a share of
+    // the storage cap while the payout is a flat 2–3 units, so a late-game
+    // planet with a big silo pays a lot for very little. That is the intended
+    // curve: this is the young colony's stopgap until it has its own refinery
+    // or a cargo drone route, not a substitute for either.
+
+    // Abandoned orbital dock — the hull presses still run. → Duraplate
+    'drydock' => ['icon' => '🏗️', 'weight' => 8, 'choices' => [
+        'plating' => ['costShareOfCap' => ['metal' => 0.18], 'gain' => ['duraplate' => 2]],
+        'spares'  => ['gainShareOfCap' => ['metal' => 0.45]],
+    ]],
+
+    // Ejected reactor core, still hot — contain it or let it burn out. → Plasma Core
+    'reactor_core' => ['icon' => '🔥', 'weight' => 8, 'choices' => [
+        'contain' => ['costShareOfCap' => ['crystal' => 0.18], 'gain' => ['plasma_core' => 2]],
+        'vent'    => ['gain' => ['power_cell' => 2]],
+    ]],
+
+    // Dead relay station: switching cores vs. the data still in its buffers. → Superconductor
+    'dead_relay' => ['icon' => '📶', 'weight' => 8, 'choices' => [
+        'cores' => ['costShareOfCap' => ['crystal' => 0.15], 'gain' => ['superconductor' => 2]],
+        'tap'   => ['gainShareOfCap' => ['crystal' => 0.40]],
+    ]],
+
+    // Crashed research pod with living cultures aboard. → Vital Gel
+    'bio_pod' => ['icon' => '🦠', 'weight' => 8, 'choices' => [
+        'cultivate' => ['costShareOfCap' => ['metal' => 0.15], 'gain' => ['vital_gel' => 2]],
+        'nutrients' => ['gainShareOfCap' => ['@planetRaw' => 0.35]],
+    ]],
+
+    // Forgotten fuel depot — pump the tanks or cut up the shell. → Power Cell
+    'fuel_depot' => ['icon' => '⛽', 'weight' => 8, 'choices' => [
+        'siphon' => ['costShareOfCap' => ['metal' => 0.15], 'gain' => ['power_cell' => 3]],
+        'strip'  => ['gainShareOfCap' => ['metal' => 0.20, 'crystal' => 0.20]],
+    ]],
+
+    // ── Flavour events ───────────────────────────────────────────────────────
+
+    // The only place raw metal buys refined goods outright. What is in the hold
+    // is rolled at creation, so the trader's offer is exact before you pay.
+    'trader' => ['icon' => '🤝', 'weight' => 10, 'choices' => [
+        'buy'    => ['costShareOfCap' => ['metal' => 0.40], 'salvage' => 2],
+        'barter' => ['gainShareOfCap' => ['crystal' => 0.25]],
+    ]],
+
+    // Crewless ship drifting past with its locks open: the whole decision is
+    // whether one power cell is worth two extra goods.
+    'ghost_ship' => ['icon' => '👻', 'weight' => 8, 'choices' => [
+        'board' => ['cost' => ['power_cell' => 1], 'salvage' => 3],
+        'pod'   => ['salvage' => 1],
+    ]],
+
+    // The planet ploughs through a dust cloud — the free route to the exclusive
+    // raw resource, smaller than the comet's paid capture.
+    'stardust' => ['icon' => '🌌', 'weight' => 12, 'choices' => [
+        'collect' => ['gainShareOfCap' => ['@planetRaw' => 0.45]],
+        'filter'  => ['gainShareOfCap' => ['metal' => 0.25, 'crystal' => 0.15]],
     ]],
 ];
 

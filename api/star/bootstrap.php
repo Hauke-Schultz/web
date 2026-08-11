@@ -822,9 +822,11 @@ function materialize_anomaly_choice(string $key, array $tpl, array $caps, string
 }
 
 // Rolls a new anomaly and stores its materialised choices. Returns the DB row.
-function create_anomaly(PDO $db, int $planetId, int $playerId, string $planetType): array|null {
+// $forceType skips the weighted roll — dev-only, so a specific event can be
+// tested without waiting for it to come up on its own.
+function create_anomaly(PDO $db, int $planetId, int $playerId, string $planetType, ?string $forceType = null): array|null {
     $levels = completed_building_levels($db, $planetId, $playerId);
-    $type   = pick_anomaly_type($planetType, $levels);
+    $type   = ($forceType && anomaly_def($forceType)) ? $forceType : pick_anomaly_type($planetType, $levels);
     if (!$type) return null;
 
     $def  = anomaly_def($type);
