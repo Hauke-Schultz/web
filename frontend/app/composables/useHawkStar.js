@@ -145,16 +145,25 @@ const lastCommLogSync  = ref(0) // stores Math.floor(timestamp / 1000) — secon
 // We anchor it with syncedAt on load and decay it client-side for a live bar.
 const battery = computed(() => allPlanetStates.value[activePlanetId.value]?.battery ?? null)
 
-const batteryCharge = computed(() => {
-  const b = battery.value
+// Live charge of any planet, not only the active one — the solar map draws the
+// battery on every colony tile. Null while that planet has no power plant, and
+// also while its state has never been loaded this session.
+const batteryChargeOf = (planetId) => {
+  const b = allPlanetStates.value[planetId]?.battery
   if (!b) return null
   const hours = (now.value - b.syncedAt) / 3600000
   return Math.max(0, b.charge - b.drainPerHour * hours)
-})
+}
 
-const gridDown = computed(() =>
-  !!battery.value && battery.value.powerPlantLevel > 0 && (batteryCharge.value ?? 0) <= 0
-)
+const batteryCharge = computed(() => batteryChargeOf(activePlanetId.value))
+
+// A planet without a power plant has no grid to lose — that is not a blackout.
+const gridDownOn = (planetId) => {
+  const b = allPlanetStates.value[planetId]?.battery
+  return !!b && b.powerPlantLevel > 0 && (batteryChargeOf(planetId) ?? 0) <= 0
+}
+
+const gridDown = computed(() => gridDownOn(activePlanetId.value))
 
 const batteryHoursToEmpty = computed(() => {
   const b = battery.value
@@ -168,12 +177,17 @@ const batteryHoursToEmpty = computed(() => {
 // there is no shield generator on the planet.
 const shield = computed(() => allPlanetStates.value[activePlanetId.value]?.shield ?? null)
 
-const shieldCharge = computed(() => {
-  const s = shield.value
+// Live charge of any planet, not only the active one — the solar map draws the
+// shield on every colony tile. Null when that planet has no finished generator,
+// and also while its state has never been loaded this session.
+const shieldChargeOf = (planetId) => {
+  const s = allPlanetStates.value[planetId]?.shield
   if (!s) return null
   const hours = (now.value - s.syncedAt) / 3600000
   return Math.max(0, s.charge - s.drainPerHour * hours)
-})
+}
+
+const shieldCharge = computed(() => shieldChargeOf(activePlanetId.value))
 
 const shieldDown = computed(() => !!shield.value && (shieldCharge.value ?? 0) <= 0)
 
@@ -1747,12 +1761,15 @@ export function useHawkStar() {
     // power battery
     battery,
     batteryCharge,
+    batteryChargeOf,
     batteryHoursToEmpty,
     gridDown,
+    gridDownOn,
     chargeBattery,
     // planetary shield
     shield,
     shieldCharge,
+    shieldChargeOf,
     shieldHoursToEmpty,
     shieldDown,
     shieldFull,

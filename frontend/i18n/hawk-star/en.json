@@ -83,6 +83,7 @@
     },
 
     "solar": {
+      "home": "Home",
       "stateOwn": "Colony",
       "stateFree": "Free",
       "stateEnemy": "Enemy",

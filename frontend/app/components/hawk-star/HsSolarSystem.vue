@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PLANET_TYPES, RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar, refreshPlanetState } from '~/composables/useHawkStar.js'
@@ -21,6 +21,7 @@ const {
   colonyFlightTimeBetween,
   allActiveCargoMissions, activeCargoMissions,
   homeSystem, homePlanetId,
+  shieldChargeOf, batteryChargeOf, gridDownOn,
   activePlanetId, setActivePlanet,
   formatTime,
   playerResources,
@@ -100,11 +101,78 @@ const stateColor = (state) => ({
   uninhabitable:'rgba(75,75,75,0.7)',
 })[state] ?? 'rgba(255,255,255,0.3)'
 
+const isHomePlanet = (planet) => planet.id === homePlanetId.value
+
 const tileClass = (planet) => [
   `hs-solar-tile--${effectivePlanetState(planet)}`,
+  isHomePlanet(planet) ? 'hs-solar-tile--home' : '',
   selectedPlanetId.value === planet.id ? 'hs-solar-tile--selected' : '',
   planet.id === activePlanetId.value ? 'hs-solar-tile--active' : '',
 ]
+
+// ── Meters on the tile ────────────────────────────────────
+// Battery and shield of a planet, null when it has no power plant / no shield
+// generator, and likewise while its state was never loaded. Both are drawn as a
+// hairline on the top edge plus the number, so the map answers "which colony is
+// running and which one is protected" without opening each one.
+const shieldPct = (planetId) => {
+  const c = shieldChargeOf(planetId)
+  return c == null ? null : Math.round(c)
+}
+
+const batteryPct = (planetId) => {
+  const c = batteryChargeOf(planetId)
+  return c == null ? null : Math.round(c)
+}
+
+const meterLevel = (pct) => (pct <= 0 ? 'empty' : pct < 20 ? 'low' : 'ok')
+
+// The blackout is the one state worth shouting about: an empty battery stops the
+// whole planet, while an empty shield costs nothing today.
+const batteryLevel = (planetId) =>
+  gridDownOn(planetId) ? 'down' : meterLevel(batteryPct(planetId) ?? 0)
+
+// A planet whose state is loaded shows both chips, even when the building is
+// missing — a greyed-out 🛡️ says "no shield here", which is exactly the thing
+// worth seeing on the map. Only an unloaded planet shows nothing at all, so a
+// failed fetch never fakes a "not built".
+const hasPlanetState = (planetId) => !!allPlanetStates.value[planetId]
+
+const meterChips = (planetId) => {
+  const bat = batteryPct(planetId)
+  const shd = shieldPct(planetId)
+  return [
+    bat === null
+      ? { key: 'battery', icon: '🔋', text: '–', cls: 'hs-solar-tile-meter--off' }
+      : {
+          key:  'battery',
+          icon: gridDownOn(planetId) ? '⚠️' : '🔋',
+          text: `${bat}%`,
+          cls:  `hs-solar-tile-meter--battery-${batteryLevel(planetId)}`,
+        },
+    shd === null
+      ? { key: 'shield', icon: '🛡️', text: '–', cls: 'hs-solar-tile-meter--off' }
+      : { key: 'shield', icon: '🛡️', text: `${shd}%`, cls: `hs-solar-tile-meter--shield-${meterLevel(shd)}` },
+  ]
+}
+
+// Every own planet draws its meters, so the map needs all their states on open —
+// not just the one that happens to be selected. Missing ones are pulled in once;
+// a failed fetch simply leaves that tile without meters.
+const ownPlanetIds = computed(() =>
+  planets.value.filter(p => effectivePlanetState(p) === 'own').map(p => p.id)
+)
+
+const loadOwnPlanetStates = () => {
+  for (const id of ownPlanetIds.value) {
+    if (!allPlanetStates.value[id]) refreshPlanetState(id).catch(() => {})
+  }
+}
+
+// The galaxy usually arrives after mount, so the watch is what actually fires on
+// a cold open; onMounted covers a re-entry where it is already there.
+onMounted(loadOwnPlanetStates)
+watch(ownPlanetIds, loadOwnPlanetStates)
 
 
 const hasCommandCenter = (planetId) =>
@@ -173,18 +241,49 @@ const planetIcon = (planet) => {
           :style="colonyProgressStyle(planet.id)"
         />
 
+        <!-- Battery + shield (own planets) — stacked on the top edge, so they
+             stay readable on the narrow mobile tiles where labels are hidden -->
+        <div class="hs-solar-meter-bars">
+          <div
+            v-if="batteryPct(planet.id) !== null"
+            class="hs-solar-meter-bar"
+            :class="`hs-solar-meter-bar--battery-${batteryLevel(planet.id)}`"
+          >
+            <div class="hs-solar-meter-bar__fill" :style="{ width: batteryPct(planet.id) + '%' }" />
+          </div>
+          <div
+            v-if="shieldPct(planet.id) !== null"
+            class="hs-solar-meter-bar"
+            :class="`hs-solar-meter-bar--shield-${meterLevel(shieldPct(planet.id))}`"
+          >
+            <div class="hs-solar-meter-bar__fill" :style="{ width: shieldPct(planet.id) + '%' }" />
+          </div>
+        </div>
+
+        <!-- Home base marker — visible even on the collapsed mobile tile -->
+        <span v-if="isHomePlanet(planet)" class="hs-solar-home-badge">🏠</span>
+
         <!-- Icon -->
         <span class="hs-solar-tile-icon">{{ planetIcon(planet) }}</span>
 
         <!-- Name -->
         <span class="hs-solar-tile-name">
           {{ planet.name }}
+          <span v-if="isHomePlanet(planet)" class="hs-solar-home-tag">{{ t('hawkStar.solar.home') }}</span>
         </span>
 
         <!-- Own / colonized -->
         <template v-if="effectivePlanetState(planet) === 'own'">
           <span class="hs-solar-tile-state" :style="{ color: STATE_COLOR.own }">
             {{ playerName }}
+          </span>
+          <span v-if="hasPlanetState(planet.id)" class="hs-solar-tile-meters">
+            <span
+              v-for="m in meterChips(planet.id)"
+              :key="m.key"
+              class="hs-solar-tile-meter"
+              :class="m.cls"
+            ><span class="hs-solar-tile-meter__icon">{{ m.icon }}</span> {{ m.text }}</span>
           </span>
         </template>
 
@@ -633,6 +732,15 @@ const planetIcon = (planet) => {
   &--colonizing   { border-color: rgba(96,165,250,0.55);  background: rgba(96,165,250,0.06);  }
   &--uninhabitable{ border-color: rgba(75,75,75,0.35);    background: rgba(30,30,30,0.12);    opacity: 0.6; }
 
+  // The home base is an "own" planet like every colony, so blue alone cannot
+  // tell them apart — it gets the brighter border, a lit background and the
+  // 🏠 corner badge on top of that.
+  &--home {
+    border-color: rgba(147,197,253,0.95);
+    background: linear-gradient(180deg, rgba(96,165,250,0.2), rgba(96,165,250,0.05));
+    box-shadow: inset 0 0 14px rgba(96,165,250,0.18);
+  }
+
   &--selected {
     outline: 2px solid var(--hs-active-border) !important;
 	  box-shadow: 0 0 20px var(--hs-active-glow) !important;
@@ -667,6 +775,8 @@ const planetIcon = (planet) => {
     .hs-solar-tile-hint,
     .hs-solar-tile-flight-time,
     .hs-solar-tile-unknown-label,
+    .hs-solar-home-tag,
+    .hs-solar-tile-meters,
     .hs-solar-action-btn { display: none; }
   }
 }
@@ -716,6 +826,91 @@ const planetIcon = (planet) => {
   padding: 1px 4px;
   border-radius: 3px;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+// Corner badge — the only home marker that survives the collapsed mobile tile,
+// where every text line is hidden.
+.hs-solar-home-badge {
+  position: absolute;
+  top: 6px;   // clears the two meter hairlines stacked on the top edge
+  left: 3px;
+  font-size: 0.5rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+// ── Meters on the tile (battery + shield) ────────────────────────────────────
+// Stacked on the top edge, mirroring the planet-grid tiles. The flight progress
+// bars sit on the bottom edge, so the two never collide.
+.hs-solar-meter-bars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+}
+.hs-solar-meter-bar {
+  height: 2px;
+  background: rgba(255,255,255,0.08);
+}
+.hs-solar-meter-bar__fill {
+  height: 100%;
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+.hs-solar-meter-bar--battery-ok    .hs-solar-meter-bar__fill { background: #10b981; }
+.hs-solar-meter-bar--battery-low   .hs-solar-meter-bar__fill { background: #f59e0b; }
+.hs-solar-meter-bar--battery-empty .hs-solar-meter-bar__fill { background: #f59e0b; }
+.hs-solar-meter-bar--shield-ok     .hs-solar-meter-bar__fill { background: #38bdf8; }
+.hs-solar-meter-bar--shield-low    .hs-solar-meter-bar__fill { background: #f59e0b; }
+
+// Blackout: the fill is 0 %, so the empty track itself carries the alarm — and
+// this is the one meter that pulses, because the planet has stopped producing.
+.hs-solar-meter-bar--battery-down {
+  background: rgba(239,68,68,0.55);
+  animation: hs-meter-pulse 1.5s ease-in-out infinite;
+}
+// An empty shield is not an emergency (it has no side effect), so it stays still.
+.hs-solar-meter-bar--shield-empty { background: rgba(239,68,68,0.35); }
+
+@keyframes hs-meter-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+.hs-solar-tile-meters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.hs-solar-tile-meter {
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+
+  &--battery-ok    { color: rgba(167,243,208,0.8); }
+  &--battery-low   { color: rgba(253,230,138,0.9); }
+  &--battery-empty { color: rgba(253,230,138,0.9); }
+  &--battery-down  { color: rgba(252,165,165,0.95); }
+  &--shield-ok     { color: rgba(186,230,253,0.85); }
+  &--shield-low    { color: rgba(253,230,138,0.9); }
+  &--shield-empty  { color: rgba(252,165,165,0.9); }
+
+  // Nothing built yet. An emoji ignores `color`, so the icon is greyed with a
+  // filter — the chip stays in place and reads as "possible here, not there".
+  &--off {
+    color: rgba(255,255,255,0.25);
+
+    .hs-solar-tile-meter__icon { filter: grayscale(1); opacity: 0.5; }
+  }
 }
 
 
