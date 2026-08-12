@@ -411,6 +411,160 @@ function migrate_cargo_missions(PDO $db): void {
     try { $db->exec('ALTER TABLE hs_missions ADD COLUMN leg VARCHAR(8) NULL'); } catch (\Throwable $e) {}
 }
 
+// Espionage adds two mission types. This cannot ride along with the cargo
+// migration above: that one bails out as soon as `leg` exists, which is true for
+// every database migrated before espionage landed. So it probes the ENUM itself.
+function migrate_spy_missions(PDO $db): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    try {
+        $col = $db->query("SHOW COLUMNS FROM hs_missions LIKE 'type'")->fetch();
+        if (!$col || str_contains((string)$col['Type'], 'spy_satellite')) return;
+    } catch (\Throwable $e) { return; }
+
+    try {
+        $db->exec(
+            "ALTER TABLE hs_missions
+             MODIFY type ENUM('recon_drone','colony_ship','cargo_drone','spy_drone','spy_satellite') NOT NULL"
+        );
+    } catch (\Throwable $e) {}
+}
+
+// ── Espionage intel ───────────────────────────────────────────────────────────
+// One row per (player, planet) the player has ever looked at. It stores WHAT was
+// seen and WHEN — not a permission to read the live value. That distinction is
+// the whole mechanic: a drone reports once and the report ages, while a
+// satellite keeps the same row live until `satellite_until` passes.
+function ensure_spy_intel_table(PDO $db): void {
+    static $tableReady = false;
+    if ($tableReady) return;
+    $tableReady = true;
+
+    try {
+        $fresh = !$db->query("SHOW TABLES LIKE 'hs_spy_intel'")->fetch();
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS hs_spy_intel (
+               player_id        INT NOT NULL,
+               planet_id        INT NOT NULL,
+               owner_player_id  INT NULL,
+               owner_faction_id INT NULL,
+               observed_at      DATETIME NOT NULL,
+               satellite_until  DATETIME NULL,
+               PRIMARY KEY (player_id, planet_id)
+             )'
+        );
+
+        // Carry over anything spied before intel existed: those missions granted
+        // a permanent live view, so the honest translation is "seen on arrival".
+        if ($fresh) {
+            $db->exec(
+                "INSERT IGNORE INTO hs_spy_intel
+                   (player_id, planet_id, owner_player_id, observed_at)
+                 SELECT m.player_id, m.to_planet_id, po.player_id, m.ends_at
+                 FROM hs_missions m
+                 LEFT JOIN hs_planet_ownership po ON po.planet_id = m.to_planet_id
+                 WHERE m.type='spy_drone' AND m.status='done'"
+            );
+        }
+    } catch (\Throwable $e) {}
+}
+
+// Writes down what the planet looks like right now. Called when a spy mission
+// lands — never anywhere else, or the report would silently follow the truth.
+function record_spy_intel(PDO $db, int $playerId, int $planetId, ?int $satelliteHours = null): void {
+    ensure_spy_intel_table($db);
+
+    $ownerRow = $db->prepare('SELECT player_id FROM hs_planet_ownership WHERE planet_id=?');
+    $ownerRow->execute([$planetId]);
+    $ownerId = $ownerRow->fetchColumn();
+    $ownerId = $ownerId === false ? null : (int)$ownerId;
+
+    $factionRow = $db->prepare('SELECT faction_id FROM hs_npc_planet_ownership WHERE planet_id=?');
+    $factionRow->execute([$planetId]);
+    $factionId = $factionRow->fetchColumn();
+    $factionId = $factionId === false ? null : (int)$factionId;
+
+    if ($satelliteHours !== null) {
+        $db->prepare(
+            'INSERT INTO hs_spy_intel
+               (player_id, planet_id, owner_player_id, owner_faction_id, observed_at, satellite_until)
+             VALUES (?,?,?,?, NOW(), DATE_ADD(NOW(), INTERVAL ? HOUR))
+             ON DUPLICATE KEY UPDATE
+               owner_player_id=VALUES(owner_player_id),
+               owner_faction_id=VALUES(owner_faction_id),
+               observed_at=NOW(),
+               satellite_until=VALUES(satellite_until)'
+        )->execute([$playerId, $planetId, $ownerId, $factionId, $satelliteHours]);
+        return;
+    }
+
+    // A drone does not touch a running satellite's lifetime — it only refreshes
+    // the observation, which a live satellite would be doing anyway.
+    $db->prepare(
+        'INSERT INTO hs_spy_intel
+           (player_id, planet_id, owner_player_id, owner_faction_id, observed_at)
+         VALUES (?,?,?,?, NOW())
+         ON DUPLICATE KEY UPDATE
+           owner_player_id=VALUES(owner_player_id),
+           owner_faction_id=VALUES(owner_faction_id),
+           observed_at=NOW()'
+    )->execute([$playerId, $planetId, $ownerId, $factionId]);
+}
+
+// Everything this player knows about foreign planets, keyed by planet id.
+// `live` means a satellite is still transmitting, in which case the caller
+// should serve the CURRENT owner instead of the stored observation.
+function spy_intel_map(PDO $db, int $playerId): array {
+    ensure_spy_intel_table($db);
+
+    $rows = $db->prepare(
+        'SELECT planet_id, owner_player_id, owner_faction_id,
+                UNIX_TIMESTAMP(observed_at) AS observed_ts,
+                UNIX_TIMESTAMP(satellite_until) AS satellite_ts,
+                (satellite_until IS NOT NULL AND satellite_until > NOW()) AS live
+         FROM hs_spy_intel WHERE player_id=?'
+    );
+    $rows->execute([$playerId]);
+
+    $map = [];
+    foreach ($rows->fetchAll() as $r) {
+        $map[(int)$r['planet_id']] = [
+            'ownerPlayerId'  => $r['owner_player_id']  === null ? null : (int)$r['owner_player_id'],
+            'ownerFactionId' => $r['owner_faction_id'] === null ? null : (int)$r['owner_faction_id'],
+            'observedAt'     => (int)$r['observed_ts'] * 1000,
+            'satelliteUntil' => $r['satellite_ts'] ? (int)$r['satellite_ts'] * 1000 : null,
+            'live'           => (bool)$r['live'],
+        ];
+    }
+    return $map;
+}
+
+// Distance between two star systems, in the same units the galaxy map uses.
+function system_distance(PDO $db, int $aId, int $bId): float {
+    $row = $db->prepare('SELECT id, x, y FROM hs_star_systems WHERE id IN (?,?)');
+    $row->execute([$aId, $bId]);
+    $pos = [];
+    foreach ($row->fetchAll() as $s) $pos[(int)$s['id']] = [(float)$s['x'], (float)$s['y']];
+    if (!isset($pos[$aId], $pos[$bId])) return 0.0;
+    return sqrt(pow($pos[$aId][0] - $pos[$bId][0], 2) + pow($pos[$aId][1] - $pos[$bId][1], 2));
+}
+
+// One-way flight of a spy drone between two systems — signal speed, same curve
+// as a deep-space scan, so the map's geometry means the same thing everywhere.
+function spy_flight_seconds(PDO $db, int $fromSystemId, int $toSystemId): int {
+    $dist = system_distance($db, $fromSystemId, $toSystemId);
+    return max(SPY_FLIGHT_MIN, (int)round($dist * SPY_FLIGHT_PER_DIST));
+}
+
+// Every planet this player has ever looked at — whether the report is still
+// current or long stale. Not a permission list: what is actually shown comes out
+// of spy_intel_map().
+function spied_planets(PDO $db, int $playerId): array {
+    return array_keys(spy_intel_map($db, $playerId));
+}
+
 // Distance between two planets = how many orbits apart they are, minimum 1.
 // Mirrors the inline calculation in mission/drone.php and mission/colony.php.
 function planet_distance(PDO $db, int $systemId, int $fromId, int $toId): int {
@@ -463,6 +617,7 @@ function deliver_cargo(PDO $db, int $targetPlanetId, array $cargo): bool {
 
 function resolve_missions(PDO $db, int $playerId): void {
     migrate_cargo_missions($db);
+    migrate_spy_missions($db);
 
     $done = $db->prepare(
         "SELECT id, type, from_planet_id, to_planet_id, leg
@@ -536,6 +691,19 @@ function resolve_missions(PDO $db, int $playerId): void {
             }
         }
 
+        // A spy mission writes down what it finds at the moment it arrives. The
+        // satellite additionally starts transmitting, which keeps that row live
+        // until its lifetime runs out.
+        if ($m['type'] === 'spy_drone') {
+            record_spy_intel($db, $playerId, $toId);
+        }
+        if ($m['type'] === 'spy_satellite') {
+            record_spy_intel($db, $playerId, $toId, SPY_SATELLITE_HOURS);
+        }
+
+        // recon_drone needs no branch of its own: the completed row IS what it
+        // revealed (see droneScannedPlanets in state.php), so marking it done is
+        // the whole effect.
         $db->prepare("UPDATE hs_missions SET status='done' WHERE id=?")->execute([$missionId]);
     }
 }

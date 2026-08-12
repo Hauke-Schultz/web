@@ -36,6 +36,8 @@ const {
   playerColonizedPlanets,
   playerScannedPlanets,
   cargoDeliveries,
+  spiedPlanets,
+  satelliteDeployments,
   systemContacts,
   homeSystemId,
   homePlanetId,
@@ -111,6 +113,12 @@ const onboardingSteps = computed(() => [
   { key: 'step7', done: playerColonizedPlanets.value.length > 1 },
   { key: 'step8', done: cargoDeliveries.value > 0 },
   { key: 'step9', done: foreignSystemScanned.value },
+  // Espionage, in the order it has to happen: a satellite can only be placed on
+  // a planet a drone has already surveyed.
+  { key: 'step10', done: spiedPlanets.value.length > 0 },
+  // A count of satellites ever placed, not of live ones — an expiring satellite
+  // must not un-tick a step that was achieved.
+  { key: 'step11', done: satelliteDeployments.value > 0 },
 ])
 
 const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.done).length)

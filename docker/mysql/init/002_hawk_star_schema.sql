@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS hs_units (
 CREATE TABLE IF NOT EXISTS hs_missions (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   player_id      INT NOT NULL,
-  type           ENUM('recon_drone','colony_ship','cargo_drone') NOT NULL,
+  type           ENUM('recon_drone','colony_ship','cargo_drone','spy_drone','spy_satellite') NOT NULL,
   from_planet_id INT NULL REFERENCES hs_planets(id),
   to_planet_id   INT NULL REFERENCES hs_planets(id),
   ends_at        DATETIME NOT NULL,
@@ -192,6 +192,20 @@ CREATE TABLE IF NOT EXISTS hs_cargo (
   cargo      TEXT NULL,
   mission_id INT NULL,
   PRIMARY KEY (planet_id, player_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Espionage intel: one row per (player, planet) the player has looked at. It
+-- stores WHAT was seen and WHEN — a stored observation, not a permission to read
+-- the live value. A drone writes one and it ages from there; a satellite keeps
+-- the row live until `satellite_until` passes.
+CREATE TABLE IF NOT EXISTS hs_spy_intel (
+  player_id        INT NOT NULL,
+  planet_id        INT NOT NULL,
+  owner_player_id  INT NULL,
+  owner_faction_id INT NULL,
+  observed_at      DATETIME NOT NULL,
+  satellite_until  DATETIME NULL,
+  PRIMARY KEY (player_id, planet_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS hs_conversion_queues (

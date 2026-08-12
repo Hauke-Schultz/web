@@ -67,7 +67,9 @@ const hasOlder = computed(() =>
 // ── Send controls ─────────────────────────────────────────────────────────────
 
 const systemData  = computed(() => galaxySystems.value.find(s => s.id === props.systemId))
-const hasPlayers  = computed(() => systemData.value?.planets.some(p => p.owner != null) ?? false)
+// System-level, not per planet: which planets are theirs stays hidden until a
+// spy drone lands, but the scan already told us that somebody lives here.
+const hasPlayers  = computed(() => (systemData.value?.inhabitants?.length ?? 0) > 0)
 const showSendBar = computed(() => hasPlayers.value && canMessageSystem(props.systemId))
 
 const hasMessageInTransit = computed(() =>

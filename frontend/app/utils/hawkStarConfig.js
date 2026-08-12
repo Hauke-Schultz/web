@@ -28,6 +28,23 @@ export const UNIT_COSTS = {
   // One per planet — the only way to move goods between planets. Each leg takes
   // flightTimeBase × distance, so a neighbour is 1 h out and 1 h back.
   cargo_drone:  { facility: 'drone_hangar', cost: { metal: 120, crystal: 60, power_cell: 2 }, buildTimeBase: 5400 },
+  // The only unit that leaves the home system. Reveals the owner of ONE planet in
+  // a scanned foreign system and is consumed doing it. The superconductor is its
+  // sensor package — espionage sits behind the Control domain.
+  spy_drone:    { facility: 'drone_hangar', cost: { metal: 150, crystal: 80, superconductor: 1 }, buildTimeBase: 7200 },
+  // Stays in orbit and keeps transmitting — the drone's finding ages, this one
+  // does not. Structure + Control, per the two-domains-per-build-cost rule.
+  spy_satellite:{ facility: 'drone_hangar', cost: { metal: 300, crystal: 150, superconductor: 1, duraplate: 1 }, buildTimeBase: 14400 },
+}
+
+// ── Espionage ─────────────────────────────────────────────────────────────────
+// A spy drone travels at signal speed: same distance curve as a deep-space scan,
+// measured between star systems. Mirrors SPY_* in api/star/config.php.
+export const SPY = {
+  flightMin:      7200,   // seconds — a neighbouring system
+  flightPerDist:  180,    // seconds per unit of system distance
+  staleHours:     48,     // after this a drone report is drawn as stale
+  satelliteHours: 168,    // 7 days of live coverage per satellite
 }
 
 // ── Cargo drone ───────────────────────────────────────────────────────────────

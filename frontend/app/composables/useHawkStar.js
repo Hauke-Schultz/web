@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -92,6 +92,11 @@ const freshDock = () => ({
   cargoDroneBuild:        null,
   activeCargoMissions:    [],   // outbound legs — one entry per target planet
   returningCargoMissions: [],   // empty return legs — target is this planet
+  spyDroneInventory:      0,
+  spyDroneBuild:          null,
+  spySatelliteInventory:  0,
+  spySatelliteBuild:      null,
+  activeSpyMissions:      [],   // one-way — neither unit comes back
 })
 
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
@@ -127,6 +132,11 @@ const planetName      = computed(() => allPlanetStates.value[activePlanetId.valu
 
 // ── Home system (reactive, drives Solar System + Galaxy views) ─────────────
 const homeSystem = computed(() => galaxySystems.value.find(s => s.id === homeSystemId.value))
+
+// Which system a planet sits in — the galaxy is the only place that knows, and
+// spy missions need it because their target is outside the home system.
+const planetSystemId = (planetId) =>
+  galaxySystems.value.find(s => s.planets.some(p => p.id === planetId))?.id ?? null
 
 // Per-planet resource aliases
 const playerResources = computed(() => allPlanetStates.value[activePlanetId.value]?.resources ?? {})
@@ -1078,6 +1088,190 @@ const cargoReturnProgressStyle = computed(() => {
   return { animationDuration: `${cargoFlightTimeBetween(activePlanetId.value, m.planetId)}s` }
 })
 
+// ── Espionage: spy drone + spy satellite ───────────────────
+// Foreign planet ownership is a server-side secret, and what comes back is not a
+// permission but a REPORT: `planet.intel` says when it was taken and whether a
+// satellite is still transmitting. A drone's report ages from the moment it
+// lands; a satellite's stays current until its lifetime runs out.
+const spiedPlanets = ref([])
+// Satellites ever placed — server-side count, survives a reload and never drops
+// back when one expires. The onboarding checklist reads it.
+const satelliteDeployments = ref(0)
+
+const spyDroneLevel     = computed(() => playerBuildings.value['drone_hangar']?.level ?? 0)
+const spyDroneInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.spyDroneInventory ?? 0)
+const spyDroneBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.spyDroneBuild ?? null)
+const spySatelliteInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.spySatelliteInventory ?? 0)
+const spySatelliteBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.spySatelliteBuild ?? null)
+const activeSpyMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeSpyMissions ?? [])
+const allActiveSpyMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeSpyMissions ?? []))
+
+// The two units differ only in which dock slot their timer lands in
+const SPY_DOCK = {
+  spy_drone:     { inventory: 'spyDroneInventory',     build: 'spyDroneBuild' },
+  spy_satellite: { inventory: 'spySatelliteInventory', build: 'spySatelliteBuild' },
+}
+
+const spyBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.spy_drone.buildTimeBase * buildTimeFactor.value)
+)
+
+const satelliteBuildTime = computed(() =>
+  Math.ceil(UNIT_COSTS.spy_satellite.buildTimeBase * buildTimeFactor.value)
+)
+
+// Same curve as a deep-space scan — the drone travels at signal speed, and the
+// distance that matters is between systems, not between planets.
+const spyFlightTime = (targetSystemId) => {
+  const home   = galaxySystems.value.find(s => s.id === homeSystemId.value)
+  const target = galaxySystems.value.find(s => s.id === targetSystemId)
+  if (!home || !target) return Math.round(SPY.flightMin * buildTimeFactor.value)
+  const dist = Math.sqrt(Math.pow(target.x - home.x, 2) + Math.pow(target.y - home.y, 2))
+  return Math.round(Math.max(SPY.flightMin, Math.round(dist * SPY.flightPerDist)) * buildTimeFactor.value)
+}
+
+const canBuildSpyDrone = computed(() =>
+  spyDroneLevel.value > 0 &&
+  !spyDroneBuild.value &&
+  canAfford(UNIT_COSTS.spy_drone.cost)
+)
+
+const canBuildSpySatellite = computed(() =>
+  spyDroneLevel.value > 0 &&
+  !spySatelliteBuild.value &&
+  canAfford(UNIT_COSTS.spy_satellite.cost)
+)
+
+// One builder for both — same hangar, same flow, different dock slot
+const buildSpyUnit = async (unitKey) => {
+  const planetId = activePlanetId.value
+  const dock = allPlanetStates.value[planetId]?.dock
+  if (!dock) return
+  buildError.value = ''
+  const { postUnitBuild } = useHawkStarApi()
+  try {
+    const result = await postUnitBuild(planetId, unitKey)
+    const res = allPlanetStates.value[planetId].resources
+    for (const [r, amt] of Object.entries(UNIT_COSTS[unitKey].cost)) {
+      res[r] = Math.max(0, (res[r] ?? 0) - amt)
+    }
+    dock[SPY_DOCK[unitKey].build] = { endsAt: result.endsAt, startedAt: result.buildStartedAt ?? Date.now() }
+  } catch (e) {
+    buildError.value = e.message
+  }
+}
+
+const buildSpyDrone     = () => canBuildSpyDrone.value     ? buildSpyUnit('spy_drone')     : undefined
+const buildSpySatellite = () => canBuildSpySatellite.value ? buildSpyUnit('spy_satellite') : undefined
+
+// ── Reading a report ──────────────────────────────────────
+// `intel` rides along on the galaxy planet. Null for your own space (which needs
+// no espionage) and for anything never looked at.
+const planetIntel = (planetId) => {
+  for (const sys of galaxySystems.value) {
+    const p = sys.planets.find(pl => pl.id === planetId)
+    if (p) return p.intel ?? null
+  }
+  return null
+}
+
+const hasLiveSatellite = (planetId) => !!planetIntel(planetId)?.live
+
+const intelAgeHours = (planetId) => {
+  const i = planetIntel(planetId)
+  return i ? Math.max(0, (now.value - i.observedAt) / 3600000) : null
+}
+
+// A report older than SPY.staleHours is drawn as stale: still the best you have,
+// but old enough that the galaxy may well have moved on without you.
+const isIntelStale = (planetId) => {
+  const h = intelAgeHours(planetId)
+  return h != null && h >= SPY.staleHours
+}
+
+const satelliteHoursLeft = (planetId) => {
+  const i = planetIntel(planetId)
+  if (!i?.live || !i.satelliteUntil) return null
+  return Math.max(0, (i.satelliteUntil - now.value) / 3600000)
+}
+
+const isPlanetSpied = (planetId) => spiedPlanets.value.includes(planetId)
+
+const isSpyingPlanet = (planetId) => !!allActiveSpyMissions.value.find(m => m.planetId === planetId)
+
+// Everything about the target that makes it worth sending something. The unit
+// itself is checked separately, so the UI can say "nothing in the dock" instead
+// of hiding the button. The system must be scanned — you cannot spy on a place
+// you have not found — and one flight at a time leaves the planet.
+//
+// A stale report is deliberately NOT a blocker: refreshing it is the drone's
+// standing job. Only a live satellite makes another unit pointless.
+const isSpyTarget = (planetId, systemId) =>
+  spyDroneLevel.value > 0 &&
+  systemId !== homeSystemId.value &&
+  systemContacts.value[systemId]?.scanState === 'scanned' &&
+  !hasLiveSatellite(planetId) &&
+  !isSpyingPlanet(planetId) &&
+  activeSpyMissions.value.length < 1
+
+const canSendSpyDrone = (planetId, systemId) =>
+  spyDroneInventory.value > 0 && isSpyTarget(planetId, systemId)
+
+// A satellite is placed, not sent looking: it needs a planet that has been
+// surveyed once, so a drone always goes first. The server re-checks this.
+const canSendSpySatellite = (planetId, systemId) =>
+  spySatelliteInventory.value > 0 &&
+  !!planetIntel(planetId) &&
+  isSpyTarget(planetId, systemId)
+
+const sendSpyUnit = async (planetId, systemId, unitKey, fromPlanetId) => {
+  const check = unitKey === 'spy_satellite' ? canSendSpySatellite : canSendSpyDrone
+  if (!check(planetId, systemId)) return
+  const fromId = fromPlanetId ?? activePlanetId.value
+  buildError.value = ''
+  const { postSpyMission } = useHawkStarApi()
+  try {
+    const result = await postSpyMission(fromId, planetId, unitKey)
+    const dock = allPlanetStates.value[fromId]?.dock
+    if (dock) {
+      dock.activeSpyMissions.push({ planetId, systemId, unit: unitKey, endsAt: result.endsAt })
+      const inv = SPY_DOCK[unitKey].inventory
+      dock[inv] = Math.max(0, dock[inv] - 1)
+    }
+  } catch (e) {
+    buildError.value = e.message
+  }
+}
+
+const sendSpyDrone     = (planetId, systemId, fromPlanetId) => sendSpyUnit(planetId, systemId, 'spy_drone', fromPlanetId)
+const sendSpySatellite = (planetId, systemId, fromPlanetId) => sendSpyUnit(planetId, systemId, 'spy_satellite', fromPlanetId)
+
+const remainingSpySec = (planetId) => {
+  const m = allActiveSpyMissions.value.find(m => m.planetId === planetId)
+  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
+}
+
+// Width-based, unlike the in-system flights: the dock panel has no keyframes, so
+// an animationDuration would leave the bar empty. Start time is derived from the
+// flight length, which is fixed per system pair.
+const spyProgressStyle = (planetId) => {
+  const m = allActiveSpyMissions.value.find(m => m.planetId === planetId)
+  if (!m) return {}
+  const total = spyFlightTime(m.systemId ?? planetSystemId(planetId)) * 1000
+  if (!total) return {}
+  const pct = Math.min(100, Math.max(0, (1 - (m.endsAt - now.value) / total) * 100))
+  return { width: `${pct}%` }
+}
+
+const buildBarStyle = (build) => {
+  if (!build) return {}
+  const pct = Math.min(100, Math.max(0, (now.value - build.startedAt) / (build.endsAt - build.startedAt) * 100))
+  return { width: `${pct}%` }
+}
+
+const spyBuildProgressStyle       = computed(() => buildBarStyle(spyDroneBuild.value))
+const satelliteBuildProgressStyle = computed(() => buildBarStyle(spySatelliteBuild.value))
+
 // Helper: storage caps for any planet (used when delivering cargo)
 const maxStorageForPlanet = (planetId) => {
   const pb = allPlanetStates.value[planetId]?.buildings ?? {}
@@ -1170,7 +1364,9 @@ const sendMessage = async (systemId, messageKeys) => {
   try {
     const { postSendMessage } = useHawkStarApi()
     const data = await postSendMessage(sysId, messageKeys)
-    const owners = sys.planets.filter(p => p.owner != null).map(p => p.owner)
+    // The scan roll-up, not the planet owners — those are hidden until a spy
+    // drone has been there, and the log bubble still needs a name and portrait.
+    const owners = sys.inhabitants ?? []
     commLog.value.push({
       id:           data.messageId,
       direction:    'sent',
@@ -1402,6 +1598,40 @@ const tick = () => {
           if (allPlanetStates.value[m.planetId]) refreshPlanetState(m.planetId).catch(() => {})
         }
       }
+      // Spy drone build
+      if (dock.spyDroneBuild && dock.spyDroneBuild.endsAt <= now.value) {
+        dock.spyDroneInventory += 1
+        dock.spyDroneBuild = null
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_spy`, type: 'unit_done', icon: '🕵️', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.spyReady', timestamp: Date.now() })
+      }
+      // Spy satellite build
+      if (dock.spySatelliteBuild && dock.spySatelliteBuild.endsAt <= now.value) {
+        dock.spySatelliteInventory += 1
+        dock.spySatelliteBuild = null
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_sat`, type: 'unit_done', icon: '📡', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.satelliteReady', timestamp: Date.now() })
+      }
+      // An espionage flight landed → the server wrote down what it saw, so the
+      // galaxy has to be pulled again. Neither unit comes back.
+      for (let i = dock.activeSpyMissions.length - 1; i >= 0; i--) {
+        const m = dock.activeSpyMissions[i]
+        if (m.endsAt <= now.value) {
+          if (!spiedPlanets.value.includes(m.planetId)) spiedPlanets.value.push(m.planetId)
+          const sat = m.unit === 'spy_satellite'
+          // Counted locally too, so the onboarding step ticks on arrival rather
+          // than waiting for the next state sync.
+          if (sat) satelliteDeployments.value += 1
+          const sys = galaxySystems.value.find(s => s.id === m.systemId)
+          const tgt = sys?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
+          notifications.value.push({
+            id: `notif_${Date.now()}_msn_${pid}_spy_${m.planetId}`, type: 'mission_done',
+            icon: sat ? '📡' : '🕵️', planetId: pid, planetName: pstate.planetName,
+            labelKey: sat ? 'hawkStar.notifications.satelliteOnline' : 'hawkStar.notifications.spyDone',
+            details: `→ ${tgt}`, timestamp: Date.now(),
+          })
+          dock.activeSpyMissions.splice(i, 1)
+          reloadGalaxy().catch(() => {})
+        }
+      }
       // Empty return leg landed → the drone is back in the dock
       for (let i = dock.returningCargoMissions.length - 1; i >= 0; i--) {
         const m = dock.returningCargoMissions[i]
@@ -1537,11 +1767,19 @@ const applyGameState = (planetId, state) => {
   const drone  = unitState('recon_drone')
   const colony = unitState('colony_ship')
   const cargo  = unitState('cargo_drone')
+  const spy    = unitState('spy_drone')
+  const spySat = unitState('spy_satellite')
 
   const droneMissions  = (state.missions ?? []).filter(m => m.type === 'recon_drone')
     .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
   const colonyMissions = (state.missions ?? []).filter(m => m.type === 'colony_ship')
     .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+  // The target sits in another system, so the mission carries the system id for
+  // the countdown — planetSystemId() resolves it from the galaxy. Both espionage
+  // units share the list; `unit` is what the icon and the arrival handler read.
+  const spyMissions    = (state.missions ?? [])
+    .filter(m => (m.type === 'spy_drone' || m.type === 'spy_satellite') && m.fromPlanetId === planetId)
+    .map(m => ({ planetId: m.toPlanetId, systemId: planetSystemId(m.toPlanetId), unit: m.type, endsAt: m.endsAt }))
 
   // A cargo run is two mission rows: the loaded outbound leg and the empty return
   // leg created on arrival. Only the outbound one points at a destination.
@@ -1574,6 +1812,11 @@ const applyGameState = (planetId, state) => {
       cargoDroneBuild:      cargo.build,
       activeCargoMissions:  cargoOut,
       returningCargoMissions: cargoBack,
+      spyDroneInventory:    spy.quantity,
+      spyDroneBuild:        spy.build,
+      spySatelliteInventory: spySat.quantity,
+      spySatelliteBuild:    spySat.build,
+      activeSpyMissions:    spyMissions,
     },
     conversionQueues: convQueues,
     battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
@@ -1593,8 +1836,44 @@ const applyGameState = (planetId, state) => {
     if (!playerScannedPlanets.value.includes(pid)) playerScannedPlanets.value.push(pid)
   }
 
+  // Player-wide like the list above: every planet a spy drone has uncovered
+  for (const pid of (state.spiedPlanets ?? [])) {
+    if (!spiedPlanets.value.includes(pid)) spiedPlanets.value.push(pid)
+  }
+
   // Player-wide, not per planet — every state load reports the same total
-  cargoDeliveries.value = state.cargoDeliveries ?? 0
+  cargoDeliveries.value      = state.cargoDeliveries ?? 0
+  satelliteDeployments.value = state.satelliteDeployments ?? 0
+}
+
+// The galaxy response is filtered per player: `owner` is only filled in for
+// planets you are allowed to see, and `known: false` marks the ones a spy drone
+// has yet to uncover. Everything else about a system stays public.
+const mapGalaxy = (galaxy, myId) => galaxy.map(sys => ({
+  id: sys.id, name: sys.name, x: sys.x, y: sys.y, starClass: sys.starClass,
+  inhabited:   !!sys.inhabited,
+  // Residents with their planet counts — only sent for a scanned system, and
+  // deliberately without naming which planets are theirs.
+  inhabitants: sys.inhabitants ?? [],
+  planets: sys.planets.map(p => ({
+    id: p.id, name: p.name, type: p.type,
+    state: p.owner
+      ? (p.owner.playerId === myId ? 'own' : 'colonized')
+      : (p.known === false ? 'unknown' : 'uncolonized'),
+    owner: p.owner ?? null,
+    known: p.known !== false,
+    // { observedAt, live, satelliteUntil } — null for your own space and for
+    // anything never looked at. This is the report, not a live reading.
+    intel: p.intel ?? null,
+  })),
+}))
+
+// A landed spy drone changes what the server is willing to tell us, so the
+// galaxy has to be pulled again — the response, not the client, holds the secret.
+export const reloadGalaxy = async () => {
+  const { player } = useHawkStarAuth()
+  const { fetchGalaxy } = useHawkStarApi()
+  galaxySystems.value = mapGalaxy(await fetchGalaxy(), player.value?.id)
 }
 
 export const refreshPlanetState = async (planetId) => {
@@ -1613,15 +1892,7 @@ export const initFromApi = async () => {
 
   // Load galaxy
   try {
-    const galaxy = await fetchGalaxy()
-    galaxySystems.value = galaxy.map(sys => ({
-      id: sys.id, name: sys.name, x: sys.x, y: sys.y, starClass: sys.starClass,
-      planets: sys.planets.map(p => ({
-        id: p.id, name: p.name, type: p.type,
-        state: p.owner ? (p.owner.playerId === myId ? 'own' : 'colonized') : 'uncolonized',
-        owner: p.owner ?? null,
-      })),
-    }))
+    galaxySystems.value = mapGalaxy(await fetchGalaxy(), myId)
   } catch (e) {
     console.error('[hawk-star] Galaxy load failed:', e)
     initError.value = `Failed to load galaxy: ${e.message}`
@@ -1637,6 +1908,7 @@ export const initFromApi = async () => {
   // Reset state
   allPlanetStates.value        = {}
   playerScannedPlanets.value   = [hpId]
+  spiedPlanets.value           = []
   playerColonizedPlanets.value = galaxySystems.value
     .flatMap(s => s.planets).filter(p => p.owner?.playerId === myId).map(p => p.id)
 
@@ -1878,6 +2150,40 @@ export function useHawkStar() {
     cargoProgressStyle,
     cargoReturnProgressStyle,
     cargoFlightTimeBetween,
+    // espionage
+    spiedPlanets,
+    satelliteDeployments,
+    spyDroneLevel,
+    spyDroneInventory,
+    spyDroneBuild,
+    spySatelliteInventory,
+    spySatelliteBuild,
+    spyBuildTime,
+    satelliteBuildTime,
+    spyFlightTime,
+    canBuildSpyDrone,
+    canBuildSpySatellite,
+    buildSpyDrone,
+    buildSpySatellite,
+    spyBuildProgressStyle,
+    satelliteBuildProgressStyle,
+    spyProgressStyle,
+    planetIntel,
+    hasLiveSatellite,
+    intelAgeHours,
+    isIntelStale,
+    satelliteHoursLeft,
+    isPlanetSpied,
+    isSpyingPlanet,
+    isSpyTarget,
+    canSendSpyDrone,
+    canSendSpySatellite,
+    sendSpyDrone,
+    sendSpySatellite,
+    remainingSpySec,
+    activeSpyMissions,
+    allActiveSpyMissions,
+    planetSystemId,
     getPlanetName,
     getPlanetResources,
     planetHasDock,

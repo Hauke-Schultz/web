@@ -49,6 +49,25 @@ const {
   returningCargoMission,
   remainingCargoReturnSec,
   cargoReturnProgressStyle,
+  // spy drone — third resident of the drone hangar
+  spyDroneLevel,
+  canBuildSpyDrone,
+  buildSpyDrone,
+  spyDroneBuild,
+  spyDroneInventory,
+  spyBuildTime,
+  spyBuildProgressStyle,
+  spyProgressStyle,
+  activeSpyMissions,
+  remainingSpySec,
+  galaxySystems,
+  // spy satellite — same hangar, stays in orbit instead of reporting once
+  canBuildSpySatellite,
+  buildSpySatellite,
+  spySatelliteBuild,
+  spySatelliteInventory,
+  satelliteBuildTime,
+  satelliteBuildProgressStyle,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -58,10 +77,21 @@ const getPlanetLabel = (planetId) => {
   return p?.name ?? getPlanetName(planetId) ?? planetId
 }
 
+// A spy target is in a foreign system, so the home system cannot name it —
+// the galaxy can. Falls back to the planet id if the galaxy is not loaded.
+const getForeignPlanetLabel = (planetId) => {
+  for (const sys of galaxySystems.value) {
+    const p = sys.planets.find(pl => pl.id === planetId)
+    if (p) return `${p.name} (${sys.name})`
+  }
+  return String(planetId)
+}
+
 const hasMissions = computed(() =>
   activeDroneMissions.value.length ||
   activeColonyMissions.value.length ||
   activeCargoMissions.value.length ||
+  activeSpyMissions.value.length ||
   !!returningCargoMission.value
 )
 </script>
@@ -177,6 +207,97 @@ const hasMissions = computed(() =>
         </div>
       </div>
 
+      <!-- Spy Drone — third resident of the drone hangar. Unlike the other two it
+           leaves the home system and does not come back. -->
+      <div class="hs-building-row">
+        <div class="hs-building-ident">
+          <div class="hs-building-icon-wrap">
+            <span class="hs-building-icon">🕵️</span>
+            <span v-if="spyDroneInventory > 0" class="hs-building-badge hs-building-badge--spy">{{ spyDroneInventory }}</span>
+          </div>
+          <div class="hs-building-info">
+            <div class="hs-building-name">{{ t('hawkStar.dock.spyDrone') }}</div>
+            <div class="hs-building-desc">{{ t('hawkStar.dock.spyDroneDesc') }}</div>
+          </div>
+        </div>
+
+        <div class="hs-building-action">
+          <span v-if="spyDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
+          <template v-else-if="spyDroneBuild">
+            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
+            <div class="hs-progress-row">
+              <div class="hs-progress-track">
+                <div class="hs-progress-fill hs-progress-fill--spy" :style="spyBuildProgressStyle" />
+              </div>
+              <span class="hs-progress-time">{{ formatTime(Math.ceil((spyDroneBuild.endsAt - Date.now()) / 1000)) }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="hs-cost-row">
+              <span
+                v-for="(amt, resId) in UNIT_COSTS.spy_drone.cost"
+                :key="resId"
+                class="hs-cost-tag"
+                :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            </div>
+            <button
+              class="hs-btn-build"
+              :class="{ 'hs-btn-build--disabled': !canBuildSpyDrone }"
+              :disabled="!canBuildSpyDrone"
+              @click="buildSpyDrone"
+            >{{ t('hawkStar.tile.btnBuild') }}</button>
+            <div class="hs-building-meta"><span class="hs-build-time">⏱ {{ formatTime(spyBuildTime) }}</span></div>
+            <div v-if="spyDroneInventory > 0" class="hs-cargo-hold">{{ t('hawkStar.dock.launchFromGalaxyMap') }}</div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Spy Satellite — the drone's report ages, this one keeps transmitting -->
+      <div class="hs-building-row">
+        <div class="hs-building-ident">
+          <div class="hs-building-icon-wrap">
+            <span class="hs-building-icon">📡</span>
+            <span v-if="spySatelliteInventory > 0" class="hs-building-badge hs-building-badge--sat">{{ spySatelliteInventory }}</span>
+          </div>
+          <div class="hs-building-info">
+            <div class="hs-building-name">{{ t('hawkStar.dock.spySatellite') }}</div>
+            <div class="hs-building-desc">{{ t('hawkStar.dock.spySatelliteDesc') }}</div>
+          </div>
+        </div>
+
+        <div class="hs-building-action">
+          <span v-if="spyDroneLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
+          <template v-else-if="spySatelliteBuild">
+            <span class="hs-status-building">{{ t('hawkStar.tile.statusBuilding') }}</span>
+            <div class="hs-progress-row">
+              <div class="hs-progress-track">
+                <div class="hs-progress-fill hs-progress-fill--sat" :style="satelliteBuildProgressStyle" />
+              </div>
+              <span class="hs-progress-time">{{ formatTime(Math.ceil((spySatelliteBuild.endsAt - Date.now()) / 1000)) }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="hs-cost-row">
+              <span
+                v-for="(amt, resId) in UNIT_COSTS.spy_satellite.cost"
+                :key="resId"
+                class="hs-cost-tag"
+                :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+            </div>
+            <button
+              class="hs-btn-build"
+              :class="{ 'hs-btn-build--disabled': !canBuildSpySatellite }"
+              :disabled="!canBuildSpySatellite"
+              @click="buildSpySatellite"
+            >{{ t('hawkStar.tile.btnBuild') }}</button>
+            <div class="hs-building-meta"><span class="hs-build-time">⏱ {{ formatTime(satelliteBuildTime) }}</span></div>
+            <div v-if="spySatelliteInventory > 0" class="hs-cargo-hold">{{ t('hawkStar.dock.launchFromGalaxyMap') }}</div>
+          </template>
+        </div>
+      </div>
+
       <!-- Colony Ship -->
       <div class="hs-building-row">
         <div class="hs-building-ident">
@@ -265,6 +386,19 @@ const hasMissions = computed(() =>
               <div class="hs-progress-fill hs-progress-fill--cargo" :key="m.endsAt" :style="cargoProgressStyle(m.planetId)" />
             </div>
             <span class="hs-progress-time">{{ formatTime(remainingCargoSec(m.planetId)) }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- Spy flight — one way, into another system -->
+      <div v-for="m in activeSpyMissions" :key="`spy-${m.planetId}`" class="hs-dock-mission-row">
+        <span class="hs-dock-mission-icon">{{ m.unit === 'spy_satellite' ? '📡' : '🕵️' }}</span>
+        <div class="hs-dock-mission-info">
+          <span class="hs-dock-mission-label">Spy → {{ getForeignPlanetLabel(m.planetId) }}</span>
+          <div class="hs-progress-row">
+            <div class="hs-progress-track">
+              <div class="hs-progress-fill hs-progress-fill--spy" :key="m.endsAt" :style="spyProgressStyle(m.planetId)" />
+            </div>
+            <span class="hs-progress-time">{{ formatTime(remainingSpySec(m.planetId)) }}</span>
           </div>
         </div>
       </div>
@@ -382,6 +516,8 @@ const hasMissions = computed(() =>
 
   &--colony { background: #60a5fa; }
   &--cargo  { background: #fbbf24; }
+  &--spy    { background: #a78bfa; }
+  &--sat    { background: #2dd4bf; }
 }
 .hs-building-info   { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hs-building-name   { font-size: 0.825rem; font-weight: 600; display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; }
@@ -486,6 +622,8 @@ const hasMissions = computed(() =>
 .hs-progress-fill--unit   { background: #f59e0b; }
 .hs-progress-fill--colony { background: #60a5fa; }
 .hs-progress-fill--cargo  { background: #fbbf24; }
+.hs-progress-fill--spy    { background: #a78bfa; }
+.hs-progress-fill--sat    { background: #2dd4bf; }
 
 .hs-dock-missions {
   border-top: 1px solid rgba(255,255,255,0.06);

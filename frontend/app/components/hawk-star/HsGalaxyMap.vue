@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
+import { SPY } from '~/utils/hawkStarConfig.js'
 import HsCommLog from '~/components/hawk-star/HsCommLog.vue'
 
 const {
@@ -17,14 +18,31 @@ const {
   canScanSystem,
   scanSystem,
   galaxySystems,
+  // espionage
+  isSpyingPlanet,
+  allActiveSpyMissions,
+  planetSystemId,
+  isSpyTarget,
+  canSendSpyDrone,
+  canSendSpySatellite,
+  sendSpyDrone,
+  sendSpySatellite,
+  remainingSpySec,
+  spyFlightTime,
+  planetIntel,
+  intelAgeHours,
+  isIntelStale,
+  satelliteHoursLeft,
 } = useHawkStar()
 
 const { t } = useI18n()
 
 // ── System order: home first, then inhabited systems ─────────────────────────
+// `inhabited` is a system-level flag from the API. It used to be derived from the
+// planet owners, which no longer works: those are hidden until a spy drone lands.
 const sortedSystems = computed(() => {
   const home = galaxySystems.value.find(s => s.id === homeSystemId.value)
-  const rest = galaxySystems.value.filter(s => s.id !== homeSystemId.value && s.planets.some(p => p.owner != null))
+  const rest = galaxySystems.value.filter(s => s.id !== homeSystemId.value && s.inhabited)
   return home ? [home, ...rest] : rest
 })
 
@@ -33,15 +51,50 @@ const STAR_CLASS_ICON = { G: '☀️', K: '🟠', M: '🔴', F: '⚪' }
 
 const isHome = (sys) => sys.id === homeSystemId.value
 
-const isInhabited = (sys) => sys.planets.some(p => p.owner != null)
+const isInhabited = (sys) => sys.inhabited
 
-const firstOwner = (sys) => sys.planets.find(p => p.owner)?.owner ?? null
+// A scan reveals WHO lives in a system and how many planets they hold — never
+// which ones. The server only fills `inhabitants` in once the system is scanned.
+const uniqueOwners = (sys) => sys.inhabitants ?? []
 
-const uniqueOwners = (sys) => {
-  const seen = new Set()
-  return sys.planets
-    .filter(p => p.owner && !seen.has(p.owner.playerId) && seen.add(p.owner.playerId))
-    .map(p => p.owner)
+const firstOwner = (sys) => uniqueOwners(sys)[0] ?? null
+
+// ── Espionage ─────────────────────────────────────────────────────────────────
+// Foreign planets arrive with `known: false` — neither owner nor "free" is known
+// until something has been there.
+const isUnknownPlanet = (planet) => planet.known === false
+
+const spyFlightLabel = (sys) => formatTime(spyFlightTime(sys.id))
+
+// Anything of ours currently on its way into this system. The mission carries
+// its target system, but a mission restored before the galaxy finished loading
+// has none — planetSystemId() covers that case.
+const inboundSpy = (sysId) => allActiveSpyMissions.value.find(
+  m => (m.systemId ?? planetSystemId(m.planetId)) === sysId
+) ?? null
+
+const inboundSpyLabel = (sysId) => {
+  const m = inboundSpy(sysId)
+  if (!m) return ''
+  const sys = galaxySystems.value.find(s => s.id === sysId)
+  const tgt = sys?.planets.find(p => p.id === m.planetId)?.name ?? ''
+  const key = m.unit === 'spy_satellite' ? 'hawkStar.galaxy.satelliteEnRoute' : 'hawkStar.galaxy.spyEnRoute'
+  return t(key, { planet: tgt, time: formatTime(remainingSpySec(m.planetId)) })
+}
+
+// How old the report is, in words. A drone's finding never updates itself, so
+// this is the difference between "he lives there" and "he lived there".
+const intelLabel = (planet) => {
+  const intel = planetIntel(planet.id)
+  if (!intel) return ''
+  if (intel.live) {
+    const h = satelliteHoursLeft(planet.id)
+    return h == null ? '📡' : `📡 ${h >= 24 ? Math.round(h / 24) + ' d' : Math.max(1, Math.round(h)) + ' h'}`
+  }
+  const h = intelAgeHours(planet.id) ?? 0
+  if (h < 1)  return t('hawkStar.galaxy.intelAgeMin', { n: Math.max(1, Math.round(h * 60)) })
+  if (h < 48) return t('hawkStar.galaxy.intelAgeHours', { n: Math.round(h) })
+  return t('hawkStar.galaxy.intelAgeDays', { n: Math.floor(h / 24) })
 }
 
 const contactOf = (sysId) =>
@@ -55,8 +108,6 @@ const scanRemaining = (sysId) => {
   return c.scanEndsAt ? Math.max(0, Math.ceil((c.scanEndsAt - now.value) / 1000)) : 0
 }
 
-const ownedCount = (sys, playerId) =>
-  sys.planets.filter(p => p.owner?.playerId === playerId).length
 
 // ── Selection — home system pre-selected ──────────────────────────────────────
 const selectedId = ref(homeSystemId.value)
@@ -97,6 +148,16 @@ const tileClass = (sys) => {
       >
         <!-- Unread message badge -->
         <span v-if="unreadSystems[String(sys.id)]" class="hs-galaxy-tile-unread" />
+
+        <!-- Espionage inbound — violet for a drone, teal for a satellite. Sits
+             on the opposite corner from the unread dot so the two never merge
+             into one ambiguous blob. -->
+        <span
+          v-if="inboundSpy(sys.id)"
+          class="hs-galaxy-tile-spy"
+          :class="inboundSpy(sys.id).unit === 'spy_satellite' ? 'hs-galaxy-tile-spy--sat' : ''"
+          :title="inboundSpyLabel(sys.id)"
+        />
 
         <!-- HOME -->
         <template v-if="isHome(sys)">
@@ -172,30 +233,90 @@ const tileClass = (sys) => {
           <!-- Owner list (inhabited foreign systems) -->
           <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-comm-section">
             <div class="hs-faction-list">
-              <div v-for="owner in uniqueOwners(selected)" :key="owner.playerId" class="hs-faction-row">
+              <div v-for="owner in uniqueOwners(selected)" :key="owner.playerId ?? owner.factionId" class="hs-faction-row">
                 <span class="hs-faction-portrait">{{ owner.portrait ?? '👤' }}</span>
+                <!-- Name only: how many planets they hold is not something a scan
+                     reveals — that is what the spy drone is for, planet by planet -->
                 <div class="hs-faction-info">
-                  <span class="hs-faction-name">{{ owner.username }}</span>
-                  <span class="hs-faction-count">{{ ownedCount(selected, owner.playerId) }} 🪐</span>
+                  <span class="hs-faction-name">{{ owner.username ?? owner.name }}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Planet list -->
+          <!-- Planet list — who sits where is a secret until a spy drone lands -->
           <ul class="hs-planet-list">
             <li v-for="planet in selected.planets" :key="planet.id" class="hs-planet-item">
               <span class="hs-planet-name">{{ planet.name }}</span>
+
+              <!-- Own colony: no espionage involved, always current -->
               <span
                 v-if="playerColonizedPlanets.includes(planet.id)"
                 class="hs-planet-tag hs-planet-tag--own"
               >{{ t('hawkStar.galaxy.stateColony') }}</span>
-              <span
-                v-else-if="planet.owner"
-                class="hs-planet-tag hs-planet-tag--owner"
-              >{{ planet.owner?.username }}</span>
+
+              <!-- Home system: plain truth, no report attached -->
+              <template v-else-if="isHome(selected)">
+                <span v-if="planet.owner" class="hs-planet-tag hs-planet-tag--owner">
+                  {{ planet.owner?.username ?? planet.owner?.name }}
+                </span>
+              </template>
+
+              <!-- Foreign system: a finding always carries its age -->
+              <template v-else>
+                <span
+                  v-if="planet.owner"
+                  class="hs-planet-tag hs-planet-tag--owner"
+                >{{ planet.owner?.username ?? planet.owner?.name }}</span>
+                <span
+                  v-else-if="!isUnknownPlanet(planet)"
+                  class="hs-planet-tag hs-planet-tag--empty"
+                >{{ t('hawkStar.galaxy.stateUncolonized') }}</span>
+
+                <span
+                  v-if="!isUnknownPlanet(planet)"
+                  class="hs-planet-intel"
+                  :class="{
+                    'hs-planet-intel--live':  planetIntel(planet.id)?.live,
+                    'hs-planet-intel--stale': isIntelStale(planet.id),
+                  }"
+                  :title="planetIntel(planet.id)?.live ? t('hawkStar.galaxy.intelLive') : t('hawkStar.galaxy.intelSnapshot')"
+                >{{ intelLabel(planet) }}</span>
+
+                <!-- Something is on its way there right now -->
+                <span v-if="isSpyingPlanet(planet.id)" class="hs-planet-spy-timer">
+                  🕵️ {{ formatTime(remainingSpySec(planet.id)) }}
+                </span>
+
+                <!-- Send / refresh. Both units fly the same route; the satellite
+                     is the one that keeps the finding from ageing. -->
+                <template v-else>
+                  <button
+                    v-if="canSendSpyDrone(planet.id, selected.id)"
+                    class="hs-planet-spy-btn"
+                    :title="t('hawkStar.galaxy.spyFlight', { time: spyFlightLabel(selected) })"
+                    @click.stop="sendSpyDrone(planet.id, selected.id)"
+                  >🕵️ {{ isUnknownPlanet(planet) ? t('hawkStar.galaxy.spy') : t('hawkStar.galaxy.spyAgain') }}</button>
+                  <button
+                    v-if="canSendSpySatellite(planet.id, selected.id)"
+                    class="hs-planet-spy-btn hs-planet-spy-btn--sat"
+                    :title="t('hawkStar.galaxy.satelliteHint', { hours: SPY.satelliteHours })"
+                    @click.stop="sendSpySatellite(planet.id, selected.id)"
+                  >📡</button>
+                  <span
+                    v-if="isUnknownPlanet(planet) && !canSendSpyDrone(planet.id, selected.id)"
+                    class="hs-planet-tag hs-planet-tag--unknown"
+                    :title="isSpyTarget(planet.id, selected.id) ? t('hawkStar.galaxy.spyNoDrone') : ''"
+                  >❓</span>
+                </template>
+              </template>
             </li>
           </ul>
+
+          <!-- One line of context under the list, so the ❓ is not a mystery -->
+          <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-planet-list-hint">
+            {{ t('hawkStar.galaxy.spyHint') }}
+          </div>
         </div>
 
       </div>
@@ -356,6 +477,28 @@ const tileClass = (sys) => {
   50%       { opacity: 0.55; transform: scale(1.4); }
 }
 
+// Something of ours is on its way into this system. Top-LEFT, opposite the
+// unread dot, so a system that has both still reads as two separate signals.
+.hs-galaxy-tile-spy {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a78bfa;
+  box-shadow: 0 0 6px rgba(167,139,250,0.75);
+  animation: hs-pulse-unread 1.4s ease-in-out infinite;
+  // Deliberately NOT pointer-events: none — the title is the only place the
+  // target planet and the countdown are named. The click still bubbles to the
+  // tile, so selecting the system keeps working.
+
+  &--sat {
+    background: #2dd4bf;
+    box-shadow: 0 0 6px rgba(45,212,191,0.75);
+  }
+}
+
 // ── Scan button (inside tile) ─────────────────────────────────────────────────
 .hs-galaxy-scan-btn {
   margin-top: 1px;
@@ -464,7 +607,6 @@ const tileClass = (sys) => {
 }
 
 .hs-faction-name  { font-size: 0.7rem; font-weight: 600; color: rgba(255,255,255,0.85); }
-.hs-faction-count { font-size: 0.55rem; color: rgba(255,255,255,0.35); }
 
 // ── Planet list ───────────────────────────────────────────────────────────────
 .hs-planet-list {
@@ -498,8 +640,64 @@ const tileClass = (sys) => {
   padding: 1px 6px;
   border-radius: 4px;
 
-  &--own   { background: rgba(96,165,250,0.12); color: rgba(96,165,250,0.85); }
-  &--owner { background: rgba(52,211,153,0.1);  color: rgba(52,211,153,0.8); }
+  &--own     { background: rgba(96,165,250,0.12); color: rgba(96,165,250,0.85); }
+  &--owner   { background: rgba(52,211,153,0.1);  color: rgba(52,211,153,0.8); }
+  &--empty   { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.4); }
+  &--unknown { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.3); }
+}
+
+// ── Espionage ─────────────────────────────────────────────────────────────────
+.hs-planet-spy-btn {
+  font-size: 0.52rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #ddd6fe;
+  background: rgba(139,92,246,0.16);
+  border: 1px solid rgba(139,92,246,0.45);
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover { background: rgba(139,92,246,0.3); border-color: rgba(139,92,246,0.7); }
+
+  // The satellite is the same route with a different payload — same colour
+  // family, teal, so the pair reads as one action with two intensities.
+  &--sat {
+    color: #99f6e4;
+    background: rgba(45,212,191,0.14);
+    border-color: rgba(45,212,191,0.45);
+
+    &:hover { background: rgba(45,212,191,0.28); border-color: rgba(45,212,191,0.7); }
+  }
+}
+
+// Age of the report. Grey while it is fresh, amber once it is old enough to be
+// wrong, teal while a satellite keeps it current.
+.hs-planet-intel {
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+
+  &--stale { color: rgba(251,191,36,0.75); }
+  &--live  { color: rgba(45,212,191,0.85); }
+}
+
+.hs-planet-spy-timer {
+  font-size: 0.52rem;
+  font-weight: 600;
+  color: rgba(196,181,253,0.9);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hs-planet-list-hint {
+  margin-top: 0.4rem;
+  font-size: 0.55rem;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.3);
 }
 
 // ── Slide transition ──────────────────────────────────────────────────────────

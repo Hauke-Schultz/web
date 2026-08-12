@@ -16,6 +16,10 @@
       "colonyLanded": "Colony Ship landed",
       "cargoDelivered": "Cargo delivered",
       "cargoReturned": "Cargo Drone returned",
+      "spyReady": "Spy drone ready",
+      "spyDone": "Spy report received",
+      "satelliteReady": "Spy satellite ready",
+      "satelliteOnline": "Satellite transmitting",
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone building",
       "colonyBuilding": "Colony Ship building",
@@ -59,7 +63,9 @@
         "step6": "🛸 Discover a foreign planet with a recon drone",
         "step7": "🚀 Colonize a second planet and specialize each one",
         "step8": "📦 Send a cargo drone to another planet",
-        "step9": "🔭 Scan a foreign star system on the galaxy map"
+        "step9": "🔭 Scan a foreign star system on the galaxy map",
+      "step10": "🕵️ Survey a foreign planet with a spy drone",
+      "step11": "📡 Place a spy satellite in orbit of a surveyed planet"
       }
     },
 
@@ -79,7 +85,12 @@
       "crew": "Crew",
       "crewHint": "Crew: {crew} free workers board the ship",
       "noCrew": "Not enough free workers for the crew",
-      "launchFromSystemMap": "Launch units from the System Map"
+      "launchFromSystemMap": "Launch units from the System Map",
+      "spyDrone": "Spy Drone",
+      "spyDroneDesc": "Looks once at who owns a planet in a scanned foreign system",
+      "spySatellite": "Spy Satellite",
+      "spySatelliteDesc": "Stays in orbit and keeps the finding current while it transmits",
+      "launchFromGalaxyMap": "Pick a target on the Galaxy Map"
     },
 
     "solar": {
@@ -126,7 +137,20 @@
       "stateUncolonized": "Uncolonized",
       "stateEnemy": "Enemy",
       "stateAllied": "Allied",
-      "starMeta": "{cls}-class star · {n} planets"
+      "starMeta": "{cls}-class star · {n} planets",
+      "spy": "Spy",
+      "spyAgain": "Refresh",
+      "spyFlight": "Flight time: {time}",
+      "spyNoDrone": "No spy drone in the dock",
+      "spyHint": "Only a spy drone reveals who sits on which planet — and its report ages. A satellite keeps it current.",
+      "satelliteHint": "Place a satellite in orbit — keeps the finding current for {hours} h (surveyed planets only)",
+      "spyEnRoute": "Spy drone en route → {planet} · {time} left",
+      "satelliteEnRoute": "Spy satellite en route → {planet} · {time} left",
+      "intelLive": "Satellite transmitting — current",
+      "intelSnapshot": "Snapshot from the last drone flight — may be out of date",
+      "intelAgeMin": "{n} min ago",
+      "intelAgeHours": "{n} h ago",
+      "intelAgeDays": "{n} d ago"
     },
 
     "comm": {

@@ -335,6 +335,8 @@ Units are built at the Space Base tile and consumed on missions. Each unit type 
 | **Recon Drone** | 60 Metal · 25 Crystal | Reveals planet details within the home system |
 | **Colony Ship** | 300 Metal · 150 Crystal · 1 Power Cell · **6 crew** | Colonizes a scanned uncolonized planet |
 | **Cargo Drone** | 120 Metal · 60 Crystal · 2 Power Cells | Ships up to 4 high-tech goods to any known planet |
+| **Spy Drone** | 150 Metal · 80 Crystal · 1 Superconductor | Reports once who owns one planet in a scanned foreign system (one-way) |
+| **Spy Satellite** | 300 Metal · 150 Crystal · 1 Superconductor · 1 Duraplate | Stays in orbit and keeps that planet's finding current for 7 days |
 
 > The cargo drone is the one exception to "only one active mission per unit type": it is limited to **one drone per planet in existence**, which is stricter. See the Cargo Drone section below.
 
@@ -350,7 +352,7 @@ Units are produced by a **facility** on the Space Base tile, and one facility se
 
 | Facility | Builds | Key |
 |----------|--------|-----|
-| 🛸 Drone Hangar | every drone type (`recon_drone`, `cargo_drone`) | `drone_hangar` |
+| 🛸 Drone Hangar | every drone type (`recon_drone`, `cargo_drone`, `spy_drone`, `spy_satellite`) | `drone_hangar` |
 | 🚀 Shipyard | every starship type (currently `colony_ship`) | `shipyard` |
 
 Each unit names its facility explicitly via `UNIT_COSTS[unit].facility`; `unit/build.php` reads that field to check the requirement. Before 2026-08-08 the facility was derived from the unit key itself (building key == unit key), which only worked while each facility built exactly one unit. Adding a second drone or ship type now needs no backend change — just a `UNIT_COSTS` entry pointing at the existing facility.
@@ -434,6 +436,77 @@ Return cargo · more than one drone per planet · targets outside the home syste
 | `api/star/game/state.php` | Returns `cargo` and the mission `leg` |
 | `frontend/app/composables/useHawkStar.js` | Cargo state, `setCargo`, `sendCargoDrone`, tick handling for both legs |
 | `frontend/app/components/hawk-star/HsSolarSystem.vue` | Third unit row + cargo picker |
+
+---
+
+## Espionage — Spy Drone  *(implemented 2026-08-12)*
+
+A deep-space scan tells you **who** lives in a system — a name and a portrait, nothing more. It deliberately does not say **which** planets are theirs, nor even **how many**: a count is a strong hint on a six-planet system, and the point is that every planet costs a drone.
+
+Before this, `/galaxy` handed every client the full ownership map and the UI simply chose not to draw parts of it. Ownership is now filtered **server-side**, because a secret that only the UI keeps is not a secret.
+
+### A report, not a permission
+
+The central decision: what comes back is **an observation with a timestamp**, not access to the live value. A drone writes down what it saw the moment it arrived, and that entry never changes again. If the target is colonized tomorrow, your report still says what it said — until you fly again.
+
+An earlier version stored a "spied" flag and then served the **current** owner forever, which meant espionage never went stale, drones were a one-time purchase, and a satellite would have had nothing left to add. Both units only make sense once intel can age.
+
+| | Spy Drone | Spy Satellite |
+|---|---|---|
+| Cost | 150 M · 80 C · 1 Superconductor | 300 M · 150 C · 1 Superconductor · 1 Duraplate |
+| Build | 2 h | 4 h |
+| Gives | one observation, then ages | keeps the entry **live for 7 days** |
+| Role | look once, look again later | keep looking |
+
+Both are built at the **Drone Hangar** and fly the same route. The superconductor is the sensor package — espionage sits behind the **Control** domain; the satellite adds Duraplate for its frame, per the house rule that a build cost demands two domains the recipe itself does not.
+
+### Rules
+
+- **One-way.** Both units are consumed on arrival — the satellite because it stays there.
+- **Target: one planet in a scanned foreign system.** Your own system needs no espionage, and an unscanned system cannot be targeted.
+- **The drone always goes first.** A satellite is *placed*, not sent looking: it needs an orbit that has been surveyed once, so it can only be sent to a planet that already has a report. That is also what stops a satellite from being spent blind on an empty rock — the drone is what finds out whether the planet is worth watching. Checked on both sides; the 📡 button simply does not appear before the first report.
+- **A stale report is not a blocker** — refreshing it is the drone's standing job, and re-spying is allowed at any time. The only refusal is a **live satellite** over that planet: it is already telling you everything the flight would.
+- **One espionage flight at a time per launching planet**, same rule as the recon drone.
+- **Flight time is the scan curve** — `max(2 h, distance × 180 s)` between star **systems**, so a neighbour is 2 h and the far side of the galaxy ~8 h. Inside a system every planet is the same trip.
+- **Stale after 48 h** (`SPY_INTEL_STALE_HOURS`), which is deliberately well under the satellite's 168 h: keeping a planet current by drone alone is a chore every two days, and that is what makes the satellite worth its price.
+- **The satellite's lifetime is the point.** An unlimited one would be a single purchase that settles espionage forever; with an expiry it stays a standing decision about which planets are worth watching. It is also the natural hook for the defense tile later — a scanner that detects and shoots down foreign satellites.
+- **What it reveals:** who owns that planet — or that it is genuinely empty. Buildings, resources and fleets are a later step, and they *have* to be snapshots, which is the other reason the report model comes first.
+
+### What the server hides
+
+| Field | Sent when |
+|---|---|
+| `planet.owner` | own planet · any planet in your home system · **live satellite** → current owner · otherwise the **stored observation** |
+| `planet.known` | `false` means "not looked at yet", **not** "free" |
+| `planet.intel` | `{ observedAt, live, satelliteUntil }` — only for foreign planets you have looked at; null for your own space |
+| `system.inhabited` | always (the map has always listed inhabited systems as the ones worth scanning) |
+| `system.inhabitants` | only for a **scanned** system: portrait and name of each resident — **no planet count**, and never which planets |
+
+**`known` is a property of the planet, never of whether it is occupied.** An earlier version returned `known: true` for empty foreign planets, which made the hidden ones exactly the occupied ones — the secret would have been readable straight off the list. Unspied means unknown either way, which is also what gives the drone a second use: finding empty planets in someone else's system.
+
+**The planet count went the same way.** A scan reports *who* lives in a system and nothing else: on a six-planet system "owns 4" is nearly the whole answer, and the point is that every planet costs a flight.
+
+### UI
+
+**The system tile** carries a pulsing dot while something of ours is inbound — **violet for a drone, teal for a satellite** — in the **top-left** corner, opposite the red unread-message dot, so a system with both still reads as two signals rather than one blob. Its tooltip names the target planet and the countdown; that dot deliberately keeps `pointer-events`, since the tooltip is the only place that information appears on the tile row. The click still bubbles, so selecting the system keeps working.
+
+The system card's planet list is the whole interface. Per planet: your colony, the reported owner or `Unkolonisiert`, and next to it **how old that finding is** — grey while fresh, amber past 48 h, teal `📡 5 d` while a satellite is transmitting. Then the actions: **🕵️ Ausspähen** (or *Neu* on an existing report) and **📡** for the satellite, each shown only when that unit is parked in the active planet's dock. A ❓ with a tooltip covers the case where nothing is available. One grey line under the list explains the whole mechanic. The dock panel gets two hangar rows (violet drone, teal satellite) and both appear in the mission list.
+
+### Implementation
+
+- **`hs_spy_intel`** (`player_id`, `planet_id`, `owner_player_id`, `owner_faction_id`, `observed_at`, `satellite_until`) is the report. `record_spy_intel()` is the **only** place it is written, and only from a landing mission — anywhere else and the report would silently start following the truth.
+- **`spy_intel_map()` is read by `/galaxy`**, which then serves the current owner when `live`, and the stored observation otherwise. A snapshot names a player id, so the endpoint also loads every player's identity: the owner it reports may not be the current one, which is exactly the point.
+- **The table backfills itself on creation** from completed `spy_drone` missions, so planets spied under the old "permanent live view" rule survive the change as an observation dated to the mission's arrival.
+- **`migrate_spy_missions()` cannot ride along with `migrate_cargo_missions()`**: that one returns early as soon as the `leg` column exists, which is true for every database migrated before espionage. It probes the ENUM definition itself instead — and it probes for `spy_satellite`, the value added last.
+- **One endpoint, two units.** `mission/spy.php` takes `unit`; the route, the gates and the flight time are identical, only `resolve_missions()` branches — the satellite passes `SPY_SATELLITE_HOURS` into the same recorder.
+- **A landed flight changes what the server will say**, so the tick calls `reloadGalaxy()` — re-fetching is the point, since the client never had the hidden data to unhide.
+- Two things broke when owners disappeared from the response and are worth remembering as the pattern: the galaxy tile row filtered systems by `planets.some(p => p.owner)`, and `HsCommLog` decided whether to show the send bar the same way. Both now read the **system-level** `inhabited` / `inhabitants`. Anything else that wants "is somebody there" must do the same — per-planet owners are no longer a reliable population signal.
+- **Two onboarding steps** close the checklist (`HsTilePanel`): *step10* first surveyed foreign planet (`spiedPlanets.length > 0`) and *step11* first satellite placed. The second reads `satelliteDeployments` — a server-side count of satellites **ever** placed, not of live ones, because an expiring satellite must never un-tick a step that was achieved. Same pattern as `cargoDeliveries`. It is also counted locally on arrival so the tick ticks it, not the next state sync.
+- Dev cheat **🕵️ Spionage** lands every espionage flight instantly.
+
+### Files
+
+`spy_drone` / `spy_satellite` in `UNIT_COSTS` + `SPY_*` in `api/star/config.php` · `migrate_spy_missions`, `ensure_spy_intel_table`, `record_spy_intel`, `spy_intel_map`, `system_distance`, `spy_flight_seconds` in `bootstrap.php` · `api/star/game/mission/spy.php` · table `hs_spy_intel` · report filter in `api/star/galaxy/index.php` · `spy*` / `planetIntel` / `isIntelStale` in `useHawkStar.js` + `mapGalaxy`/`reloadGalaxy` · `HsGalaxyMap.vue` planet list · `HsDockPanel.vue`
 
 ---
 
@@ -766,7 +839,9 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 | Feature | Status |
 |---------|--------|
 | Phase 3 — Player interaction (trade, player messaging) | ⬜ Planned |
-| Phase 4 — Espionage (recon in other players' systems) | ⬜ Planned |
+| Phase 4 — Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
+| Phase 4 — Espionage — buildings / resources / fleet recon | ⬜ Planned |
+| Phase 4 — Defense tile detects and destroys foreign satellites | ⬜ Planned |
 | Phase 5 — Combat (warships, stat-based combat) | ⬜ Planned |
 | Power battery (power_plant, click-to-charge, blackout when empty) | ✅ Implemented |
 | Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |

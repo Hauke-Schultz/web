@@ -53,24 +53,106 @@ foreach ($factions as $f) {
     ];
 }
 
+// ── What this player is allowed to see ───────────────────────────────────────
+// Who sits on which planet is a secret outside your own system: a deep-space
+// scan tells you WHO lives in a system and how many planets they hold, a spy
+// drone tells you WHICH planet is theirs. Hiding it here rather than in the UI
+// is what makes it a secret — the response is what a client can read.
+$scannedRow = $db->prepare(
+    "SELECT system_id FROM hs_system_contacts WHERE player_id=? AND scan_state='scanned'"
+);
+$scannedRow->execute([$playerId]);
+$scannedSystems = array_map('intval', $scannedRow->fetchAll(PDO::FETCH_COLUMN));
+
+// What this player has looked at: a stored observation per planet, plus a `live`
+// flag while a satellite is still transmitting from its orbit.
+$intel = spy_intel_map($db, $playerId);
+
+// Snapshots name a player id, so the response needs everyone's identity — the
+// owner it reports may not even be the current one any more, which is the point.
+$playersById = [];
+foreach ($db->query('SELECT id, username, portrait, disposition FROM hs_players')->fetchAll() as $pl) {
+    $playersById[(int)$pl['id']] = [
+        'playerId'    => (int)$pl['id'],
+        'username'    => $pl['username'],
+        'portrait'    => $pl['portrait'],
+        'disposition' => $pl['disposition'],
+    ];
+}
+
+// Your home system is always fully visible — you live there, and colony ships
+// cannot leave their own system, so nobody else can turn up in it unannounced.
+$homeSysRow = $db->prepare(
+    'SELECT p.system_id FROM hs_planet_ownership po
+     JOIN hs_planets p ON p.id = po.planet_id
+     WHERE po.player_id=? AND po.is_home=1 LIMIT 1'
+);
+$homeSysRow->execute([$playerId]);
+$homeSystemId = (int)($homeSysRow->fetchColumn() ?: 0);
+
 // Planets per system
 $planets = $db->query('SELECT * FROM hs_planets ORDER BY id')->fetchAll();
-$planetsBySystem = [];
+$planetsBySystem   = [];
+$inhabitedSystems  = [];
+$ownersBySystem    = [];
 foreach ($planets as $p) {
-    $pid   = (int)$p['id'];
-    $owner = $pOwn[$pid] ?? $nOwn[$pid] ?? null;
-    $planetsBySystem[$p['system_id']][] = [
+    $pid      = (int)$p['id'];
+    $sid      = (int)$p['system_id'];
+    $owner    = $pOwn[$pid] ?? $nOwn[$pid] ?? null;
+
+    if ($owner) {
+        $inhabitedSystems[$sid] = true;
+
+        // System-level roll-up: WHO is here, nothing else. Not which planets and
+        // deliberately not how many either — a count is a strong hint on a
+        // six-planet system, and the point is that every planet costs a drone.
+        $key = isset($owner['playerId']) ? 'p' . $owner['playerId'] : 'f' . ($owner['factionId'] ?? 0);
+        $ownersBySystem[$sid][$key] = $owner;
+    }
+
+    // Visibility is a property of the PLANET, never of whether it happens to be
+    // occupied: if empty planets came back as "known" and occupied ones did not,
+    // the hidden ones would be exactly the interesting ones and the secret would
+    // be readable straight off the list. Unspied means unknown either way.
+    $mine = ($owner['playerId'] ?? null) === $playerId || $sid === $homeSystemId;
+    $seen = $intel[$pid] ?? null;
+
+    // Three ways to know something, and only the first two are current:
+    //   your own space  → live, always
+    //   live satellite  → live, until it stops transmitting
+    //   drone report    → what was true at `observedAt`, and nothing since
+    $reported = null;
+    if ($mine || ($seen && $seen['live'])) {
+        $reported = $owner;
+    } elseif ($seen) {
+        $reported = $seen['ownerPlayerId'] !== null
+            ? ($playersById[$seen['ownerPlayerId']] ?? null)
+            : ($seen['ownerFactionId'] !== null ? ($nOwn[$pid] ?? null) : null);
+    }
+
+    $planetsBySystem[$sid][] = [
         'id'    => $pid,
         'name'  => $p['name'],
         'type'  => $p['type'],
-        'owner' => $owner,
+        'owner' => $reported,
+        // false = "you have not looked yet", which is not the same as "free"
+        'known' => $mine || $seen !== null,
+        // How old the report is, and whether anything is still watching. Absent
+        // for your own space, which needs no espionage to stay current.
+        'intel' => $mine || !$seen ? null : [
+            'observedAt'     => $seen['observedAt'],
+            'live'           => $seen['live'],
+            'satelliteUntil' => $seen['live'] ? $seen['satelliteUntil'] : null,
+        ],
     ];
 }
 
 // Assemble response
 $result = [];
 foreach ($systems as $sys) {
-    $sid      = (int)$sys['id'];
+    $sid     = (int)$sys['id'];
+    $scanned = $sid === $homeSystemId || in_array($sid, $scannedSystems, true);
+
     $result[] = [
         'id'        => $sid,
         'name'      => $sys['name'],
@@ -79,6 +161,11 @@ foreach ($systems as $sys) {
         'starClass' => $sys['star_class'],
         'factions'  => $factionsBySystem[$sid] ?? [],
         'planets'   => $planetsBySystem[$sid]  ?? [],
+        // Always sent: the galaxy map has always listed inhabited systems as the
+        // ones worth scanning, and that is the hook that makes a scan a decision.
+        'inhabited' => isset($inhabitedSystems[$sid]),
+        // Only after a scan: names, portraits and planet counts of the residents.
+        'inhabitants' => $scanned ? array_values($ownersBySystem[$sid] ?? []) : [],
     ];
 }
 

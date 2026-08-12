@@ -17,6 +17,10 @@
       "colonyLanded": "Colony Ship gelandet",
       "cargoDelivered": "Fracht ausgeliefert",
       "cargoReturned": "Frachtdrohne zurückgekehrt",
+      "spyReady": "Spionagedrohne bereit",
+      "spyDone": "Spionagebericht eingetroffen",
+      "satelliteReady": "Spionagesatellit bereit",
+      "satelliteOnline": "Satellit funkt",
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone wird gebaut",
       "colonyBuilding": "Colony Ship wird gebaut",
@@ -61,7 +65,9 @@
         "step6": "🛸 Entdecke mit einer Aufklärungsdrohne einen fremden Planeten",
         "step7": "🚀 Besiedle einen zweiten Planeten und spezialisiere jede Kolonie",
         "step8": "📦 Schicke eine Frachtdrohne zu einem anderen Planeten",
-        "step9": "🔭 Scanne ein fremdes Sternensystem auf der Galaxiekarte"
+        "step9": "🔭 Scanne ein fremdes Sternensystem auf der Galaxiekarte",
+      "step10": "🕵️ Späh mit einer Spionagedrohne einen fremden Planeten aus",
+      "step11": "📡 Setze einen Spionagesatelliten in den Orbit eines ausgespähten Planeten"
       }
     },
 
@@ -81,7 +87,12 @@
       "crew": "Besatzung",
       "crewHint": "Besatzung: {crew} freie Arbeiter gehen mit an Bord",
       "noCrew": "Zu wenig freie Arbeiter für die Besatzung",
-      "launchFromSystemMap": "Einheiten über die Systemkarte starten"
+      "launchFromSystemMap": "Einheiten über die Systemkarte starten",
+      "spyDrone": "Spionagedrohne",
+      "spyDroneDesc": "Sieht einmal nach, wem ein Planet in einem gescannten Fremdsystem gehört",
+      "spySatellite": "Spionagesatellit",
+      "spySatelliteDesc": "Bleibt im Orbit und hält den Befund aktuell, solange er funkt",
+      "launchFromGalaxyMap": "Ziel über die Galaxiekarte wählen"
     },
 
     "solar": {
@@ -127,7 +138,20 @@
       "stateUncolonized": "Unkolonisiert",
       "stateEnemy": "Feind",
       "stateAllied": "Verbündet",
-      "starMeta": "{cls}-Klasse Stern · {n} Planeten"
+      "starMeta": "{cls}-Klasse Stern · {n} Planeten",
+      "spy": "Ausspähen",
+      "spyAgain": "Neu",
+      "spyFlight": "Flugzeit: {time}",
+      "spyNoDrone": "Keine Spionagedrohne im Dock",
+      "spyHint": "Wer auf welchem Planeten sitzt, verrät erst eine Spionagedrohne — und ihr Bericht altert. Ein Satellit hält ihn aktuell.",
+      "satelliteHint": "Satellit in den Orbit setzen — hält den Befund {hours} h lang aktuell (nur auf ausgespähten Planeten)",
+      "spyEnRoute": "Spionagedrohne unterwegs → {planet} · noch {time}",
+      "satelliteEnRoute": "Spionagesatellit unterwegs → {planet} · noch {time}",
+      "intelLive": "Satellit funkt — Stand aktuell",
+      "intelSnapshot": "Momentaufnahme des letzten Drohnenflugs — kann veraltet sein",
+      "intelAgeMin": "vor {n} min",
+      "intelAgeHours": "vor {n} h",
+      "intelAgeDays": "vor {n} d"
     },
 
     "comm": {

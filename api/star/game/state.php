@@ -98,6 +98,19 @@ $droneScannedRaw = $db->prepare(
 $droneScannedRaw->execute([$playerId]);
 $droneScannedPlanets = array_values(array_map('intval', $droneScannedRaw->fetchAll(PDO::FETCH_COLUMN)));
 
+// Planets in foreign systems this player has ever looked at. Everything else in
+// another system is returned without an owner by /galaxy.
+$spiedPlanets = spied_planets($db, $playerId);
+
+// Satellites ever placed. A live count would drop back to zero when one expires,
+// and the onboarding checklist must not un-tick a step that was achieved.
+$satDoneRaw = $db->prepare(
+    "SELECT COUNT(*) FROM hs_missions
+     WHERE player_id=? AND type='spy_satellite' AND status='done'"
+);
+$satDoneRaw->execute([$playerId]);
+$satelliteDeployments = (int)$satDoneRaw->fetchColumn();
+
 // Cargo runs that actually landed. The outbound leg is the delivery; the return
 // leg is bookkeeping. Drives the onboarding checklist, which needs a durable
 // flag rather than the in-flight missions above.
@@ -139,6 +152,8 @@ ok([
     'units'              => $units,
     'missions'           => $missions,
     'droneScannedPlanets'=> $droneScannedPlanets,
+    'spiedPlanets'       => $spiedPlanets,
+    'satelliteDeployments' => $satelliteDeployments,
     'cargoDeliveries'    => $cargoDeliveries,
     'conversionQueues'   => $convQueues,
     'battery'            => $battery,

@@ -17,7 +17,34 @@ const UNIT_COSTS = [
     // One per planet (see CARGO_* below) — the only way to move goods between
     // planets. flightTimeBase applies to each leg, so a neighbour is 1 h out, 1 h back.
     'cargo_drone' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 120, 'crystal' => 60, 'power_cell' => 2], 'buildTimeBase' => 5400, 'flightTimeBase' => 3600],
+    // The only unit that leaves the home system. It reveals who owns ONE planet
+    // in a scanned foreign system and is consumed doing it — the superconductor
+    // in the cost is the sensor package, which puts espionage behind a frozen
+    // planet's refinery or a cargo run.
+    'spy_drone'   => ['facility' => 'drone_hangar', 'cost' => ['metal' => 150, 'crystal' => 80, 'superconductor' => 1], 'buildTimeBase' => 7200],
+    // Stays in orbit and keeps transmitting: the same target as the drone, but
+    // the finding stays live instead of ageing. Structure + Control, per the
+    // house rule that a build cost demands two domains the recipe does not.
+    'spy_satellite' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 300, 'crystal' => 150, 'superconductor' => 1, 'duraplate' => 1], 'buildTimeBase' => 14400],
 ];
+
+// ── Espionage ─────────────────────────────────────────────────────────────────
+// Flight time uses the same distance formula as a deep-space scan (galaxy/scan.php):
+// a spy drone travels at signal speed, so a neighbouring system is the 2 h floor
+// and the far side of the galaxy is ~8 h. Distance is between star systems, not
+// planets — inside a system every planet is the same trip.
+const SPY_FLIGHT_MIN      = 7200;   // seconds, minimum one-way flight
+const SPY_FLIGHT_PER_DIST = 180;    // seconds per unit of system distance
+
+// A drone reports ONCE. What it saw is stored with the moment it saw it and
+// never updates itself — the galaxy moves on, the report does not. After
+// SPY_INTEL_STALE_HOURS it is drawn as stale and wants a fresh flight.
+const SPY_INTEL_STALE_HOURS = 48;
+
+// A satellite keeps the same planet live for as long as it transmits. The
+// lifetime is what stops espionage from being solved once and for all: an
+// unlimited satellite would be a single purchase, not a standing decision.
+const SPY_SATELLITE_HOURS = 168;    // 7 days
 
 // ── Cargo drone ───────────────────────────────────────────────────────────────
 // Only high-tech goods can be shipped. Raw resources are deliberately excluded:
