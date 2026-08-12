@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, CARGO } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -161,6 +161,35 @@ const batteryHoursToEmpty = computed(() => {
   if (!b || !b.drainPerHour) return null
   return (batteryCharge.value ?? 0) / b.drainPerHour
 })
+
+// ── Planetary shield (defense tile) ────────────────────────
+// Same anchor-and-decay trick as the battery: the server sends the charge at
+// sync time, we subtract the drain since then so the bar moves live. Null while
+// there is no shield generator on the planet.
+const shield = computed(() => allPlanetStates.value[activePlanetId.value]?.shield ?? null)
+
+const shieldCharge = computed(() => {
+  const s = shield.value
+  if (!s) return null
+  const hours = (now.value - s.syncedAt) / 3600000
+  return Math.max(0, s.charge - s.drainPerHour * hours)
+})
+
+const shieldDown = computed(() => !!shield.value && (shieldCharge.value ?? 0) <= 0)
+
+const shieldHoursToEmpty = computed(() => {
+  const s = shield.value
+  if (!s || !s.drainPerHour) return null
+  return (shieldCharge.value ?? 0) / s.drainPerHour
+})
+
+// A click that cannot be paid for, or one at full strength, is refused by the
+// server — the button mirrors both so it never spends crystal for nothing.
+const shieldFull = computed(() => (shieldCharge.value ?? 0) >= SHIELD.max)
+
+const canChargeShield = computed(() =>
+  !!shield.value && !shieldFull.value && canAfford(SHIELD.clickCost)
+)
 
 // ── Population recruit pool (base tile) ────────────────────
 // Server sends { pool, poolMax, growthPerHour }; we anchor with syncedAt and let
@@ -482,6 +511,40 @@ const chargeBattery = async () => {
     // Grid may have come back up → mark a fresh resource sync so the tick preview restarts
     lastResourceSyncMs.value = Date.now()
   } catch (e) {
+    await refreshPlanetState(planetId)   // reconcile with server on failure
+  }
+}
+
+// ── Planetary shield: recharge (+clickPercent, paid in crystal) ────────────
+// Unlike the battery this one spends resources, so the server sends the fresh
+// resource row back with the new charge — otherwise the crystal count would sit
+// stale until the next sync.
+const shieldError = ref(null)
+
+const chargeShield = async () => {
+  const planetId = activePlanetId.value
+  const st = allPlanetStates.value[planetId]?.shield
+  if (!st || !canChargeShield.value) return
+  shieldError.value = null
+
+  // Optimistic: bump the live charge, so the bar reacts to the click at once.
+  const liveNow = Math.max(0, st.charge - st.drainPerHour * (Date.now() - st.syncedAt) / 3600000)
+  st.charge   = Math.min(SHIELD.max, liveNow + SHIELD.clickPercent)
+  st.syncedAt = Date.now()
+
+  try {
+    const { chargeShield: chargeApi } = useHawkStarApi()
+    const result = await chargeApi(planetId)
+    const pstate = allPlanetStates.value[planetId]
+    if (pstate) {
+      pstate.shield = { ...result.shield, syncedAt: Date.now() }
+      if (result.resources) pstate.resources = result.resources
+    }
+    // The cost was taken server-side at this instant — restart the tick preview
+    // from here so it does not replay production over the new stock.
+    lastResourceSyncMs.value = Date.now()
+  } catch (e) {
+    shieldError.value = e.message
     await refreshPlanetState(planetId)   // reconcile with server on failure
   }
 }
@@ -1367,6 +1430,17 @@ const tick = () => {
           pstate.battery.drainPerHour    = drain
         }
       }
+      // Same for the shield: the generator is installed uncharged, so the panel
+      // has to appear right away with an empty bar asking to be filled.
+      if (id === 'shield_generator' && !pstate.shield) {
+        pstate.shield = {
+          charge:       0,
+          drainPerHour: SHIELD.drainPerHour,
+          clickPercent: SHIELD.clickPercent,
+          clickCost:    SHIELD.clickCost,
+          syncedAt:     Date.now(),
+        }
+      }
       notifications.value.push({
         id:         `notif_${Date.now()}_bld_${pid}_${id}`,
         type:       'building_done',
@@ -1489,6 +1563,8 @@ const applyGameState = (planetId, state) => {
     },
     conversionQueues: convQueues,
     battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
+    // null while the planet has no finished shield generator
+    shield:  state.shield  ? { ...state.shield,  syncedAt: Date.now() } : null,
     recruit: state.recruit ? { ...state.recruit, syncedAt: Date.now() } : null,
     // null when the planet has never built a cargo drone
     cargo: state.cargo ? { ...state.cargo, cargo: { ...(state.cargo.cargo ?? {}) } } : null,
@@ -1674,6 +1750,15 @@ export function useHawkStar() {
     batteryHoursToEmpty,
     gridDown,
     chargeBattery,
+    // planetary shield
+    shield,
+    shieldCharge,
+    shieldHoursToEmpty,
+    shieldDown,
+    shieldFull,
+    canChargeShield,
+    shieldError,
+    chargeShield,
     // population recruitment
     recruitPool,
     recruitPoolMax,

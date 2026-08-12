@@ -49,7 +49,7 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | ID | Description |
 |----|-------------|
 | `base` | Colony command center — must be built first · Med Station (Vital Gel → population) |
-| `mining` | Raw resource extraction (Metal, Crystal) |
+| `mining` | Raw resource extraction (Metal, Crystal) · Deep Shaft Frame + Survey Array (refined goods → raw) |
 | `energy` | Power generation — Energy is a utility, not stockpiled |
 | `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory, Plasma Compressor |
 | `comm_center` | Comm Center — global research tile. Technologies researched here apply across all planets |
@@ -177,13 +177,27 @@ Until now only Duraplate had a consumer at all — Plasma Core, Superconductor a
 |---|---|---|---|---|
 | 🏥 **Med Station** | base | `command_center` Lv3 | 2 Vital Gel + 120 Metal → **1 population** (30 min) | 400 M · 200 C · 3 Vital Gel · 2 Superconductor |
 | ⚙️ **Plasma Compressor** | techcenter | `laboratory` Lv2 | 1 Plasma Core + 150 Metal → **3 Power Cells** (30 min) | 500 M · 250 C · 4 Duraplate · 2 Superconductor |
+| 🏗️ **Deep Shaft Frame** | mining | `metal_mine` Lv4 | 1 Duraplate + 100 Crystal → **1200 Metal** (30 min) | 600 M · 300 C · 2 Plasma Core · 2 Vital Gel |
+| 🔭 **Deep Survey Array** | mining | `crystal_drill` Lv4 | 1 Superconductor + 100 Metal → **700 Crystal** (30 min) | 500 M · 400 C · 2 Plasma Core · 3 Duraplate |
 
 The pattern is deliberate and should be kept for anything added later: **the recipe consumes one domain continuously, the construction cost demands two more once.** That way every new building needs goods from at least two planet types, which is what makes the cargo drone — and later trade — necessary rather than decorative.
 
 - The **Med Station** is the only conversion whose output is a person. The recruit pool hard-caps growth at ~12/day; this is the way past it, priced so recruiting stays worthwhile (one head ≈ an hour of bio lab plus 360 metal). No backend work was needed: `resolve_conversions()` writes its output straight into `hs_planet_resources`, `population` is a normal column there, and `compute_resources()` deliberately never touches population.
 - The **Plasma Compressor** gives the power domain its purpose. The `power_cell_lab` makes one cell per 30 min from raw material; the compressor makes three in the same slot if fed a core. Same `durationBase` on purpose — the gain is **throughput, not a discount** — which turns volcanic planets into the fleet's fuel supply.
 
-Both are single-level like the refineries.
+- The **mining pair** spends the two domains that only had one-off costs. Note the direction: duraplate is not *turned into* metal — Structure is hull, armour and framing, so the plating is **built into a shaft frame** and the metal is what the new seam yields. Superconductor likewise drives the **sensor array** that finds a rich vein, which is exactly what Control (computing, sensors) is for.
+
+Three properties of the mining pair are deliberate and worth keeping if they are ever retuned:
+
+- **One refinery feeds exactly one of them.** An `alloy_refinery` produces 1 Duraplate per 30 min — the shaft consumes 1 per 30 min. Same for `cryo_refinery` → survey array. That is what keeps a refinery running forever instead of only until the next building is paid for.
+- **They feed each other.** The shaft eats crystal and yields metal, the array eats metal and yields crystal.
+- **Output is roughly one extra maxed mine** (40/min vs. the Lv6 mine's 42; 23/min vs. the Lv7 drill's 33) — strong enough to be worth the logistics, not so strong that mines stop mattering.
+
+Since Duraplate is terrestrial and Superconductor frozen, these two make those planet types valuable to the whole empire and give the cargo drone a standing route rather than one-off deliveries.
+
+All four are single-level like the refineries.
+
+**Conversion output is now cap-aware.** `resolve_conversions()` used to do a plain `SET res = res + amt`; the next `compute_resources()` tick then shaved any overshoot back to the cap. With 1 Power Cell per run that never showed, with 1200 Metal it would. It now pays out through `credit_resources()` (the helper the anomalies already use), which fills to the cap and stops. Overshoot is lost either way — the difference is that the number in the silo is honest immediately. Population passes through uncapped, since it has no storage building.
 
 **Conversions are no longer a High-Tech privilege.** `HsTilePanel` used to gate the whole recipe section on `isHightechTile`; it now shows wherever the active tile holds a *built* building with `conversions`. The two High-Tech-specific empty states ("no refinery built" / "this planet type has none") stayed behind that tile check, because conversion is that tile's entire purpose. `convert.php` never needed a change — it only ever checked that the building has recipes and stands finished.
 
@@ -218,6 +232,30 @@ Every `power_plant` has a battery (0–100 %) that slowly drains over time, inde
 - Backend: table `hs_power_battery` (charge + timestamp), resolved live from elapsed time; `POST /game/power/charge`. UI: bar + "holds ~Xh" countdown + charge button on the energy tile (`HsPowerBattery`). Dev cheat "🔋 Leeren" empties it for testing.
 
 ---
+
+## Planetary Shield  *(reworked 2026-08-12)*
+
+The `shield_generator` used to be a three-level building whose levels claimed "absorbs 20/40/60 % damage" — against nothing, since combat does not exist yet. It is now **a single level that is charged rather than upgraded**: strength is a 0–100 % value that fades over time and is topped up click by click, exactly like the reactor battery, with one deliberate difference — **charging costs crystal**.
+
+- **+10 % per click for 150 crystal**, drain **1.25 %/h** — **~30 % a day**, so a full shield stands for a good **three days** (80 h full → empty) and topping it up is a login-time chore, not an hourly one. One click buys 8 h at full strength; holding it there costs ~19 crystal per hour — a real expense on a young colony, small change on a developed one.
+- **A newly built generator starts at 0 %**, same as a fresh power plant.
+- **An empty shield has no side effect on the planet.** This is the sharpest difference to the battery, where empty means the whole grid stops: a shield is protection, not infrastructure, so letting it fade costs nothing today. Its charge is the value future combat will read.
+- **The defense tile carries the charge on its top edge** — the same 3 px status bar the energy tile uses for the battery and the base tile for the recruit pool, in the panel's blue, **plus the number** (`45 %`) in the corner. It is the only one of the three that prints its value: the bar alone answers "roughly how full", and for a battery or a recruit pool that is enough, but a shield click costs 150 crystal, so the decision to spend needs the exact figure without opening the tile. Below 20 % the bar turns amber, at 0 % it goes red — but it never pulses, since an empty shield is not an emergency the way a blackout is.
+- The click is refused server-side when the shield is **already full** (the crystal would be burned for nothing) or when the crystal is missing. The button mirrors both, so a wasted click is not possible.
+- Building cost went to **400 Metal · 200 Crystal · 5 Duraplate** and the drain to 12 energy — it is the only level now, so it sits where the old Lv2 roughly did.
+
+### Implementation
+
+Deliberately a copy of the power battery, table for table: `hs_shield` (charge + timestamp) resolved live from elapsed time, `shield_state()` / `ensure_shield()` / `shield_generator_level()` in `bootstrap.php`, `SHIELD_*` in `config.php`, `POST /game/defense/charge`, `shield` in `state.php`, `SHIELD` in `hawkStarConfig.js`, `shield*` in `useHawkStar.js`, `HsShieldPanel.vue` on the defense tile. No cron, no resolve step.
+
+Two things differ from the battery and are the parts worth remembering:
+
+- **The endpoint returns the fresh resource row alongside the new charge.** The battery is free, so it only ever had to send its own state back; the shield spends crystal, and without the resources in the same response the stock would sit stale until the next sync.
+- **`shield_generator_level()` requires `build_ends_at IS NULL`,** where `power_plant_level()` deliberately ignores it. The battery must keep working while its plant is being upgraded; a shield that is still being built must not already be chargeable.
+
+**Existing saves at Lv2/Lv3** are harmless: `nextLevelDef()` returns null for a level above the config, so the row simply shows as maxed. The extra levels are gone from the config, not from the database.
+
+Dev cheat **🛡️ Leeren** empties the shield — otherwise testing the empty state means waiting out 40 h.
 
 ## Population Recruitment  *(implemented)*
 
@@ -731,6 +769,7 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 | Cargo drone (one per planet, 4 items, one-way delivery + empty return) | ✅ Implemented |
 | Slot 7 — anomaly tile (timed events, two guaranteed outcomes each) | ✅ Implemented |
 | Med Station + Plasma Compressor (first consumers for Vital Gel / Plasma Core) | ✅ Implemented |
+| Deep Shaft Frame + Survey Array (recurring sinks for Duraplate / Superconductor) | ✅ Implemented |
 
 See `hawk-star-backend.md` for the full backend concept.
 

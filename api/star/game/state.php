@@ -26,6 +26,7 @@ if (!$planet) fail('Planet not found or not owned', 404);
 resolve_timers($db, $planetId, $playerId);
 compute_resources($db, $planetId, $playerId, $planet['type']);
 $battery = battery_state($db, $planetId, $playerId);
+$shield  = shield_state($db, $planetId, $playerId);
 $recruit = recruit_state($db, $planetId, $playerId);
 $units   = units_state($db, $planetId, $playerId);
 $cargo   = cargo_state($db, $planetId, $playerId);
@@ -141,6 +142,7 @@ ok([
     'cargoDeliveries'    => $cargoDeliveries,
     'conversionQueues'   => $convQueues,
     'battery'            => $battery,
+    'shield'             => $shield,
     'recruit'            => $recruit,
     'cargo'              => $cargo,
     'anomaly'            => $anomaly,

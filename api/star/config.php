@@ -79,6 +79,29 @@ const BUILDINGS = [
     ['level'=>7,'cost'=>['metal'=>820,'crystal'=>600],'buildTime'=>86400,'production'=>['crystal'=>33],'energyDrain'=>19,'staffDrain'=>5,'storageCapacity'=>['crystal'=>4000],'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // ── Refined goods spent on mining infrastructure ────────────────────────────
+  // Structure is hull, armour and framing — so duraplate is not "turned into"
+  // metal, it is built into a shaft frame that opens a new seam. Control is
+  // computing and sensors, so a superconductor drives the array that finds a
+  // rich vein. Both run at the refineries' own tempo on purpose: one alloy
+  // refinery (1 duraplate / 30 min) feeds exactly one shaft, one cryo refinery
+  // exactly one survey array. That is what keeps a refinery running forever
+  // instead of only until the next building is paid for.
+  //
+  // They also feed each other — the shaft eats crystal and yields metal, the
+  // array eats metal and yields crystal.
+  'deep_shaft' => ['tileType'=>'mining','requiresBuilding'=>'metal_mine','requiresLevel'=>4,'conversions'=>[
+    ['input'=>['crystal'=>100,'duraplate'=>1],'output'=>['metal'=>1200],'durationBase'=>1800],
+  ],'levels'=>[
+    ['level'=>1,'cost'=>['metal'=>600,'crystal'=>300,'plasma_core'=>2,'vital_gel'=>2],'buildTime'=>5400,'production'=>[],'energyDrain'=>10,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
+  ]],
+
+  'survey_array' => ['tileType'=>'mining','requiresBuilding'=>'crystal_drill','requiresLevel'=>4,'conversions'=>[
+    ['input'=>['metal'=>100,'superconductor'=>1],'output'=>['crystal'=>700],'durationBase'=>1800],
+  ],'levels'=>[
+    ['level'=>1,'cost'=>['metal'=>500,'crystal'=>400,'plasma_core'=>2,'duraplate'=>3],'buildTime'=>5400,'production'=>[],'energyDrain'=>9,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
+  ]],
+
   'alloy_forge' => ['tileType'=>'mining','planetTypes'=>['terrestrial'],'requiresBuilding'=>'laboratory','requiresLevel'=>2,'levels'=>[
     ['level'=>1,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>900,'production'=>['alloy'=>1],'energyDrain'=>4,'staffDrain'=>3,'storageCapacity'=>['alloy'=>150],'unlocks'=>[],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>200,'crystal'=>80,'alloy'=>20],'buildTime'=>5400,'production'=>['alloy'=>3],'energyDrain'=>7,'staffDrain'=>5,'storageCapacity'=>['alloy'=>400],'unlocks'=>[],'popBonus'=>0],
@@ -231,10 +254,11 @@ const BUILDINGS = [
 
   // Duraplate is the structural refined resource — a shield needs plating, so it
   // cannot be built from raw metal alone (terrestrial output or trade only).
+  //
+  // Single level on purpose (2026-08-12): the shield is no longer upgraded, it is
+  // *charged*. Strength comes from the shield charge below, not from a level.
   'shield_generator' => ['tileType'=>'defense','levels'=>[
-    ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'duraplate'=>3],'buildTime'=>900,'production'=>[],'energyDrain'=>8,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>700,'crystal'=>350,'duraplate'=>7],'buildTime'=>14400,'production'=>[],'energyDrain'=>15,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>3,'cost'=>['metal'=>1500,'crystal'=>750,'duraplate'=>15],'buildTime'=>57600,'production'=>[],'energyDrain'=>25,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>400,'crystal'=>200,'duraplate'=>5],'buildTime'=>3600,'production'=>[],'energyDrain'=>12,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
   ]],
 
 ];
@@ -347,6 +371,22 @@ function battery_drain_per_hour(int $ppLevel): float {
     if ($ppLevel <= 0) return 0.0;
     return POWER_BATTERY_DRAIN[min($ppLevel, 6)] ?? POWER_BATTERY_DRAIN[6];
 }
+
+// ── Planetary shield (charge mechanic) ────────────────────────────────────────
+// Same shape as the reactor battery, with one deliberate difference: charging
+// the shield is NOT free. Each click costs crystal, so holding a shield at full
+// strength is a standing expense rather than a habit.
+//
+// The drain is set so a full shield loses ~30 % a day: a player who tops it up
+// on login keeps it standing for about three days without touching it. A click
+// buys 8 h of full strength (10 % at 1.25 %/h), so holding it there costs ~19
+// crystal per hour — noticeable on a young colony, small change on a developed
+// one. Unlike the battery, an empty shield has no side effect on the planet:
+// it is protection, not infrastructure.
+const SHIELD_MAX            = 100.0;  // % strength
+const SHIELD_CLICK          = 10.0;   // % gained per charge click
+const SHIELD_DRAIN_PER_HOUR = 1.25;   // 30 %/day → 80 h (3.3 d) full → empty
+const SHIELD_CLICK_COST     = ['crystal' => 150];
 
 // ── Population recruitment (base tile, daily growth pool) ──────────────────────
 // A recruit pool refills over time up to a cap; a +1 click moves one recruit into

@@ -31,6 +31,7 @@ const {
   gridDown,
   recruitPool,
   recruitPoolMax,
+  shieldCharge,
   hasAnomaly,
 } = useHawkStar()
 
@@ -46,7 +47,10 @@ const tileLabel = (slot) => {
   return TILE_TYPES[slot.tileType]?.name
 }
 
-// Top-edge status bar per tile: battery % on the energy tile, recruit pool on base.
+// Top-edge status bar per tile: battery % on the energy tile, recruit pool on
+// base, shield strength on defense. Only the shield also prints its number —
+// it fades slowly and costs crystal to top up, so the exact value is what
+// decides whether a click is worth it right now.
 const tileStatus = (slot) => {
   if (!slot.unlocked) return null
   if (slot.tileType === 'energy' && getLevel('power_plant') > 0) {
@@ -56,6 +60,15 @@ const tileStatus = (slot) => {
   if (slot.tileType === 'base') {
     const max = recruitPoolMax.value || 1
     return { kind: 'recruit', pct: Math.min(100, ((recruitPool.value ?? 0) / max) * 100) }
+  }
+  // null while the planet has no finished shield generator
+  if (slot.tileType === 'defense' && shieldCharge.value != null) {
+    const pct = Math.round(shieldCharge.value)
+    return {
+      kind:    pct <= 0 ? 'shield-empty' : pct < 20 ? 'shield-low' : 'shield',
+      pct,
+      showPct: true,
+    }
   }
   return null
 }
@@ -179,6 +192,9 @@ const onSelectSlot = (slot) => {
           :class="`hs-tile-bar--${tileStatus(slot).kind}`"
         >
           <div class="hs-tile-bar__fill" :style="{ width: tileStatus(slot).pct + '%' }" />
+          <span v-if="tileStatus(slot).showPct" class="hs-tile-bar__pct">
+            {{ tileStatus(slot).pct }}%
+          </span>
         </div>
         <div class="hs-tile-main">
           <span class="hs-tile-icon">
@@ -315,6 +331,27 @@ const onSelectSlot = (slot) => {
   background: rgba(239, 68, 68, 0.5);
   animation: pulse 1.5s ease-in-out infinite;
 }
+
+// Shield — same blue as HsShieldPanel. An empty shield is NOT a blackout (it has
+// no side effect on the planet), so it stays a plain red bar and never pulses.
+.hs-tile-bar--shield       .hs-tile-bar__fill { background: #38bdf8; }
+.hs-tile-bar--shield-low   .hs-tile-bar__fill { background: #f59e0b; }
+.hs-tile-bar--shield-empty { background: rgba(239, 68, 68, 0.35); }
+
+.hs-tile-bar__pct {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.5);
+}
+.hs-tile-bar--shield       .hs-tile-bar__pct { color: rgba(186, 230, 253, 0.75); }
+.hs-tile-bar--shield-low   .hs-tile-bar__pct { color: rgba(253, 230, 138, 0.85); }
+.hs-tile-bar--shield-empty .hs-tile-bar__pct { color: rgba(252, 165, 165, 0.9); }
 
 .hs-tile-main {
   display: flex;

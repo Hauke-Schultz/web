@@ -189,6 +189,15 @@
       "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall."
     },
 
+    "shield": {
+      "title": "Schildstärke",
+      "charge": "+{n} % Schild pro Klick",
+      "timeLeft": "hält noch {time}",
+      "down": "Schild unten",
+      "full": "voll aufgeladen",
+      "hint": "Baut sich mit der Zeit ab. Nachladen kostet Kristall."
+    },
+
     "anomaly": {
       "idle": "Ruhig da draußen. Das nächste Ereignis erreicht den Planeten in einigen Stunden.",
       "expiresHint": "Danach zieht das Ereignis weiter",
@@ -401,6 +410,16 @@
         "lv6": "+7 Kristall/min · +800 Lager",
         "lv7": "+9 Kristall/min · +1100 Lager"
       },
+      "deep_shaft": {
+        "name": "Tiefschacht-Gerüst",
+        "desc": "Verbaut Panzerplatten zu einem Stützrahmen und treibt dahinter einen neuen Schacht ab.",
+        "lv1": "1 Duraplate + 100 Kristall → 1200 Metall"
+      },
+      "survey_array": {
+        "name": "Tiefenscanner",
+        "desc": "Supraleitendes Sensorarray, das reiche Kristalladern aufspürt.",
+        "lv1": "1 Supraleiter + 100 Metall → 700 Kristall"
+      },
       "alloy_forge": {
         "name": "Legierungsschmiede",
         "desc": "Verhüttet Metall zu veredelter Legierung. Benötigt Labor Lv 2.",
@@ -554,10 +573,8 @@
       },
       "shield_generator": {
         "name": "Schildgenerator",
-        "desc": "Projiziert eine Energiebarriere um den Planeten.",
-        "lv1": "Basisschild — absorbiert 20% eingehenden Schaden",
-        "lv2": "Verstärkter Schild — absorbiert 40% eingehenden Schaden",
-        "lv3": "Festungsschild — absorbiert 60% eingehenden Schaden"
+        "desc": "Projiziert eine Energiebarriere um den Planeten. Wird mit Kristall aufgeladen und baut sich mit der Zeit ab.",
+        "lv1": "Aufladbarer Planetenschild"
       }
     }
   }

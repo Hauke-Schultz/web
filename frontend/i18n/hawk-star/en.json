@@ -188,6 +188,15 @@
       "hint": "Drains over time. Empty = total power loss."
     },
 
+    "shield": {
+      "title": "Shield strength",
+      "charge": "+{n}% shield per click",
+      "timeLeft": "{time} left",
+      "down": "Shield down",
+      "full": "fully charged",
+      "hint": "Fades over time. Recharging costs crystal."
+    },
+
     "anomaly": {
       "idle": "Quiet out there. The next event reaches the planet in a few hours.",
       "expiresHint": "After that the event moves on",
@@ -400,6 +409,16 @@
         "lv6": "+7 crystal/min · +800 storage",
         "lv7": "+9 crystal/min · +1100 storage"
       },
+      "deep_shaft": {
+        "name": "Deep Shaft Frame",
+        "desc": "Braces a new shaft with armour plating and works the seam behind it.",
+        "lv1": "1 duraplate + 100 crystal → 1200 metal"
+      },
+      "survey_array": {
+        "name": "Deep Survey Array",
+        "desc": "Superconducting sensor array that locates rich crystal veins.",
+        "lv1": "1 superconductor + 100 metal → 700 crystal"
+      },
       "alloy_forge": {
         "name": "Alloy Forge",
         "desc": "Smelts metal into refined alloy. Requires Laboratory Lv 2.",
@@ -553,10 +572,8 @@
       },
       "shield_generator": {
         "name": "Shield Generator",
-        "desc": "Projects an energy barrier around the planet.",
-        "lv1": "Basic shield — absorbs 20% incoming damage",
-        "lv2": "Enhanced shield — absorbs 40% incoming damage",
-        "lv3": "Fortress shield — absorbs 60% incoming damage"
+        "desc": "Projects an energy barrier around the planet. Charged with crystal, fades over time.",
+        "lv1": "Chargeable planetary shield"
       }
     }
   }

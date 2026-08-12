@@ -8,6 +8,7 @@ import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
 import HsProfilePanel from '~/components/hawk-star/HsProfilePanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPowerBattery from '~/components/hawk-star/HsPowerBattery.vue'
+import HsShieldPanel from '~/components/hawk-star/HsShieldPanel.vue'
 import HsRecruitPanel from '~/components/hawk-star/HsRecruitPanel.vue'
 import HsAnomalyPanel from '~/components/hawk-star/HsAnomalyPanel.vue'
 
@@ -58,6 +59,7 @@ const isSpacebaseTile    = computed(() => activeTileType.value?.id === 'spacebas
 const isHightechTile     = computed(() => activeTileType.value?.id === 'hightech')
 const isDockTile         = computed(() => activeTileType.value?.id === 'dock')
 const isEnergyTile       = computed(() => activeTileType.value?.id === 'energy')
+const isDefenseTile      = computed(() => activeTileType.value?.id === 'defense')
 const isBaseTile         = computed(() => activeTileType.value?.id === 'base')
 const isAnomalyTile      = computed(() => activeTileType.value?.id === 'anomaly')
 const isHomePlanet       = computed(() => activePlanetId.value === homePlanetId.value)
@@ -138,6 +140,10 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
 
     <!-- Power battery — grid uptime, shown on the energy tile once a power plant exists -->
     <HsPowerBattery v-if="isEnergyTile && getLevel('power_plant') > 0" />
+
+    <!-- Planetary shield — defense tile, once a generator stands. Same meter as
+         the battery, but each click is paid for in crystal. -->
+    <HsShieldPanel v-if="isDefenseTile && getLevel('shield_generator') > 0" />
 
     <!-- Population recruitment — base tile -->
     <HsRecruitPanel v-if="isBaseTile" />
@@ -262,11 +268,13 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
               :class="(playerResources[resId] ?? 0) >= amt ? 'hs-conv-res--ok' : 'hs-conv-res--no'"
             >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             <span class="hs-conv-arrow">→</span>
+            <!-- The amount carries the decision: "1200 Metall" is what makes a
+                 duraplate worth spending, the bare resource name never did. -->
             <span
               v-for="(amt, resId) in recipe.output"
               :key="resId"
               class="hs-conv-res hs-conv-res--out"
-            >{{ RESOURCES[resId]?.icon }} {{ t('hawkStar.res.' + resId) }}</span>
+            >{{ RESOURCES[resId]?.icon }} +{{ amt }} {{ t('hawkStar.res.' + resId) }}</span>
           </div>
 
           <!-- One button. It fills up while the job runs and shows the time left. -->
@@ -648,6 +656,8 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
   font-size: 0.65rem;
   padding: 2px 6px;
   border-radius: 5px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 
   &--ok  { background: var(--hs-ok-bg);          color: var(--hs-ok-muted); }
   &--no  { background: var(--hs-danger-bg-cost);  color: var(--hs-danger-muted); }

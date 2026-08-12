@@ -49,6 +49,17 @@ export const POWER_BATTERY = {
   drainPerHour: { 1: 1.389, 2: 1.042, 3: 0.833, 4: 0.694, 5: 0.595, 6: 0.521 },
 }
 
+// ── Planetary shield (charge mechanic) ────────────────────────────────────────
+// Same shape as the battery, but a click costs crystal — holding the shield up
+// is a standing expense. An empty shield has no side effect on the planet.
+// Values mirror SHIELD_* in api/star/config.php.
+export const SHIELD = {
+  max:          100,   // % strength
+  clickPercent: 10,    // % gained per charge click
+  drainPerHour: 1.25,  // 30 %/day → 80 h (3.3 d) full → empty
+  clickCost:    { crystal: 150 },
+}
+
 // ── Planet types ──────────────────────────────────────────────────────────────
 // Each type unlocks or restricts certain buildings.
 export const PLANET_TYPES = {
@@ -674,6 +685,60 @@ export const BUILDINGS = {
     ],
   },
 
+  // Deep Shaft Frame — duraplate is not "turned into" metal, it is built into a
+  // shaft frame that opens a new seam. One alloy refinery (1 duraplate / 30 min)
+  // feeds exactly one shaft.
+  deep_shaft: {
+    id:               'deep_shaft',
+    name:             'Deep Shaft Frame',
+    tileType:         'mining',
+    icon:             '🏗️',
+    description:      'Braces a new shaft with armour plating and works the seam behind it.',
+    requiresBuilding: 'metal_mine',
+    requiresLevel:    4,
+    conversions: [
+      { input: { crystal: 100, duraplate: 1 }, output: { metal: 1200 }, durationBase: 1800 },
+    ],
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 600, crystal: 300, plasma_core: 2, vital_gel: 2 },
+        buildTime:   5400,
+        effect:      '1 duraplate + 100 crystal → 1200 metal · uses 10 energy · 4 workers',
+        production:  {},
+        energyDrain: 10,
+        staffDrain:  4,
+      },
+    ],
+  },
+
+  // Deep Survey Array — a superconductor drives the sensor array that finds a
+  // rich vein. One cryo refinery feeds exactly one array. Mirror of the shaft:
+  // this one eats metal and yields crystal.
+  survey_array: {
+    id:               'survey_array',
+    name:             'Deep Survey Array',
+    tileType:         'mining',
+    icon:             '🔭',
+    description:      'Superconducting sensor array that locates rich crystal veins.',
+    requiresBuilding: 'crystal_drill',
+    requiresLevel:    4,
+    conversions: [
+      { input: { metal: 100, superconductor: 1 }, output: { crystal: 700 }, durationBase: 1800 },
+    ],
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 500, crystal: 400, plasma_core: 2, duraplate: 3 },
+        buildTime:   5400,
+        effect:      '1 superconductor + 100 metal → 700 crystal · uses 9 energy · 3 workers',
+        production:  {},
+        energyDrain: 9,
+        staffDrain:  3,
+      },
+    ],
+  },
+
   // ── Energy tile ────────────────────────────────────────────────────────────
 
   solar_array: {
@@ -1254,34 +1319,19 @@ export const BUILDINGS = {
     name:        'Shield Generator',
     tileType:    'defense',
     icon:        '🌐',
-    description: 'Projects an energy barrier around the planet to absorb incoming damage.',
+    description: 'Projects an energy barrier around the planet. Charge it with crystal — it fades over time.',
+    // Single level on purpose: the shield is not upgraded, it is charged. Its
+    // strength is the shield charge (see SHIELD), which decays and is topped up
+    // click by click, exactly like the reactor battery but paid for in crystal.
     levels: [
       {
         level:       1,
-        cost:        { metal: 300, crystal: 150, duraplate: 3 },
-        buildTime:   900,
-        effect:      'Basic shield — absorbs 20% incoming damage · uses 8 energy · 3 workers',
+        cost:        { metal: 400, crystal: 200, duraplate: 5 },
+        buildTime:   3600,
+        effect:      'Chargeable planetary shield · uses 12 energy · 4 workers',
         production:  {},
-        energyDrain: 8,
-        staffDrain:  3,
-      },
-      {
-        level:       2,
-        cost:        { metal: 700, crystal: 350, duraplate: 7 },
-        buildTime:   14400,
-        effect:      'Enhanced shield — absorbs 40% incoming damage · uses 15 energy · 5 workers',
-        production:  {},
-        energyDrain: 15,
-        staffDrain:  5,
-      },
-      {
-        level:       3,
-        cost:        { metal: 1500, crystal: 750, duraplate: 15 },
-        buildTime:   57600,
-        effect:      'Fortress shield — absorbs 60% incoming damage · uses 25 energy · 8 workers',
-        production:  {},
-        energyDrain: 25,
-        staffDrain:  8,
+        energyDrain: 12,
+        staffDrain:  4,
       },
     ],
   },

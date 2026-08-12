@@ -27,6 +27,20 @@ switch ($action) {
         resolve_buildings($db, $planetId, $playerId);
         ok(['action' => 'complete_buildings']);
 
+    case 'drain_shield':
+        if (!$planetId) fail('planetId required');
+        $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');
+        $own->execute([$planetId, $playerId]);
+        if (!$own->fetch()) fail('Planet not owned', 403);
+
+        // 40 h full → empty otherwise, which is no way to test the empty state.
+        ensure_shield($db, $planetId, $playerId);
+        $db->prepare(
+            'UPDATE hs_shield SET charge=0, charge_updated_at=NOW()
+             WHERE planet_id=? AND player_id=?'
+        )->execute([$planetId, $playerId]);
+        ok(['action' => 'drain_shield']);
+
     case 'drain_battery':
         if (!$planetId) fail('planetId required');
         $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');

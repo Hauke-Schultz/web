@@ -547,8 +547,13 @@ function resolve_conversions(PDO $db, int $planetId, int $playerId): void {
          WHERE planet_id=? AND player_id=? AND ends_at <= NOW()'
     );
     $done->execute([$planetId, $playerId]);
+    $rows = $done->fetchAll();
+    if (!$rows) return;
 
-    foreach ($done->fetchAll() as $q) {
+    // Looked up once for the whole batch, not per finished job.
+    $caps = planet_storage_caps($db, $planetId, $playerId);
+
+    foreach ($rows as $q) {
         $def    = building_def($q['building_key']);
         $recipe = $def['conversions'][$q['recipe_index']] ?? null;
         if (!$recipe) {
@@ -556,11 +561,12 @@ function resolve_conversions(PDO $db, int $planetId, int $playerId): void {
             continue;
         }
 
-        foreach ($recipe['output'] as $res => $amt) {
-            $db->prepare(
-                "UPDATE hs_planet_resources SET $res = $res + ? WHERE planet_id=? AND player_id=?"
-            )->execute([$amt, $planetId, $playerId]);
-        }
+        // Paid out through the cap-aware credit. A raw-resource output (the deep
+        // shaft ships 1200 metal at a time) landing on a nearly full silo fills
+        // it and stops; a plain `res = res + amt` would show an over-cap number
+        // that the next compute_resources() tick quietly shaves back down.
+        // Population has no cap and passes straight through.
+        credit_resources($db, $planetId, $playerId, $recipe['output'], $caps);
 
         if ((int)$q['remaining'] > 0) {
             $lvlRow = $db->prepare('SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=?');
@@ -645,6 +651,74 @@ function battery_state(PDO $db, int $planetId, int $playerId): ?array {
         'powerPlantLevel' => $ppLevel,
         'gridDown'        => $charge <= 0,
         'hoursToEmpty'    => $drainPerHour > 0 ? round($charge / $drainPerHour, 2) : null,
+    ];
+}
+
+// ── Planetary shield (charge mechanic) ────────────────────────────────────────
+// Mirrors the reactor battery: one row per planet, charge resolved live from the
+// elapsed time since the last write, so no cron and no resolve step is needed.
+// The one difference is that charging costs crystal — see defense/charge.php.
+
+function ensure_shield(PDO $db, int $planetId, int $playerId): void {
+    static $tableReady = false;
+    if (!$tableReady) {
+        try {
+            $db->exec(
+                'CREATE TABLE IF NOT EXISTS hs_shield (
+                   planet_id INT NOT NULL,
+                   player_id INT NOT NULL,
+                   charge FLOAT NOT NULL DEFAULT 0,
+                   charge_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                   PRIMARY KEY (planet_id, player_id)
+                 )'
+            );
+        } catch (\Throwable $e) {}
+        $tableReady = true;
+    }
+    // Starts empty, like a freshly built power plant: a new shield generator is
+    // installed but not yet charged.
+    $db->prepare(
+        'INSERT IGNORE INTO hs_shield (planet_id, player_id, charge, charge_updated_at)
+         VALUES (?,?,?, NOW())'
+    )->execute([$planetId, $playerId, 0]);
+}
+
+// Completed shield_generator level. Ignores build_ends_at for the same reason
+// power_plant_level does — an in-progress build must not switch the shield on.
+function shield_generator_level(PDO $db, int $planetId, int $playerId): int {
+    $s = $db->prepare(
+        'SELECT level FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND building_key=? AND build_ends_at IS NULL'
+    );
+    $s->execute([$planetId, $playerId, 'shield_generator']);
+    return (int)($s->fetchColumn() ?: 0);
+}
+
+// Live shield state for the API. Null means there is no shield generator on this
+// planet, i.e. the mechanic is inactive and the UI shows nothing.
+function shield_state(PDO $db, int $planetId, int $playerId): ?array {
+    if (shield_generator_level($db, $planetId, $playerId) <= 0) return null;
+
+    ensure_shield($db, $planetId, $playerId);
+
+    $row = $db->prepare(
+        'SELECT charge, TIMESTAMPDIFF(SECOND, charge_updated_at, NOW()) AS elapsed
+         FROM hs_shield WHERE planet_id=? AND player_id=?'
+    );
+    $row->execute([$planetId, $playerId]);
+    $s = $row->fetch();
+
+    $stored  = $s ? (float)$s['charge'] : 0.0;
+    $elapsed = $s ? max(0, (int)$s['elapsed']) : 0;
+    $charge  = max(0.0, $stored - SHIELD_DRAIN_PER_HOUR * ($elapsed / 3600.0));
+
+    return [
+        'charge'       => round($charge, 2),
+        'drainPerHour' => SHIELD_DRAIN_PER_HOUR,
+        'clickPercent' => SHIELD_CLICK,
+        'clickCost'    => SHIELD_CLICK_COST,
+        'down'         => $charge <= 0,
+        'hoursToEmpty' => round($charge / SHIELD_DRAIN_PER_HOUR, 2),
     ];
 }
 

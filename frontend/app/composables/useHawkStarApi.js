@@ -36,6 +36,7 @@ export function useHawkStarApi() {
     fetchCommLog:      ()                              => apiFetch('/comm/log'),
     postDevCheat:          (action, planetId = null, extra = {})  => post('/dev/cheat', { action, ...(planetId != null ? { planetId } : {}), ...extra }),
     chargeBattery:         (planetId)                 => post('/game/power/charge', { planetId }),
+    chargeShield:          (planetId)                 => post('/game/defense/charge', { planetId }),
     recruit:               (planetId)                 => post('/game/base/recruit', { planetId }),
     resolveAnomaly:        (planetId, choice)         => post('/game/anomaly/resolve', { planetId, choice }),
   }
