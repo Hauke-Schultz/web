@@ -54,7 +54,7 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | `techcenter` | Technology Center — Space Building, Weapon Building, Laboratory, Plasma Compressor |
 | `comm_center` | Comm Center — global research tile. Technologies researched here apply across all planets |
 | `spacebase` | Launch pad for drones and colony ships |
-| `defense` | Planetary shields and weapons platforms |
+| `defense` | Planetary shield (charged, not upgraded) · Orbital Defense (finds and shoots down foreign spy satellites) |
 | `hightech` | Advanced material refinement (planet-exclusive) |
 | `dock` | Ship management, missions and fleet operations — unlocked by Space Technology Lv 1; clicking opens `HsDockPanel` |
 | `warship_bay` | Placeholder — no buildings yet |
@@ -336,7 +336,7 @@ Units are built at the Space Base tile and consumed on missions. Each unit type 
 | **Colony Ship** | 300 Metal · 150 Crystal · 1 Power Cell · **6 crew** | Colonizes a scanned uncolonized planet |
 | **Cargo Drone** | 120 Metal · 60 Crystal · 2 Power Cells | Ships up to 4 high-tech goods to any known planet |
 | **Spy Drone** | 150 Metal · 80 Crystal · 1 Superconductor | Reports once who owns one planet in a scanned foreign system (one-way) |
-| **Spy Satellite** | 300 Metal · 150 Crystal · 1 Superconductor · 1 Duraplate | Stays in orbit and keeps that planet's finding current for 7 days |
+| **Spy Satellite** | 300 Metal · 150 Crystal · 1 Superconductor · 1 Duraplate | Stays in orbit and keeps that planet's finding current until it is shot down |
 
 > The cargo drone is the one exception to "only one active mission per unit type": it is limited to **one drone per planet in existence**, which is stricter. See the Cargo Drone section below.
 
@@ -455,8 +455,22 @@ An earlier version stored a "spied" flag and then served the **current** owner f
 |---|---|---|
 | Cost | 150 M · 80 C · 1 Superconductor | 300 M · 150 C · 1 Superconductor · 1 Duraplate |
 | Build | 2 h | 4 h |
-| Gives | one observation, then ages | keeps the entry **live for 7 days** |
+| Reads | **planet type** + owner | the same, **plus the planetary shield** |
+| Gives | one observation, then ages | keeps the entry **live until it is destroyed** |
 | Role | look once, look again later | keep looking |
+
+### What each unit reads  *(extended 2026-08-13)*
+
+The two units differ in **what** they can measure, not only in how long the answer stays fresh — otherwise the satellite is just a subscription to the drone.
+
+- **A drone flies past**, so it reads what a single pass gives: what kind of world this is, and who lives on it. The **planet type** is now part of that finding — it is the first thing that makes an unsurveyed foreign planet worth a flight even when you can guess who owns it, because the type decides whether the planet is worth colonizing or attacking later.
+- **A satellite sits in the orbit and watches**, so it additionally reports the **planetary shield**: whether there is a generator at all, and what its charge is. That is the first piece of *military* intel in the game, and it is deliberately the expensive unit's exclusive: the shield is the one value that will decide a future attack.
+
+Three distinctions the implementation depends on:
+
+- **The type is not a snapshot.** Owner and shield charge both change, so both are stored with a date and age. A planet's type never changes, so once surveyed it is simply known — `planet.type` is null before the first flight and correct forever after.
+- **"No generator" is a finding, not a gap.** `shield.charge === null` means the satellite looked and found nothing to measure; `shield === null` means nothing has ever measured. The UI draws the first as a greyed `🛡️ –` and the second as no chip at all.
+- **The shield reading carries its own date.** A later drone flight refreshes `observed_at` without ever looking at the emitter, so sharing one timestamp would let an owner report make a week-old shield figure read as current. Hence `shield_seen_at` next to `observed_at` — and the shield ages far faster than the owner does, since it drains ~30 %/day.
 
 Both are built at the **Drone Hangar** and fly the same route. The superconductor is the sensor package — espionage sits behind the **Control** domain; the satellite adds Duraplate for its frame, per the house rule that a build cost demands two domains the recipe itself does not.
 
@@ -468,17 +482,38 @@ Both are built at the **Drone Hangar** and fly the same route. The superconducto
 - **A stale report is not a blocker** — refreshing it is the drone's standing job, and re-spying is allowed at any time. The only refusal is a **live satellite** over that planet: it is already telling you everything the flight would.
 - **One espionage flight at a time per launching planet**, same rule as the recon drone.
 - **Flight time is the scan curve** — `max(2 h, distance × 180 s)` between star **systems**, so a neighbour is 2 h and the far side of the galaxy ~8 h. Inside a system every planet is the same trip.
-- **Stale after 48 h** (`SPY_INTEL_STALE_HOURS`), which is deliberately well under the satellite's 168 h: keeping a planet current by drone alone is a chore every two days, and that is what makes the satellite worth its price.
-- **The satellite's lifetime is the point.** An unlimited one would be a single purchase that settles espionage forever; with an expiry it stays a standing decision about which planets are worth watching. It is also the natural hook for the defense tile later — a scanner that detects and shoots down foreign satellites.
-- **What it reveals:** who owns that planet — or that it is genuinely empty. Buildings, resources and fleets are a later step, and they *have* to be snapshots, which is the other reason the report model comes first.
+- **Stale after 48 h** (`SPY_INTEL_STALE_HOURS`): keeping a planet current by drone alone is a chore every two days, and that is what makes the satellite worth its price.
+- **A satellite has no lifetime — it orbits until it is shot down** *(2026-08-13)*. It used to expire after 168 h, on the reasoning that an unlimited satellite is a single purchase that settles espionage forever. That reasoning was right and the timer was the wrong answer to it: what limits a satellite now is the planet it watches. See **Orbital Defense** below — the timer was replaced by an opponent.
+- **What it reveals:** the planet's type and who owns it — or that it is genuinely empty; the satellite adds the shield. Buildings, resources and fleets are a later step, and they *have* to be snapshots, which is the other reason the report model comes first.
+
+### Orbital Defense — what ends a satellite  *(implemented 2026-08-13)*
+
+🎯 **`orbital_defense`**, defense tile, single level, gated behind the `shield_generator`. **500 Metal · 300 Crystal · 2 Superconductor · 2 Plasma Core**, 10 energy, 3 workers. Control pays for the sensor that finds a satellite, Power for the gun that kills it — the two domains espionage itself is assembled from, which is the same rule every other build cost follows.
+
+It does two things, and the first one matters more:
+
+- **It is the detection.** Without the building a planet cannot tell that anything is in its orbit at all — `foreign_satellites()` returns an empty list before it stands, and the panel does not exist. That is what keeps a satellite worth placing over an undefended colony, and it means the building is bought on suspicion, not on evidence.
+- **It shoots one down per click**, for **1 Power Cell** (`INTERCEPT_COST`). Deliberately cheap next to the 300 M · 150 C · 1 SC · 1 DP satellite it destroys: the expense was the battery, and a defender who owns one should never weigh whether a kill is worth it.
+
+Three consequences that are the point of the design:
+
+- **The wreck is identified.** The kill names the spy — portrait and username — so being watched becomes something a player can answer. Getting caught is now the satellite's real price, and that risk is what replaced the timer.
+- **The spy is told.** `satellite_lost_at` doubles as an outbox: set when the satellite dies, cleared the moment `state.php` hands the loss over, so the message is delivered exactly once without a notification table. Losing a satellite has to be an event — the alternative is noticing weeks later that a chip quietly went missing from a list.
+- **The report freezes at the moment of the kill.** The satellite transmitted right up to the end, so its last frame — owner *and* shield charge — is written into `hs_spy_intel` before the flag drops. The entry then ages like any drone finding. Espionage does not lose what it had; it loses the live feed.
+
+The panel sits on the defense tile under the shield (`HsOrbitDefensePanel`): a red-tinted box with the bogey count, one row per satellite (portrait, name, *beobachtet seit …*) and a 🎯 button carrying its power-cell cost, exactly like the shield's crystal tag. With an empty orbit it says so — *"Orbit frei — keine fremden Satelliten geortet"* — because with this building an empty orbit is a finding, not a blank.
+
+Dev cheat **🛰️ Bespitzeln** (`spy_on_me`) plants a satellite from any other player over the active planet; testing this otherwise needs a second account and a four-hour flight.
 
 ### What the server hides
 
 | Field | Sent when |
 |---|---|
 | `planet.owner` | own planet · any planet in your home system · **live satellite** → current owner · otherwise the **stored observation** |
+| `planet.type` | own space · any planet you have surveyed once. `null` before that — the type is bought with the flight, not with the star chart |
 | `planet.known` | `false` means "not looked at yet", **not** "free" |
-| `planet.intel` | `{ observedAt, live, satelliteUntil }` — only for foreign planets you have looked at; null for your own space |
+| `planet.intel` | `{ observedAt, live, satelliteSince, shield }` — only for foreign planets you have looked at; null for your own space. `satelliteSince` is when the satellite was **placed**, not when it expires — it does not |
+| `planet.intel.shield` | only once a **satellite** has been there: `{ charge, observedAt, live }`. `charge: null` = no generator · `live: true` = read from the running satellite, so `observedAt` is null |
 | `system.inhabited` | always (the map has always listed inhabited systems as the ones worth scanning) |
 | `system.inhabitants` | only for a **scanned** system: portrait and name of each resident — **no planet count**, and never which planets |
 
@@ -490,23 +525,33 @@ Both are built at the **Drone Hangar** and fly the same route. The superconducto
 
 **The system tile** carries a pulsing dot while something of ours is inbound — **violet for a drone, teal for a satellite** — in the **top-left** corner, opposite the red unread-message dot, so a system with both still reads as two signals rather than one blob. Its tooltip names the target planet and the countdown; that dot deliberately keeps `pointer-events`, since the tooltip is the only place that information appears on the tile row. The click still bubbles, so selecting the system keeps working.
 
-The system card's planet list is the whole interface. Per planet: your colony, the reported owner or `Unkolonisiert`, and next to it **how old that finding is** — grey while fresh, amber past 48 h, teal `📡 5 d` while a satellite is transmitting. Then the actions: **🕵️ Ausspähen** (or *Neu* on an existing report) and **📡** for the satellite, each shown only when that unit is parked in the active planet's dock. A ❓ with a tooltip covers the case where nothing is available. One grey line under the list explains the whole mechanic. The dock panel gets two hangar rows (violet drone, teal satellite) and both appear in the mission list.
+The system card's planet list is the whole interface. Per planet, left to right: **the type icon**, the name, your colony / the reported owner or `Unkolonisiert`, **the shield chip**, and **how old that finding is** — grey while fresh, amber past 48 h, a teal `📡` while a satellite is transmitting. The satellite chip carries **no number**: there is no countdown left to print, and a figure there would read as a deadline that no longer exists. How long it has been watching lives in the tooltip instead. Then the actions: **🕵️ Ausspähen** (or *Neu* on an existing report) and **📡** for the satellite, each shown only when that unit is parked in the active planet's dock. A ❓ with a tooltip covers the case where nothing is available. One grey line under the list explains the whole mechanic. The dock panel gets two hangar rows (violet drone, teal satellite) and both appear in the mission list.
+
+**The type sits in front of the name as an icon**, not as a word — it is one glyph on a row that already carries four things, and the tooltip names it. An unsurveyed planet keeps the slot and shows a **greyed 🪐**, the same "missing, not absent" rule the solar map uses for a colony without a shield; a hole in the row would say nothing at all. Since the row now holds type, owner, shield, age and two buttons, the **name** is the part that gives up width and truncates.
+
+**The shield chip prints its number**, like the defense tile does and unlike the battery bar: `🛡️ 45 %` in blue for a standing shield, `🛡️ 0 %` in red for an emitter that is installed but empty, a greyed `🛡️ –` when the satellite found no generator, and nothing at all before a satellite has been there. A live satellite adds a faint teal glow — the same "this is current" signal the age label carries. The tooltip is the honest long form: what was measured *and* whether it is being measured right now or was read at the last contact.
 
 ### Implementation
 
-- **`hs_spy_intel`** (`player_id`, `planet_id`, `owner_player_id`, `owner_faction_id`, `observed_at`, `satellite_until`) is the report. `record_spy_intel()` is the **only** place it is written, and only from a landing mission — anywhere else and the report would silently start following the truth.
+- **`hs_spy_intel`** (`player_id`, `planet_id`, `owner_player_id`, `owner_faction_id`, `observed_at`, `satellite_until`, `satellite_active`, `satellite_lost_at`, `shield_seen_at`, `shield_charge`) is the report. `record_spy_intel()` is the **only** place it is written from a mission — anywhere else and the report would silently start following the truth; `destroy_spy_satellite()` is the one other writer, and it only ever freezes and switches off. New columns arrive through `ALTER`s guarded by `SHOW COLUMNS` probes inside `ensure_spy_intel_table()`.
+- **Probe every column on its own — never a pair behind one probe.** This is not a style preference, it broke the game once: `satellite_active` and `satellite_lost_at` were added by a single `ALTER` guarded only by a probe for the first. A database that had picked up an intermediate deploy already had `satellite_active`, so the guard held forever and `satellite_lost_at` never arrived — and the next `lost_satellites()` call died with an uncaught `PDOException` on every state load. The migration now walks a `column => ddl` map and probes each entry, so a half-migrated table heals itself on the next request. Any backfill that belongs to one column (the `satellite_active=1` carry-over) fires only on the run that actually added it.
+- **The two espionage reads in `state.php` swallow their own errors.** `foreign_satellites()` and `lost_satellites()` return `[]` on any exception. `state.php` is the endpoint the whole game hangs off; an empty satellite list is a survivable wrong answer, a white page over a notification is not. The writes are deliberately *not* wrapped — silence there would lose data.
+- **"Still up there" became a flag.** `satellite_active` replaced the `satellite_until > NOW()` comparison; `satellite_until` stays as the record of when each satellite was **placed**, which is what the defender's list and the `📡 seit …` tooltip show. Satellites that were still transmitting under the old 168 h rule keep orbiting after the migration, expired ones stay dead.
+- **The kill is claimed before it is paid for.** `destroy_spy_satellite()` returns false unless *its* `UPDATE … WHERE satellite_active=1` was the one that took the row, so two fast clicks on a stale list cannot burn two power cells on one satellite. `intercept.php` charges only after that returns true — the same claim-first pattern the anomaly resolver uses.
+- **Only the satellite branch of `record_spy_intel()` writes the shield.** It reads it through `planet_shield_charge()`, which resolves the planet's **owner** first — a shield belongs to a `(planet, player)` pair and the spying player never appears in that lookup. `null` comes back for an uncolonized planet and for an owner without a finished generator, and both are stored as "measured, nothing there".
+- **`spy_shield_report()` decides live vs. stored** in `/galaxy`: a transmitting satellite reads the emitter right now (`observedAt: null`, nothing to age), otherwise the last reading is served with its own date. The planet **type** needs no such branch — it cannot change, so the endpoint simply sends `p.type` when `$mine || $seen`, and `null` before that.
 - **`spy_intel_map()` is read by `/galaxy`**, which then serves the current owner when `live`, and the stored observation otherwise. A snapshot names a player id, so the endpoint also loads every player's identity: the owner it reports may not be the current one, which is exactly the point.
 - **The table backfills itself on creation** from completed `spy_drone` missions, so planets spied under the old "permanent live view" rule survive the change as an observation dated to the mission's arrival.
 - **`migrate_spy_missions()` cannot ride along with `migrate_cargo_missions()`**: that one returns early as soon as the `leg` column exists, which is true for every database migrated before espionage. It probes the ENUM definition itself instead — and it probes for `spy_satellite`, the value added last.
-- **One endpoint, two units.** `mission/spy.php` takes `unit`; the route, the gates and the flight time are identical, only `resolve_missions()` branches — the satellite passes `SPY_SATELLITE_HOURS` into the same recorder.
+- **One endpoint, two units.** `mission/spy.php` takes `unit`; the route, the gates and the flight time are identical, only `resolve_missions()` branches — the satellite passes `true` into the same recorder. Its "a live satellite already covers this planet" refusal needed no change: it reads `spy_intel_map()`'s `live`, which now comes from the flag. With no expiry that refusal simply lasts until somebody shoots the thing down.
 - **A landed flight changes what the server will say**, so the tick calls `reloadGalaxy()` — re-fetching is the point, since the client never had the hidden data to unhide.
 - Two things broke when owners disappeared from the response and are worth remembering as the pattern: the galaxy tile row filtered systems by `planets.some(p => p.owner)`, and `HsCommLog` decided whether to show the send bar the same way. Both now read the **system-level** `inhabited` / `inhabitants`. Anything else that wants "is somebody there" must do the same — per-planet owners are no longer a reliable population signal.
-- **Two onboarding steps** close the checklist (`HsTilePanel`): *step10* first surveyed foreign planet (`spiedPlanets.length > 0`) and *step11* first satellite placed. The second reads `satelliteDeployments` — a server-side count of satellites **ever** placed, not of live ones, because an expiring satellite must never un-tick a step that was achieved. Same pattern as `cargoDeliveries`. It is also counted locally on arrival so the tick ticks it, not the next state sync.
+- **Two onboarding steps** close the checklist (`HsTilePanel`): *step10* first surveyed foreign planet (`spiedPlanets.length > 0`) and *step11* first satellite placed. The second reads `satelliteDeployments` — a server-side count of satellites **ever** placed, not of live ones, because a satellite that is lost must never un-tick a step that was achieved. Same pattern as `cargoDeliveries`. It is also counted locally on arrival so the tick ticks it, not the next state sync.
 - Dev cheat **🕵️ Spionage** lands every espionage flight instantly.
 
 ### Files
 
-`spy_drone` / `spy_satellite` in `UNIT_COSTS` + `SPY_*` in `api/star/config.php` · `migrate_spy_missions`, `ensure_spy_intel_table`, `record_spy_intel`, `spy_intel_map`, `system_distance`, `spy_flight_seconds` in `bootstrap.php` · `api/star/game/mission/spy.php` · table `hs_spy_intel` · report filter in `api/star/galaxy/index.php` · `spy*` / `planetIntel` / `isIntelStale` in `useHawkStar.js` + `mapGalaxy`/`reloadGalaxy` · `HsGalaxyMap.vue` planet list · `HsDockPanel.vue`
+`spy_drone` / `spy_satellite` in `UNIT_COSTS` + `SPY_*` / `INTERCEPT_COST` / `orbital_defense` in `api/star/config.php` · `migrate_spy_missions`, `ensure_spy_intel_table`, `record_spy_intel`, `spy_intel_map`, `planet_shield_charge`, `spy_shield_report`, `orbital_defense_level`, `foreign_satellites`, `destroy_spy_satellite`, `lost_satellites`, `system_distance`, `spy_flight_seconds` in `bootstrap.php` · `api/star/game/mission/spy.php` · `api/star/game/defense/intercept.php` · `spy_on_me` in `api/star/dev/cheat.php` · table `hs_spy_intel` · report filter in `api/star/galaxy/index.php` · `foreignSatellites` / `satellitesLost` in `game/state.php` · `spy*` / `planetIntel` / `isIntelStale` / `interceptSatellite` in `useHawkStar.js` + `mapGalaxy`/`reloadGalaxy` · `HsGalaxyMap.vue` planet list (`typeIcon`, `shieldReport`, `shieldLabel`, `shieldTitle`) · `HsOrbitDefensePanel.vue` · `HsDockPanel.vue`
 
 ---
 
@@ -841,7 +886,7 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 | Phase 3 — Player interaction (trade, player messaging) | ⬜ Planned |
 | Phase 4 — Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
 | Phase 4 — Espionage — buildings / resources / fleet recon | ⬜ Planned |
-| Phase 4 — Defense tile detects and destroys foreign satellites | ⬜ Planned |
+| Phase 4 — Defense tile detects and destroys foreign satellites | ✅ Implemented |
 | Phase 5 — Combat (warships, stat-based combat) | ⬜ Planned |
 | Power battery (power_plant, click-to-charge, blackout when empty) | ✅ Implemented |
 | Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |

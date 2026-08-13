@@ -41,10 +41,17 @@ const SPY_FLIGHT_PER_DIST = 180;    // seconds per unit of system distance
 // SPY_INTEL_STALE_HOURS it is drawn as stale and wants a fresh flight.
 const SPY_INTEL_STALE_HOURS = 48;
 
-// A satellite keeps the same planet live for as long as it transmits. The
-// lifetime is what stops espionage from being solved once and for all: an
-// unlimited satellite would be a single purchase, not a standing decision.
-const SPY_SATELLITE_HOURS = 168;    // 7 days
+// A satellite keeps the same planet live for as long as it transmits — and it
+// transmits until somebody shoots it down. What stops espionage from being
+// solved once and for all is therefore no longer a timer but the target: an
+// `orbital_defense` on the watched planet finds it and destroys it, which is
+// also what makes placing one a wager rather than a purchase (see
+// INTERCEPT_COST). Until 2026-08-13 this was a flat 168 h lifetime.
+
+// One shot from the orbital battery. Deliberately cheap next to the satellite it
+// kills (300 M · 150 C · 1 SC · 1 DP): the expense was the battery itself, and a
+// defender who has built one should never hesitate to use it.
+const INTERCEPT_COST = ['power_cell' => 1];
 
 // ── Cargo drone ───────────────────────────────────────────────────────────────
 // Only high-tech goods can be shipped. Raw resources are deliberately excluded:
@@ -286,6 +293,13 @@ const BUILDINGS = [
   // *charged*. Strength comes from the shield charge below, not from a level.
   'shield_generator' => ['tileType'=>'defense','levels'=>[
     ['level'=>1,'cost'=>['metal'=>400,'crystal'=>200,'duraplate'=>5],'buildTime'=>3600,'production'=>[],'energyDrain'=>12,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
+  ]],
+
+  // Finds foreign satellites over this planet and shoots them down. Control pays
+  // for the sensor that spots them, Power for the gun that kills them — the two
+  // domains espionage itself is built from.
+  'orbital_defense' => ['tileType'=>'defense','requiresBuilding'=>'shield_generator','requiresLevel'=>1,'levels'=>[
+    ['level'=>1,'cost'=>['metal'=>500,'crystal'=>300,'superconductor'=>2,'plasma_core'=>2],'buildTime'=>5400,'production'=>[],'energyDrain'=>10,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
 ];

@@ -27,6 +27,12 @@ resolve_timers($db, $planetId, $playerId);
 compute_resources($db, $planetId, $playerId, $planet['type']);
 $battery = battery_state($db, $planetId, $playerId);
 $shield  = shield_state($db, $planetId, $playerId);
+// Foreign satellites over this planet. Empty without an orbital_defense — the
+// building IS the detection, so an undefended colony never learns it is watched.
+$bogeys  = foreign_satellites($db, $planetId, $playerId);
+// Player-wide, and self-clearing: our own satellites that were shot down since
+// we were last told. Reported once, on whichever planet loads first.
+$lostSats = lost_satellites($db, $playerId);
 $recruit = recruit_state($db, $planetId, $playerId);
 $units   = units_state($db, $planetId, $playerId);
 $cargo   = cargo_state($db, $planetId, $playerId);
@@ -158,6 +164,8 @@ ok([
     'conversionQueues'   => $convQueues,
     'battery'            => $battery,
     'shield'             => $shield,
+    'foreignSatellites'  => $bogeys,
+    'satellitesLost'     => $lostSats,
     'recruit'            => $recruit,
     'cargo'              => $cargo,
     'anomaly'            => $anomaly,

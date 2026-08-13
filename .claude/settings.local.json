@@ -46,7 +46,11 @@
       "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"//c/Users/hauke/WebstormProjects/web/api:/app\" -v \"//c/Users/hauke/AppData/Local/Temp/claude/C--Users-hauke-WebstormProjects-web/4c3c99fd-fc1e-4b2d-a949-19f5b7a2e8cf/scratchpad:/probe\" web-php:latest php /probe/anomaly_probe.php)",
       "Bash(MSYS_NO_PATHCONV=1 docker exec web-php-1 *)",
       "Bash(php -l C:/Users/hauke/WebstormProjects/web/api/star/config.php)",
-      "Bash(grep -n \"// power battery\" -A 8 frontend/app/composables/useHawkStar.js)"
+      "Bash(grep -n \"// power battery\" -A 8 frontend/app/composables/useHawkStar.js)",
+      "Bash(php -l api/star/bootstrap.php)",
+      "Bash(php -l api/star/galaxy/index.php)",
+      "Bash(grep *)",
+      "Bash(export MSYS_NO_PATHCONV=1)"
     ]
   }
 }

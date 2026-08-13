@@ -10,6 +10,7 @@ import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPowerBattery from '~/components/hawk-star/HsPowerBattery.vue'
 import HsShieldPanel from '~/components/hawk-star/HsShieldPanel.vue'
 import HsRecruitPanel from '~/components/hawk-star/HsRecruitPanel.vue'
+import HsOrbitDefensePanel from '~/components/hawk-star/HsOrbitDefensePanel.vue'
 import HsAnomalyPanel from '~/components/hawk-star/HsAnomalyPanel.vue'
 
 defineProps({ activePanel: { type: String, default: null } })
@@ -32,6 +33,7 @@ const {
   isOffline,
   freeWorkers,
   batteryCharge,
+  hasOrbitalDefense,
   starMapLevel,
   playerColonizedPlanets,
   playerScannedPlanets,
@@ -152,6 +154,11 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
     <!-- Planetary shield — defense tile, once a generator stands. Same meter as
          the battery, but each click is paid for in crystal. -->
     <HsShieldPanel v-if="isDefenseTile && getLevel('shield_generator') > 0" />
+
+    <!-- Orbital defense — what a foreign spy satellite dies of. Only visible
+         with the building, because the building is the sensor: without it the
+         planet cannot tell that anything is up there. -->
+    <HsOrbitDefensePanel v-if="isDefenseTile && hasOrbitalDefense" />
 
     <!-- Population recruitment — base tile -->
     <HsRecruitPanel v-if="isBaseTile" />

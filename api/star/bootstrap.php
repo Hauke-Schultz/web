@@ -452,9 +452,50 @@ function ensure_spy_intel_table(PDO $db): void {
                owner_faction_id INT NULL,
                observed_at      DATETIME NOT NULL,
                satellite_until  DATETIME NULL,
+               satellite_active TINYINT(1) NOT NULL DEFAULT 0,
+               satellite_lost_at DATETIME NULL,
+               shield_seen_at   DATETIME NULL,
+               shield_charge    FLOAT NULL,
                PRIMARY KEY (player_id, planet_id)
              )'
         );
+
+        // Every added column is probed and added ON ITS OWN. Grouping several
+        // into one ALTER behind a single probe is what broke this table once:
+        // a database that had picked up the first column of a pair skipped the
+        // ALTER forever and never got the second, so the next query died on a
+        // missing field. Column by column, a half-migrated table heals itself.
+        //
+        //   shield_seen_at / shield_charge — the shield reading carries its own
+        //     timestamp, because a later drone flight refreshes `observed_at`
+        //     without ever looking at the emitter.
+        //   satellite_active — a satellite no longer expires, so "is it still up
+        //     there" became a flag instead of a date comparison.
+        //   satellite_lost_at — the outbox for "your satellite was destroyed".
+        if (!$fresh) {
+            $columns = [
+                'shield_seen_at'    => 'DATETIME NULL',
+                'shield_charge'     => 'FLOAT NULL',
+                'satellite_active'  => 'TINYINT(1) NOT NULL DEFAULT 0',
+                'satellite_lost_at' => 'DATETIME NULL',
+            ];
+            $added = [];
+            foreach ($columns as $col => $ddl) {
+                if ($db->query("SHOW COLUMNS FROM hs_spy_intel LIKE '$col'")->fetch()) continue;
+                $db->exec("ALTER TABLE hs_spy_intel ADD COLUMN $col $ddl");
+                $added[] = $col;
+            }
+
+            // Satellites that were still transmitting under the old 168 h rule
+            // keep orbiting; ones that had already run out stay dead. Only on
+            // the run that introduced the flag — afterwards it is the truth.
+            if (in_array('satellite_active', $added, true)) {
+                $db->exec(
+                    'UPDATE hs_spy_intel SET satellite_active=1
+                     WHERE satellite_until IS NOT NULL AND satellite_until > NOW()'
+                );
+            }
+        }
 
         // Carry over anything spied before intel existed: those missions granted
         // a permanent live view, so the honest translation is "seen on arrival".
@@ -471,9 +512,46 @@ function ensure_spy_intel_table(PDO $db): void {
     } catch (\Throwable $e) {}
 }
 
+// The planetary shield as an outsider would measure it: null means there is
+// nothing to measure — no owner, or an owner without a finished generator.
+// Reading it needs the OWNER's id, since a shield belongs to a (planet, player)
+// pair; the spying player never appears in this lookup.
+function planet_shield_charge(PDO $db, int $planetId): ?float {
+    $ownerRow = $db->prepare('SELECT player_id FROM hs_planet_ownership WHERE planet_id=?');
+    $ownerRow->execute([$planetId]);
+    $ownerId = $ownerRow->fetchColumn();
+    if ($ownerId === false) return null;
+
+    $shield = shield_state($db, $planetId, (int)$ownerId);
+    return $shield ? (float)$shield['charge'] : null;
+}
+
+// The shield half of a report, as the galaxy endpoint serves it. Null means no
+// satellite has ever looked — the drone does not carry that sensor. A live
+// satellite reads the emitter right now; once it stops transmitting the last
+// reading stays, dated to the moment it was taken.
+function spy_shield_report(PDO $db, int $planetId, array $seen): ?array {
+    if ($seen['live']) {
+        return [
+            'charge'     => planet_shield_charge($db, $planetId),
+            'observedAt' => null,      // nothing to age while it is still watching
+            'live'       => true,
+        ];
+    }
+    if ($seen['shieldSeenAt'] === null) return null;
+
+    return [
+        'charge'     => $seen['shieldCharge'],
+        'observedAt' => $seen['shieldSeenAt'],
+        'live'       => false,
+    ];
+}
+
 // Writes down what the planet looks like right now. Called when a spy mission
 // lands — never anywhere else, or the report would silently follow the truth.
-function record_spy_intel(PDO $db, int $playerId, int $planetId, ?int $satelliteHours = null): void {
+// `$satellite` marks the row as transmitting: it stays that way until an
+// orbital defense shoots the thing down.
+function record_spy_intel(PDO $db, int $playerId, int $planetId, bool $satellite = false): void {
     ensure_spy_intel_table($db);
 
     $ownerRow = $db->prepare('SELECT player_id FROM hs_planet_ownership WHERE planet_id=?');
@@ -486,17 +564,30 @@ function record_spy_intel(PDO $db, int $playerId, int $planetId, ?int $satellite
     $factionId = $factionRow->fetchColumn();
     $factionId = $factionId === false ? null : (int)$factionId;
 
-    if ($satelliteHours !== null) {
+    // Only the satellite carries a sensor suite big enough for the shield: it
+    // sits in the orbit and watches the emitter, where the drone makes one pass
+    // and reads off who lives there. A null charge is a finding too — "no
+    // generator on this rock" — which is why `shield_seen_at` is what marks the
+    // reading as taken, never the value.
+    if ($satellite) {
+        $shieldCharge = planet_shield_charge($db, $planetId);
+
+        // `satellite_until` is no longer an expiry — it records when this one was
+        // placed, which is what the defender's target list shows.
         $db->prepare(
             'INSERT INTO hs_spy_intel
-               (player_id, planet_id, owner_player_id, owner_faction_id, observed_at, satellite_until)
-             VALUES (?,?,?,?, NOW(), DATE_ADD(NOW(), INTERVAL ? HOUR))
+               (player_id, planet_id, owner_player_id, owner_faction_id, observed_at,
+                satellite_until, satellite_active, shield_seen_at, shield_charge)
+             VALUES (?,?,?,?, NOW(), NOW(), 1, NOW(), ?)
              ON DUPLICATE KEY UPDATE
                owner_player_id=VALUES(owner_player_id),
                owner_faction_id=VALUES(owner_faction_id),
                observed_at=NOW(),
-               satellite_until=VALUES(satellite_until)'
-        )->execute([$playerId, $planetId, $ownerId, $factionId, $satelliteHours]);
+               satellite_until=NOW(),
+               satellite_active=1,
+               shield_seen_at=NOW(),
+               shield_charge=VALUES(shield_charge)'
+        )->execute([$playerId, $planetId, $ownerId, $factionId, $shieldCharge]);
         return;
     }
 
@@ -520,10 +611,11 @@ function spy_intel_map(PDO $db, int $playerId): array {
     ensure_spy_intel_table($db);
 
     $rows = $db->prepare(
-        'SELECT planet_id, owner_player_id, owner_faction_id,
+        'SELECT planet_id, owner_player_id, owner_faction_id, shield_charge,
                 UNIX_TIMESTAMP(observed_at) AS observed_ts,
                 UNIX_TIMESTAMP(satellite_until) AS satellite_ts,
-                (satellite_until IS NOT NULL AND satellite_until > NOW()) AS live
+                UNIX_TIMESTAMP(shield_seen_at) AS shield_ts,
+                satellite_active AS live
          FROM hs_spy_intel WHERE player_id=?'
     );
     $rows->execute([$playerId]);
@@ -534,11 +626,138 @@ function spy_intel_map(PDO $db, int $playerId): array {
             'ownerPlayerId'  => $r['owner_player_id']  === null ? null : (int)$r['owner_player_id'],
             'ownerFactionId' => $r['owner_faction_id'] === null ? null : (int)$r['owner_faction_id'],
             'observedAt'     => (int)$r['observed_ts'] * 1000,
-            'satelliteUntil' => $r['satellite_ts'] ? (int)$r['satellite_ts'] * 1000 : null,
+            // When this satellite was placed, not when it runs out — it does not.
+            'satelliteSince' => $r['satellite_ts'] ? (int)$r['satellite_ts'] * 1000 : null,
             'live'           => (bool)$r['live'],
+            // Satellite-only, and dated separately: null means no satellite has
+            // ever looked, a set date with a null charge means it looked and
+            // found no generator.
+            'shieldSeenAt'   => $r['shield_ts'] ? (int)$r['shield_ts'] * 1000 : null,
+            'shieldCharge'   => $r['shield_charge'] === null ? null : (float)$r['shield_charge'],
         ];
     }
     return $map;
+}
+
+// ── Orbital defense: finding and killing foreign satellites ───────────────────
+// A satellite has no lifetime any more, so the thing that ends it is the planet
+// it is watching. Detection is a building: without an `orbital_defense` the
+// owner cannot see what is up there at all, which is what keeps a satellite
+// worth placing on an undefended colony.
+
+function orbital_defense_level(PDO $db, int $planetId, int $playerId): int {
+    $s = $db->prepare(
+        'SELECT level FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND building_key=? AND build_ends_at IS NULL'
+    );
+    $s->execute([$planetId, $playerId, 'orbital_defense']);
+    return (int)($s->fetchColumn() ?: 0);
+}
+
+// Every foreign satellite currently transmitting from this planet's orbit, with
+// the identity of whoever placed it: the wreck is identified, which is what
+// turns being spied on into something a player can answer. Empty without the
+// building — an undetected satellite is invisible, not merely unshootable.
+function foreign_satellites(PDO $db, int $planetId, int $playerId): array {
+    if (orbital_defense_level($db, $planetId, $playerId) <= 0) return [];
+    ensure_spy_intel_table($db);
+
+    // A read this small must never take down state.php, and it once did: a column
+    // the migration had skipped turned every game load into a fatal error and the
+    // whole game was unreachable over a satellite list. An empty orbit is a
+    // survivable wrong answer; a white page is not.
+    try {
+        $rows = $db->prepare(
+            'SELECT si.player_id, pl.username, pl.portrait,
+                    UNIX_TIMESTAMP(si.satellite_until) AS placed_ts
+             FROM hs_spy_intel si
+             JOIN hs_players pl ON pl.id = si.player_id
+             WHERE si.planet_id=? AND si.satellite_active=1 AND si.player_id<>?
+             ORDER BY si.satellite_until ASC'
+        );
+        $rows->execute([$planetId, $playerId]);
+
+        return array_map(fn($r) => [
+            'playerId' => (int)$r['player_id'],
+            'username' => $r['username'],
+            'portrait' => $r['portrait'],
+            'placedAt' => $r['placed_ts'] ? (int)$r['placed_ts'] * 1000 : null,
+        ], $rows->fetchAll());
+    } catch (\Throwable $e) {
+        return [];
+    }
+}
+
+// Shoots one down. The satellite transmitted right up to the moment it died, so
+// its last frame is written into the report before the flag drops: the spy keeps
+// what it saw, dated to the destruction, and it ages from there like any drone
+// finding. Returns false when there was nothing to hit — a second click on a
+// stale list must not burn the ammunition.
+function destroy_spy_satellite(PDO $db, int $spyPlayerId, int $planetId): bool {
+    ensure_spy_intel_table($db);
+
+    $claim = $db->prepare(
+        'UPDATE hs_spy_intel SET satellite_active=0
+         WHERE player_id=? AND planet_id=? AND satellite_active=1'
+    );
+    $claim->execute([$spyPlayerId, $planetId]);
+    if ($claim->rowCount() < 1) return false;
+
+    $ownerRow = $db->prepare('SELECT player_id FROM hs_planet_ownership WHERE planet_id=?');
+    $ownerRow->execute([$planetId]);
+    $ownerId = $ownerRow->fetchColumn();
+
+    $db->prepare(
+        'UPDATE hs_spy_intel
+         SET owner_player_id=?, observed_at=NOW(), shield_seen_at=NOW(), shield_charge=?,
+             satellite_lost_at=NOW()
+         WHERE player_id=? AND planet_id=?'
+    )->execute([
+        $ownerId === false ? null : (int)$ownerId,
+        planet_shield_charge($db, $planetId),
+        $spyPlayerId, $planetId,
+    ]);
+
+    return true;
+}
+
+// Losses this player has not been told about yet. `satellite_lost_at` doubles as
+// the outbox: it is set when the satellite dies and cleared the moment the owner
+// is handed the news, so the message is delivered exactly once without a
+// notification table. Losing one has to be an event — the alternative is
+// noticing weeks later that a chip quietly went missing from a list.
+function lost_satellites(PDO $db, int $playerId): array {
+    ensure_spy_intel_table($db);
+
+    // Same guard as foreign_satellites(): state.php is the endpoint the entire
+    // game hangs off, and a notification is not worth a fatal error.
+    try {
+        $rows = $db->prepare(
+            'SELECT si.planet_id, p.name AS planet_name, s.name AS system_name,
+                    UNIX_TIMESTAMP(si.satellite_lost_at) AS lost_ts
+             FROM hs_spy_intel si
+             JOIN hs_planets p      ON p.id = si.planet_id
+             JOIN hs_star_systems s ON s.id = p.system_id
+             WHERE si.player_id=? AND si.satellite_lost_at IS NOT NULL'
+        );
+        $rows->execute([$playerId]);
+        $lost = $rows->fetchAll();
+        if (!$lost) return [];
+
+        $db->prepare(
+            'UPDATE hs_spy_intel SET satellite_lost_at=NULL
+             WHERE player_id=? AND satellite_lost_at IS NOT NULL'
+        )->execute([$playerId]);
+
+        return array_map(fn($r) => [
+            'planetId'   => (int)$r['planet_id'],
+            'planetName' => $r['planet_name'],
+            'systemName' => $r['system_name'],
+            'lostAt'     => (int)$r['lost_ts'] * 1000,
+        ], $lost);
+    } catch (\Throwable $e) {
+        return [];
+    }
 }
 
 // Distance between two star systems, in the same units the galaxy map uses.
@@ -698,7 +917,7 @@ function resolve_missions(PDO $db, int $playerId): void {
             record_spy_intel($db, $playerId, $toId);
         }
         if ($m['type'] === 'spy_satellite') {
-            record_spy_intel($db, $playerId, $toId, SPY_SATELLITE_HOURS);
+            record_spy_intel($db, $playerId, $toId, true);
         }
 
         // recon_drone needs no branch of its own: the completed row IS what it

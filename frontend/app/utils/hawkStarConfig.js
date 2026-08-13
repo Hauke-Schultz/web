@@ -44,7 +44,9 @@ export const SPY = {
   flightMin:      7200,   // seconds — a neighbouring system
   flightPerDist:  180,    // seconds per unit of system distance
   staleHours:     48,     // after this a drone report is drawn as stale
-  satelliteHours: 168,    // 7 days of live coverage per satellite
+  // A satellite has no lifetime: it transmits until the planet it watches shoots
+  // it down. What limits espionage is the target's orbital_defense, not a timer.
+  interceptCost:  { power_cell: 1 },   // mirrors INTERCEPT_COST in config.php
 }
 
 // ── Cargo drone ───────────────────────────────────────────────────────────────
@@ -1349,6 +1351,31 @@ export const BUILDINGS = {
         production:  {},
         energyDrain: 12,
         staffDrain:  4,
+      },
+    ],
+  },
+
+  // Detects and destroys foreign spy satellites in this planet's orbit. Control
+  // (superconductor) pays for the sensor that finds them, Power (plasma core)
+  // for the gun — the two domains espionage itself is assembled from.
+  orbital_defense: {
+    id:          'orbital_defense',
+    name:        'Orbital Defense',
+    tileType:    'defense',
+    icon:        '🎯',
+    description: 'Tracks foreign satellites over the planet and shoots them down.',
+    requiresBuilding: 'shield_generator',
+    requiresLevel:    1,
+    // Single level like the shield: it either watches the orbit or it does not.
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 500, crystal: 300, superconductor: 2, plasma_core: 2 },
+        buildTime:   5400,
+        effect:      'Detects foreign satellites · uses 10 energy · 3 workers',
+        production:  {},
+        energyDrain: 10,
+        staffDrain:  3,
       },
     ],
   },

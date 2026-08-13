@@ -20,6 +20,8 @@
       "spyDone": "Spy report received",
       "satelliteReady": "Spy satellite ready",
       "satelliteOnline": "Satellite transmitting",
+      "satelliteDestroyed": "Foreign satellite shot down",
+      "satelliteLost": "Own satellite destroyed",
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone building",
       "colonyBuilding": "Colony Ship building",
@@ -87,9 +89,9 @@
       "noCrew": "Not enough free workers for the crew",
       "launchFromSystemMap": "Launch units from the System Map",
       "spyDrone": "Spy Drone",
-      "spyDroneDesc": "Looks once at who owns a planet in a scanned foreign system",
+      "spyDroneDesc": "Looks once at what kind of planet it is and who owns it, in a scanned foreign system",
       "spySatellite": "Spy Satellite",
-      "spySatelliteDesc": "Stays in orbit and keeps the finding current while it transmits",
+      "spySatelliteDesc": "Stays in orbit, keeps the finding current and measures the shield generator — until an orbital defense shoots it down",
       "launchFromGalaxyMap": "Pick a target on the Galaxy Map"
     },
 
@@ -142,11 +144,18 @@
       "spyAgain": "Refresh",
       "spyFlight": "Flight time: {time}",
       "spyNoDrone": "No spy drone in the dock",
-      "spyHint": "Only a spy drone reveals who sits on which planet — and its report ages. A satellite keeps it current.",
-      "satelliteHint": "Place a satellite in orbit — keeps the finding current for {hours} h (surveyed planets only)",
+      "spyHint": "Only a spy drone reveals a planet's type and owner — and its report ages. A satellite keeps it current and also reports the shield — until the planet's orbital defense shoots it down.",
+      "satelliteHint": "Place a satellite in orbit — keeps the finding current and measures the shield until it is shot down (surveyed planets only)",
+      "typeUnknown": "Planet type unknown — a spy drone finds it out",
+      "shieldNone": "No shield generator",
+      "shieldUp": "Shield up — {n} %",
+      "shieldDown": "Shield generator present, but empty",
+      "shieldSrcLive": "satellite measuring live",
+      "shieldSrcSnapshot": "last satellite contact {age}",
       "spyEnRoute": "Spy drone en route → {planet} · {time} left",
       "satelliteEnRoute": "Spy satellite en route → {planet} · {time} left",
       "intelLive": "Satellite transmitting — current",
+      "intelLiveSince": "Satellite transmitting for {age} — current until it is shot down",
       "intelSnapshot": "Snapshot from the last drone flight — may be out of date",
       "intelAgeMin": "{n} min ago",
       "intelAgeHours": "{n} h ago",
@@ -220,6 +229,17 @@
       "down": "Shield down",
       "full": "fully charged",
       "hint": "Fades over time. Recharging costs crystal."
+    },
+
+    "orbitDefense": {
+      "title": "Orbital Defense",
+      "clear": "Orbit clear — no foreign satellites detected.",
+      "watching": "watching for {age}",
+      "fire": "Shoot down",
+      "fireHint": "Destroy the satellite — its report freezes at the moment of the kill",
+      "noAmmo": "Not enough power cells",
+      "destroyed": "Satellite of {name} destroyed",
+      "hint": "Without this building foreign satellites stay invisible. A satellite transmits until it is shot down."
     },
 
     "anomaly": {
@@ -599,6 +619,11 @@
         "name": "Shield Generator",
         "desc": "Projects an energy barrier around the planet. Charged with crystal, fades over time.",
         "lv1": "Chargeable planetary shield"
+      },
+      "orbital_defense": {
+        "name": "Orbital Defense",
+        "desc": "Tracks foreign spy satellites over the planet and shoots them down.",
+        "lv1": "Detects and destroys foreign satellites"
       }
     }
   }

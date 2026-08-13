@@ -196,6 +196,22 @@ switch ($action) {
         resolve_missions($db, $playerId);
         ok(['action' => 'complete_spy_missions']);
 
+    // Testing the orbital defense needs somebody else's satellite over our own
+    // planet, which normally takes a second account and a four-hour flight.
+    // Plants one from any other player, so the panel has something to shoot at.
+    case 'spy_on_me':
+        if (!$planetId) fail('planetId required');
+        $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');
+        $own->execute([$planetId, $playerId]);
+        if (!$own->fetch()) fail('Planet not owned', 403);
+
+        $other = $db->prepare('SELECT id FROM hs_players WHERE id<>? ORDER BY id LIMIT 1');
+        $other->execute([$playerId]);
+        $spyId = $other->fetchColumn();
+        if ($spyId === false) fail('No other player to spy with');
+        record_spy_intel($db, (int)$spyId, $planetId, true);
+        ok(['action' => 'spy_on_me', 'spyPlayerId' => (int)$spyId]);
+
     case 'complete_scanning':
         $db->prepare(
             "UPDATE hs_system_contacts SET scan_ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)

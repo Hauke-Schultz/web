@@ -21,6 +21,8 @@
       "spyDone": "Spionagebericht eingetroffen",
       "satelliteReady": "Spionagesatellit bereit",
       "satelliteOnline": "Satellit funkt",
+      "satelliteDestroyed": "Fremder Satellit abgeschossen",
+      "satelliteLost": "Eigener Satellit zerstört",
       "buildingTitle": "{name} Lv{level}",
       "droneBuilding": "Recon Drone wird gebaut",
       "colonyBuilding": "Colony Ship wird gebaut",
@@ -89,9 +91,9 @@
       "noCrew": "Zu wenig freie Arbeiter für die Besatzung",
       "launchFromSystemMap": "Einheiten über die Systemkarte starten",
       "spyDrone": "Spionagedrohne",
-      "spyDroneDesc": "Sieht einmal nach, wem ein Planet in einem gescannten Fremdsystem gehört",
+      "spyDroneDesc": "Sieht einmal nach, welcher Planetentyp das ist und wem er in einem gescannten Fremdsystem gehört",
       "spySatellite": "Spionagesatellit",
-      "spySatelliteDesc": "Bleibt im Orbit und hält den Befund aktuell, solange er funkt",
+      "spySatelliteDesc": "Bleibt im Orbit, hält den Befund aktuell und misst den Schildgenerator — bis ihn eine Orbitalabwehr abschießt",
       "launchFromGalaxyMap": "Ziel über die Galaxiekarte wählen"
     },
 
@@ -143,11 +145,18 @@
       "spyAgain": "Neu",
       "spyFlight": "Flugzeit: {time}",
       "spyNoDrone": "Keine Spionagedrohne im Dock",
-      "spyHint": "Wer auf welchem Planeten sitzt, verrät erst eine Spionagedrohne — und ihr Bericht altert. Ein Satellit hält ihn aktuell.",
-      "satelliteHint": "Satellit in den Orbit setzen — hält den Befund {hours} h lang aktuell (nur auf ausgespähten Planeten)",
+      "spyHint": "Planetentyp und Besitzer verrät erst eine Spionagedrohne — und ihr Bericht altert. Ein Satellit hält ihn aktuell und meldet zusätzlich den Schildstatus — bis die Orbitalabwehr des Planeten ihn abschießt.",
+      "satelliteHint": "Satellit in den Orbit setzen — hält den Befund aktuell und misst den Schild, bis er abgeschossen wird (nur auf ausgespähten Planeten)",
+      "typeUnknown": "Planetentyp unbekannt — eine Spionagedrohne stellt ihn fest",
+      "shieldNone": "Kein Schildgenerator",
+      "shieldUp": "Schild aktiv — {n} %",
+      "shieldDown": "Schildgenerator vorhanden, aber leer",
+      "shieldSrcLive": "Satellit misst live",
+      "shieldSrcSnapshot": "letzter Satellitenkontakt {age}",
       "spyEnRoute": "Spionagedrohne unterwegs → {planet} · noch {time}",
       "satelliteEnRoute": "Spionagesatellit unterwegs → {planet} · noch {time}",
       "intelLive": "Satellit funkt — Stand aktuell",
+      "intelLiveSince": "Satellit funkt seit {age} — Stand aktuell, bis er abgeschossen wird",
       "intelSnapshot": "Momentaufnahme des letzten Drohnenflugs — kann veraltet sein",
       "intelAgeMin": "vor {n} min",
       "intelAgeHours": "vor {n} h",
@@ -221,6 +230,17 @@
       "down": "Schild unten",
       "full": "voll aufgeladen",
       "hint": "Baut sich mit der Zeit ab. Nachladen kostet Kristall."
+    },
+
+    "orbitDefense": {
+      "title": "Orbitalabwehr",
+      "clear": "Orbit frei — keine fremden Satelliten geortet.",
+      "watching": "beobachtet seit {age}",
+      "fire": "Abschießen",
+      "fireHint": "Satellit zerstören — sein Bericht friert im Moment des Abschusses ein",
+      "noAmmo": "Nicht genug Power Cells",
+      "destroyed": "Satellit von {name} zerstört",
+      "hint": "Ohne dieses Gebäude bleiben fremde Satelliten unsichtbar. Ein Satellit funkt, bis er abgeschossen wird."
     },
 
     "anomaly": {
@@ -600,6 +620,11 @@
         "name": "Schildgenerator",
         "desc": "Projiziert eine Energiebarriere um den Planeten. Wird mit Kristall aufgeladen und baut sich mit der Zeit ab.",
         "lv1": "Aufladbarer Planetenschild"
+      },
+      "orbital_defense": {
+        "name": "Orbitalabwehr",
+        "desc": "Ortet fremde Spionagesatelliten über dem Planeten und schießt sie ab.",
+        "lv1": "Ortet und zerstört fremde Satelliten"
       }
     }
   }

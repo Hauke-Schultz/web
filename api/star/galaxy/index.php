@@ -133,7 +133,10 @@ foreach ($planets as $p) {
     $planetsBySystem[$sid][] = [
         'id'    => $pid,
         'name'  => $p['name'],
-        'type'  => $p['type'],
+        // The type is part of the survey, not free with the star chart: a drone
+        // reports what kind of world it flew past. It never changes, so unlike
+        // the owner it is not stored as a snapshot — once looked at, it is known.
+        'type'  => $mine || $seen !== null ? $p['type'] : null,
         'owner' => $reported,
         // false = "you have not looked yet", which is not the same as "free"
         'known' => $mine || $seen !== null,
@@ -142,7 +145,13 @@ foreach ($planets as $p) {
         'intel' => $mine || !$seen ? null : [
             'observedAt'     => $seen['observedAt'],
             'live'           => $seen['live'],
-            'satelliteUntil' => $seen['live'] ? $seen['satelliteUntil'] : null,
+            // When it was placed, not when it expires — a satellite orbits until
+            // the planet below shoots it down.
+            'satelliteSince' => $seen['live'] ? $seen['satelliteSince'] : null,
+            // What the satellite adds on top of the drone's finding. Live while
+            // it transmits, then the last reading it took, with its own date —
+            // a shield charge ages far faster than "who lives here".
+            'shield'         => spy_shield_report($db, $pid, $seen),
         ],
     ];
 }

@@ -573,6 +573,57 @@ const chargeShield = async () => {
   }
 }
 
+// ── Orbital defense: shoot a foreign satellite down ───────────
+// A spy satellite has no lifetime — it transmits until the planet it watches
+// destroys it. Detection is the building itself: the list is empty without an
+// `orbital_defense`, so an undefended colony never learns that it is watched.
+const interceptError = ref(null)
+// The last kill, kept so the panel can name the culprit after the row is gone.
+const lastIntercepted = ref(null)
+
+const hasOrbitalDefense = computed(() => getLevel('orbital_defense') > 0)
+
+const foreignSatellites = computed(() =>
+  allPlanetStates.value[activePlanetId.value]?.foreignSatellites ?? []
+)
+
+const canIntercept = computed(() =>
+  hasOrbitalDefense.value &&
+  foreignSatellites.value.length > 0 &&
+  canAfford(SPY.interceptCost)
+)
+
+const interceptSatellite = async (targetPlayerId) => {
+  const planetId = activePlanetId.value
+  if (!canIntercept.value) return
+  interceptError.value = null
+
+  try {
+    const { interceptSatellite: interceptApi } = useHawkStarApi()
+    const result = await interceptApi(planetId, targetPlayerId)
+    const pstate = allPlanetStates.value[planetId]
+    if (pstate) {
+      pstate.foreignSatellites = result.satellites ?? []
+      if (result.resources) pstate.resources = result.resources
+    }
+    lastIntercepted.value = result.destroyed ?? null
+    // The shot was paid for at this instant — restart the tick preview here so
+    // it does not replay production over the new stock.
+    lastResourceSyncMs.value = Date.now()
+    notifications.value.push({
+      id: `notif_${Date.now()}_intercept_${planetId}_${targetPlayerId}`,
+      type: 'satellite_destroyed', icon: '🎯',
+      planetId, planetName: allPlanetStates.value[planetId]?.planetName,
+      labelKey: 'hawkStar.notifications.satelliteDestroyed',
+      details: result.destroyed?.username ?? '',
+      timestamp: Date.now(),
+    })
+  } catch (e) {
+    interceptError.value = e.message
+    await refreshPlanetState(planetId)   // reconcile with server on failure
+  }
+}
+
 // ── Population: recruit +1 (move one from the pool into population) ─────────
 const recruit = async () => {
   const planetId = activePlanetId.value
@@ -1189,10 +1240,13 @@ const isIntelStale = (planetId) => {
   return h != null && h >= SPY.staleHours
 }
 
-const satelliteHoursLeft = (planetId) => {
+// How long this satellite has been in orbit. There is no countdown any more —
+// it transmits until the planet below shoots it down — so the only honest
+// number is how long it has been watching.
+const satelliteAgeHours = (planetId) => {
   const i = planetIntel(planetId)
-  if (!i?.live || !i.satelliteUntil) return null
-  return Math.max(0, (i.satelliteUntil - now.value) / 3600000)
+  if (!i?.live || !i.satelliteSince) return null
+  return Math.max(0, (now.value - i.satelliteSince) / 3600000)
 }
 
 const isPlanetSpied = (planetId) => spiedPlanets.value.includes(planetId)
@@ -1822,6 +1876,10 @@ const applyGameState = (planetId, state) => {
     battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
     // null while the planet has no finished shield generator
     shield:  state.shield  ? { ...state.shield,  syncedAt: Date.now() } : null,
+    // Foreign satellites in this orbit. Always empty without an orbital_defense
+    // — the building is the sensor, so an empty list means "nothing detected",
+    // not "nothing there".
+    foreignSatellites: state.foreignSatellites ?? [],
     recruit: state.recruit ? { ...state.recruit, syncedAt: Date.now() } : null,
     // null when the planet has never built a cargo drone
     cargo: state.cargo ? { ...state.cargo, cargo: { ...(state.cargo.cargo ?? {}) } } : null,
@@ -1844,6 +1902,26 @@ const applyGameState = (planetId, state) => {
   // Player-wide, not per planet — every state load reports the same total
   cargoDeliveries.value      = state.cargoDeliveries ?? 0
   satelliteDeployments.value = state.satelliteDeployments ?? 0
+
+  // Our own satellites that were shot down. The server hands each loss over
+  // exactly once, so this list is the notification — losing one is an event, not
+  // something to discover weeks later by missing a chip on the map.
+  for (const lost of (state.satellitesLost ?? [])) {
+    // Several planets can load their state at once (the solar view pulls them
+    // all), so two responses may carry the same loss before the server has
+    // cleared it. The id is derived from the event, not from the moment we saw
+    // it, which makes the guard below reliable.
+    const id = `notif_${lost.lostAt}_satlost_${lost.planetId}`
+    if (notifications.value.some(n => n.id === id)) continue
+    notifications.value.push({
+      id,
+      type: 'satellite_lost', icon: '💥',
+      planetId: lost.planetId, planetName: lost.systemName,
+      labelKey: 'hawkStar.notifications.satelliteLost',
+      details: lost.planetName,
+      timestamp: lost.lostAt,
+    })
+  }
 }
 
 // The galaxy response is filtered per player: `owner` is only filled in for
@@ -1856,14 +1934,18 @@ const mapGalaxy = (galaxy, myId) => galaxy.map(sys => ({
   // deliberately without naming which planets are theirs.
   inhabitants: sys.inhabitants ?? [],
   planets: sys.planets.map(p => ({
-    id: p.id, name: p.name, type: p.type,
+    id: p.id, name: p.name,
+    // null until something has flown past: the type is part of the survey, not
+    // free with the star chart. Home-system planets always carry it.
+    type: p.type ?? null,
     state: p.owner
       ? (p.owner.playerId === myId ? 'own' : 'colonized')
       : (p.known === false ? 'unknown' : 'uncolonized'),
     owner: p.owner ?? null,
     known: p.known !== false,
-    // { observedAt, live, satelliteUntil } — null for your own space and for
-    // anything never looked at. This is the report, not a live reading.
+    // { observedAt, live, satelliteSince, shield } — null for your own space and
+    // for anything never looked at. This is the report, not a live reading.
+    // `shield` is the satellite's extra finding and carries its own date.
     intel: p.intel ?? null,
   })),
 }))
@@ -1909,6 +1991,8 @@ export const initFromApi = async () => {
   allPlanetStates.value        = {}
   playerScannedPlanets.value   = [hpId]
   spiedPlanets.value           = []
+  lastIntercepted.value        = null
+  interceptError.value         = null
   playerColonizedPlanets.value = galaxySystems.value
     .flatMap(s => s.planets).filter(p => p.owner?.playerId === myId).map(p => p.id)
 
@@ -2048,6 +2132,13 @@ export function useHawkStar() {
     canChargeShield,
     shieldError,
     chargeShield,
+    // orbital defense — the thing that ends a spy satellite
+    hasOrbitalDefense,
+    foreignSatellites,
+    canIntercept,
+    interceptSatellite,
+    interceptError,
+    lastIntercepted,
     // population recruitment
     recruitPool,
     recruitPoolMax,
@@ -2172,7 +2263,7 @@ export function useHawkStar() {
     hasLiveSatellite,
     intelAgeHours,
     isIntelStale,
-    satelliteHoursLeft,
+    satelliteAgeHours,
     isPlanetSpied,
     isSpyingPlanet,
     isSpyTarget,

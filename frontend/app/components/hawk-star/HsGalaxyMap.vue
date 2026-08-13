@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
-import { SPY } from '~/utils/hawkStarConfig.js'
+import { PLANET_TYPES } from '~/utils/hawkStarConfig.js'
 import HsCommLog from '~/components/hawk-star/HsCommLog.vue'
 
 const {
@@ -32,7 +32,7 @@ const {
   planetIntel,
   intelAgeHours,
   isIntelStale,
-  satelliteHoursLeft,
+  satelliteAgeHours,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -87,14 +87,66 @@ const inboundSpyLabel = (sysId) => {
 const intelLabel = (planet) => {
   const intel = planetIntel(planet.id)
   if (!intel) return ''
-  if (intel.live) {
-    const h = satelliteHoursLeft(planet.id)
-    return h == null ? '📡' : `📡 ${h >= 24 ? Math.round(h / 24) + ' d' : Math.max(1, Math.round(h)) + ' h'}`
-  }
+  // A transmitting satellite has no countdown — it stays until it is shot down,
+  // so the chip is the plain signal and the tooltip carries how long it has been
+  // watching. A number here would read as a deadline that no longer exists.
+  if (intel.live) return '📡'
   const h = intelAgeHours(planet.id) ?? 0
   if (h < 1)  return t('hawkStar.galaxy.intelAgeMin', { n: Math.max(1, Math.round(h * 60)) })
   if (h < 48) return t('hawkStar.galaxy.intelAgeHours', { n: Math.round(h) })
   return t('hawkStar.galaxy.intelAgeDays', { n: Math.floor(h / 24) })
+}
+
+// ── What a survey reports ─────────────────────────────────────────────────────
+// The planet type comes with the drone's finding — `type` is null until then.
+// A greyed generic world marks that gap, the same way a missing shield does on
+// the solar map: a hole in the row would say nothing at all.
+const typeIcon  = (planet) => planet.type ? (PLANET_TYPES[planet.type]?.icon ?? '🪐') : '🪐'
+const typeTitle = (planet) => planet.type
+  ? t(`hawkStar.planetTypes.${planet.type}.name`)
+  : t('hawkStar.galaxy.typeUnknown')
+
+// The shield is the satellite's exclusive finding: a drone flies past, a
+// satellite sits in the orbit and watches the emitter. Null = never measured;
+// a report with `charge === null` = measured, and there is no generator.
+const shieldReport = (planet) => planetIntel(planet.id)?.shield ?? null
+
+const shieldLabel = (planet) => {
+  const s = shieldReport(planet)
+  if (!s) return ''
+  return s.charge === null ? '🛡️ –' : `🛡️ ${Math.round(s.charge)} %`
+}
+
+// Two halves: what was measured, and how current that measurement is. A shield
+// drains ~30 %/day, so an old reading is a much weaker claim than an old owner.
+const shieldTitle = (planet) => {
+  const s = shieldReport(planet)
+  if (!s) return ''
+  const state = s.charge === null ? t('hawkStar.galaxy.shieldNone')
+              : s.charge > 0      ? t('hawkStar.galaxy.shieldUp', { n: Math.round(s.charge) })
+              :                     t('hawkStar.galaxy.shieldDown')
+  const src = s.live
+    ? t('hawkStar.galaxy.shieldSrcLive')
+    : t('hawkStar.galaxy.shieldSrcSnapshot', { age: ageLabel(s.observedAt) })
+  return `${state} · ${src}`
+}
+
+const ageLabel = (observedAt) => {
+  if (!observedAt) return ''
+  const h = Math.max(0, (now.value - observedAt) / 3600000)
+  if (h < 1)  return t('hawkStar.galaxy.intelAgeMin',   { n: Math.max(1, Math.round(h * 60)) })
+  if (h < 48) return t('hawkStar.galaxy.intelAgeHours', { n: Math.round(h) })
+  return t('hawkStar.galaxy.intelAgeDays', { n: Math.floor(h / 24) })
+}
+
+// The live chip says "somebody is watching"; the tooltip says since when, which
+// is the only number a satellite still has now that it cannot expire.
+const intelTitle = (planet) => {
+  const intel = planetIntel(planet.id)
+  if (!intel?.live) return t('hawkStar.galaxy.intelSnapshot')
+  return satelliteAgeHours(planet.id) == null
+    ? t('hawkStar.galaxy.intelLive')
+    : t('hawkStar.galaxy.intelLiveSince', { age: ageLabel(intel.satelliteSince) })
 }
 
 const contactOf = (sysId) =>
@@ -247,6 +299,12 @@ const tileClass = (sys) => {
           <!-- Planet list — who sits where is a secret until a spy drone lands -->
           <ul class="hs-planet-list">
             <li v-for="planet in selected.planets" :key="planet.id" class="hs-planet-item">
+              <!-- The world itself — greyed while nothing has flown past it -->
+              <span
+                class="hs-planet-type"
+                :class="{ 'hs-planet-type--unknown': !planet.type }"
+                :title="typeTitle(planet)"
+              >{{ typeIcon(planet) }}</span>
               <span class="hs-planet-name">{{ planet.name }}</span>
 
               <!-- Own colony: no espionage involved, always current -->
@@ -273,6 +331,19 @@ const tileClass = (sys) => {
                   class="hs-planet-tag hs-planet-tag--empty"
                 >{{ t('hawkStar.galaxy.stateUncolonized') }}</span>
 
+                <!-- Satellite finding: is there a shield, and is it up -->
+                <span
+                  v-if="shieldReport(planet)"
+                  class="hs-planet-shield"
+                  :class="{
+                    'hs-planet-shield--none': shieldReport(planet).charge === null,
+                    'hs-planet-shield--up':   shieldReport(planet).charge > 0,
+                    'hs-planet-shield--down': shieldReport(planet).charge === 0,
+                    'hs-planet-shield--live': shieldReport(planet).live,
+                  }"
+                  :title="shieldTitle(planet)"
+                >{{ shieldLabel(planet) }}</span>
+
                 <span
                   v-if="!isUnknownPlanet(planet)"
                   class="hs-planet-intel"
@@ -280,7 +351,7 @@ const tileClass = (sys) => {
                     'hs-planet-intel--live':  planetIntel(planet.id)?.live,
                     'hs-planet-intel--stale': isIntelStale(planet.id),
                   }"
-                  :title="planetIntel(planet.id)?.live ? t('hawkStar.galaxy.intelLive') : t('hawkStar.galaxy.intelSnapshot')"
+                  :title="intelTitle(planet)"
                 >{{ intelLabel(planet) }}</span>
 
                 <!-- Something is on its way there right now -->
@@ -300,7 +371,7 @@ const tileClass = (sys) => {
                   <button
                     v-if="canSendSpySatellite(planet.id, selected.id)"
                     class="hs-planet-spy-btn hs-planet-spy-btn--sat"
-                    :title="t('hawkStar.galaxy.satelliteHint', { hours: SPY.satelliteHours })"
+                    :title="t('hawkStar.galaxy.satelliteHint')"
                     @click.stop="sendSpySatellite(planet.id, selected.id)"
                   >📡</button>
                   <span
@@ -628,10 +699,45 @@ const tileClass = (sys) => {
   border: 1px solid rgba(255,255,255,0.04);
 }
 
+// The row now carries type, owner, shield, age and two buttons — the name is
+// the one part that may give up width, so it truncates instead of pushing.
 .hs-planet-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.65rem;
   color: rgba(255,255,255,0.75);
+}
+
+// An emoji ignores `color`, so an unsurveyed world is greyed with a filter —
+// same trick as the missing shield icon on the solar map.
+.hs-planet-type {
+  font-size: 0.7rem;
+  line-height: 1;
+  flex: none;
+
+  &--unknown {
+    filter: grayscale(1);
+    opacity: 0.35;
+  }
+}
+
+.hs-planet-shield {
+  font-size: 0.52rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.45);
+
+  // Measured, no generator — greyed like every other "not built" icon
+  &--none { filter: grayscale(1); opacity: 0.5; }
+  // Standing shield vs. an emitter that is installed but empty
+  &--up   { color: rgba(96,165,250,0.9); }
+  &--down { color: rgba(248,113,113,0.85); }
+  // A live satellite is measuring right now; anything else is a stored reading
+  &--live { text-shadow: 0 0 6px rgba(45,212,191,0.35); }
 }
 
 .hs-planet-tag {
