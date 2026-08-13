@@ -55,6 +55,10 @@
       "lockedGeneric": "🔒 Gesperrt",
       "convTitle": "⚗️ Umwandlungen",
       "btnConvert": "Umwandeln",
+      "convRunning": "Umwandlung läuft",
+      "convCountHint": "Wie viele Durchläufe auf einmal bestellen — sie laufen nacheinander, auch wenn du weg bist",
+      "convOrder": "{n} Durchläufe bestellen · alle Kosten sofort · fertig in {time}",
+      "convAppend": "{n} weitere Durchläufe an die laufende Warteschlange anhängen",
       "convEmptyNoRefinery": "Bau die Raffinerie um Umwandlungen freizuschalten",
       "convEmptyNoFacility": "Bau eine Hightech-Anlage um Umwandlungen freizuschalten",
       "onboarding": {
@@ -221,6 +225,12 @@
       "timeLeft": "hält noch {time}",
       "blackout": "Blackout — Kolonie offline",
       "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall."
+    },
+
+    "resourceBar": {
+      "madeHere": "hier herstellbar ({type})",
+      "madeOn": "nur auf {type} herstellbar",
+      "madeAnywhere": "auf jedem Planeten herstellbar"
     },
 
     "shield": {

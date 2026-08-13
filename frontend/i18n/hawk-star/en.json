@@ -53,6 +53,10 @@
       "lockedGeneric": "🔒 Locked",
       "convTitle": "⚗️ Conversions",
       "btnConvert": "Convert",
+      "convRunning": "Conversion running",
+      "convCountHint": "How many runs to order at once — they resolve back to back, even while you are away",
+      "convOrder": "Order {n} runs · all costs up front · done in {time}",
+      "convAppend": "Append {n} more runs to the running queue",
       "convEmptyNoRefinery": "Build the refinery to unlock conversions",
       "convEmptyNoFacility": "Build a High-Tech facility to unlock conversions",
       "onboarding": {
@@ -220,6 +224,12 @@
       "timeLeft": "{time} left",
       "blackout": "Blackout — colony offline",
       "hint": "Drains over time. Empty = total power loss."
+    },
+
+    "resourceBar": {
+      "madeHere": "refinable here ({type})",
+      "madeOn": "only refinable on {type}",
+      "madeAnywhere": "refinable on any planet"
     },
 
     "shield": {

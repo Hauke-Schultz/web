@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RESOURCES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
@@ -52,6 +52,7 @@ const {
   conversionQueues,
   conversionTime,
   canConvert,
+  maxConversionRuns,
   startConversion,
   remainingConversionSec,
   conversionProgressStyle,
@@ -90,6 +91,26 @@ const availableConversions = computed(() =>
 // The running job for a recipe, if any — drives the fill inside its button.
 const queueFor = (buildingId, recipeIndex) =>
   conversionQueues.value.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex) ?? null
+
+// ── ×N order picker ───────────────────────────────────────────────────────────
+// Every recipe takes 30 minutes, so one run per click made refining a chore of
+// coming back rather than a decision. The count is ordered and paid for up
+// front; the runs then resolve back to back without anyone being present.
+// Throughput is unchanged — this buys absence, not speed.
+const orderCount = ref({})
+
+const countFor = (recipe) => {
+  const max = maxConversionRuns(recipe.buildingId, recipe.index)
+  // Clamped on read, so a count picked while rich stays valid after spending.
+  return Math.max(1, Math.min(orderCount.value[recipe.key] ?? 1, Math.max(1, max)))
+}
+
+const setCount = (recipe, delta) => {
+  const max = Math.max(1, maxConversionRuns(recipe.buildingId, recipe.index))
+  orderCount.value[recipe.key] = Math.max(1, Math.min(countFor(recipe) + delta, max))
+}
+
+const canRaise = (recipe) => countFor(recipe) < maxConversionRuns(recipe.buildingId, recipe.index)
 
 // ── Onboarding checklist ──────────────────────────────────────────────────────
 // Permanent guide on the base tile. Each step ticks itself off from real state,
@@ -292,12 +313,33 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
             >{{ RESOURCES[resId]?.icon }} +{{ amt }} {{ t('hawkStar.res.' + resId) }}</span>
           </div>
 
-          <!-- One button. It fills up while the job runs and shows the time left. -->
+          <!-- How many runs to order. Paid for up front, then resolved back to
+               back — the queue buys absence, not speed. -->
+          <div class="hs-conv-count" :title="t('hawkStar.tile.convCountHint')">
+            <button
+              class="hs-conv-count__btn"
+              :disabled="countFor(recipe) <= 1"
+              @click="setCount(recipe, -1)"
+            >−</button>
+            <span class="hs-conv-count__value">×{{ countFor(recipe) }}</span>
+            <button
+              class="hs-conv-count__btn"
+              :disabled="!canRaise(recipe)"
+              @click="setCount(recipe, 1)"
+            >+</button>
+          </div>
+
+          <!-- One button. It fills up while the job runs and shows the time left.
+               Clicking it while running appends to the queue instead of opening
+               a second line — the server merges the order into the same row. -->
           <button
             class="hs-btn-convert"
             :class="{ 'hs-btn-convert--running': queueFor(recipe.buildingId, recipe.index) }"
             :disabled="!canConvert(recipe.buildingId, recipe.index)"
-            @click="startConversion(recipe.buildingId, recipe.index, 1)"
+            :title="queueFor(recipe.buildingId, recipe.index)
+              ? t('hawkStar.tile.convAppend', { n: countFor(recipe) })
+              : t('hawkStar.tile.convOrder', { n: countFor(recipe), time: formatTime(conversionTime(recipe.buildingId, recipe.index) * countFor(recipe)) })"
+            @click="startConversion(recipe.buildingId, recipe.index, countFor(recipe))"
           >
             <span
               v-if="queueFor(recipe.buildingId, recipe.index)"
@@ -313,7 +355,7 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
               </template>
               <template v-else>
                 ⚡ {{ t('hawkStar.tile.btnConvert') }}
-                <span class="hs-btn-convert__dur">{{ formatTime(conversionTime(recipe.buildingId, recipe.index)) }}</span>
+                <span class="hs-btn-convert__dur">{{ formatTime(conversionTime(recipe.buildingId, recipe.index) * countFor(recipe)) }}</span>
               </template>
             </span>
           </button>
@@ -649,8 +691,11 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
 
 .hs-conv-list { display: flex; flex-direction: column; gap: 0.375rem; }
 
+// The row carries formula + ×N picker + button now, so on a narrow panel the
+// two controls drop below the formula rather than squeezing it to nothing.
 .hs-conv-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   background: var(--hs-glass-sm);
@@ -660,7 +705,8 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
 }
 
 .hs-conv-formula {
-  flex: 1;
+  flex: 1 1 11rem;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -680,6 +726,43 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
 }
 
 .hs-conv-arrow { font-size: 0.7rem; opacity: 0.4; }
+
+// ×N picker — deliberately quiet next to the purple convert button: it sets the
+// order, the button is the one that spends.
+.hs-conv-count {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid var(--hs-line-sm);
+  background: var(--hs-glass-sm);
+  overflow: hidden;
+}
+
+.hs-conv-count__btn {
+  width: 1.35rem;
+  padding: 0.3rem 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255,255,255,0.7);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--hs-glass-lg); color: #fff; }
+  &:disabled { opacity: 0.25; cursor: not-allowed; }
+}
+
+.hs-conv-count__value {
+  min-width: 1.75rem;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.8);
+}
 
 .hs-conv-empty {
   text-align: center;

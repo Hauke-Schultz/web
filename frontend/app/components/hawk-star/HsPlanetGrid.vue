@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TILE_TYPES } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const props = defineProps({
@@ -33,7 +33,19 @@ const {
   recruitPoolMax,
   shieldCharge,
   hasAnomaly,
+  conversionQueues,
 } = useHawkStar()
+
+// A 30-minute conversion was invisible from the grid: the tile holding the
+// refinery looked exactly as idle as one with nothing running. One blue dot per
+// running queue, on whichever tile the building actually sits — conversions
+// stopped being a High-Tech privilege long ago (med station on base, plasma
+// compressor in the tech center, the shaft/array pair on mining).
+const conversionsOnSlot = (slot) => {
+  const tileType = playerSlots.value.find(s => s.slot === slot)?.tileType
+  if (!tileType) return 0
+  return conversionQueues.value.filter(q => BUILDINGS[q.buildingId]?.tileType === tileType).length
+}
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 
@@ -82,10 +94,15 @@ const inProgressCount = computed(() => {
     }
     const dock = pstate.dock
     if (dock) {
-      const shipKeys = ['reconDroneBuild','colonyShipBuild']
+      // Every unit type, not just the two the dock started with — a spy drone
+      // under construction is an operation in progress like any other.
+      const shipKeys = ['reconDroneBuild','colonyShipBuild','cargoDroneBuild','spyDroneBuild','spySatelliteBuild']
       for (const key of shipKeys) { if (dock[key]) count++ }
-      count += (dock.activeDroneMissions?.length ?? 0)
-      count += (dock.activeColonyMissions?.length ?? 0)
+      count += (dock.activeDroneMissions?.length      ?? 0)
+      count += (dock.activeColonyMissions?.length     ?? 0)
+      count += (dock.activeCargoMissions?.length      ?? 0)
+      count += (dock.returningCargoMissions?.length   ?? 0)
+      count += (dock.activeSpyMissions?.length        ?? 0)
     }
     count += (pstate.conversionQueues?.length ?? 0)
   }
@@ -99,12 +116,29 @@ const dockInfo = computed(() => {
   if (!dock) return { inventory: [], dots: [] }
 
   const ship = (count, building) => ({ count: count ?? 0, building: !!building })
-  const inventory = []
-  if ((dock.reconDroneInventory  ?? 0) > 0 || dock.reconDroneBuild)  inventory.push({ icon: '🛸', ...ship(dock.reconDroneInventory,  dock.reconDroneBuild) })
-  if ((dock.colonyShipInventory  ?? 0) > 0 || dock.colonyShipBuild)  inventory.push({ icon: '🚀', ...ship(dock.colonyShipInventory,  dock.colonyShipBuild) })
 
-  const missions = (dock.activeDroneMissions?.length    ?? 0)
+  // Every unit type the dock can hold, in the order they unlock. A chip appears
+  // once one is parked or on the way — the tile is where you look to decide
+  // whether a mission is even possible, so a missing type reads as "none".
+  const UNITS = [
+    { icon: '🛸', inv: 'reconDroneInventory',   build: 'reconDroneBuild'   },
+    { icon: '🚀', inv: 'colonyShipInventory',   build: 'colonyShipBuild'   },
+    { icon: '📦', inv: 'cargoDroneInventory',   build: 'cargoDroneBuild'   },
+    { icon: '🕵️', inv: 'spyDroneInventory',     build: 'spyDroneBuild'     },
+    { icon: '📡', inv: 'spySatelliteInventory', build: 'spySatelliteBuild' },
+  ]
+
+  const inventory = UNITS
+    .filter(u => (dock[u.inv] ?? 0) > 0 || dock[u.build])
+    .map(u => ({ icon: u.icon, ...ship(dock[u.inv], dock[u.build]) }))
+
+  // One dot per flight in progress. Cargo counts both legs — a drone on its way
+  // home is still out there and still blocks a rebuild.
+  const missions = (dock.activeDroneMissions?.length     ?? 0)
                  + (dock.activeColonyMissions?.length    ?? 0)
+                 + (dock.activeCargoMissions?.length     ?? 0)
+                 + (dock.returningCargoMissions?.length  ?? 0)
+                 + (dock.activeSpyMissions?.length       ?? 0)
   const dots = Array.from({ length: missions }, () => 'mission')
 
   return { inventory, dots }
@@ -213,12 +247,16 @@ const onSelectSlot = (slot) => {
             >{{ unlockRequirement(slot.slot).building.icon }} Lv{{ unlockRequirement(slot.slot).level }}</span>
           </template>
           <template v-else-if="slot.tileType === 'dock'">
-            <span
-              v-for="item in dockInfo.inventory"
-              :key="item.icon"
-              class="hs-dock-inv"
-              :class="{ 'hs-dock-inv--building': item.building }"
-            >{{ item.icon }}{{ item.count }}</span>
+            <!-- Five unit types can be in the dock at once, so the chips wrap
+                 two per line instead of stacking the tile out of shape. -->
+            <div v-if="dockInfo.inventory.length" class="hs-dock-inv-list">
+              <span
+                v-for="item in dockInfo.inventory"
+                :key="item.icon"
+                class="hs-dock-inv"
+                :class="{ 'hs-dock-inv--building': item.building }"
+              >{{ item.icon }}{{ item.count }}</span>
+            </div>
             <span
               v-for="(type, i) in dockInfo.dots"
               :key="'d' + i"
@@ -236,6 +274,13 @@ const onSelectSlot = (slot) => {
               :key="b.id"
               class="hs-dot"
               :class="b.building ? 'hs-dot--building' : b.offline ? 'hs-dot--offline' : 'hs-dot--done'"
+            />
+            <!-- One per running conversion on this tile -->
+            <span
+              v-for="n in conversionsOnSlot(slot.slot)"
+              :key="'conv' + n"
+              class="hs-dot hs-dot--conversion"
+              :title="t('hawkStar.tile.convRunning')"
             />
           </template>
         </div>
@@ -430,6 +475,21 @@ const onSelectSlot = (slot) => {
   &--offline  { background: var(--hs-danger); animation: pulse 1.5s ease-in-out infinite; }
   &--mission  { background: #60a5fa; animation: pulse 1.4s ease-in-out infinite; }
   &--anomaly  { background: #818cf8; animation: pulse 1.1s ease-in-out infinite; }
+  // A running conversion. Sky blue rather than the mission blue next to it, and
+  // slower than every other pulse — a 30-minute job should breathe, not blink
+  // for attention the way an offline building does.
+  &--conversion { background: #38bdf8; animation: pulse 2s ease-in-out infinite; }
+}
+
+// The dots column is a vertical stack, which was fine for two ship types. With
+// all five it would grow the whole grid row, so the chips wrap inside it —
+// bottom-aligned (`wrap-reverse`), so a short list sits next to the label.
+.hs-dock-inv-list {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  gap: 2px 3px;
+  max-width: 2.9rem;
 }
 
 .hs-dock-inv {

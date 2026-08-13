@@ -197,14 +197,24 @@ CREATE TABLE IF NOT EXISTS hs_cargo (
 -- Espionage intel: one row per (player, planet) the player has looked at. It
 -- stores WHAT was seen and WHEN — a stored observation, not a permission to read
 -- the live value. A drone writes one and it ages from there; a satellite keeps
--- the row live until `satellite_until` passes.
+-- the row live until an orbital defense shoots it down.
+--   satellite_until   when the satellite was PLACED (it has no expiry)
+--   satellite_active  whether it is still transmitting
+--   satellite_lost_at outbox for "your satellite was destroyed", cleared on read
+--   shield_seen_at    the shield reading has its OWN date: only a satellite takes
+--                     it, while a later drone flight refreshes observed_at
+--   shield_charge     NULL with shield_seen_at set = looked, found no generator
 CREATE TABLE IF NOT EXISTS hs_spy_intel (
-  player_id        INT NOT NULL,
-  planet_id        INT NOT NULL,
-  owner_player_id  INT NULL,
-  owner_faction_id INT NULL,
-  observed_at      DATETIME NOT NULL,
-  satellite_until  DATETIME NULL,
+  player_id         INT NOT NULL,
+  planet_id         INT NOT NULL,
+  owner_player_id   INT NULL,
+  owner_faction_id  INT NULL,
+  observed_at       DATETIME NOT NULL,
+  satellite_until   DATETIME NULL,
+  satellite_active  TINYINT(1) NOT NULL DEFAULT 0,
+  satellite_lost_at DATETIME NULL,
+  shield_seen_at    DATETIME NULL,
+  shield_charge     FLOAT NULL,
   PRIMARY KEY (player_id, planet_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

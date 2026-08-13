@@ -1,7 +1,10 @@
 <script setup>
 import { computed } from 'vue'
-import { RESOURCES } from '~/utils/hawkStarConfig.js'
+import { useI18n } from 'vue-i18n'
+import { RESOURCES, BUILDINGS, PLANET_TYPES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
+
+const { t } = useI18n()
 
 const {
   playerResources,
@@ -32,6 +35,39 @@ const visibleResources = computed(() =>
 const refinedResources = computed(() =>
   REFINED_IDS.map(id => RESOURCES[id]).filter(Boolean)
 )
+
+// ── Which planet type makes what ─────────────────────────────────────────────
+// Derived from the buildings, never written down twice: a refined good is made
+// by whichever building lists it as a conversion output, and that building's
+// `planetTypes` is the answer. An unrestricted producer (power_cell_lab) means
+// the good is universal, so one `null` beats any list.
+const producerTypes = (resId) => {
+  const types = new Set()
+  for (const b of Object.values(BUILDINGS)) {
+    if (!b.conversions?.some(c => c.output?.[resId])) continue
+    if (!b.planetTypes) return null          // buildable anywhere
+    for (const p of b.planetTypes) types.add(p)
+  }
+  return types.size ? [...types] : null
+}
+
+// The whole point of the marker: on this planet, these are the ones you can
+// actually refine. The four domain goods are planet-type exclusive and this is
+// the fact that is easy to lose track of.
+const canProduceHere = (resId) => {
+  const types = producerTypes(resId)
+  return !types || types.includes(planetType.value)
+}
+
+// Hovering ANY card answers "where does this come from" — that is what turns the
+// row into the lookup table, rather than only marking the local one.
+const originLabel = (res) => {
+  const types = producerTypes(res.id)
+  if (!types) return `${res.icon} ${res.name} · ${t('hawkStar.resourceBar.madeAnywhere')}`
+  const names = types.map(p => `${PLANET_TYPES[p]?.icon ?? ''} ${t(`hawkStar.planetTypes.${p}.name`)}`).join(', ')
+  const key = canProduceHere(res.id) ? 'madeHere' : 'madeOn'
+  return `${res.icon} ${res.name} · ${t(`hawkStar.resourceBar.${key}`, { type: names })}`
+}
 </script>
 
 <template>
@@ -83,14 +119,20 @@ const refinedResources = computed(() =>
       </div>
     </div>
 
-    <!-- High-Tech stock: symbol + count only -->
+    <!-- High-Tech stock: symbol + count only. The ones this planet can refine
+         carry a border in the resource's own colour — the four domain goods are
+         planet-type exclusive, and that is the mapping that is easy to lose. -->
     <div class="hs-res-refined">
       <div
         v-for="res in refinedResources"
         :key="res.id"
         class="hs-res-card hs-res-card--mini"
-        :class="{ 'hs-res-card--empty': !Math.floor(playerResources[res.id] ?? 0) }"
-        :title="res.name"
+        :class="{
+          'hs-res-card--empty': !Math.floor(playerResources[res.id] ?? 0),
+          'hs-res-card--local': canProduceHere(res.id),
+        }"
+        :style="canProduceHere(res.id) ? { borderColor: res.color } : null"
+        :title="originLabel(res)"
       >
         <span class="hs-res-icon">{{ res.icon }}</span>
         <span class="hs-res-value">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
@@ -171,6 +213,16 @@ const refinedResources = computed(() =>
 
   // Nothing in stock — dimmed so a non-zero count stands out
   &--empty { opacity: 0.3; }
+
+  // Refinable on this planet. The border colour is the resource's own, set
+  // inline from the config, so the marker also teaches which icon is which.
+  &--local {
+    background: var(--hs-glass-lg);
+
+    // "You can make this here" has to stay readable at a stock of zero — that
+    // is exactly the moment the hint is worth something.
+    &.hs-res-card--empty { opacity: 0.65; }
+  }
 }
 
 .hs-res-icon  { font-size: 1.1rem; line-height: 1; @media (min-width: 640px) { font-size: 1.25rem; } }

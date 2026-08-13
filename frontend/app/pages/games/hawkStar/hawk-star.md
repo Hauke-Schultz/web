@@ -32,6 +32,10 @@ The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also rend
 
 **Only one tile can be active at a time** across all 15. Clicking a panel tile deselects any active planet slot, and vice versa.
 
+**The dock tile lists every unit type, not just the two it launched with** *(2026-08-14)*. `dockInfo` in `HsPlanetGrid` walks a `UNITS` table (`🛸 recon · 🚀 colony · 📦 cargo · 🕵️ spy · 📡 satellite`) instead of naming two keys inline, and a chip appears as soon as one is parked or under construction — amber and pulsing while it builds. The **Activity** tile's in-progress counter walks the same list; before this it counted only recon and colony work, so a spy drone in the yard or a cargo run in flight raised no badge at all. Anything added to the dock later belongs in both lists, or it goes invisible on the planet grid.
+
+Five chips would stack the dots column tall enough to grow the whole grid row, so they wrap **two per line** (`wrap-reverse`, bottom-aligned) rather than stacking.
+
 ### Panel tiles (row 1)
 
 | Tile | `activePanel` value | Right panel shows |
@@ -56,7 +60,7 @@ Every slot has a fixed tile type defined in `PLANET_GRID` (`hawkStarConfig.js`).
 | `spacebase` | Launch pad for drones and colony ships |
 | `defense` | Planetary shield (charged, not upgraded) · Orbital Defense (finds and shoots down foreign spy satellites) |
 | `hightech` | Advanced material refinement (planet-exclusive) |
-| `dock` | Ship management, missions and fleet operations — unlocked by Space Technology Lv 1; clicking opens `HsDockPanel` |
+| `dock` | Ship management, missions and fleet operations — unlocked by Space Technology Lv 1; clicking opens `HsDockPanel` · the tile itself carries one chip per unit type in the dock (`🛸 🚀 📦 🕵️ 📡`) plus a dot per flight in the air |
 | `warship_bay` | Placeholder — no buildings yet |
 | `orbit` | Orbital infrastructure — placeholder |
 
@@ -153,6 +157,10 @@ Each planet type produces one exclusive raw resource from its High-Tech tile:
 
 Each planet type produces exactly **one** refined resource in its High-Tech building. The other three must be acquired via trade.
 
+**The resource bar marks what this planet can refine** *(2026-08-13)*. The five refined stocks sit in a `hs-res-card--mini` row on every planet, which made the type→good mapping easy to lose: nothing said which of the five was *yours*. The ones refinable here now carry a border in the **resource's own colour**, so the marker doubles as a reminder of which icon is which, and the dim-when-empty state is lifted to 0.65 for them — "you can make this here" is worth most at a stock of zero. On any planet that is exactly two cards: `🔋 power_cell` (universal) plus the one domain good.
+
+The mapping is **derived from the buildings**, never written down a second time: a good is made by whichever building lists it as a conversion output, and that building's `planetTypes` is the answer — one unrestricted producer (`power_cell_lab`) makes a good universal. Hovering **any** card names its origin (`🧊 Gefroren — nur dort herstellbar`), so the row answers the question from every planet, not just the one you happen to be standing on.
+
 The four are built around **functional domains**, not tiers of quality. Each one covers a capability the other three do not, so a recipe that asks for two of them is a real decision and no planet can supply everything on its own:
 
 | Planet Type | High-Tech Building | Produces | Domain | Input |
@@ -168,6 +176,16 @@ The four are built around **functional domains**, not tiers of quality. Each one
 All High-Tech buildings (the four refineries plus `power_cell_lab`) are deliberately **single-level** — they are built once and never upgraded, to keep the early game simple. Conversion speed is therefore fixed at `durationBase` (`convert.php` divides by the building level, which is always 1). Throughput is tuned via `durationBase`, not via upgrades.
 
 Every recipe runs at **1800 s (30 min)** per unit. Refined output is deliberately slow *and* expensive — one unit is a half-hour plus roughly half of what the mines produce in that window. These are intended as pre-products for future starship construction and small orbital installations, so they are meant to accumulate slowly. All inputs still fit inside level-1 storage caps, so no recipe can soft-lock a fresh planet.
+
+### Ordering more than one  *(2026-08-13)*
+
+A 30-minute recipe with one run per click is not a decision, it is an alarm clock. The **×N picker** next to the Convert button orders up to `CONVERSION_MAX_QUEUE` (4) runs at once: all costs are deducted immediately, the runs then resolve back to back whether or not anyone is watching. **Throughput is unchanged** — four runs still take two hours. What the queue buys is absence, not speed, and that is the whole intent: the mechanic that was tuned via `durationBase` stays exactly as tuned.
+
+The ceiling is what the stock pays for (`maxConversionRuns()`, the minimum over the inputs), capped at `CONVERSION_MAX_QUEUE` and clamped on read — a count chosen while rich stays valid after spending. The button's duration line shows the *total* for the order, so `×3` reads as ninety minutes up front. The cap is a comfort setting, not a balance lever: raising it never changes throughput, only how long you can stay away.
+
+**One queue row per (building, recipe) — ordering deepens it, it never opens a second line.** `convert.php` merges into an existing row (`remaining + count`) instead of inserting. The plain `INSERT` it used before was a quiet hole: clicking Convert again while a job ran created a *second* row, and `resolve_conversions()` iterates every due row, so two batches resolved side by side. That doubled a refinery's throughput for the price of a second click — and it was invisible, because `queueFor()` only ever finds the first row. The running batch now keeps its own clock and only the tail grows.
+
+The client tick already handled deep queues (`remaining > 0` → re-arm `endsAt`, decrement), so nothing there needed changing.
 
 ### Where refined goods are spent  *(2026-08-11)*
 

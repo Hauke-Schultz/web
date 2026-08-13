@@ -49,6 +49,11 @@ export const SPY = {
   interceptCost:  { power_cell: 1 },   // mirrors INTERCEPT_COST in config.php
 }
 
+// Deepest order the ×N picker offers. Every recipe runs 30 min, so four runs are
+// two hours of queue — an evening's worth of refining in one click, and short
+// enough that the stepper stays a stepper.
+export const CONVERSION_MAX_QUEUE = 4
+
 // ── Cargo drone ───────────────────────────────────────────────────────────────
 // Only high-tech goods can be shipped — raw resources are the capped ones, and a
 // delivery overshooting a storage cap would be clamped away. Mirrors CARGO_* in

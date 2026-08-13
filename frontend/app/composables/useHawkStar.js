@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY, CONVERSION_MAX_QUEUE } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -1468,33 +1468,55 @@ const canConvert = (buildingId, recipeIndex) => {
   return canAfford(recipe.input)
 }
 
-// count: total runs to queue.
+// How many runs the stock pays for right now, capped so the stepper stays a
+// stepper. This is the ceiling for the ×N picker — the server re-checks it.
+const maxConversionRuns = (buildingId, recipeIndex) => {
+  const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
+  if (!recipe) return 0
+  const runs = Object.entries(recipe.input).map(
+    ([res, amt]) => Math.floor((playerResources.value[res] ?? 0) / amt)
+  )
+  return Math.max(0, Math.min(CONVERSION_MAX_QUEUE, ...runs))
+}
+
+// count: runs to queue. Ordering while a job runs DEEPENS that queue — the
+// server merges into the existing row rather than opening a second line, so the
+// running batch keeps its clock and only `remaining` grows.
 const startConversion = async (buildingId, recipeIndex, count = 1) => {
   if (!canConvert(buildingId, recipeIndex)) return
   const planetId = activePlanetId.value
   const queues   = allPlanetStates.value[planetId]?.conversionQueues
   if (!queues) return
 
+  // Never order more than the stock covers, however the caller got its number.
+  const runs = Math.max(1, Math.min(count, maxConversionRuns(buildingId, recipeIndex)))
+
   buildError.value = ''
   const { postConvert } = useHawkStarApi()
 
   try {
-    const result = await postConvert(planetId, buildingId, recipeIndex, count)
-    // Optimistic cost deduction
+    const result = await postConvert(planetId, buildingId, recipeIndex, runs)
+    // Optimistic cost deduction — the whole order is paid for up front
     const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
     const res    = allPlanetStates.value[planetId]?.resources
     if (recipe && res) {
       for (const [r, amt] of Object.entries(recipe.input)) {
-        res[r] = Math.max(0, (res[r] ?? 0) - amt * count)
+        res[r] = Math.max(0, (res[r] ?? 0) - amt * runs)
       }
     }
-    queues.push({
-      buildingId,
-      recipeIndex,
-      planetId,
-      endsAt:    result.endsAt,
-      remaining: Math.max(0, count - 1),
-    })
+
+    const existing = queues.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex)
+    if (existing) {
+      existing.remaining += runs
+    } else {
+      queues.push({
+        buildingId,
+        recipeIndex,
+        planetId,
+        endsAt:    result.endsAt,
+        remaining: Math.max(0, runs - 1),
+      })
+    }
   } catch (e) {
     buildError.value = e.message
   }
@@ -2291,6 +2313,7 @@ export function useHawkStar() {
     conversionQueues,
     conversionTime,
     canConvert,
+    maxConversionRuns,
     startConversion,
     remainingConversionSec,
     conversionProgressStyle,
