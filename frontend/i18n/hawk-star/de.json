@@ -20,6 +20,8 @@
       "spyReady": "Spionagedrohne bereit",
       "spyDone": "Spionagebericht eingetroffen",
       "satelliteReady": "Spionagesatellit bereit",
+      "corvetteReady": "{n} Korvette(n) einsatzbereit",
+      "corvetteBuilding": "{n} Korvette(n) im Bau",
       "satelliteOnline": "Satellit funkt",
       "satelliteDestroyed": "Fremder Satellit abgeschossen",
       "satelliteLost": "Eigener Satellit zerstört",
@@ -99,7 +101,14 @@
       "spyDroneDesc": "Sieht einmal nach, welcher Planetentyp das ist und wem er in einem gescannten Fremdsystem gehört",
       "spySatellite": "Spionagesatellit",
       "spySatelliteDesc": "Bleibt im Orbit, hält den Befund aktuell und misst den Schildgenerator — bis ihn eine Orbitalabwehr abschießt",
-      "launchFromGalaxyMap": "Ziel über die Galaxiekarte wählen"
+      "launchFromGalaxyMap": "Ziel über die Galaxiekarte wählen",
+      "corvette": "Korvette",
+      "corvetteDesc": "Kriegsschiff — 20 Feuerkraft gegen Schild und Batterie eines fremden Planeten",
+      "fleetCap": "🚩 Flotte {n} / {cap}",
+      "fleetFull": "Flottenlimit erreicht — Waffenkammer ausbauen",
+      "needWeapons": "🔒 Waffenkammer",
+      "needWeaponsHint": "Kriegsschiffe brauchen eine Waffenkammer — jede Stufe gibt 4 Liegeplätze",
+      "batchHint": "Wie viele Korvetten auf einmal bestellen — ein Auftrag, eine Bauzeit, das Geschwader landet zusammen"
     },
 
     "solar": {

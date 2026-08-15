@@ -317,41 +317,86 @@ function ensure_units_table(PDO $db): void {
                quantity         INT NOT NULL DEFAULT 0,
                build_ends_at    DATETIME NULL,
                build_started_at DATETIME NULL,
+               build_count      INT NOT NULL DEFAULT 1,
                PRIMARY KEY (planet_id, player_id, unit_key)
              )'
         );
+        // Hulls in the running batch. 1 for every unit that is not batchable, so
+        // an existing row keeps behaving exactly as before the column existed.
+        // Probed on its own — see the ensure_spy_intel_table() note on why a
+        // shared guard once left a half-migrated table broken for good.
+        if (!$db->query("SHOW COLUMNS FROM hs_units LIKE 'build_count'")->fetch()) {
+            $db->exec('ALTER TABLE hs_units ADD COLUMN build_count INT NOT NULL DEFAULT 1');
+        }
     } catch (\Throwable $e) {}
     $tableReady = true;
 }
 
 // A finished unit build lands in the planet's inventory. Missions consume from
 // there — a built dock alone is never enough to launch anything.
+// A batch lands as a whole squadron: `build_count` hulls at once, never one per
+// tick, which is what makes ×4 an order for four ships rather than four orders.
 function resolve_units(PDO $db, int $planetId, int $playerId): void {
     ensure_units_table($db);
     $db->prepare(
         'UPDATE hs_units
-         SET quantity = quantity + 1, build_ends_at = NULL, build_started_at = NULL
+         SET quantity = quantity + GREATEST(1, build_count),
+             build_ends_at = NULL, build_started_at = NULL, build_count = 1
          WHERE planet_id=? AND player_id=? AND build_ends_at IS NOT NULL AND build_ends_at <= NOW()'
     )->execute([$planetId, $playerId]);
+}
+
+// ── Fleet ─────────────────────────────────────────────────────────────────────
+
+function weapons_building_level(PDO $db, int $planetId, int $playerId): int {
+    $row = $db->prepare(
+        'SELECT level FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND building_key=? AND build_ends_at IS NULL'
+    );
+    $row->execute([$planetId, $playerId, 'weapons_building']);
+    return (int)($row->fetchColumn() ?: 0);
+}
+
+// Berths on this planet. Zero without a weapons_building — the fleet is gated
+// behind the building, not merely limited by it.
+function fleet_cap(PDO $db, int $planetId, int $playerId): int {
+    return weapons_building_level($db, $planetId, $playerId) * FLEET_PER_WEAPONS_LEVEL;
+}
+
+// Hulls that already count against the cap: docked plus the ones in the running
+// batch. Ships away on a mission are still this planet's ships and will be
+// counted here too once raids exist — they never leave hs_units.
+function fleet_size(PDO $db, int $planetId, int $playerId): int {
+    ensure_units_table($db);
+    $row = $db->prepare(
+        'SELECT quantity, build_ends_at, build_count FROM hs_units
+         WHERE planet_id=? AND player_id=? AND unit_key=?'
+    );
+    $row->execute([$planetId, $playerId, 'corvette']);
+    $u = $row->fetch();
+    if (!$u) return 0;
+    return (int)$u['quantity'] + ($u['build_ends_at'] ? max(1, (int)$u['build_count']) : 0);
 }
 
 function units_state(PDO $db, int $planetId, int $playerId): array {
     ensure_units_table($db);
     $rows = $db->prepare(
-        'SELECT unit_key, quantity, build_ends_at, build_started_at
+        'SELECT unit_key, quantity, build_ends_at, build_started_at, build_count
          FROM hs_units WHERE planet_id=? AND player_id=?'
     );
     $rows->execute([$planetId, $playerId]);
 
     $units = [];
     foreach (array_keys(UNIT_COSTS) as $key) {
-        $units[$key] = ['quantity' => 0, 'buildEndsAt' => null, 'buildStartedAt' => null];
+        $units[$key] = ['quantity' => 0, 'buildEndsAt' => null, 'buildStartedAt' => null, 'buildCount' => 1];
     }
     foreach ($rows->fetchAll() as $u) {
         $units[$u['unit_key']] = [
             'quantity'       => (int)$u['quantity'],
             'buildEndsAt'    => $u['build_ends_at']    ? strtotime($u['build_ends_at'])    * 1000 : null,
             'buildStartedAt' => $u['build_started_at'] ? strtotime($u['build_started_at']) * 1000 : null,
+            // How many hulls the running build will deliver at once
+            'buildCount'     => max(1, (int)$u['build_count']),
         ];
     }
     return $units;

@@ -96,7 +96,7 @@ const inProgressCount = computed(() => {
     if (dock) {
       // Every unit type, not just the two the dock started with — a spy drone
       // under construction is an operation in progress like any other.
-      const shipKeys = ['reconDroneBuild','colonyShipBuild','cargoDroneBuild','spyDroneBuild','spySatelliteBuild']
+      const shipKeys = ['reconDroneBuild','colonyShipBuild','cargoDroneBuild','spyDroneBuild','spySatelliteBuild','corvetteBuild']
       for (const key of shipKeys) { if (dock[key]) count++ }
       count += (dock.activeDroneMissions?.length      ?? 0)
       count += (dock.activeColonyMissions?.length     ?? 0)
@@ -126,6 +126,7 @@ const dockInfo = computed(() => {
     { icon: '📦', inv: 'cargoDroneInventory',   build: 'cargoDroneBuild'   },
     { icon: '🕵️', inv: 'spyDroneInventory',     build: 'spyDroneBuild'     },
     { icon: '📡', inv: 'spySatelliteInventory', build: 'spySatelliteBuild' },
+    { icon: '⚔️', inv: 'corvetteInventory',     build: 'corvetteBuild'     },
   ]
 
   const inventory = UNITS

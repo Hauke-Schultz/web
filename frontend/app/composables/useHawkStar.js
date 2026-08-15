@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY, CONVERSION_MAX_QUEUE } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY, CONVERSION_MAX_QUEUE, FLEET_PER_WEAPONS_LEVEL } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -97,6 +97,10 @@ const freshDock = () => ({
   spySatelliteInventory:  0,
   spySatelliteBuild:      null,
   activeSpyMissions:      [],   // one-way — neither unit comes back
+  corvetteInventory:      0,
+  // A warship build is a batch: { endsAt, startedAt, count } — the whole
+  // squadron lands at once, so `count` is what the timer will deliver.
+  corvetteBuild:          null,
 })
 
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
@@ -1215,6 +1219,73 @@ const buildSpyUnit = async (unitKey) => {
 const buildSpyDrone     = () => canBuildSpyDrone.value     ? buildSpyUnit('spy_drone')     : undefined
 const buildSpySatellite = () => canBuildSpySatellite.value ? buildSpyUnit('spy_satellite') : undefined
 
+// ── Fleet (corvettes) ──────────────────────────────────────
+// Warships are the first unit that is ordered several at a time. The batch is
+// one timer over the whole order and lands as a squadron — ordering four saves
+// three clicks, never a minute. The berth count comes from the planet's
+// weapons_building, which is a gate as much as a cap: no building, no fleet.
+
+const corvetteInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.corvetteInventory ?? 0)
+const corvetteBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.corvetteBuild ?? null)
+const shipyardLevel     = computed(() => playerBuildings.value['shipyard']?.level ?? 0)
+
+const fleetCap = computed(() =>
+  (playerBuildings.value['weapons_building']?.level ?? 0) * FLEET_PER_WEAPONS_LEVEL
+)
+
+// Hulls that already hold a berth: docked plus the ones in the running batch.
+const fleetSize = computed(() =>
+  corvetteInventory.value + (corvetteBuild.value?.count ?? 0)
+)
+
+const fleetFree = computed(() => Math.max(0, fleetCap.value - fleetSize.value))
+
+const corvetteBuildTime = (count = 1) =>
+  Math.ceil(UNIT_COSTS.corvette.buildTimeBase * count * buildTimeFactor.value)
+
+// The ceiling for the ×N picker: berths, stock and crew, whichever runs out
+// first. The server re-checks all three.
+const maxCorvetteBatch = computed(() => {
+  if (shipyardLevel.value === 0 || fleetCap.value === 0) return 0
+  const byCost = Object.entries(UNIT_COSTS.corvette.cost).map(
+    ([res, amt]) => Math.floor((playerResources.value[res] ?? 0) / amt)
+  )
+  const byCrew = Math.floor(freeWorkers.value / UNIT_COSTS.corvette.crew)
+  return Math.max(0, Math.min(fleetFree.value, byCrew, ...byCost))
+})
+
+const canBuildCorvette = computed(() => !corvetteBuild.value && maxCorvetteBatch.value > 0)
+
+const buildCorvette = async (count = 1) => {
+  if (!canBuildCorvette.value) return
+  const planetId = activePlanetId.value
+  const dock = allPlanetStates.value[planetId]?.dock
+  if (!dock) return
+
+  const runs = Math.max(1, Math.min(count, maxCorvetteBatch.value))
+  buildError.value = ''
+  const { postUnitBuild } = useHawkStarApi()
+
+  try {
+    const result = await postUnitBuild(planetId, 'corvette', runs)
+    // The server clamps to the free berths, so trust its number over ours.
+    const built = result.count ?? runs
+    const res   = allPlanetStates.value[planetId].resources
+    for (const [r, amt] of Object.entries(UNIT_COSTS.corvette.cost)) {
+      res[r] = Math.max(0, (res[r] ?? 0) - amt * built)
+    }
+    // The crew boards at build time and is gone from the workforce right away.
+    res.population = Math.max(0, (res.population ?? 0) - UNIT_COSTS.corvette.crew * built)
+    dock.corvetteBuild = {
+      endsAt:    result.endsAt,
+      startedAt: result.buildStartedAt ?? Date.now(),
+      count:     built,
+    }
+  } catch (e) {
+    buildError.value = e.message
+  }
+}
+
 // ── Reading a report ──────────────────────────────────────
 // `intel` rides along on the galaxy planet. Null for your own space (which needs
 // no espionage) and for anything never looked at.
@@ -1325,6 +1396,7 @@ const buildBarStyle = (build) => {
 
 const spyBuildProgressStyle       = computed(() => buildBarStyle(spyDroneBuild.value))
 const satelliteBuildProgressStyle = computed(() => buildBarStyle(spySatelliteBuild.value))
+const corvetteBuildProgressStyle  = computed(() => buildBarStyle(corvetteBuild.value))
 
 // Helper: storage caps for any planet (used when delivering cargo)
 const maxStorageForPlanet = (planetId) => {
@@ -1688,6 +1760,13 @@ const tick = () => {
         dock.spySatelliteBuild = null
         notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_sat`, type: 'unit_done', icon: '📡', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.satelliteReady', timestamp: Date.now() })
       }
+      // Corvette batch — the whole squadron lands at once, never one per tick.
+      if (dock.corvetteBuild && dock.corvetteBuild.endsAt <= now.value) {
+        const built = dock.corvetteBuild.count ?? 1
+        dock.corvetteInventory += built
+        dock.corvetteBuild = null
+        notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_corvette`, type: 'unit_done', icon: '⚔️', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.corvetteReady', labelParams: { n: built }, timestamp: Date.now() })
+      }
       // An espionage flight landed → the server wrote down what it saw, so the
       // galaxy has to be pulled again. Neither unit comes back.
       for (let i = dock.activeSpyMissions.length - 1; i >= 0; i--) {
@@ -1837,8 +1916,10 @@ const applyGameState = (planetId, state) => {
     const u = state.units?.[key]
     return {
       quantity: u?.quantity ?? 0,
+      // `count` is the batch size the running build will deliver — 1 for every
+      // unit that is not ordered in batches.
       build:    u?.buildEndsAt
-        ? { endsAt: u.buildEndsAt, startedAt: u.buildStartedAt ?? Date.now() }
+        ? { endsAt: u.buildEndsAt, startedAt: u.buildStartedAt ?? Date.now(), count: u.buildCount ?? 1 }
         : null,
     }
   }
@@ -1847,6 +1928,7 @@ const applyGameState = (planetId, state) => {
   const cargo  = unitState('cargo_drone')
   const spy    = unitState('spy_drone')
   const spySat = unitState('spy_satellite')
+  const warship = unitState('corvette')
 
   const droneMissions  = (state.missions ?? []).filter(m => m.type === 'recon_drone')
     .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
@@ -1895,6 +1977,8 @@ const applyGameState = (planetId, state) => {
       spySatelliteInventory: spySat.quantity,
       spySatelliteBuild:    spySat.build,
       activeSpyMissions:    spyMissions,
+      corvetteInventory:    warship.quantity,
+      corvetteBuild:        warship.build,
     },
     conversionQueues: convQueues,
     battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
@@ -2283,6 +2367,17 @@ export function useHawkStar() {
     spyBuildProgressStyle,
     satelliteBuildProgressStyle,
     spyProgressStyle,
+    // fleet
+    corvetteInventory,
+    corvetteBuild,
+    corvetteBuildTime,
+    corvetteBuildProgressStyle,
+    fleetCap,
+    fleetSize,
+    fleetFree,
+    maxCorvetteBatch,
+    canBuildCorvette,
+    buildCorvette,
     planetIntel,
     hasLiveSatellite,
     intelAgeHours,

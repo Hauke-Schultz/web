@@ -257,9 +257,9 @@ GET  /api/star/galaxy
 | **1c** | LocalStorage-Save entfernen, API als alleinige Source of Truth; `auth/profile`, `auth/delete`             | ✅ **Implementiert** |
 | **2** | Scanning (`hs_system_contacts`), Player-Komm (`hs_comm_log`), server-seitig                               | ✅ **Implementiert** |
 | **2b** | Agriculture-Tile — Slot 7 frei für neues Konzept                                                | ⬜ Offen |
-| **3** | Spieler-Interaktion (Trade, Player-Messaging)                                                             | ⬜ Offen |
-| **4** | Espionage — Recon in fremden Systemen, Intel-DB                                                           | ⬜ Offen |
-| **5** | Kampf — Kriegsschiffe, stat-basierter Combat                                                              | ⬜ Offen |
+| **3** | Trade zwischen Spielern                                                                                   | ❌ **Gestrichen** (2026-08-15) — Beute ersetzt ihn |
+| **4** | Espionage — Recon in fremden Systemen, Intel-DB                                                           | ✅ **Implementiert** (Ownership, Typ, Schild) |
+| **5** | Kampf — Überfall: Schild + Batterie auf 0, optionale Plünderung                                            | ⬜ Offen (Konzept steht) |
 
 ---
 
@@ -300,45 +300,50 @@ GET  /api/star/comm/log         → alle comm_log-Einträge des Spielers
 
 ---
 
-## Phase 3 — Spieler-Interaktion
+## Phase 3 — Trade ❌ gestrichen
 
-- Spieler-zu-Spieler-Messaging (extend `hs_comm_log` oder neues `hs_messages`)
-- Frachter-Trade: Ressourcen zwischen eigenen Planeten transferieren
-  - Ein Frachter pro Planet; fliegt zwischen eigenen Kolonien
-  - Später: Trade-Angebote zwischen Spielern
+**Entscheidung 2026-08-15: kein Spieler-Handel.** Güter wechseln den Besitzer nur auf zwei Wegen — mit der **Cargo-Drohne** zwischen *eigenen* Planeten (implementiert) und als **Beute** aus einem Überfall (Phase 5). Ohne Markt ist die Plünderung der einzige Grund, zu einem fremden Planeten zu fliegen, und genau das soll sie sein.
+
+Der Frachter zwischen eigenen Kolonien ist als Cargo-Drohne bereits umgesetzt. Emoji-Messaging zwischen Spielern läuft über `hs_comm_log` (Phase 2).
 
 ---
 
-## Phase 4 — Espionage
+## Phase 4 — Espionage ✅
 
-- Recon Drones in **fremden** Systemen enthüllen Planet-Ownership + Gebäude-Level-Ranges
-- Ergebnisse pro Spieler gespeichert — was du gescoutet hast, ist dein Intel (wird stale)
+Umgesetzt 2026-08-12/13: Spy Drone (Bericht, der altert) + Spy Satellite (bleibt live, bis er abgeschossen wird), `hs_spy_intel`, Orbital Defense als Sensor **und** Kanone. Liest Ownership, Planetentyp und Schildladung. Vollständige Beschreibung in `hawk-star.md` § Espionage. Offen: Gebäude-/Ressourcen-/Flotten-Recon.
+
+---
+
+## Phase 5 — Combat: der Überfall
+
+Konzept steht (2026-08-15), Details in `hawk-star.md` § Combat — The Raid. **Schritt 1 (Produktion) ist umgesetzt:** Einheit `corvette` in der `shipyard`, Bestellung als Batch (`hs_units.build_count`, `UNIT_BATCH_KEYS`), Flottenlimit `weapons_building`-Level × `FLEET_PER_WEAPONS_LEVEL` (4/8/12) über `fleet_cap()` / `fleet_size()` in `bootstrap.php`, geprüft in `game/unit/build.php`. Offen ist die Mission selbst. Kurzfassung fürs Backend:
+
+**Nur zwei Ziele: Schild und Batterie.** Gebäude, Forschung, Einheiten und Bevölkerung sind unantastbar. **Sieg = beide Werte auf 0** → Blackout. Nur bei Sieg und nur auf Befehl wird geplündert: **alle veredelten Güter** des Planeten (nie Rohstoffe — die sind gedeckelt und würden beim Gutschreiben weggeschnitten).
+
+Der Befehl (`disable` | `plunder`) wird **beim Start festgelegt**, nicht nach der Schlacht — kein wartender Verband im Orbit. Der Angreifer wird im Bericht **immer** namentlich genannt; der Preis fürs Plündern ist stattdessen eine **Ladezeit im Orbit (~30 min), in der die Orbitalabwehr ein zweites Mal feuert**. Der Satellit meldet weiterhin **nur die Schildladung**, nie die Batterie — jeder Angriff behält damit ein Restrisiko.
 
 ```sql
-hs_intel (
-  id, player_id, planet_id,
-  scouted_at DATETIME,
-  data JSON    -- building ranges, owner, etc.
+-- Flotte: keine eigene Tabelle nötig, die Korvette ist eine Einheit in hs_units
+-- Mission: hs_missions mit type='raid' + leg ('out' | 'back'), wie die Cargo-Drohne
+hs_battle_reports (
+  id, attacker_id, defender_id, planet_id,
+  fought_at DATETIME,
+  won TINYINT(1),
+  plundered TINYINT(1),
+  result JSON,                 -- Schiffe, Feuerkraft, Abschüsse, Schild/Batterie vorher+nachher, Beute
+  seen_by_attacker TINYINT(1), -- Outbox-Muster wie satellite_lost_at
+  seen_by_defender TINYINT(1)
 )
 ```
 
----
-
-## Phase 5 — Combat
-
-Ein Kriegsschiff pro Planet (kein Fleet-Konzept). Stat-basierter Combat.
-
-```sql
-hs_warships (id, player_id, planet_id, hull, shield, speed, status ENUM('hangar','in_flight','returning'))
-hs_combat_logs (id, attacker_id, defender_id, planet_id, attacker_won, result JSON, fought_at)
-```
+**Angriffshistorie in der Galaxy-Card:** `SELECT attacker_id, COUNT(*), MAX(fought_at) FROM hs_battle_reports WHERE defender_id=? GROUP BY attacker_id` — pro Spieler in der Owner-Liste eines fremden Systems (`⚔️ 3 · zuletzt vor 2 h`). Zählt gewonnene **und** abgewehrte Angriffe. Keine neue Tabelle, kein neues Feld; `galaxy/index.php` liefert es zur Systemkarte mit.
 
 **Attack Flow:**
-1. Spieler klickt "Attack" auf feindlichen Planeten → `POST /game/warship/attack { fromPlanetId, toPlanetId }`
-2. Server setzt Kriegsschiff auf `in_flight`, berechnet `arrives_at`
-3. On Arrival: Combat-Resolution (hull × 0.6 Basis-Schaden, reduziert durch Planet-Defenses)
-4. Ergebnis in `hs_combat_logs`, Kriegsschiff → `returning`
-5. Nach Rückflug: Kriegsschiff zurück im `hangar` — beschädigter Hull bleibt (kein Destroy in Phase 5)
+1. `POST /game/mission/raid { fromPlanetId, toPlanetId, ships, order }` — `order` = `'disable' | 'plunder'`. Prüft: Ziel schon einmal ausgespäht, Korvetten im Dock, 1 Power Cell pro Schiff, Flottenlimit aus `weapons_building`.
+2. Mission `type='raid'`, `leg='out'`, Flugzeit aus der Distanzformel (langsamer als eine Spy Drone).
+3. **Auflösung bei Ankunft** in `resolve_missions()`: Orbital Defense schießt automatisch (1 Power Cell = 1 Korvette), Restfeuerkraft gegen Schild, Überschuss gegen Batterie. `firepower >= schild% + batterie%` → Sieg, beide auf 0. Bei `order='plunder'` + Sieg: zweite Salve der Orbitalabwehr, dann Beute.
+4. Bericht materialisieren (wie Anomalie-Choices bei der Auslosung), Beute auf die Rückflug-Mission legen.
+5. `leg='back'` → bei Ankunft Korvetten zurück ins Dock, Beute per `credit_resources()` gutschreiben.
 
 ---
 

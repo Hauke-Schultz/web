@@ -63,6 +63,7 @@ const inProgressItems = computed(() => {
       const shipBuilds = [
         { key: 'reconDroneBuild',  labelKey: 'hawkStar.notifications.droneBuilding',  icon: '🛸' },
         { key: 'colonyShipBuild',  labelKey: 'hawkStar.notifications.colonyBuilding', icon: '🚀' },
+        { key: 'corvetteBuild',    labelKey: 'hawkStar.notifications.corvetteBuilding', icon: '⚔️' },
       ]
       for (const { key, labelKey, icon } of shipBuilds) {
         const build = dock[key]
@@ -71,7 +72,8 @@ const inProgressItems = computed(() => {
           id:       `prog_${key}_${pid}`,
           type:     'ship',
           icon:     '🛠️',
-          title:    t(labelKey),
+          // A batch says how many hulls are coming — one timer, whole squadron.
+          title:    t(labelKey, { n: build.count ?? 1 }),
           subtitle: t('hawkStar.notifications.shipDock', { planet: pname }),
           remSec:   remSec(build.endsAt),
           pct:      pct(build.startedAt, build.endsAt),

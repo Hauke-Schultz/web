@@ -165,6 +165,9 @@ CREATE TABLE IF NOT EXISTS hs_units (
   quantity         INT NOT NULL DEFAULT 0,
   build_ends_at    DATETIME NULL,
   build_started_at DATETIME NULL,
+  -- Hulls the running build delivers at once. Always 1 except for batchable
+  -- units (UNIT_BATCH_KEYS — currently the corvette).
+  build_count      INT NOT NULL DEFAULT 1,
   PRIMARY KEY (planet_id, player_id, unit_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

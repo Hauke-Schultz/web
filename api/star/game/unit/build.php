@@ -8,11 +8,15 @@ $playerId = (int)$jwt['sub'];
 $b        = body();
 $planetId = (int)($b['planetId'] ?? 0);
 $unitKey  = trim($b['unitKey']  ?? '');
+// Only batchable units read `count`; everything else stays one per build.
+$count    = max(1, (int)($b['count'] ?? 1));
 
 if (!$planetId || !$unitKey) fail('planetId and unitKey required');
 
 $def = UNIT_COSTS[$unitKey] ?? null;
 if (!$def) fail('Unknown unit');
+
+if (!in_array($unitKey, UNIT_BATCH_KEYS, true)) $count = 1;
 
 $db = getDB();
 
@@ -54,16 +58,31 @@ if ($unitKey === 'cargo_drone') {
     if ($existing->fetch()) fail('This planet already has a cargo drone');
 }
 
+// Warships need a berth. The weapons_building is the gate as well as the cap:
+// without one there is no fleet at all, and hulls already docked or already in
+// the running batch count against the limit.
+if ($unitKey === 'corvette') {
+    $cap  = fleet_cap($db, $planetId, $playerId);
+    if ($cap < 1) fail('No weapons building on this planet — warships need one');
+    $free = $cap - fleet_size($db, $planetId, $playerId);
+    if ($free < 1) fail("Fleet limit reached ($cap ships)");
+    if ($count > $free) $count = $free;
+}
+
 // Check & deduct cost
 compute_resources($db, $planetId, $playerId, $planet['type']);
 
-// Crewed units (colony ship) take their settlers out of the free workers
-$crew = (float)($def['crew'] ?? 0);
+// Crewed units (colony ship, corvette) take their crew out of the free workers
+$crew = (float)($def['crew'] ?? 0) * $count;
 if ($crew > 0 && free_workers($db, $planetId, $playerId) < $crew) {
-    fail("Not enough free workers — this unit needs a crew of " . (int)$crew);
+    fail("Not enough free workers — this order needs a crew of " . (int)$crew);
 }
 
-$cost   = $def['cost'];
+// The whole batch is paid for up front, exactly like a conversion order.
+$cost = [];
+foreach ($def['cost'] as $resource => $amount) {
+    $cost[$resource] = $amount * $count;
+}
 $resRow = $db->prepare('SELECT * FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
 $resRow->execute([$planetId, $playerId]);
 $res = $resRow->fetch();
@@ -83,13 +102,15 @@ if ($crew > 0) {
     )->execute([$crew, $planetId, $playerId]);
 }
 
-// Queue the build
-$buildTime = (int)$def['buildTimeBase'];
+// Queue the build. A batch is ONE timer over the whole order — the squadron
+// lands together, so ordering four does not shorten anything, it only saves
+// three clicks and the returns in between.
+$buildTime = (int)$def['buildTimeBase'] * $count;
 $db->prepare(
-    'INSERT INTO hs_units (planet_id, player_id, unit_key, quantity, build_ends_at, build_started_at)
-     VALUES (?,?,?,0, DATE_ADD(NOW(), INTERVAL ? SECOND), NOW())
-     ON DUPLICATE KEY UPDATE build_ends_at = DATE_ADD(NOW(), INTERVAL ? SECOND), build_started_at = NOW()'
-)->execute([$planetId, $playerId, $unitKey, $buildTime, $buildTime]);
+    'INSERT INTO hs_units (planet_id, player_id, unit_key, quantity, build_ends_at, build_started_at, build_count)
+     VALUES (?,?,?,0, DATE_ADD(NOW(), INTERVAL ? SECOND), NOW(), ?)
+     ON DUPLICATE KEY UPDATE build_ends_at = DATE_ADD(NOW(), INTERVAL ? SECOND), build_started_at = NOW(), build_count = ?'
+)->execute([$planetId, $playerId, $unitKey, $buildTime, $count, $buildTime, $count]);
 
 // Claim the planet's cargo-drone slot as soon as the build starts
 if ($unitKey === 'cargo_drone') {
@@ -103,4 +124,6 @@ ok([
     'endsAt'         => (time() + $buildTime) * 1000,
     'buildStartedAt' => time() * 1000,
     'crew'           => $crew,
+    // May be lower than requested — the fleet limit clamps the order.
+    'count'          => $count,
 ]);

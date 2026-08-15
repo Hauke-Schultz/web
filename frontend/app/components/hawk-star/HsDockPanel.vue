@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
@@ -68,9 +68,35 @@ const {
   spySatelliteInventory,
   satelliteBuildTime,
   satelliteBuildProgressStyle,
+  // fleet — the shipyard's second product, ordered as a batch
+  freeWorkers,
+  corvetteInventory,
+  corvetteBuild,
+  corvetteBuildTime,
+  corvetteBuildProgressStyle,
+  fleetCap,
+  fleetSize,
+  fleetFree,
+  maxCorvetteBatch,
+  canBuildCorvette,
+  buildCorvette,
 } = useHawkStar()
 
 const { t } = useI18n()
+
+// ── ×N fleet order ────────────────────────────────────────────────────────────
+// Same picker as a conversion batch, same promise: one order, one timer, the
+// squadron lands together. Clamped on read against berths, stock and crew, so a
+// count picked while rich stays valid after spending.
+const corvetteOrder = ref(1)
+
+const corvetteCount = computed(() =>
+  Math.max(1, Math.min(corvetteOrder.value, Math.max(1, maxCorvetteBatch.value)))
+)
+
+const setCorvetteCount = (delta) => {
+  corvetteOrder.value = Math.max(1, Math.min(corvetteCount.value + delta, Math.max(1, maxCorvetteBatch.value)))
+}
 
 const getPlanetLabel = (planetId) => {
   const p = homeSystem.value?.planets.find(pl => pl.id === planetId)
@@ -348,6 +374,81 @@ const hasMissions = computed(() =>
         </div>
       </div>
 
+      <!-- Korvette — the warship. Ordered as a batch, limited by the berths the
+           weapons_building provides: no building, no fleet. -->
+      <div class="hs-building-row">
+        <div class="hs-building-ident">
+          <div class="hs-building-icon-wrap">
+            <span class="hs-building-icon">⚔️</span>
+            <span v-if="corvetteInventory > 0" class="hs-building-badge hs-building-badge--war">{{ corvetteInventory }}</span>
+          </div>
+          <div class="hs-building-info">
+            <div class="hs-building-name">{{ t('hawkStar.dock.corvette') }}</div>
+            <div class="hs-building-desc">{{ t('hawkStar.dock.corvetteDesc') }}</div>
+            <!-- Berths are the headline number here, not a footnote: the whole
+                 fleet size decision hangs off the weapons building. -->
+            <div v-if="colonyShipLevel > 0 && fleetCap > 0" class="hs-fleet-cap">
+              {{ t('hawkStar.dock.fleetCap', { n: fleetSize, cap: fleetCap }) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="hs-building-action">
+          <span v-if="colonyShipLevel === 0" class="hs-status-locked">{{ t('hawkStar.tile.lockedGeneric') }}</span>
+          <span v-else-if="fleetCap === 0" class="hs-status-locked" :title="t('hawkStar.dock.needWeaponsHint')">
+            {{ t('hawkStar.dock.needWeapons') }}
+          </span>
+          <template v-else-if="corvetteBuild">
+            <span class="hs-status-building">
+              {{ t('hawkStar.tile.statusBuilding') }}
+              <span v-if="corvetteBuild.count > 1" class="hs-batch-tag">×{{ corvetteBuild.count }}</span>
+            </span>
+            <div class="hs-progress-row">
+              <div class="hs-progress-track">
+                <div class="hs-progress-fill hs-progress-fill--war" :style="corvetteBuildProgressStyle" />
+              </div>
+              <span class="hs-progress-time">{{ formatTime(Math.ceil((corvetteBuild.endsAt - Date.now()) / 1000)) }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <!-- Cost and crew for the WHOLE order, so the number under the
+                 picker is the one that will actually be spent. -->
+            <div class="hs-cost-row">
+              <span
+                v-for="(amt, resId) in UNIT_COSTS.corvette.cost"
+                :key="resId"
+                class="hs-cost-tag"
+                :class="(playerResources[resId] ?? 0) >= amt * corvetteCount ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+              >{{ RESOURCES[resId]?.icon }} {{ amt * corvetteCount }}</span>
+              <span
+                class="hs-cost-tag"
+                :class="freeWorkers >= UNIT_COSTS.corvette.crew * corvetteCount ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+                :title="t('hawkStar.dock.crewHint', { crew: UNIT_COSTS.corvette.crew * corvetteCount })"
+              >👥 {{ UNIT_COSTS.corvette.crew * corvetteCount }}</span>
+            </div>
+
+            <div class="hs-fleet-order">
+              <div class="hs-conv-count" :title="t('hawkStar.dock.batchHint')">
+                <button class="hs-conv-count__btn" :disabled="corvetteCount <= 1" @click="setCorvetteCount(-1)">−</button>
+                <span class="hs-conv-count__value">×{{ corvetteCount }}</span>
+                <button class="hs-conv-count__btn" :disabled="corvetteCount >= maxCorvetteBatch" @click="setCorvetteCount(1)">+</button>
+              </div>
+              <button
+                class="hs-btn-build"
+                :class="{ 'hs-btn-build--disabled': !canBuildCorvette }"
+                :disabled="!canBuildCorvette"
+                @click="buildCorvette(corvetteCount)"
+              >{{ t('hawkStar.tile.btnBuild') }}</button>
+            </div>
+
+            <div class="hs-building-meta">
+              <span class="hs-build-time">⏱ {{ formatTime(corvetteBuildTime(corvetteCount)) }}</span>
+            </div>
+            <div v-if="fleetFree === 0" class="hs-crew-warning">{{ t('hawkStar.dock.fleetFull') }}</div>
+          </template>
+        </div>
+      </div>
+
     </div>
 
     <!-- Active missions -->
@@ -518,6 +619,9 @@ const hasMissions = computed(() =>
   &--cargo  { background: #fbbf24; }
   &--spy    { background: #a78bfa; }
   &--sat    { background: #2dd4bf; }
+  // Red is the fleet's colour everywhere: the badge, the build bar, and later
+  // the raid rows. It is the only unit that is pointed at another player.
+  &--war    { background: #f87171; }
 }
 .hs-building-info   { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hs-building-name   { font-size: 0.825rem; font-weight: 600; display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; }
@@ -624,6 +728,74 @@ const hasMissions = computed(() =>
 .hs-progress-fill--cargo  { background: #fbbf24; }
 .hs-progress-fill--spy    { background: #a78bfa; }
 .hs-progress-fill--sat    { background: #2dd4bf; }
+.hs-progress-fill--war    { background: #f87171; }
+
+// ── Fleet order ───────────────────────────────────────────────────────────────
+// Berth count under the ship's description: it is the number that decides how
+// big an order may be, so it belongs next to the name, not in a tooltip.
+.hs-fleet-cap {
+  font-size: 0.62rem;
+  color: rgba(248,113,113,0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+// Picker and Build sit on one line — the count is part of the button's price,
+// not a separate step.
+.hs-fleet-order {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+
+  .hs-btn-build { flex: 1; }
+}
+
+// Same quiet stepper as the conversion row in HsTilePanel. Duplicated rather
+// than shared because both components are scoped; if a third one needs it, this
+// is the moment to lift it into the global sheet.
+.hs-conv-count {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid var(--hs-line-sm);
+  background: var(--hs-glass-sm);
+  overflow: hidden;
+}
+
+.hs-conv-count__btn {
+  width: 1.35rem;
+  padding: 0.3rem 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255,255,255,0.7);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--hs-glass-lg); color: #fff; }
+  &:disabled { opacity: 0.25; cursor: not-allowed; }
+}
+
+.hs-conv-count__value {
+  min-width: 1.75rem;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.8);
+}
+
+// How many hulls the running batch will deliver — the squadron lands together,
+// so this is a promise, not a countdown.
+.hs-batch-tag {
+  margin-left: 0.3rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #f87171;
+  font-variant-numeric: tabular-nums;
+}
 
 .hs-dock-missions {
   border-top: 1px solid rgba(255,255,255,0.06);

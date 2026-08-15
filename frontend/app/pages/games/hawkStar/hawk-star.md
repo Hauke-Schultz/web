@@ -155,7 +155,7 @@ Each planet type produces one exclusive raw resource from its High-Tech tile:
 
 ### Refined Resources
 
-Each planet type produces exactly **one** refined resource in its High-Tech building. The other three must be acquired via trade.
+Each planet type produces exactly **one** refined resource in its High-Tech building. The other three have to come from a colony of the right type via the cargo drone — or be taken off someone else's planet in a raid (there is no trade; see Combat).
 
 **The resource bar marks what this planet can refine** *(2026-08-13)*. The five refined stocks sit in a `hs-res-card--mini` row on every planet, which made the type→good mapping easy to lose: nothing said which of the five was *yours*. The ones refinable here now carry a border in the **resource's own colour**, so the marker doubles as a reminder of which icon is which, and the dim-when-empty state is lifted to 0.65 for them — "you can make this here" is worth most at a stock of zero. On any planet that is exactly two cards: `🔋 power_cell` (universal) plus the one domain good.
 
@@ -202,7 +202,7 @@ Until now only Duraplate had a consumer at all — Plasma Core, Superconductor a
 | 🏗️ **Deep Shaft Frame** | mining | `metal_mine` Lv4 | 1 Duraplate + 100 Crystal → **1200 Metal** (30 min) | 600 M · 300 C · 2 Plasma Core · 2 Vital Gel |
 | 🔭 **Deep Survey Array** | mining | `crystal_drill` Lv4 | 1 Superconductor + 100 Metal → **700 Crystal** (30 min) | 500 M · 400 C · 2 Plasma Core · 3 Duraplate |
 
-The pattern is deliberate and should be kept for anything added later: **the recipe consumes one domain continuously, the construction cost demands two more once.** That way every new building needs goods from at least two planet types, which is what makes the cargo drone — and later trade — necessary rather than decorative.
+The pattern is deliberate and should be kept for anything added later: **the recipe consumes one domain continuously, the construction cost demands two more once.** That way every new building needs goods from at least two planet types, which is what makes the cargo drone — and later the raid — necessary rather than decorative.
 
 - The **Med Station** is the only conversion whose output is a person. The recruit pool hard-caps growth at ~12/day; this is the way past it, priced so recruiting stays worthwhile (one head ≈ an hour of bio lab plus 360 metal). No backend work was needed: `resolve_conversions()` writes its output straight into `hs_planet_resources`, `population` is a normal column there, and `compute_resources()` deliberately never touches population.
 - The **Plasma Compressor** gives the power domain its purpose. The `power_cell_lab` makes one cell per 30 min from raw material; the compressor makes three in the same slot if fed a core. Same `durationBase` on purpose — the gain is **throughput, not a discount** — which turns volcanic planets into the fleet's fuel supply.
@@ -399,7 +399,7 @@ Frontend mirror: `reconDroneInventory` / `colonyShipInventory` come from `state.
 
 Resources are stored **per planet** and refined goods are planet-type exclusive — a frozen colony can never produce Duraplate and therefore cannot build a `shield_generator` on its own. The cargo drone is the first way to move goods between planets, and the missing half of the functional-domain system.
 
-Implemented 2026-08-08 as the deliberately **simple** version; a real freighter (bigger hold, multi-leg routes, two-way trade) is a later design.
+Implemented 2026-08-08 as the deliberately **simple** version; a real freighter (bigger hold, multi-leg routes) is a later design.
 
 ### Rules
 
@@ -408,7 +408,7 @@ Implemented 2026-08-08 as the deliberately **simple** version; a real freighter 
 - **Loadable are only the five high-tech goods:** `power_cell`, `duraplate`, `plasma_core`, `superconductor`, `vital_gel`. Raw resources cannot be shipped.
 - **Loading deducts immediately** from the origin planet — that is what stops the same unit being spent twice while in flight. Unloading before launch returns it; after launch the manifest is fixed.
 - **One-way delivery:** unload everything at the target, fly home empty.
-- **Target: any planet that is scanned *or* owned** — ownership is deliberately no condition, which makes this the base for player trade later. The *or owned* half matters because the **home planet is never in `playerScannedPlanets`** (you don't scout your own start), so without it a colony could not ship anything home. `mission/cargo.php` re-checks this server-side; the frontend condition is not a security boundary.
+- **Target: any planet that is scanned *or* owned** — ownership is deliberately no condition, which keeps the door open for a future delivery to a foreign planet. The *or owned* half matters because the **home planet is never in `playerScannedPlanets`** (you don't scout your own start), so without it a colony could not ship anything home. `mission/cargo.php` re-checks this server-side; the frontend condition is not a security boundary.
 
 ### Flow
 
@@ -577,6 +577,130 @@ The system card's planet list is the whole interface. Per planet, left to right:
 
 ---
 
+## Combat — The Raid  *(concept, 2026-08-15 — not implemented)*
+
+Phase 5, and the phase that replaces trade: **player trade is dropped from the roadmap** (2026-08-15). Without a market, plunder is the only reason to fly to another player's planet, which is exactly the intent — the cargo drone moves goods between *your own* planets, a raid moves them between *players*.
+
+### Leitprinzip — a raid costs time, never progress
+
+Nothing built is ever destroyed. **Buildings, research, units and population are untouchable**; a raid reads and empties the two values that already exist as meters — the **planetary shield** and the **reactor battery** — and, if the attacker orders it, takes the refined goods lying in the silo. The defender loses charge, crystal, production hours and stock. They never lose the colony.
+
+This is what finally gives the shield a job. The shield section still says *"An empty shield has no side effect… Its charge is the value future combat will read."* This is that reading.
+
+### The two layers, and what winning means
+
+Firepower hits the **shield** first and spills into the **battery**. Both are 0–100, so a fully prepared planet is worth 200 points of defense.
+
+> **Victory = shield 0 % AND battery 0 %.** Anything less is a repelled attack.
+
+| Outcome | Condition | Effect |
+|---|---|---|
+| **Sieg** | firepower ≥ shield % + battery % | Both meters drop to **0**. Planet is in **blackout** — nothing produces until the defender recharges. Plunder is possible. |
+| **Abgewehrt** | firepower < shield % + battery % | Damage still lands: shield first, the rest into the battery, but the battery never reaches 0. No plunder. |
+
+**Partial damage persists on a repelled attack.** That is deliberate: it makes softening a target over two waves a real strategy, and it means the defender feels the near miss instead of shrugging it off. It also keeps the arithmetic honest — the same fleet either bounces off a charged planet or walks over a neglected one, so *when* you strike matters more than how big the fleet is.
+
+Consequences worth stating outright:
+
+- **A planet without a `shield_generator` counts as 0 %, a planet without a `power_plant` likewise.** An undeveloped colony is trivially raidable — and has nothing in its silo, so there is nothing to take.
+- **Espionage stays half-blind, on purpose.** The satellite reads the **shield charge and nothing else** — the battery is never reported. So the attacker knows one of the two numbers they have to beat and has to guess the other. **Every raid keeps a real risk**, which is the point: a fully calculable battle would turn the fleet into a spreadsheet entry. It also means the shield is the value worth spying on, and the battery is the value worth hiding.
+
+### The plunder choice — decided at launch
+
+**The order is part of the attack command, not of the aftermath.** The fleet flies with sealed orders; there is no fleet waiting in orbit for its owner to log in and decide. Both orders empty shield and battery on a victory; only one takes goods:
+
+| Order | Beute | Price |
+|---|---|---|
+| ⚡ **Nur Schild + Batterie** | none | — the fleet turns for home the moment the meters hit zero |
+| 💰 **Schild + Batterie + Edelmetalle** | **every refined good on that planet** (`duraplate`, `plasma_core`, `superconductor`, `vital_gel`, `power_cell`) | The fleet has to **stay in orbit and load** (~30 min), and the `orbital_defense` **fires one more volley** at it while it does |
+
+That loading window is what keeps the cheaper order meaningful: against a planet with a working orbital battery and power cells left in the silo, greed costs ships. It also needs no logged-in defender — the gun fires by itself, as it already does against satellites.
+
+**The attacker is always named** in the defender's report, plundered or not. An earlier draft made the anonymous warning shot the reward for not looting; that was dropped because the defender's system card now keeps a raid history per player (see below), and a history full of "unknown fleet" would be worth very little.
+
+Two rules that follow from the mechanics rather than from taste:
+
+- **Only refined goods, never raw.** Same reason the cargo drone excludes them: raws are the capped resources, and `compute_resources()` clamps to the cap on every tick, so an overshooting haul would silently evaporate on the way into the attacker's silo. Refined goods are uncapped, so `credit_resources()` can pay out the whole take.
+- **Everything on that planet, no hold limit.** Resources are stored per planet, so a raid strips **one colony**, not an empire — the per-planet storage model is the natural cap and no picker UI is needed. It hurts exactly as much as it should: a full silo of refined goods is many hours of locked refinery batches.
+- **Plunder cooldown, 12 h per planet.** A raided planet can be knocked out again but gives up no goods a second time. Without this, a strong player farms a weak one on a timer.
+
+### The raid history in the system card  *(decided 2026-08-15)*
+
+Being raided must not be a thing that happens to you in a notification and then disappears. The **galaxy map's system card** keeps the record: in the owner list of a foreign system, every player carries **how often they have raided you and when the last one was**.
+
+```
+👤 Zerrak            ⚔️ 3 · zuletzt vor 2 h
+👤 Malari            ⚔️ 1 · zuletzt vor 4 d
+👤 Tovin
+```
+
+- **It counts raids against you, from that player, ever** — successful *and* repelled. A repelled attack is exactly the thing you want to see building up: three bounced attempts mean the next fleet will be bigger.
+- **Aggregated per player, not per planet.** The card's owner list is a list of people, and "who is coming for me" is a question about people. Which of your colonies they hit belongs in the battle report.
+- **No entry means no history** — an empty row is "this player has never attacked you", not "no data".
+- The badge turns red while the last raid is recent (< 24 h) and fades to grey after that, so the list separates an active aggressor from an old grudge at a glance.
+- Data comes straight from `hs_battle_reports` grouped by `attacker_id` for `defender_id = me`; nothing new has to be stored.
+
+**This is why the attacker is always named** — see the plunder section above. It also makes the raid history the natural place from which a counter-raid is planned: you see who, you see how often, and their system is right there on the map.
+
+### Settled
+
+- **Order given at launch**, never after the battle. ⚡ shield + battery, or 💰 shield + battery + refined goods.
+- **Satellite reports the shield only.** The battery stays hidden, so an attack always carries risk.
+- **2 crew per Korvette.** A Lv3 fleet (12 ships) is 24 population — a multi-day project, and deliberately the sharpest brake in the whole concept.
+- **The attacker is always identified** in the defender's report.
+
+### Production — the Korvette  *(implemented 2026-08-15)*
+
+The fleet is built at the existing `shipyard` and ordered as a **batch with a ×N picker**, exactly like a conversion: everything is paid up front, one timer runs over `count × buildTimeBase`, and the whole squadron lands together. Ordering four saves three clicks, never a minute — the same "the batch buys absence, not speed" promise the conversion row makes.
+
+| | Korvette |
+|---|---|
+| Facility | `shipyard` |
+| Cost | 250 Metal · 120 Crystal · 1 Duraplate · **2 crew** |
+| Build time | 3 h per ship |
+| Firepower | 20 points *(read by the raid, not yet used)* |
+| Sortie fuel | 1 Power Cell per ship, paid at launch *(with the raid)* |
+
+The crew is what makes a fleet a commitment: 2 population per ship, gone from the workforce the moment the ship is built, and gone for good when it is shot down. A maxed fleet is 24 people on a planet whose recruit pool caps at 18.
+
+**`weapons_building` finally has a job.** It used to unlock a slot and then do nothing for the rest of the game. It is now the **fleet cap** — and a gate as much as a cap: **Lv1 = 4 berths, Lv2 = 8, Lv3 = 12**, and without the building a planet has no fleet at all. Four corvettes are 80 points of firepower, which cannot crack a charged planet (100 shield + 100 battery) but flattens a neglected one, so the building's level is what decides whether a player can threaten a prepared defender. Levels 2 and 3 cost Structure + Power (duraplate + plasma core, Lv3 adds superconductor), per the two-domains rule.
+
+Three implementation notes worth keeping:
+
+- **`build_count` on `hs_units` is the batch.** `resolve_units()` adds `GREATEST(1, build_count)` hulls in one step and resets the column to 1 — a squadron never trickles in one hull per tick. Added by a runtime `ALTER` probed on its own, per the migration rule.
+- **Berths count hulls in the dock *and* hulls in the running batch** (`fleet_size()`), so an order can never be placed past the cap by ordering twice. The server clamps the requested count to the free berths and returns the number it actually built — the client trusts that number over its own.
+- **Batching is opt-in per unit** (`UNIT_BATCH_KEYS`). Every other unit ignores `count` and stays at one per build, so nothing about the drone or colony-ship flow changed.
+
+**UI.** A red ⚔️ row in the dock panel, under the colony ship: berth count (`🚩 Flotte 3 / 4`) under the description, the ×N stepper next to the Build button, and cost **and crew for the whole order** so the number under the picker is the one that will be spent. While a batch runs the row shows `Baut… ×3` and one bar. Without a weapons building the row reads `🔒 Waffenkammer` instead of a price.
+
+**Launching.** From the galaxy map's system card, on a foreign planet you have **surveyed at least once** — the same gate the satellite uses. The order carries two things: **how many ships**, and **⚡ or 💰**. Both are fixed at launch; the fleet cannot be re-tasked in flight. Warships are slow: base flight 3 h plus distance (the spy drone's 2 h base is the fast end of the scale). The return leg is a second mission row with `leg='back'`, exactly as the cargo drone does it, carrying the loot.
+
+**Defending.** `orbital_defense` gets its second job, the one noted when it was built. It fires **automatically** — the defender may well be offline — consuming **1 Power Cell per shot from the planet's stock, one destroyed corvette per shot**, up to a cap per attack. Stocking ammunition becomes a standing decision. A destroyed corvette takes its crew with it: that is the attacker's permanent loss.
+
+It fires **twice against a plundering fleet**: once as the fleet arrives, and once while it sits in orbit loading the silo. That second volley is the entire price of the 💰 order, so a defender who keeps power cells in store makes greed genuinely expensive — and the attacker, who can see the shield but not the ammunition, is betting on it being empty.
+
+**And the building is the sensor, again.** With an `orbital_defense` the defender sees the incoming fleet for the last ~30 minutes of its flight and can still charge the shield or buy ammunition. Without it, they learn about the raid from the report afterwards. Same rule as for satellites: *the building is the detection*.
+
+### Protection rules — in from the start
+
+- **Anfängerschutz** — no attacks on players below a size threshold or inside their first days.
+- **Deterministic, no dice.** The anomaly design chose *"Entscheidungen, kein Zufall"*; a battle whose outcome can be computed beforehand belongs to the same game. The uncertainty is whether the defender logs in in time, not what the die says.
+- **Both sides get a report**, materialised at resolve time the way an anomaly's outcomes are materialised at roll time. Delivery reuses the `satellite_lost_at` outbox trick — a flag cleared the moment `state.php` hands the event over, so a notification fires exactly once without a notification table.
+
+### Files  *(production step)*
+
+`corvette` + `UNIT_BATCH_KEYS` + `FLEET_PER_WEAPONS_LEVEL` + `weapons_building` Lv2/Lv3 in `api/star/config.php` · `build_count` column, `weapons_building_level`, `fleet_cap`, `fleet_size` in `bootstrap.php` (`ensure_units_table`, `resolve_units`, `units_state`) · batch + berth check in `api/star/game/unit/build.php` · `hs_units.build_count` in the schema · `FLEET_PER_WEAPONS_LEVEL` + `corvette` in `hawkStarConfig.js` · `corvette*` / `fleet*` / `maxCorvetteBatch` / `buildCorvette` in `useHawkStar.js` · `HsDockPanel.vue` fleet row · `HsPlanetGrid.vue` dock chips · `HsNotificationPanel.vue` ship builds · `hawkStar.dock.*` / `notifications.corvette*` in de/en
+
+### Out of scope for v1
+
+Damage to **buildings** (explicitly excluded), planet **conquest**, **fleet-versus-fleet** battles in open space, ship repair/damage states, and player **trade** — dropped, not postponed.
+
+### What this reuses
+
+Almost everything is already in the codebase: `hs_missions` + `leg='back'` (outbound and return), the `hs_cargo` hold (the loot manifest), `hs_spy_intel` (the targeting gate), `INTERCEPT_COST` + `orbital_defense` (the gun and its ammunition), `credit_resources()` (cap-safe payout), the conversion batch (the ×N fleet order), and the anomaly's materialise-at-resolve pattern (the battle report). Genuinely new: one unit, one table for reports, and the resolution function.
+
+---
+
 ## Game Loop
 
 A rough progression arc for a single player:
@@ -585,7 +709,7 @@ A rough progression arc for a single player:
 2. **Expansion** — Research the Star Map in the Comm Center (global, unlocks on all planets), scan nearby systems with Recon Drones, send Colony Ships to claim new planets.
 3. **Specialization** — Each planet type produces a unique refined resource. Build a spread of planet types to cover all four functional domains (`duraplate`, `plasma_core`, `superconductor`, `vital_gel`).
 4. **Contact & Diplomacy** — Research Interstellar Communication in the Comm Center, send signals to inhabited systems, negotiate Friend or Foe relationships with NPC factions and other players.
-5. **Conflict** — Hostile factions may attack; allied factions open future trade and coordination options (Phase 4+).
+5. **Conflict** — Spy out foreign planets, then raid them: knock the shield and the reactor battery to zero and, if you are willing to be named for it, take their refined goods (Phase 5).
 
 ---
 
@@ -905,11 +1029,13 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 
 | Feature | Status |
 |---------|--------|
-| Phase 3 — Player interaction (trade, player messaging) | ⬜ Planned |
+| Phase 3 — Player trade | ❌ Dropped (2026-08-15) — plunder replaces it |
+| Phase 5 — Combat: raid concept (shield + battery only, plunder choice) | 📝 Concept |
+| Phase 5 — Corvette + shipyard batch + fleet cap (`weapons_building` Lv1–3) | ✅ Implemented |
 | Phase 4 — Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
 | Phase 4 — Espionage — buildings / resources / fleet recon | ⬜ Planned |
 | Phase 4 — Defense tile detects and destroys foreign satellites | ✅ Implemented |
-| Phase 5 — Combat (warships, stat-based combat) | ⬜ Planned |
+| Phase 5 — Combat: raid mission, battle resolution, battle reports | ⬜ Planned |
 | Power battery (power_plant, click-to-charge, blackout when empty) | ✅ Implemented |
 | Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |
 | Cargo drone (one per planet, 4 items, one-way delivery + empty return) | ✅ Implemented |

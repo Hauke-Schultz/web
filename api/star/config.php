@@ -26,7 +26,26 @@ const UNIT_COSTS = [
     // the finding stays live instead of ageing. Structure + Control, per the
     // house rule that a build cost demands two domains the recipe does not.
     'spy_satellite' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 300, 'crystal' => 150, 'superconductor' => 1, 'duraplate' => 1], 'buildTimeBase' => 14400],
+    // The warship. Ordered as a batch (see UNIT_BATCH_KEYS) and the only unit
+    // with a `firepower` stat — 20 points against a defender's shield, then the
+    // battery. Two crew per hull is the real brake: a full fleet is 24 people
+    // off a planet whose recruit pool caps at 18.
+    'corvette'    => ['facility' => 'shipyard', 'cost' => ['metal' => 250, 'crystal' => 120, 'duraplate' => 1], 'crew' => 2, 'buildTimeBase' => 10800, 'firepower' => 20],
 ];
+
+// ── Fleet ─────────────────────────────────────────────────────────────────────
+// Units that may be ordered several at a time. A batch is one timer over
+// count × buildTimeBase and lands as a whole squadron — same shape as a
+// conversion batch, and for the same reason: clicking once per hull is a chore,
+// not a decision. Everything not listed here stays at one per build.
+const UNIT_BATCH_KEYS = ['corvette'];
+
+// How many warships a planet may hold, per level of its `weapons_building`.
+// Lv1 = 4 · Lv2 = 8 · Lv3 = 12. This is the cap on aggression: four corvettes
+// are 80 points of firepower, which cannot crack a charged planet (100 shield +
+// 100 battery) but flattens a neglected one. Counts hulls in the dock AND hulls
+// in production. Mirrors FLEET_PER_WEAPONS_LEVEL in hawkStarConfig.js.
+const FLEET_PER_WEAPONS_LEVEL = 4;
 
 // ── Espionage ─────────────────────────────────────────────────────────────────
 // Flight time uses the same distance formula as a deep-space scan (galaxy/scan.php):
@@ -232,8 +251,15 @@ const BUILDINGS = [
     ['level'=>2,'cost'=>['metal'=>320,'crystal'=>180],'buildTime'=>5400,'production'=>[],'energyDrain'=>8,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Until 2026-08-15 this building unlocked a slot and then did nothing for the
+  // rest of the game. It is now the **fleet cap**: every level buys
+  // FLEET_PER_WEAPONS_LEVEL corvette berths, which is what keeps an early
+  // player from massing a fleet that no defence can answer. Structure + Power
+  // in the cost, per the two-domains rule — a gun needs a frame and a reactor.
   'weapons_building' => ['tileType'=>'techcenter','levels'=>[
     ['level'=>1,'cost'=>['metal'=>180,'crystal'=>100],'buildTime'=>600,'production'=>[],'energyDrain'=>5,'staffDrain'=>3,'unlocks'=>[['slot'=>1]],'popBonus'=>0],
+    ['level'=>2,'cost'=>['metal'=>600,'crystal'=>350,'duraplate'=>2,'plasma_core'=>2],'buildTime'=>7200,'production'=>[],'energyDrain'=>9,'staffDrain'=>5,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>3,'cost'=>['metal'=>1400,'crystal'=>800,'duraplate'=>4,'plasma_core'=>3,'superconductor'=>2],'buildTime'=>14400,'production'=>[],'energyDrain'=>14,'staffDrain'=>8,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   // The power domain's purpose: a plasma core is three fuel cells. The

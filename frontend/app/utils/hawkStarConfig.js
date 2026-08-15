@@ -35,7 +35,18 @@ export const UNIT_COSTS = {
   // Stays in orbit and keeps transmitting — the drone's finding ages, this one
   // does not. Structure + Control, per the two-domains-per-build-cost rule.
   spy_satellite:{ facility: 'drone_hangar', cost: { metal: 300, crystal: 150, superconductor: 1, duraplate: 1 }, buildTimeBase: 14400 },
+  // The warship. Ordered as a batch and the only unit with a firepower stat:
+  // 20 points against a defender's shield, then their battery. 2 crew per hull
+  // is the brake — a full fleet is 24 people off the planet's workforce.
+  corvette:     { facility: 'shipyard', cost: { metal: 250, crystal: 120, duraplate: 1 }, crew: 2, buildTimeBase: 10800, firepower: 20 },
 }
+
+// ── Fleet ─────────────────────────────────────────────────────────────────────
+// Corvette berths per level of the planet's weapons_building (Lv1 = 4 … Lv3 =
+// 12). Counts hulls in the dock AND hulls in the running batch, so a fleet can
+// never be ordered past its berths. Mirrors FLEET_PER_WEAPONS_LEVEL in
+// api/star/config.php — the client caps the picker, the server caps the request.
+export const FLEET_PER_WEAPONS_LEVEL = 4
 
 // ── Espionage ─────────────────────────────────────────────────────────────────
 // A spy drone travels at signal speed: same distance curve as a deep-space scan,
@@ -1079,17 +1090,39 @@ export const BUILDINGS = {
     name:        'Weapon Technology',
     tileType:    'techcenter',
     icon:        '⚔️',
-    description: 'Military science division. Unlocks the planetary Defense tile.',
+    // Every level buys FLEET_PER_WEAPONS_LEVEL corvette berths — this building
+    // is the fleet cap, and without it a planet has no fleet at all.
+    description: 'Military science division. Unlocks the Defense tile and berths the fleet.',
     levels: [
       {
         level:       1,
         cost:        { metal: 180, crystal: 100 },
         buildTime:   600,
-        effect:      'Unlocks Defense tile · basic weapon blueprints · uses 5 energy · 3 workers',
+        effect:      'Unlocks Defense tile · 4 corvette berths · uses 5 energy · 3 workers',
         production:  {},
         energyDrain: 5,
         staffDrain:  3,
         unlocks:     [{ slot: 1 }],
+      },
+      {
+        level:       2,
+        cost:        { metal: 600, crystal: 350, duraplate: 2, plasma_core: 2 },
+        buildTime:   7200,
+        effect:      '8 corvette berths · uses 9 energy · 5 workers',
+        production:  {},
+        energyDrain: 9,
+        staffDrain:  5,
+        unlocks:     [],
+      },
+      {
+        level:       3,
+        cost:        { metal: 1400, crystal: 800, duraplate: 4, plasma_core: 3, superconductor: 2 },
+        buildTime:   14400,
+        effect:      '12 corvette berths · uses 14 energy · 8 workers',
+        production:  {},
+        energyDrain: 14,
+        staffDrain:  8,
+        unlocks:     [],
       },
     ],
   },

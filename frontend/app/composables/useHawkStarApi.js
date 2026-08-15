@@ -22,7 +22,9 @@ export function useHawkStarApi() {
     postResearch:      (buildingKey)                   => post('/game/research',        { buildingKey }),
     postConvert:       (planetId, buildingKey, recipeIndex, count) =>
                                                           post('/game/convert',         { planetId, buildingKey, recipeIndex, count }),
-    postUnitBuild:     (planetId, unitKey)            => post('/game/unit/build',      { planetId, unitKey }),
+    // `count` is only read for batchable units (the corvette); the server
+    // forces 1 for everything else and clamps to the free fleet berths.
+    postUnitBuild:     (planetId, unitKey, count = 1)  => post('/game/unit/build',      { planetId, unitKey, count }),
     postDroneMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/drone',   { fromPlanetId, toPlanetId }),
     postColonyMission: (fromPlanetId, toPlanetId)     => post('/game/mission/colony',  { fromPlanetId, toPlanetId }),
     postCargoMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/cargo',   { fromPlanetId, toPlanetId }),

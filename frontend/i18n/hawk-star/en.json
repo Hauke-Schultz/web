@@ -19,6 +19,8 @@
       "spyReady": "Spy drone ready",
       "spyDone": "Spy report received",
       "satelliteReady": "Spy satellite ready",
+      "corvetteReady": "{n} corvette(s) ready",
+      "corvetteBuilding": "{n} corvette(s) building",
       "satelliteOnline": "Satellite transmitting",
       "satelliteDestroyed": "Foreign satellite shot down",
       "satelliteLost": "Own satellite destroyed",
@@ -97,7 +99,14 @@
       "spyDroneDesc": "Looks once at what kind of planet it is and who owns it, in a scanned foreign system",
       "spySatellite": "Spy Satellite",
       "spySatelliteDesc": "Stays in orbit, keeps the finding current and measures the shield generator — until an orbital defense shoots it down",
-      "launchFromGalaxyMap": "Pick a target on the Galaxy Map"
+      "launchFromGalaxyMap": "Pick a target on the Galaxy Map",
+      "corvette": "Corvette",
+      "corvetteDesc": "Warship — 20 firepower against a foreign planet's shield and battery",
+      "fleetCap": "🚩 Fleet {n} / {cap}",
+      "fleetFull": "Fleet limit reached — upgrade the weapons building",
+      "needWeapons": "🔒 Weapons building",
+      "needWeaponsHint": "Warships need a weapons building — every level adds 4 berths",
+      "batchHint": "How many corvettes to order at once — one order, one build time, the squadron lands together"
     },
 
     "solar": {
