@@ -82,6 +82,37 @@ const CARGO_LOADABLE = ['power_cell', 'duraplate', 'plasma_core', 'superconducto
 // Four single items, freely mixed — not four stacks.
 const CARGO_CAPACITY = 4;
 
+// ── The raid ──────────────────────────────────────────────────────────────────
+// Sits below the cargo block because RAID_LOOTABLE is defined from
+// CARGO_LOADABLE, and a const may only be built from one already declared.
+//
+// Warships are heavy: the 3 h floor is a same-system strike, distance is added
+// on top at a slower rate than a spy drone's signal-speed flight.
+const RAID_FLIGHT_MIN      = 10800;  // seconds, one-way floor
+const RAID_FLIGHT_PER_DIST = 240;    // seconds per unit of system distance
+
+// The orbital battery fires by itself: the defender is usually offline, so the
+// gun is a standing order, not a click. One power cell out of the planet's own
+// stock kills one corvette, up to this many per volley. A plundering fleet eats
+// a SECOND volley while it loads — that is the entire price of the 💰 order.
+const RAID_INTERCEPT_SHOTS = 3;
+const RAID_INTERCEPT_COST  = ['power_cell' => 1];
+
+// What a raid can carry off: refined goods only. Raw resources are capped and
+// compute_resources() clamps to the cap every tick, so a raw haul would evaporate
+// on the way into the attacker's silo — the same reason the cargo drone refuses
+// them. Deliberately the same list, not a copy of it.
+const RAID_LOOTABLE = CARGO_LOADABLE;
+
+// A planet gives up goods once per this window. It can be knocked out again
+// immediately — only the silo is off limits, so raiding cannot be farmed.
+const RAID_PLUNDER_COOLDOWN_HOURS = 12;
+
+// Nobody may be raided while their account is younger than this. The first days
+// are for learning the game, not for losing a refinery run to someone who
+// finished learning it months ago.
+const RAID_NEWBIE_PROTECTION_DAYS = 3;
+
 // ── Conversions ───────────────────────────────────────────────────────────────
 // Largest batch a single order may hold. Because a running batch locks its
 // recipe, this is also the hard ceiling on production: at most 4 units per

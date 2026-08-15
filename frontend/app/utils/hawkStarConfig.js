@@ -48,6 +48,19 @@ export const UNIT_COSTS = {
 // api/star/config.php — the client caps the picker, the server caps the request.
 export const FLEET_PER_WEAPONS_LEVEL = 4
 
+// ── The raid ──────────────────────────────────────────────────────────────────
+// Warships are heavy: a bigger flight floor and a slower distance rate than a
+// spy drone's signal-speed run. Mirrors RAID_* in api/star/config.php.
+export const RAID = {
+  flightMin:     10800,  // seconds, one-way floor (3 h, a same-system strike)
+  flightPerDist: 240,    // seconds per unit of system distance
+  // Shield and battery are both 0–100, so a fully prepared planet is 200 points
+  // of defence and victory needs BOTH at zero.
+  meterMax:      100,
+  interceptShots: 3,     // hulls the orbital battery can kill per volley
+  plunderCooldownHours: 12,
+}
+
 // ── Espionage ─────────────────────────────────────────────────────────────────
 // A spy drone travels at signal speed: same distance curve as a deep-space scan,
 // measured between star systems. Mirrors SPY_* in api/star/config.php.

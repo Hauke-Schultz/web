@@ -33,9 +33,76 @@ const {
   intelAgeHours,
   isIntelStale,
   satelliteAgeHours,
+  // raids
+  activePlanetId,
+  corvetteInventory,
+  canRaid,
+  isRaidTarget,
+  raidFlightTime,
+  raidsAgainstMe,
+  allActiveRaids,
+  startRaid,
 } = useHawkStar()
 
 const { t } = useI18n()
+
+// ── Raid dialog ───────────────────────────────────────────────────────────────
+// Opened per planet. The order is sealed at launch — the fleet cannot be
+// re-tasked in flight — so both decisions are made here or not at all.
+const raidTarget = ref(null)   // planet id, or null while the dialog is closed
+const raidShips   = ref(1)
+const raidOrder   = ref('disable')
+
+const openRaid = (planet) => {
+  raidTarget.value = planet.id
+  raidShips.value  = corvetteInventory.value
+  raidOrder.value  = 'disable'
+}
+
+const closeRaid = () => { raidTarget.value = null }
+
+const setRaidShips = (delta) => {
+  raidShips.value = Math.max(1, Math.min(raidShips.value + delta, corvetteInventory.value))
+}
+
+const confirmRaid = (planet, sysId) => {
+  startRaid(planet.id, sysId, raidShips.value, raidOrder.value, activePlanetId.value)
+  closeRaid()
+}
+
+const raidFlightLabel = (sys) => formatTime(raidFlightTime(sys.id))
+
+// A fleet of ours already on its way into this system.
+const inboundRaid = (sysId) => allActiveRaids.value.find(
+  m => (m.systemId ?? planetSystemId(m.planetId)) === sysId
+) ?? null
+
+const isRaidingPlanet = (planetId) => allActiveRaids.value.some(m => m.planetId === planetId)
+
+const remainingRaidSec = (planetId) => {
+  const m = allActiveRaids.value.find(r => r.planetId === planetId)
+  return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
+}
+
+// ── Raid history ──────────────────────────────────────────────────────────────
+// How often this player has attacked US. Counts repelled attacks too — three
+// bounced attempts are exactly the thing worth watching build up.
+const raidRecord = (owner) => raidsAgainstMe(owner.playerId)
+
+const raidRecordFresh = (owner) => {
+  const rec = raidRecord(owner)
+  return !!rec && (now.value - rec.lastAt) < 24 * 3600 * 1000
+}
+
+const raidRecordLabel = (owner) => {
+  const rec = raidRecord(owner)
+  if (!rec) return ''
+  const hours = Math.floor((now.value - rec.lastAt) / 3600000)
+  const ago = hours < 1 ? t('hawkStar.galaxy.raidJustNow')
+            : hours < 24 ? t('hawkStar.galaxy.raidHoursAgo', { n: hours })
+            : t('hawkStar.galaxy.raidDaysAgo', { n: Math.floor(hours / 24) })
+  return `⚔️ ${rec.count} · ${ago}`
+}
 
 // ── System order: home first, then inhabited systems ─────────────────────────
 // `inhabited` is a system-level flag from the API. It used to be derived from the
@@ -292,6 +359,15 @@ const tileClass = (sys) => {
                 <div class="hs-faction-info">
                   <span class="hs-faction-name">{{ owner.username ?? owner.name }}</span>
                 </div>
+                <!-- What this commander has done to US. Won and repelled raids
+                     both count: an attacker who keeps bouncing off is still an
+                     attacker, and the next fleet will be bigger. -->
+                <span
+                  v-if="raidRecord(owner)"
+                  class="hs-faction-raids"
+                  :class="{ 'hs-faction-raids--fresh': raidRecordFresh(owner) }"
+                  :title="t('hawkStar.galaxy.raidRecordHint', { n: raidRecord(owner).count })"
+                >{{ raidRecordLabel(owner) }}</span>
               </div>
             </div>
           </div>
@@ -381,8 +457,73 @@ const tileClass = (sys) => {
                   >❓</span>
                 </template>
               </template>
+
+              <!-- Raid. Offered on any foreign colony we have looked at, and
+                   only while a fleet is parked in the active planet's dock. -->
+              <span v-if="isRaidingPlanet(planet.id)" class="hs-planet-raid-timer">
+                ⚔️ {{ formatTime(remainingRaidSec(planet.id)) }}
+              </span>
+              <button
+                v-else-if="isRaidTarget(planet, selected.id) && canRaid"
+                class="hs-planet-raid-btn"
+                :title="t('hawkStar.galaxy.raidHint', { time: raidFlightLabel(selected) })"
+                @click.stop="openRaid(planet)"
+              >⚔️</button>
             </li>
           </ul>
+
+          <!-- Attack order. Both decisions live here because the fleet flies
+               with sealed orders — there is no choice left after the battle. -->
+          <div v-if="raidTarget" class="hs-raid-dialog">
+            <div class="hs-raid-dialog-head">
+              <span class="hs-raid-dialog-title">
+                ⚔️ {{ selected.planets.find(p => p.id === raidTarget)?.name }}
+              </span>
+              <button class="hs-galaxy-card-close" @click="closeRaid">✕</button>
+            </div>
+
+            <div class="hs-raid-row">
+              <span class="hs-raid-label">{{ t('hawkStar.galaxy.raidShips') }}</span>
+              <div class="hs-raid-count">
+                <button class="hs-raid-count__btn" :disabled="raidShips <= 1" @click="setRaidShips(-1)">−</button>
+                <span class="hs-raid-count__value">{{ raidShips }} / {{ corvetteInventory }}</span>
+                <button class="hs-raid-count__btn" :disabled="raidShips >= corvetteInventory" @click="setRaidShips(1)">+</button>
+              </div>
+            </div>
+
+            <!-- Firepower is the whole battle: it is measured against shield %
+                 plus battery %, and only the shield can be scouted. -->
+            <div class="hs-raid-power">
+              {{ t('hawkStar.galaxy.raidFirepower', { n: raidShips * 20 }) }}
+              <span class="hs-raid-fuel">🔋 {{ raidShips }}</span>
+            </div>
+
+            <div class="hs-raid-orders">
+              <button
+                class="hs-raid-order"
+                :class="{ 'hs-raid-order--active': raidOrder === 'disable' }"
+                @click="raidOrder = 'disable'"
+              >
+                <span class="hs-raid-order-title">⚡ {{ t('hawkStar.galaxy.raidDisable') }}</span>
+                <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidDisableDesc') }}</span>
+              </button>
+              <button
+                class="hs-raid-order"
+                :class="{ 'hs-raid-order--active': raidOrder === 'plunder' }"
+                @click="raidOrder = 'plunder'"
+              >
+                <span class="hs-raid-order-title">💰 {{ t('hawkStar.galaxy.raidPlunder') }}</span>
+                <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidPlunderDesc') }}</span>
+              </button>
+            </div>
+
+            <button
+              class="hs-raid-launch"
+              @click="confirmRaid(selected.planets.find(p => p.id === raidTarget), selected.id)"
+            >
+              {{ t('hawkStar.galaxy.raidLaunch', { time: raidFlightLabel(selected) }) }}
+            </button>
+          </div>
 
           <!-- One line of context under the list, so the ❓ is not a mystery -->
           <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-planet-list-hint">
@@ -797,6 +938,164 @@ const tileClass = (sys) => {
   color: rgba(196,181,253,0.9);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+// ── Raid ──────────────────────────────────────────────────────────────────────
+// Red throughout, the same colour the fleet carries in the dock. It is the one
+// action on this card aimed at a person rather than at a place, and it should
+// never be mistaken for one of the espionage buttons next to it.
+.hs-planet-raid-btn {
+  font-size: 0.52rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #fecaca;
+  background: rgba(248,113,113,0.16);
+  border: 1px solid rgba(248,113,113,0.45);
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover { background: rgba(248,113,113,0.32); border-color: rgba(248,113,113,0.75); }
+}
+
+.hs-planet-raid-timer {
+  font-size: 0.52rem;
+  font-weight: 600;
+  color: rgba(252,165,165,0.9);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// The raid record sits at the far end of the owner row — the name is who they
+// are, this is what they have done.
+.hs-faction-raids {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+
+  // Recent means "still going on". After a day it is history, and history is grey.
+  &--fresh { color: rgba(248,113,113,0.95); }
+}
+
+.hs-raid-dialog {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid rgba(248,113,113,0.3);
+  background: rgba(248,113,113,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.hs-raid-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.hs-raid-dialog-title { font-size: 0.72rem; font-weight: 700; color: #fecaca; }
+
+.hs-raid-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.hs-raid-label { font-size: 0.62rem; color: rgba(255,255,255,0.6); }
+
+.hs-raid-count {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid var(--hs-line-sm);
+  background: var(--hs-glass-sm);
+  overflow: hidden;
+}
+
+.hs-raid-count__btn {
+  width: 1.35rem;
+  padding: 0.25rem 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255,255,255,0.7);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--hs-glass-lg); color: #fff; }
+  &:disabled { opacity: 0.25; cursor: not-allowed; }
+}
+
+.hs-raid-count__value {
+  min-width: 3rem;
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.85);
+}
+
+// Firepower is the number the whole battle turns on, so it is printed, not
+// implied — and next to the fuel it costs to put it in the air.
+.hs-raid-power {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(252,165,165,0.95);
+}
+
+.hs-raid-fuel { color: rgba(255,255,255,0.5); font-weight: 600; }
+
+.hs-raid-orders { display: flex; gap: 0.35rem; }
+
+.hs-raid-order {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.35rem 0.4rem;
+  text-align: left;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid var(--hs-line-sm);
+  background: var(--hs-glass-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover { background: var(--hs-glass-lg); }
+
+  &--active {
+    border-color: rgba(248,113,113,0.7);
+    background: rgba(248,113,113,0.14);
+  }
+}
+
+.hs-raid-order-title { font-size: 0.62rem; font-weight: 700; color: rgba(255,255,255,0.9); }
+.hs-raid-order-desc  { font-size: 0.55rem; line-height: 1.3; color: rgba(255,255,255,0.45); }
+
+.hs-raid-launch {
+  padding: 0.4rem;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(248,113,113,0.3);
+  border: 1px solid rgba(248,113,113,0.6);
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(248,113,113,0.45); }
 }
 
 .hs-planet-list-hint {

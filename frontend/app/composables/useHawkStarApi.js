@@ -2,13 +2,43 @@ import { useHawkStarAuth } from './useHawkStarAuth.js'
 
 const API = '/api/star'
 
+// The body is read as TEXT first and only then parsed. A PHP fatal returns 500
+// with an empty body or a chunk of HTML, and `res.json()` on that throws
+// "Unexpected end of JSON input" — which hides the one thing worth knowing (the
+// status, and whatever PHP managed to print). The status and the raw body are
+// carried on the error so the UI can show something diagnosable instead.
 async function apiFetch(path, options = {}) {
   const { token } = useHawkStarAuth()
   const headers = { 'Content-Type': 'application/json' }
   if (token.value) headers['Authorization'] = `Bearer ${token.value}`
+
   const res  = await fetch(`${API}${path}`, { ...options, headers })
-  const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'API error')
+  const text = await res.text()
+
+  let json = null
+  try { json = text ? JSON.parse(text) : null } catch { /* not JSON — handled below */ }
+
+  if (!json) {
+    // Server-side crash or a proxy error page. Keep the first line of whatever
+    // came back: a PHP fatal usually names the file and the undefined thing.
+    const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300)
+    const err = new Error(
+      `HTTP ${res.status} ${res.statusText || ''}`.trim() +
+      (snippet ? ` — ${snippet}` : ' — empty response (server error, check the PHP log)')
+    )
+    err.status   = res.status
+    err.endpoint = path
+    err.body     = text
+    console.error('[hawk-star] API', path, res.status, text || '(empty body)')
+    throw err
+  }
+
+  if (!json.ok) {
+    const err = new Error(json.error || 'API error')
+    err.status   = res.status
+    err.endpoint = path
+    throw err
+  }
   return json.data
 }
 
@@ -28,6 +58,10 @@ export function useHawkStarApi() {
     postDroneMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/drone',   { fromPlanetId, toPlanetId }),
     postColonyMission: (fromPlanetId, toPlanetId)     => post('/game/mission/colony',  { fromPlanetId, toPlanetId }),
     postCargoMission:  (fromPlanetId, toPlanetId)     => post('/game/mission/cargo',   { fromPlanetId, toPlanetId }),
+    // The fleet flies with sealed orders: `order` is 'disable' | 'plunder' and
+    // cannot be changed once it is under way.
+    postRaidMission:   (fromPlanetId, toPlanetId, ships, order) =>
+      post('/game/mission/raid', { fromPlanetId, toPlanetId, ships, order }),
     // Target sits in another system — the server checks that it is scanned.
     // `unit` picks between the one-shot drone and the satellite that stays.
     postSpyMission:    (fromPlanetId, toPlanetId, unit = 'spy_drone') =>

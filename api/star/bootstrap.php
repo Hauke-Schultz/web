@@ -8,6 +8,15 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/jwt.php';
 require_once __DIR__ . '/../db.php';
+// Bootstrap's own functions read config constants (SHIELD_DRAIN_PER_HOUR,
+// UNIT_COSTS, RAID_*, …), so config belongs here rather than in every endpoint.
+// Ten endpoints included only this file and worked purely by luck — until one of
+// them reached a code path that touched a constant. /galaxy died with a fatal
+// "Undefined constant SHIELD_DRAIN_PER_HOUR" as soon as a player had a satellite
+// report on a planet that actually had a shield generator: 500, empty body, and
+// a "Unexpected end of JSON input" in the browser. config.php includes nothing
+// itself, so there is no cycle. The endpoints may keep their own require_once.
+require_once __DIR__ . '/config.php';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -477,6 +486,68 @@ function migrate_spy_missions(PDO $db): void {
     } catch (\Throwable $e) {}
 }
 
+// The raid adds a mission type and three columns: how many hulls are aboard,
+// what the fleet was ordered to do, and what it is carrying home. Probes the
+// ENUM and each column on its own, so a half-migrated database heals itself.
+function migrate_raid_missions(PDO $db): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    try {
+        $col = $db->query("SHOW COLUMNS FROM hs_missions LIKE 'type'")->fetch();
+        if ($col && !str_contains((string)$col['Type'], "'raid'")) {
+            $db->exec(
+                "ALTER TABLE hs_missions
+                 MODIFY type ENUM('recon_drone','colony_ship','cargo_drone','spy_drone','spy_satellite','raid') NOT NULL"
+            );
+        }
+    } catch (\Throwable $e) { /* keep going — the columns matter more */ }
+
+    // `order` is reserved in SQL, hence raid_order.
+    $columns = [
+        'ships'      => 'INT NULL',
+        'raid_order' => "VARCHAR(16) NULL",
+        'loot'       => 'TEXT NULL',
+    ];
+    foreach ($columns as $col => $ddl) {
+        try {
+            if ($db->query("SHOW COLUMNS FROM hs_missions LIKE '$col'")->fetch()) continue;
+            $db->exec("ALTER TABLE hs_missions ADD COLUMN $col $ddl");
+        } catch (\Throwable $e) {}
+    }
+}
+
+// One row per battle, read by BOTH sides. The attacker is always named — the
+// defender's system card keeps a raid history per player, and a history full of
+// "unknown fleet" would be worth nothing. `seen_by_*` are outboxes in the same
+// spirit as satellite_lost_at: cleared when state.php hands the event over, so
+// each side is told exactly once without a notification table.
+function ensure_battle_reports_table(PDO $db): void {
+    static $tableReady = false;
+    if ($tableReady) return;
+    $tableReady = true;
+
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS hs_battle_reports (
+               id               INT AUTO_INCREMENT PRIMARY KEY,
+               attacker_id      INT NOT NULL,
+               defender_id      INT NOT NULL,
+               planet_id        INT NOT NULL,
+               fought_at        DATETIME NOT NULL,
+               won              TINYINT(1) NOT NULL DEFAULT 0,
+               plundered        TINYINT(1) NOT NULL DEFAULT 0,
+               result           TEXT NULL,
+               seen_by_attacker TINYINT(1) NOT NULL DEFAULT 0,
+               seen_by_defender TINYINT(1) NOT NULL DEFAULT 0,
+               INDEX idx_defender (defender_id, attacker_id),
+               INDEX idx_attacker (attacker_id)
+             )'
+        );
+    } catch (\Throwable $e) {}
+}
+
 // ── Espionage intel ───────────────────────────────────────────────────────────
 // One row per (player, planet) the player has ever looked at. It stores WHAT was
 // seen and WHEN — not a permission to read the live value. That distinction is
@@ -805,6 +876,89 @@ function lost_satellites(PDO $db, int $playerId): array {
     }
 }
 
+// Battle reports this player has not been shown yet, from either side of the
+// fight. Same outbox trick as lost_satellites(): the flag is cleared as the news
+// is handed over, so each battle is announced exactly once. Both sides always
+// learn who they fought — the defender's raid history in the system card would
+// be worthless if half of it read "unknown fleet".
+function unseen_battle_reports(PDO $db, int $playerId): array {
+    ensure_battle_reports_table($db);
+
+    // state.php is the endpoint the whole game hangs off; a missed notification
+    // is survivable, a white page is not.
+    try {
+        $rows = $db->prepare(
+            'SELECT br.id, br.attacker_id, br.defender_id, br.planet_id, br.won, br.plundered, br.result,
+                    UNIX_TIMESTAMP(br.fought_at) AS fought_ts,
+                    p.name AS planet_name, s.name AS system_name,
+                    a.username AS attacker_name, a.portrait AS attacker_portrait,
+                    d.username AS defender_name, d.portrait AS defender_portrait
+             FROM hs_battle_reports br
+             JOIN hs_planets p       ON p.id = br.planet_id
+             JOIN hs_star_systems s  ON s.id = p.system_id
+             LEFT JOIN hs_players a  ON a.id = br.attacker_id
+             LEFT JOIN hs_players d  ON d.id = br.defender_id
+             WHERE (br.attacker_id=? AND br.seen_by_attacker=0)
+                OR (br.defender_id=? AND br.seen_by_defender=0)
+             ORDER BY br.fought_at ASC'
+        );
+        $rows->execute([$playerId, $playerId]);
+        $reports = $rows->fetchAll();
+        if (!$reports) return [];
+
+        $db->prepare('UPDATE hs_battle_reports SET seen_by_attacker=1 WHERE attacker_id=? AND seen_by_attacker=0')
+           ->execute([$playerId]);
+        $db->prepare('UPDATE hs_battle_reports SET seen_by_defender=1 WHERE defender_id=? AND seen_by_defender=0')
+           ->execute([$playerId]);
+
+        return array_map(function ($r) use ($playerId) {
+            $mine = (int)$r['attacker_id'] === $playerId;
+            return [
+                'id'         => (int)$r['id'],
+                // Which chair you were sitting in decides how the report reads.
+                'role'       => $mine ? 'attacker' : 'defender',
+                'won'        => (bool)$r['won'],
+                'plundered'  => (bool)$r['plundered'],
+                'planetId'   => (int)$r['planet_id'],
+                'planetName' => $r['planet_name'],
+                'systemName' => $r['system_name'],
+                'foeName'     => $mine ? $r['defender_name']     : $r['attacker_name'],
+                'foePortrait' => $mine ? $r['defender_portrait'] : $r['attacker_portrait'],
+                'foughtAt'   => (int)$r['fought_ts'] * 1000,
+                'result'     => json_decode((string)$r['result'], true) ?: [],
+            ];
+        }, $reports);
+    } catch (\Throwable $e) {
+        return [];
+    }
+}
+
+// How often each player has raided this one, and when they last did — the data
+// behind the ⚔️ badge in the galaxy card's owner list. Counts won AND repelled
+// attacks: three bounced attempts are exactly the thing worth seeing build up.
+function raid_history(PDO $db, int $playerId): array {
+    ensure_battle_reports_table($db);
+
+    try {
+        $rows = $db->prepare(
+            'SELECT attacker_id, COUNT(*) AS n, UNIX_TIMESTAMP(MAX(fought_at)) AS last_ts
+             FROM hs_battle_reports WHERE defender_id=? GROUP BY attacker_id'
+        );
+        $rows->execute([$playerId]);
+
+        $history = [];
+        foreach ($rows->fetchAll() as $r) {
+            $history[(int)$r['attacker_id']] = [
+                'count'  => (int)$r['n'],
+                'lastAt' => (int)$r['last_ts'] * 1000,
+            ];
+        }
+        return $history;
+    } catch (\Throwable $e) {
+        return [];
+    }
+}
+
 // Distance between two star systems, in the same units the galaxy map uses.
 function system_distance(PDO $db, int $aId, int $bId): float {
     $row = $db->prepare('SELECT id, x, y FROM hs_star_systems WHERE id IN (?,?)');
@@ -879,12 +1033,238 @@ function deliver_cargo(PDO $db, int $targetPlanetId, array $cargo): bool {
     return true;
 }
 
+// ── The raid ──────────────────────────────────────────────────────────────────
+
+function raid_flight_seconds(PDO $db, int $fromSystemId, int $toSystemId): int {
+    $dist = system_distance($db, $fromSystemId, $toSystemId);
+    return max(RAID_FLIGHT_MIN, (int)round($dist * RAID_FLIGHT_PER_DIST));
+}
+
+// Was this planet's silo already emptied inside the cooldown window? Read off
+// the reports rather than stored on the planet — the history IS the state.
+function planet_plunder_locked(PDO $db, int $planetId): bool {
+    ensure_battle_reports_table($db);
+    $row = $db->prepare(
+        'SELECT 1 FROM hs_battle_reports
+         WHERE planet_id=? AND plundered=1 AND fought_at > DATE_SUB(NOW(), INTERVAL ? HOUR) LIMIT 1'
+    );
+    $row->execute([$planetId, RAID_PLUNDER_COOLDOWN_HOURS]);
+    return (bool)$row->fetchColumn();
+}
+
+function player_is_protected(PDO $db, int $playerId): bool {
+    $row = $db->prepare(
+        'SELECT created_at > DATE_SUB(NOW(), INTERVAL ? DAY) FROM hs_players WHERE id=?'
+    );
+    $row->execute([RAID_NEWBIE_PROTECTION_DAYS, $playerId]);
+    return (bool)$row->fetchColumn();
+}
+
+// The orbital battery firing on its own. Returns how many hulls it killed —
+// one per power cell out of the defender's own stock, capped per volley. Without
+// the building it never fires: the gun is also the sensor.
+function orbital_volley(PDO $db, int $planetId, int $defenderId, int $incoming): int {
+    if ($incoming < 1) return 0;
+    if (orbital_defense_level($db, $planetId, $defenderId) < 1) return 0;
+
+    $ammoKey = array_key_first(RAID_INTERCEPT_COST);
+    $perShot = (int)RAID_INTERCEPT_COST[$ammoKey];
+
+    $row = $db->prepare("SELECT $ammoKey FROM hs_planet_resources WHERE planet_id=? AND player_id=?");
+    $row->execute([$planetId, $defenderId]);
+    $stock = (int)floor((float)($row->fetchColumn() ?: 0));
+
+    $shots = min($incoming, RAID_INTERCEPT_SHOTS, intdiv($stock, max(1, $perShot)));
+    if ($shots < 1) return 0;
+
+    $db->prepare(
+        "UPDATE hs_planet_resources SET $ammoKey = GREATEST(0, $ammoKey - ?)
+         WHERE planet_id=? AND player_id=?"
+    )->execute([$shots * $perShot, $planetId, $defenderId]);
+
+    return $shots;
+}
+
+// Writes a meter (shield or battery) back to an absolute value. Both are stored
+// as "charge at a timestamp" and decay from there, so setting the timestamp to
+// NOW() is what makes the new value the truth from this moment on.
+function set_meter_charge(PDO $db, string $table, int $planetId, int $playerId, float $charge): void {
+    $db->prepare(
+        "UPDATE $table SET charge=?, charge_updated_at=NOW() WHERE planet_id=? AND player_id=?"
+    )->execute([max(0.0, $charge), $planetId, $playerId]);
+}
+
+/**
+ * What a meter read at a given moment — not now.
+ *
+ * A battle is fought when the fleet ARRIVES, but it is only computed when the
+ * attacker next loads their state, which can be hours later. Reading the meter
+ * at resolve time would hand the attacker a free exploit: launch, then stay
+ * logged out until the shield has drained itself to nothing (1.25 %/h) and let
+ * the delay win the battle. So the charge is rewound to the arrival timestamp.
+ *
+ * If the defender charged AFTER the fleet arrived, `charge_updated_at` is later
+ * than the battle and there is nothing to rewind — the stored value is used as
+ * it stands. That favours the defender, which is the safe direction to be wrong
+ * in: nobody loses a shield they paid for after the shooting stopped.
+ */
+function meter_charge_at(PDO $db, string $table, int $planetId, int $playerId, float $drainPerHour, string $at): float {
+    $row = $db->prepare(
+        "SELECT charge, GREATEST(0, TIMESTAMPDIFF(SECOND, charge_updated_at, ?)) AS elapsed
+         FROM $table WHERE planet_id=? AND player_id=?"
+    );
+    $row->execute([$at, $planetId, $playerId]);
+    $r = $row->fetch();
+    if (!$r) return 0.0;
+
+    return max(0.0, (float)$r['charge'] - $drainPerHour * (max(0, (int)$r['elapsed']) / 3600.0));
+}
+
+/**
+ * Fight one raid and return the report as an array.
+ *
+ * Deterministic, by design: the whole outcome is firepower against
+ * shield % + battery %. The uncertainty a raid carries is not a die — it is
+ * that a satellite reports the shield and never the battery, so the attacker
+ * knows one of the two numbers they have to beat.
+ */
+function resolve_raid_battle(PDO $db, int $attackerId, int $planetId, int $ships, string $order, string $arrivedAt): array {
+    ensure_battle_reports_table($db);
+
+    $ownerRow = $db->prepare('SELECT player_id FROM hs_planet_ownership WHERE planet_id=?');
+    $ownerRow->execute([$planetId]);
+    $defenderId = (int)($ownerRow->fetchColumn() ?: 0);
+
+    // Nobody home — the colony was abandoned or never existed. The fleet finds
+    // an empty orbit and turns around intact.
+    if (!$defenderId || $defenderId === $attackerId) {
+        return ['abort' => 'no_target', 'survivors' => $ships, 'loot' => []];
+    }
+
+    // The defender's own timers have to run before their meters are read, or a
+    // shield charged an hour ago through a build that has since finished would
+    // be measured against stale building levels.
+    resolve_timers($db, $planetId, $defenderId);
+
+    // A missing generator or power plant is simply zero — an undeveloped colony
+    // is trivially raidable, and it has nothing in its silo either. The state
+    // calls are what create the rows and check the buildings; the charges then
+    // come from the arrival timestamp, not from now (see meter_charge_at).
+    $shield  = shield_state($db, $planetId, $defenderId);
+    $battery = battery_state($db, $planetId, $defenderId);
+
+    $shieldBefore = $shield
+        ? meter_charge_at($db, 'hs_shield', $planetId, $defenderId, SHIELD_DRAIN_PER_HOUR, $arrivedAt)
+        : 0.0;
+    $batteryBefore = $battery
+        ? meter_charge_at($db, 'hs_power_battery', $planetId, $defenderId,
+                          battery_drain_per_hour((int)$battery['powerPlantLevel']), $arrivedAt)
+        : 0.0;
+
+    // First volley: the battery fires as the fleet arrives.
+    $killed    = orbital_volley($db, $planetId, $defenderId, $ships);
+    $survivors = max(0, $ships - $killed);
+    $firepower = $survivors * (int)UNIT_COSTS['corvette']['firepower'];
+
+    $won = $firepower >= $shieldBefore + $batteryBefore && $survivors > 0;
+
+    if ($won) {
+        $shieldAfter  = 0.0;
+        $batteryAfter = 0.0;
+    } else {
+        // Damage lands anyway: shield first, the rest into the battery. Because
+        // firepower is below the sum, the battery can never reach 0 here — a
+        // repelled attack still softens the target for the next wave.
+        $shieldAfter  = max(0.0, $shieldBefore - $firepower);
+        $spill        = max(0.0, $firepower - $shieldBefore);
+        $batteryAfter = max(0.0, $batteryBefore - $spill);
+    }
+
+    if ($shield)  set_meter_charge($db, 'hs_shield',        $planetId, $defenderId, $shieldAfter);
+    if ($battery) set_meter_charge($db, 'hs_power_battery', $planetId, $defenderId, $batteryAfter);
+
+    // Plunder: only on a victory, only on that order, and only if this silo has
+    // not already been emptied inside the cooldown.
+    $loot       = [];
+    $plundered  = false;
+    $lootVolley = 0;
+    if ($won && $order === 'plunder' && !planet_plunder_locked($db, $planetId)) {
+        // The fleet has to hold orbit and load — and the battery gets one more
+        // shot at it while it does. This fires BEFORE the goods are taken, so a
+        // defender's power cells can still be spent defending them.
+        $lootVolley = orbital_volley($db, $planetId, $defenderId, $survivors);
+        $survivors  = max(0, $survivors - $lootVolley);
+        $killed    += $lootVolley;
+
+        if ($survivors > 0) {
+            $resRow = $db->prepare('SELECT * FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
+            $resRow->execute([$planetId, $defenderId]);
+            $res = $resRow->fetch() ?: [];
+
+            $sets = [];
+            foreach (RAID_LOOTABLE as $key) {
+                $have = (int)floor((float)($res[$key] ?? 0));
+                if ($have > 0) { $loot[$key] = $have; $sets[] = "$key = 0"; }
+            }
+            if ($sets) {
+                $db->prepare(
+                    'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
+                )->execute([$planetId, $defenderId]);
+                $plundered = true;
+            }
+        }
+    }
+
+    $result = [
+        'ships'         => $ships,
+        'lost'          => $killed,
+        'survivors'     => $survivors,
+        'firepower'     => $firepower,
+        'order'         => $order,
+        'shieldBefore'  => round($shieldBefore, 1),
+        'shieldAfter'   => round($shieldAfter, 1),
+        'batteryBefore' => round($batteryBefore, 1),
+        'batteryAfter'  => round($batteryAfter, 1),
+        'loot'          => $loot,
+        'lootVolley'    => $lootVolley,
+    ];
+
+    // Stamped with the ARRIVAL, not with the moment it was computed — otherwise
+    // the raid history would read as though the fleet turned up whenever the
+    // attacker happened to open the game.
+    $db->prepare(
+        'INSERT INTO hs_battle_reports (attacker_id, defender_id, planet_id, fought_at, won, plundered, result)
+         VALUES (?,?,?,?,?,?,?)'
+    )->execute([$attackerId, $defenderId, $planetId, $arrivedAt, $won ? 1 : 0, $plundered ? 1 : 0, json_encode($result)]);
+
+    return ['won' => $won, 'survivors' => $survivors, 'loot' => $loot, 'result' => $result];
+}
+
 function resolve_missions(PDO $db, int $playerId): void {
+    // Re-entrancy guard, and the raid is what made it necessary: resolving an
+    // attack calls resolve_timers() for the DEFENDER so their meters are current,
+    // and the defender may have a raid of their own in flight against the
+    // attacker. Two players raiding each other would otherwise resolve each
+    // other forever. The guard covers the call while it is on the stack only —
+    // a later call in the same request still runs normally.
+    static $running = [];
+    if (isset($running[$playerId])) return;
+    $running[$playerId] = true;
+
+    try {
+        resolve_missions_inner($db, $playerId);
+    } finally {
+        unset($running[$playerId]);
+    }
+}
+
+function resolve_missions_inner(PDO $db, int $playerId): void {
     migrate_cargo_missions($db);
     migrate_spy_missions($db);
+    migrate_raid_missions($db);
 
     $done = $db->prepare(
-        "SELECT id, type, from_planet_id, to_planet_id, leg
+        "SELECT id, type, from_planet_id, to_planet_id, leg, ships, raid_order, loot, ends_at
          FROM hs_missions WHERE player_id=? AND status='in_flight' AND ends_at <= NOW()"
     );
     $done->execute([$playerId]);
@@ -963,6 +1343,57 @@ function resolve_missions(PDO $db, int $playerId): void {
         }
         if ($m['type'] === 'spy_satellite') {
             record_spy_intel($db, $playerId, $toId, true);
+        }
+
+        // A raid is two legs, like a cargo run: the strike out, and the ships
+        // that survived it coming home with whatever they took.
+        if ($m['type'] === 'raid') {
+            if ($m['leg'] === 'back') {
+                // Home: hulls re-enter the dock, loot lands in the silo. Paid
+                // through the cap-aware credit even though refined goods have no
+                // cap — the one place that rule could change is here.
+                $survivors = max(0, (int)$m['ships']);
+                if ($survivors > 0) {
+                    ensure_units_table($db);
+                    $db->prepare(
+                        "INSERT INTO hs_units (planet_id, player_id, unit_key, quantity)
+                         VALUES (?,?,'corvette',?)
+                         ON DUPLICATE KEY UPDATE quantity = quantity + ?"
+                    )->execute([$toId, $playerId, $survivors, $survivors]);
+                }
+                $loot = json_decode((string)($m['loot'] ?? ''), true);
+                if (is_array($loot) && $loot) {
+                    credit_resources($db, $toId, $playerId, $loot, planet_storage_caps($db, $toId, $playerId));
+                }
+            } else {
+                $battle = resolve_raid_battle(
+                    $db, $playerId, $toId,
+                    max(0, (int)$m['ships']),
+                    ($m['raid_order'] ?? 'disable') === 'plunder' ? 'plunder' : 'disable',
+                    (string)$m['ends_at']
+                );
+
+                // Only survivors fly home. A fleet wiped out over the target
+                // starts no return leg at all — there is nothing left to fly it.
+                $survivors = max(0, (int)($battle['survivors'] ?? 0));
+                if ($survivors > 0) {
+                    $sysRow = $db->prepare('SELECT system_id FROM hs_planets WHERE id=?');
+                    $sysRow->execute([$fromId]);
+                    $fromSys = (int)$sysRow->fetchColumn();
+                    $sysRow->execute([$toId]);
+                    $toSys   = (int)$sysRow->fetchColumn();
+
+                    $db->prepare(
+                        "INSERT INTO hs_missions (player_id, type, from_planet_id, to_planet_id, ends_at, leg, ships, loot)
+                         VALUES (?,'raid',?,?, DATE_ADD(NOW(), INTERVAL ? SECOND), 'back', ?, ?)"
+                    )->execute([
+                        $playerId, $toId, $fromId,
+                        raid_flight_seconds($db, $toSys, $fromSys),
+                        $survivors,
+                        json_encode($battle['loot'] ?? []),
+                    ]);
+                }
+            }
         }
 
         // recon_drone needs no branch of its own: the completed row IS what it

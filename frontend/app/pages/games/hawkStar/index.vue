@@ -11,8 +11,37 @@ import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
-const { starMapLevel, gameLoaded, initError } = useHawkStar()
-const { player, authError, authLoading, isAuthenticated, rememberMe, register, login, verifyToken } = useHawkStarAuth()
+const { starMapLevel, gameLoaded, initError, initErrorDetail } = useHawkStar()
+const { player, authError, authLoading, isAuthenticated, rememberMe, register, login, verifyToken, logout } = useHawkStarAuth()
+
+// ── Error screen ───────────────────────────────────────────────────────────────
+const copied = ref(false)
+
+// The whole point is being able to paste it somewhere. A 500 with an empty body
+// tells you nothing on its own — endpoint, status and timestamp together do.
+async function copyErrorDetail() {
+  const d = initErrorDetail.value
+  const text = [
+    initError.value,
+    d && `endpoint: ${d.endpoint}`,
+    d && `status:   ${d.status ?? 'no response'}`,
+    d && `time:     ${d.at}`,
+    d?.body && `body:\n${d.body}`,
+  ].filter(Boolean).join('\n')
+  try {
+    await navigator.clipboard.writeText(text)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch { /* clipboard blocked — the text is on screen anyway */ }
+}
+
+// Retrying a 500 changes nothing. Logging out at least gets you off this screen
+// and lets you in with another account.
+async function logoutAndReset() {
+  await logout()
+  initError.value = ''
+  initErrorDetail.value = null
+}
 
 const currentView = ref('planet')
 const activePanel = ref('')
@@ -79,9 +108,36 @@ watchEffect(() => {
     <div v-if="isAuthenticated && !gameLoaded" class="hs-init-state">
       <p v-if="initError" class="hs-init-error">{{ initError }}</p>
       <p v-else class="hs-init-loading">Loading galaxy data…</p>
-      <button class="hs-setup-btn hs-init-retry" @click="initFromApi()">
-        {{ initError ? 'Retry' : 'Reload' }}
-      </button>
+
+      <!-- What actually broke. A 500 is a server problem no amount of retrying
+           fixes, so the screen has to say so instead of offering Retry twice. -->
+      <details v-if="initErrorDetail" class="hs-init-detail">
+        <summary>Details</summary>
+        <dl class="hs-init-detail-list">
+          <dt>Endpoint</dt><dd>{{ initErrorDetail.endpoint }}</dd>
+          <dt>Status</dt><dd>{{ initErrorDetail.status ?? 'no response' }}</dd>
+          <dt>Zeit</dt><dd>{{ initErrorDetail.at }}</dd>
+        </dl>
+        <pre v-if="initErrorDetail.body" class="hs-init-detail-body">{{ initErrorDetail.body }}</pre>
+        <p v-else class="hs-init-detail-hint">
+          Leere Antwort — der Server ist abgestürzt (PHP-Fatal). Der Grund steht im Server-Log,
+          nicht im Browser.
+        </p>
+        <button class="hs-init-copy" @click="copyErrorDetail">
+          {{ copied ? '✓ Kopiert' : 'Fehler kopieren' }}
+        </button>
+      </details>
+
+      <div class="hs-init-actions">
+        <button class="hs-setup-btn hs-init-retry" @click="initFromApi()">
+          {{ initError ? 'Retry' : 'Reload' }}
+        </button>
+        <!-- The way out when retrying cannot help: a broken session or an
+             account whose data the server chokes on leaves you stuck here. -->
+        <button v-if="initError" class="hs-setup-btn hs-init-logout" @click="logoutAndReset">
+          Logout
+        </button>
+      </div>
     </div>
 
     <div class="hs-main" v-else-if="isAuthenticated && gameLoaded">
@@ -371,10 +427,86 @@ watchEffect(() => {
   text-align: center;
 }
 
+.hs-init-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .hs-init-retry {
   width: auto;
   padding: 0.5rem 1.5rem;
   font-size: 0.8rem;
+}
+
+// Deliberately quiet next to Retry: leaving is the fallback, not the suggestion.
+.hs-init-logout {
+  width: auto;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.6);
+
+  &:hover { color: #fff; border-color: rgba(255,255,255,0.35); }
+}
+
+// Collapsed by default — a stack trace is not what you want to look at first,
+// but it is exactly what you need when you report the problem.
+.hs-init-detail {
+  width: 100%;
+  max-width: 34rem;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.03);
+
+  summary { cursor: pointer; opacity: 0.7; }
+}
+
+.hs-init-detail-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 0.75rem;
+  margin: 0.5rem 0 0;
+
+  dt { opacity: 0.45; }
+  dd { margin: 0; font-family: ui-monospace, monospace; word-break: break-all; }
+}
+
+.hs-init-detail-body {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  max-height: 11rem;
+  overflow: auto;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: rgba(0,0,0,0.35);
+  border-radius: 4px;
+  color: rgba(252,165,165,0.85);
+}
+
+.hs-init-detail-hint {
+  margin: 0.5rem 0 0;
+  line-height: 1.45;
+  opacity: 0.6;
+}
+
+.hs-init-copy {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.65rem;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+
+  &:hover { color: #fff; }
 }
 
 @keyframes hs-pulse {

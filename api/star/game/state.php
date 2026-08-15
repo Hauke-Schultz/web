@@ -79,7 +79,7 @@ foreach ($slotsRaw->fetchAll() as $s) {
 }
 
 $missionsRaw = $db->prepare(
-    'SELECT id, type, from_planet_id, to_planet_id, ends_at, leg
+    'SELECT id, type, from_planet_id, to_planet_id, ends_at, leg, ships, raid_order
      FROM hs_missions WHERE player_id=? AND status=\'in_flight\' ORDER BY ends_at ASC'
 );
 $missionsRaw->execute([$playerId]);
@@ -91,8 +91,11 @@ foreach ($missionsRaw->fetchAll() as $m) {
         'fromPlanetId' => (int)$m['from_planet_id'],
         'toPlanetId'   => (int)$m['to_planet_id'],
         'endsAt'       => strtotime($m['ends_at']) * 1000,
-        // 'out' / 'back' on cargo runs, null on every one-way mission type
+        // 'out' / 'back' on cargo runs and raids, null on every one-way type
         'leg'          => $m['leg'],
+        // Raids only: hulls aboard and the sealed order they fly with
+        'ships'        => $m['ships'] !== null ? (int)$m['ships'] : null,
+        'raidOrder'    => $m['raid_order'],
     ];
 }
 
@@ -126,6 +129,14 @@ $cargoDoneRaw = $db->prepare(
 );
 $cargoDoneRaw->execute([$playerId]);
 $cargoDeliveries = (int)$cargoDoneRaw->fetchColumn();
+
+// Battles this player has not been shown yet, from either side. Handed over
+// exactly once — the read clears the flag.
+$battleReports = unseen_battle_reports($db, $playerId);
+
+// Who has raided this player, how often, and when last. Drives the ⚔️ badge in
+// the galaxy card's owner list.
+$raidHistory = raid_history($db, $playerId);
 
 $convRaw = $db->prepare(
     'SELECT id, building_key, recipe_index, ends_at, runs
@@ -167,6 +178,8 @@ ok([
     'shield'             => $shield,
     'foreignSatellites'  => $bogeys,
     'satellitesLost'     => $lostSats,
+    'battleReports'      => $battleReports,
+    'raidHistory'        => $raidHistory,
     'recruit'            => $recruit,
     'cargo'              => $cargo,
     'anomaly'            => $anomaly,

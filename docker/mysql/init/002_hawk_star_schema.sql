@@ -171,17 +171,41 @@ CREATE TABLE IF NOT EXISTS hs_units (
   PRIMARY KEY (planet_id, player_id, unit_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- One row per battle, read by BOTH sides. The attacker is always named — the
+-- defender's system card keeps a raid history per player, and a history full of
+-- "unknown fleet" would be worth nothing. seen_by_* are outboxes: cleared when
+-- state.php hands the event over, so each side is told exactly once.
+CREATE TABLE IF NOT EXISTS hs_battle_reports (
+  id               INT AUTO_INCREMENT PRIMARY KEY,
+  attacker_id      INT NOT NULL,
+  defender_id      INT NOT NULL,
+  planet_id        INT NOT NULL,
+  fought_at        DATETIME NOT NULL,   -- the ARRIVAL, not when it was computed
+  won              TINYINT(1) NOT NULL DEFAULT 0,
+  plundered        TINYINT(1) NOT NULL DEFAULT 0,
+  result           TEXT NULL,           -- ships, firepower, meters before/after, loot
+  seen_by_attacker TINYINT(1) NOT NULL DEFAULT 0,
+  seen_by_defender TINYINT(1) NOT NULL DEFAULT 0,
+  INDEX idx_defender (defender_id, attacker_id),
+  INDEX idx_attacker (attacker_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- `leg` only applies to cargo_drone: 'out' = delivery, 'back' = the empty return
 -- flight. Every other mission type is one-way and leaves it NULL.
 CREATE TABLE IF NOT EXISTS hs_missions (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   player_id      INT NOT NULL,
-  type           ENUM('recon_drone','colony_ship','cargo_drone','spy_drone','spy_satellite') NOT NULL,
+  type           ENUM('recon_drone','colony_ship','cargo_drone','spy_drone','spy_satellite','raid') NOT NULL,
   from_planet_id INT NULL REFERENCES hs_planets(id),
   to_planet_id   INT NULL REFERENCES hs_planets(id),
   ends_at        DATETIME NOT NULL,
   status         ENUM('in_flight','done') DEFAULT 'in_flight',
   leg            VARCHAR(8) NULL,
+  -- Raids only: hulls aboard, the sealed order ('disable' | 'plunder'), and
+  -- what the survivors are carrying home on the 'back' leg.
+  ships          INT NULL,
+  raid_order     VARCHAR(16) NULL,
+  loot           TEXT NULL,
   created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

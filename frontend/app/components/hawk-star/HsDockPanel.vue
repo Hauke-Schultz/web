@@ -80,6 +80,9 @@ const {
   maxCorvetteBatch,
   canBuildCorvette,
   buildCorvette,
+  activeRaids,
+  returningRaids,
+  raidFlightTime,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -118,8 +121,18 @@ const hasMissions = computed(() =>
   activeColonyMissions.value.length ||
   activeCargoMissions.value.length ||
   activeSpyMissions.value.length ||
+  activeRaids.value.length ||
+  returningRaids.value.length ||
   !!returningCargoMission.value
 )
+
+// A raid's countdown is linear like every other flight, but the two legs are
+// separate missions, so each gets its own bar.
+const raidProgress = (m, total) => {
+  const startedAt = m.endsAt - total * 1000
+  const pct = Math.min(100, Math.max(0, (Date.now() - startedAt) / (total * 1000) * 100))
+  return { width: `${pct}%` }
+}
 </script>
 
 <template>
@@ -500,6 +513,35 @@ const hasMissions = computed(() =>
               <div class="hs-progress-fill hs-progress-fill--spy" :key="m.endsAt" :style="spyProgressStyle(m.planetId)" />
             </div>
             <span class="hs-progress-time">{{ formatTime(remainingSpySec(m.planetId)) }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- Raid, outbound. The order rides along in the label: what this fleet
+           will do when it gets there was decided at launch. -->
+      <div v-for="m in activeRaids" :key="`raid-${m.planetId}`" class="hs-dock-mission-row">
+        <span class="hs-dock-mission-icon">⚔️</span>
+        <div class="hs-dock-mission-info">
+          <span class="hs-dock-mission-label">
+            {{ m.order === 'plunder' ? '💰' : '⚡' }} ×{{ m.ships }} → {{ getForeignPlanetLabel(m.planetId) }}
+          </span>
+          <div class="hs-progress-row">
+            <div class="hs-progress-track">
+              <div class="hs-progress-fill hs-progress-fill--war" :key="m.endsAt" :style="raidProgress(m, raidFlightTime(m.systemId))" />
+            </div>
+            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((m.endsAt - Date.now()) / 1000))) }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- Survivors on the way home -->
+      <div v-for="m in returningRaids" :key="`raidback-${m.planetId}`" class="hs-dock-mission-row">
+        <span class="hs-dock-mission-icon">⚔️</span>
+        <div class="hs-dock-mission-info">
+          <span class="hs-dock-mission-label">×{{ m.ships }} ← {{ getForeignPlanetLabel(m.planetId) }}</span>
+          <div class="hs-progress-row">
+            <div class="hs-progress-track">
+              <div class="hs-progress-fill hs-progress-fill--war" :key="m.endsAt" :style="raidProgress(m, raidFlightTime(m.systemId))" />
+            </div>
+            <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((m.endsAt - Date.now()) / 1000))) }}</span>
           </div>
         </div>
       </div>

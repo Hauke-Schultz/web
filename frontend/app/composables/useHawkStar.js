@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY, CONVERSION_MAX_QUEUE, FLEET_PER_WEAPONS_LEVEL } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY, CONVERSION_MAX_QUEUE, FLEET_PER_WEAPONS_LEVEL, RAID } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -38,6 +38,19 @@ const buildError = ref('')
 // ── Game ready flag (false until initFromApi succeeds) ─────────
 const gameLoaded = ref(false)
 const initError  = ref('')
+// What actually went wrong, for the error screen: endpoint, HTTP status and the
+// first lines the server printed. A 500 with an empty body is otherwise
+// indistinguishable from a network hiccup, and the two need different answers.
+const initErrorDetail = ref(null)
+
+const captureInitError = (e, endpoint) => {
+  initErrorDetail.value = {
+    endpoint: e?.endpoint ?? endpoint,
+    status:   e?.status ?? null,
+    body:     (e?.body ?? '').toString().slice(0, 600),
+    at:       new Date().toISOString(),
+  }
+}
 
 // ── Communication ─────────────────────────────────────────
 // systemContacts: per-system scan state
@@ -101,6 +114,8 @@ const freshDock = () => ({
   // A warship build is a batch: { endsAt, startedAt, count } — the whole
   // squadron lands at once, so `count` is what the timer will deliver.
   corvetteBuild:          null,
+  activeRaids:            [],   // outbound strikes — one entry per target planet
+  returningRaids:         [],   // survivors on the way home, loot aboard
 })
 
 const initializePlanetState = (planetId, pType, pName, isHome = false) => {
@@ -1256,6 +1271,78 @@ const maxCorvetteBatch = computed(() => {
 
 const canBuildCorvette = computed(() => !corvetteBuild.value && maxCorvetteBatch.value > 0)
 
+// ── Raids ──────────────────────────────────────────────────
+// Battle reports arrive through state.php exactly once — the server clears the
+// flag as it hands them over — so they are accumulated here rather than re-read.
+const battleReports = ref([])
+// { [playerId]: { count, lastAt } } — how often that player has raided US.
+const raidHistory   = ref({})
+
+const activeRaids = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeRaids ?? [])
+const returningRaids = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.returningRaids ?? [])
+const allActiveRaids = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeRaids ?? []))
+
+const raidsAgainstMe = (playerId) => raidHistory.value[playerId] ?? null
+
+// Same distance curve as everything else that crosses systems, but warships are
+// heavy — a bigger floor and a slower rate than a spy drone's signal-speed run.
+const raidFlightTime = (targetSystemId) => {
+  const home   = galaxySystems.value.find(s => s.id === homeSystemId.value)
+  const target = galaxySystems.value.find(s => s.id === targetSystemId)
+  if (!home || !target) return Math.round(RAID.flightMin * buildTimeFactor.value)
+  const dist = Math.sqrt(Math.pow(target.x - home.x, 2) + Math.pow(target.y - home.y, 2))
+  return Math.round(Math.max(RAID.flightMin, Math.round(dist * RAID.flightPerDist)) * buildTimeFactor.value)
+}
+
+// A sortie burns one power cell per hull, on top of the ships themselves.
+const raidFuelCost = (ships) => ships
+
+const canRaid = computed(() =>
+  corvetteInventory.value > 0 &&
+  activeRaids.value.length === 0 &&
+  returningRaids.value.length === 0
+)
+
+// A raid needs a target that belongs to somebody else and that we have looked
+// at: inside the home system ownership is public, elsewhere a spy drone has to
+// have been there. Mirrors the server's check, which is the real boundary.
+const isRaidTarget = (planet, systemId) => {
+  if (!planet?.owner) return false
+  if (playerColonizedPlanets.value.includes(planet.id)) return false
+  if (systemId === homeSystemId.value) return true
+  return spiedPlanets.value.includes(planet.id)
+}
+
+const startRaid = async (targetPlanetId, targetSystemId, ships, order, fromPlanetId = null) => {
+  const planetId = fromPlanetId ?? activePlanetId.value
+  const dock = allPlanetStates.value[planetId]?.dock
+  if (!dock) return
+
+  buildError.value = ''
+  const { postRaidMission } = useHawkStarApi()
+
+  try {
+    const result = await postRaidMission(planetId, targetPlanetId, ships, order)
+    const sent = result.ships ?? ships
+    dock.corvetteInventory = Math.max(0, dock.corvetteInventory - sent)
+    const res = allPlanetStates.value[planetId].resources
+    res.power_cell = Math.max(0, (res.power_cell ?? 0) - (result.fuel ?? sent))
+    dock.activeRaids.push({
+      planetId: targetPlanetId,
+      systemId: targetSystemId,
+      ships:    sent,
+      order:    result.order ?? order,
+      endsAt:   result.endsAt,
+    })
+  } catch (e) {
+    buildError.value = e.message
+  }
+}
+
+const dismissBattleReport = (id) => {
+  battleReports.value = battleReports.value.filter(r => r.id !== id)
+}
+
 const buildCorvette = async (count = 1) => {
   if (!canBuildCorvette.value) return
   const planetId = activePlanetId.value
@@ -1760,6 +1847,22 @@ const tick = () => {
         dock.spySatelliteBuild = null
         notifications.value.push({ id: `notif_${Date.now()}_unit_${pid}_sat`, type: 'unit_done', icon: '📡', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.satelliteReady', timestamp: Date.now() })
       }
+      // A raid arriving is the one flight the client cannot resolve itself: the
+      // battle is fought server-side against the defender's meters. So the tick
+      // only clears the countdown and pulls the real outcome from the server,
+      // which answers with the battle report.
+      for (let i = dock.activeRaids.length - 1; i >= 0; i--) {
+        if (dock.activeRaids[i].endsAt > now.value) continue
+        dock.activeRaids.splice(i, 1)
+        refreshPlanetState(pid).catch(() => {})
+      }
+      // Survivors home: same reason — the loot lands in the silo server-side.
+      for (let i = dock.returningRaids.length - 1; i >= 0; i--) {
+        if (dock.returningRaids[i].endsAt > now.value) continue
+        dock.returningRaids.splice(i, 1)
+        refreshPlanetState(pid).catch(() => {})
+      }
+
       // Corvette batch — the whole squadron lands at once, never one per tick.
       if (dock.corvetteBuild && dock.corvetteBuild.endsAt <= now.value) {
         const built = dock.corvetteBuild.count ?? 1
@@ -1950,6 +2053,21 @@ const applyGameState = (planetId, state) => {
     .filter(m => m.type === 'cargo_drone' && m.leg === 'back' && m.toPlanetId === planetId)
     .map(m => ({ planetId: m.fromPlanetId, endsAt: m.endsAt }))
 
+  // A raid is two legs like a cargo run: the strike out, and the survivors home.
+  // Only the outbound leg carries the order — the way back is just a flight.
+  const raidsOut = (state.missions ?? [])
+    .filter(m => m.type === 'raid' && m.leg !== 'back' && m.fromPlanetId === planetId)
+    .map(m => ({
+      planetId: m.toPlanetId, systemId: planetSystemId(m.toPlanetId),
+      ships: m.ships ?? 1, order: m.raidOrder ?? 'disable', endsAt: m.endsAt,
+    }))
+  const raidsBack = (state.missions ?? [])
+    .filter(m => m.type === 'raid' && m.leg === 'back' && m.toPlanetId === planetId)
+    .map(m => ({
+      planetId: m.fromPlanetId, systemId: planetSystemId(m.fromPlanetId),
+      ships: m.ships ?? 1, endsAt: m.endsAt,
+    }))
+
   const convQueues = (state.conversionQueues ?? []).map(q => ({
     buildingId: q.buildingKey, recipeIndex: q.recipeIndex,
     planetId,  endsAt: q.endsAt,  runs: q.runs ?? 1,
@@ -1979,6 +2097,8 @@ const applyGameState = (planetId, state) => {
       activeSpyMissions:    spyMissions,
       corvetteInventory:    warship.quantity,
       corvetteBuild:        warship.build,
+      activeRaids:          raidsOut,
+      returningRaids:       raidsBack,
     },
     conversionQueues: convQueues,
     battery: state.battery ? { ...state.battery, syncedAt: Date.now() } : null,
@@ -2030,6 +2150,37 @@ const applyGameState = (planetId, state) => {
       timestamp: lost.lostAt,
     })
   }
+
+  // Who has raided us, how often, last when. Player-wide, so the last response
+  // wins — every planet's state carries the same figure.
+  if (state.raidHistory) raidHistory.value = state.raidHistory
+
+  // Battles, from either side, handed over exactly once. Same duplicate guard as
+  // the satellite losses: several planets may load at the same moment.
+  for (const report of (state.battleReports ?? [])) {
+    if (battleReports.value.some(r => r.id === report.id)) continue
+    battleReports.value.push(report)
+
+    const won   = report.won
+    const mine  = report.role === 'attacker'
+    // Four outcomes, and the icon carries the news before the text does.
+    const icon  = mine ? (won ? '💥' : '🛡️') : (won ? '🔥' : '🛡️')
+    const key   = mine
+      ? (won ? 'raidWon'      : 'raidRepelled')
+      : (won ? 'raidedByFoe'  : 'raidDefended')
+
+    const id = `notif_${report.foughtAt}_battle_${report.id}`
+    if (notifications.value.some(n => n.id === id)) continue
+    notifications.value.push({
+      id,
+      type: 'battle', icon,
+      planetId: report.planetId, planetName: report.planetName,
+      labelKey: `hawkStar.notifications.${key}`,
+      labelParams: { foe: report.foeName ?? '?', planet: report.planetName },
+      details: report.plundered ? '💰' : '',
+      timestamp: report.foughtAt,
+    })
+  }
 }
 
 // The galaxy response is filtered per player: `owner` is only filled in for
@@ -2075,6 +2226,7 @@ export const refreshPlanetState = async (planetId) => {
 export const initFromApi = async () => {
   gameLoaded.value = false
   initError.value  = ''
+  initErrorDetail.value = null
 
   const { player, homePlanetId: authHomePlanetId } = useHawkStarAuth()
   const { fetchGalaxy, fetchGameState, fetchContacts, fetchCommLog } = useHawkStarApi()
@@ -2086,6 +2238,7 @@ export const initFromApi = async () => {
   } catch (e) {
     console.error('[hawk-star] Galaxy load failed:', e)
     initError.value = `Failed to load galaxy: ${e.message}`
+    captureInitError(e, '/galaxy/')
     return
   }
 
@@ -2172,6 +2325,7 @@ export const initFromApi = async () => {
   } catch (e) {
     console.error('[hawk-star] Game state load failed:', e)
     initError.value = `Failed to load planet data: ${e.message}`
+    captureInitError(e, '/game/state')
   }
 }
 
@@ -2378,6 +2532,19 @@ export function useHawkStar() {
     maxCorvetteBatch,
     canBuildCorvette,
     buildCorvette,
+    // raids
+    battleReports,
+    raidHistory,
+    raidsAgainstMe,
+    activeRaids,
+    returningRaids,
+    allActiveRaids,
+    raidFlightTime,
+    raidFuelCost,
+    canRaid,
+    isRaidTarget,
+    startRaid,
+    dismissBattleReport,
     planetIntel,
     hasLiveSatellite,
     intelAgeHours,
@@ -2418,6 +2585,7 @@ export function useHawkStar() {
     buildError,
     gameLoaded,
     initError,
+    initErrorDetail,
     // notifications
     allPlanetStates,
     notifications,

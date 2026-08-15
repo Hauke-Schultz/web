@@ -577,7 +577,7 @@ The system card's planet list is the whole interface. Per planet, left to right:
 
 ---
 
-## Combat — The Raid  *(concept, 2026-08-15 — not implemented)*
+## Combat — The Raid  *(implemented 2026-08-16)*
 
 Phase 5, and the phase that replaces trade: **player trade is dropped from the roadmap** (2026-08-15). Without a market, plunder is the only reason to fly to another player's planet, which is exactly the intent — the cargo drone moves goods between *your own* planets, a raid moves them between *players*.
 
@@ -686,6 +686,37 @@ It fires **twice against a plundering fleet**: once as the fleet arrives, and on
 - **Anfängerschutz** — no attacks on players below a size threshold or inside their first days.
 - **Deterministic, no dice.** The anomaly design chose *"Entscheidungen, kein Zufall"*; a battle whose outcome can be computed beforehand belongs to the same game. The uncertainty is whether the defender logs in in time, not what the die says.
 - **Both sides get a report**, materialised at resolve time the way an anomaly's outcomes are materialised at roll time. Delivery reuses the `satellite_lost_at` outbox trick — a flag cleared the moment `state.php` hands the event over, so a notification fires exactly once without a notification table.
+
+### Launch, flight, resolution  *(implemented 2026-08-16)*
+
+`POST /game/mission/raid { fromPlanetId, toPlanetId, ships, order }`. The gates, in the order the endpoint checks them: the launching planet is yours, the target belongs to **somebody else**, that somebody is **past beginner protection** (`RAID_NEWBIE_PROTECTION_DAYS`, 3 days), the planet has been **surveyed** (inside your own home system ownership is public, so no flight is needed there), **no other fleet from this planet is out**, corvettes are in the dock, and there is **one power cell per hull** as sortie fuel. Hulls and fuel are taken at launch.
+
+The flight is `hs_missions` with `type='raid'` and `leg='out'`, three new columns alongside: `ships`, `raid_order`, `loot`. `RAID_FLIGHT_MIN` is 3 h (a same-system strike) plus distance at `RAID_FLIGHT_PER_DIST`. The return leg is a second row with `leg='back'` carrying the survivors and the haul, exactly as the cargo drone does it.
+
+Four things in the resolution are worth remembering:
+
+- **The battle is fought against the meters as they were at ARRIVAL, not at resolve time.** `meter_charge_at()` rewinds the shield and battery to the mission's `ends_at`. Without it the game had a free exploit: launch, then stay logged out until the target's shield has drained itself to nothing (1.25 %/h) and let the delay win the fight. If the defender charged *after* the fleet arrived there is nothing to rewind and the stored value is used as it stands — that favours the defender, which is the safe direction to be wrong in. The report is stamped with the arrival too, so the raid history does not read as though the fleet turned up whenever the attacker next opened the game.
+- **`resolve_missions()` has a re-entrancy guard, and the raid is why.** Resolving an attack calls `resolve_timers()` for the *defender* so their meters are current, and the defender may have a raid of their own in flight against the attacker. Two players raiding each other would otherwise resolve each other forever.
+- **The orbital battery fires itself**, once as the fleet arrives and a second time while a plundering fleet loads, one power cell per kill out of the defender's own stock, `RAID_INTERCEPT_SHOTS` per volley. It produces a genuinely good emergent case: a defender who spends their power cells shooting has none left in the silo for the raider to steal.
+- **A fleet wiped out over the target starts no return leg** — there is nothing left to fly it.
+
+The client cannot resolve an arrival itself, because the battle reads another player's state. The tick therefore only clears the countdown and calls `refreshPlanetState()`; the server answers with the outcome.
+
+### Reports and the raid history
+
+`hs_battle_reports` is read by both sides. `seen_by_attacker` / `seen_by_defender` are outboxes in the spirit of `satellite_lost_at`: `unseen_battle_reports()` hands each side its news exactly once and clears the flag in the same call, so there is still no notification table in this codebase. Four notification texts, because the same battle reads differently from each chair: raid won / raid repelled / knocked out by X / attack from X repelled.
+
+`raid_history()` is a `GROUP BY attacker_id` over the same table and needs no storage of its own. It rides along on every state load and drives the `⚔️ 3 · vor 2 h` badge in the galaxy card's owner list — red while the last raid is under 24 h old, grey after that.
+
+### UI
+
+The **⚔️ button** sits at the end of a planet row in the system card, next to the espionage buttons but red, and only appears on a foreign colony you have surveyed while a fleet is parked in the active planet's dock. It opens the **attack order** inline under the planet list: ship count against what is in the dock, the firepower that buys (`n × 20`) with its fuel cost, and the two orders as a pair of cards — ⚡ *Ausschalten* and 💰 *Plündern*, the second spelling out that the fleet has to load in orbit and takes another volley for it. Both legs then show up in the dock's mission list with the order in the label, so an in-flight fleet says what it is going to do.
+
+Dev cheat **⚔️ Überfall** (`complete_raid_missions`) runs both legs — the battle and the way home — since waiting out two three-hour flights is not a test.
+
+### Files  *(raid)*
+
+`RAID_*` in `api/star/config.php` · `migrate_raid_missions`, `ensure_battle_reports_table`, `raid_flight_seconds`, `planet_plunder_locked`, `player_is_protected`, `orbital_volley`, `set_meter_charge`, `meter_charge_at`, `resolve_raid_battle`, the `raid` branch in `resolve_missions_inner`, `unseen_battle_reports`, `raid_history` in `bootstrap.php` · `api/star/game/mission/raid.php` · `hs_battle_reports` + `hs_missions.ships/raid_order/loot` in the schema · `complete_raid_missions` in `dev/cheat.php` · `battleReports` / `raidHistory` in `game/state.php` · `RAID` in `hawkStarConfig.js` · `battleReports` / `raidHistory` / `startRaid` / `isRaidTarget` / `raidFlightTime` / `activeRaids` in `useHawkStar.js` · raid dialog + `⚔️` badge in `HsGalaxyMap.vue` · raid rows in `HsDockPanel.vue` · `hawkStar.galaxy.raid*` / `notifications.raid*` in de/en
 
 ### Files  *(production step)*
 
@@ -1030,12 +1061,12 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 | Feature | Status |
 |---------|--------|
 | Phase 3 — Player trade | ❌ Dropped (2026-08-15) — plunder replaces it |
-| Phase 5 — Combat: raid concept (shield + battery only, plunder choice) | 📝 Concept |
+| Phase 5 — Raid: launch, battle, plunder, reports, raid history | ✅ Implemented |
 | Phase 5 — Corvette + shipyard batch + fleet cap (`weapons_building` Lv1–3) | ✅ Implemented |
-| Phase 4 — Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
+| Phase 4 <br/>— Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
 | Phase 4 — Espionage — buildings / resources / fleet recon | ⬜ Planned |
 | Phase 4 — Defense tile detects and destroys foreign satellites | ✅ Implemented |
-| Phase 5 — Combat: raid mission, battle resolution, battle reports | ⬜ Planned |
+| Phase 5 — Early warning for the defender (~30 min, needs orbital_defense) | ⬜ Planned |
 | Power battery (power_plant, click-to-charge, blackout when empty) | ✅ Implemented |
 | Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |
 | Cargo drone (one per planet, 4 items, one-way delivery + empty return) | ✅ Implemented |

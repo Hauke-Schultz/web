@@ -316,7 +316,7 @@ Umgesetzt 2026-08-12/13: Spy Drone (Bericht, der altert) + Spy Satellite (bleibt
 
 ## Phase 5 — Combat: der Überfall
 
-Konzept steht (2026-08-15), Details in `hawk-star.md` § Combat — The Raid. **Schritt 1 (Produktion) ist umgesetzt:** Einheit `corvette` in der `shipyard`, Bestellung als Batch (`hs_units.build_count`, `UNIT_BATCH_KEYS`), Flottenlimit `weapons_building`-Level × `FLEET_PER_WEAPONS_LEVEL` (4/8/12) über `fleet_cap()` / `fleet_size()` in `bootstrap.php`, geprüft in `game/unit/build.php`. Offen ist die Mission selbst. Kurzfassung fürs Backend:
+**Umgesetzt (2026-08-16).** Details in `hawk-star.md` § Combat — The Raid. **Schritt 1 (Produktion):** Einheit `corvette` in der `shipyard`, Bestellung als Batch (`hs_units.build_count`, `UNIT_BATCH_KEYS`), Flottenlimit `weapons_building`-Level × `FLEET_PER_WEAPONS_LEVEL` (4/8/12) über `fleet_cap()` / `fleet_size()` in `bootstrap.php`, geprüft in `game/unit/build.php`. **Schritt 2 (Mission):** `game/mission/raid.php`, Auflösung in `resolve_raid_battle()`, Berichte in `hs_battle_reports`. Kurzfassung fürs Backend:
 
 **Nur zwei Ziele: Schild und Batterie.** Gebäude, Forschung, Einheiten und Bevölkerung sind unantastbar. **Sieg = beide Werte auf 0** → Blackout. Nur bei Sieg und nur auf Befehl wird geplündert: **alle veredelten Güter** des Planeten (nie Rohstoffe — die sind gedeckelt und würden beim Gutschreiben weggeschnitten).
 
@@ -344,6 +344,10 @@ hs_battle_reports (
 3. **Auflösung bei Ankunft** in `resolve_missions()`: Orbital Defense schießt automatisch (1 Power Cell = 1 Korvette), Restfeuerkraft gegen Schild, Überschuss gegen Batterie. `firepower >= schild% + batterie%` → Sieg, beide auf 0. Bei `order='plunder'` + Sieg: zweite Salve der Orbitalabwehr, dann Beute.
 4. Bericht materialisieren (wie Anomalie-Choices bei der Auslosung), Beute auf die Rückflug-Mission legen.
 5. `leg='back'` → bei Ankunft Korvetten zurück ins Dock, Beute per `credit_resources()` gutschreiben.
+
+**Zwei Fallen, die dabei geschlossen wurden:**
+- Die Schlacht rechnet mit den Messwerten **zur Ankunftszeit** (`meter_charge_at()`), nicht zur Auflösungszeit — sonst wartet ein Angreifer einfach, bis das Schild von selbst leergelaufen ist.
+- `resolve_missions()` hat eine **Rekursionssperre**: die Auflösung eines Angriffs ruft `resolve_timers()` für den *Verteidiger*, und der kann seinerseits einen Angriff auf den Angreifer fliegen haben.
 
 ---
 

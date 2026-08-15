@@ -18,7 +18,7 @@ const anomalyOptions = computed(() =>
 )
 
 const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'complete_conversions', 'max_resources', 'drain_battery', 'drain_shield', 'add_population', 'roll_anomaly', 'spy_on_me']
-const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_cargo_missions', 'complete_spy_missions', 'complete_scanning']
+const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_cargo_missions', 'complete_spy_missions', 'complete_raid_missions', 'complete_scanning']
 
 async function runCheat(action) {
   if (cheatBusy.value) return
@@ -53,6 +53,7 @@ async function runCheat(action) {
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Colony-Missionen abschließen" @click="runCheat('complete_colony_missions')">✓ Colony</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Frachtdrohne ausliefern lassen und zurückholen" @click="runCheat('complete_cargo_missions')">✓ Fracht</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Spionage-Missionen abschließen" @click="runCheat('complete_spy_missions')">🕵️ Spionage</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Angriffsflotte ankommen lassen, Schlacht auswerten und Überlebende heimholen" @click="runCheat('complete_raid_missions')">⚔️ Überfall</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Galaxy-Scans abschließen" @click="runCheat('complete_scanning')">✓ Scan</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Reaktor-Batterie sofort leeren (Blackout testen)" @click="runCheat('drain_battery')">🔋 Leeren</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Planetenschild sofort entladen" @click="runCheat('drain_shield')">🛡️ Leeren</button>

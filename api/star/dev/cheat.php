@@ -178,6 +178,19 @@ switch ($action) {
         }
         ok(['action' => 'complete_cargo_missions']);
 
+    case 'complete_raid_missions':
+        // Two passes, like the cargo run: the first fights the battle over the
+        // target and starts the return leg, the second brings the survivors and
+        // their loot home. Waiting out two 3 h flights is not a test.
+        for ($i = 0; $i < 2; $i++) {
+            $db->prepare(
+                "UPDATE hs_missions SET ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
+                 WHERE player_id=? AND type='raid' AND status='in_flight'"
+            )->execute([$playerId]);
+            resolve_missions($db, $playerId);
+        }
+        ok(['action' => 'complete_raid_missions']);
+
     case 'complete_spy_missions':
         $db->prepare(
             "UPDATE hs_missions SET ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
