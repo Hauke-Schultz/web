@@ -1437,10 +1437,11 @@ const sendMessage = async (systemId, messageKeys) => {
 }
 
 
-// ── Conversion Queues (High-Tech / Refinery) ───────────────
-// Per-planet array of independent running jobs.
-// Each job: { buildingId, recipeIndex, planetId, endsAt, remaining }
-// Different recipes run in parallel; same recipe adds to 'remaining'.
+// ── Conversion batches (High-Tech / Refinery) ──────────────
+// Per-planet array of running batches.
+// Each batch: { buildingId, recipeIndex, planetId, endsAt, runs }
+// Different recipes run in parallel; the same recipe is LOCKED while its batch
+// runs — a ×4 order takes 4 × durationBase and delivers all 4 units at the end.
 
 const conversionQueues = computed(() =>
   allPlanetStates.value[activePlanetId.value]?.conversionQueues ?? []
@@ -1458,13 +1459,20 @@ const conversionTimeForPlanet = (buildingId, recipeIndex, planetId) => {
 const conversionTime = (buildingId, recipeIndex) =>
   conversionTimeForPlanet(buildingId, recipeIndex, activePlanetId.value)
 
-// canConvert: checks level/lock/affordability for starting a new job
+// The batch running for this recipe on the active planet, if any.
+const conversionBatch = (buildingId, recipeIndex) =>
+  conversionQueues.value.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex) ?? null
+
+// canConvert: checks level/lock/affordability for starting a new batch.
+// A running batch blocks its recipe outright — that lock is what caps output at
+// CONVERSION_MAX_QUEUE units per CONVERSION_MAX_QUEUE durations.
 const canConvert = (buildingId, recipeIndex) => {
   const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
   if (!recipe) return false
   const lvl = getLevel(buildingId)
   if (lvl === 0) return false
   if (recipe.requiresLevel && lvl < recipe.requiresLevel) return false
+  if (conversionBatch(buildingId, recipeIndex)) return false
   return canAfford(recipe.input)
 }
 
@@ -1479,9 +1487,9 @@ const maxConversionRuns = (buildingId, recipeIndex) => {
   return Math.max(0, Math.min(CONVERSION_MAX_QUEUE, ...runs))
 }
 
-// count: runs to queue. Ordering while a job runs DEEPENS that queue — the
-// server merges into the existing row rather than opening a second line, so the
-// running batch keeps its clock and only `remaining` grows.
+// count: units in this batch. All costs are paid now, the batch runs
+// count × durationBase and delivers count × output in one go. While it runs the
+// recipe is locked, so this is the only order in flight for it.
 const startConversion = async (buildingId, recipeIndex, count = 1) => {
   if (!canConvert(buildingId, recipeIndex)) return
   const planetId = activePlanetId.value
@@ -1505,18 +1513,13 @@ const startConversion = async (buildingId, recipeIndex, count = 1) => {
       }
     }
 
-    const existing = queues.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex)
-    if (existing) {
-      existing.remaining += runs
-    } else {
-      queues.push({
-        buildingId,
-        recipeIndex,
-        planetId,
-        endsAt:    result.endsAt,
-        remaining: Math.max(0, runs - 1),
-      })
-    }
+    queues.push({
+      buildingId,
+      recipeIndex,
+      planetId,
+      endsAt: result.endsAt,
+      runs,
+    })
   } catch (e) {
     buildError.value = e.message
   }
@@ -1526,7 +1529,9 @@ const remainingConversionSec = (q) =>
   Math.max(0, Math.ceil((q.endsAt - now.value) / 1000))
 
 const conversionProgressStyle = (q) => {
-  const ct = conversionTimeForPlanet(q.buildingId, q.recipeIndex, q.planetId)
+  // The bar spans the WHOLE batch — a ×4 order fills over four durations and
+  // pays out once at the end, so there is no per-run reset to show.
+  const ct = conversionTimeForPlanet(q.buildingId, q.recipeIndex, q.planetId) * Math.max(1, q.runs ?? 1)
   const startedAt = q.endsAt - ct * 1000
   const pct = Math.min(100, Math.max(0, (now.value - startedAt) / (ct * 1000) * 100))
   return { width: `${pct}%` }
@@ -1584,8 +1589,8 @@ const tick = () => {
     fetchCommLog().then(log => { commLog.value = log.slice(); recomputeUnread() }).catch(() => {})
   }
 
-  // Process all per-planet conversion queues
-  for (const [pid, pstate] of Object.entries(allPlanetStates.value)) {
+  // Process all per-planet conversion batches
+  for (const [, pstate] of Object.entries(allPlanetStates.value)) {
     const cqs = pstate.conversionQueues
     if (!cqs?.length) continue
     for (let i = cqs.length - 1; i >= 0; i--) {
@@ -1593,17 +1598,14 @@ const tick = () => {
       if (q.endsAt > now.value) continue
       const recipe = BUILDINGS[q.buildingId]?.conversions?.[q.recipeIndex]
       if (!recipe) { cqs.splice(i, 1); continue }
-      const res = pstate.resources
+      // The whole batch lands at once, then the recipe unlocks.
+      const res  = pstate.resources
+      const runs = Math.max(1, q.runs ?? 1)
       for (const [r, amt] of Object.entries(recipe.output)) {
-        res[r] = (res[r] ?? 0) + amt
+        res[r] = (res[r] ?? 0) + amt * runs
       }
-      // No per-batch input deduction — backend deducts all batches (input × count) upfront.
-      if (q.remaining > 0) {
-        q.endsAt = now.value + conversionTimeForPlanet(q.buildingId, q.recipeIndex, pid) * 1000
-        q.remaining -= 1
-      } else {
-        cqs.splice(i, 1)
-      }
+      // No input deduction here — the backend took the whole batch upfront.
+      cqs.splice(i, 1)
     }
   }
 
@@ -1868,7 +1870,7 @@ const applyGameState = (planetId, state) => {
 
   const convQueues = (state.conversionQueues ?? []).map(q => ({
     buildingId: q.buildingKey, recipeIndex: q.recipeIndex,
-    planetId,  endsAt: q.endsAt,  remaining: q.remaining,
+    planetId,  endsAt: q.endsAt,  runs: q.runs ?? 1,
   }))
 
   allPlanetStates.value[planetId] = {

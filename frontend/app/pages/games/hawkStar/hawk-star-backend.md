@@ -83,7 +83,7 @@ Ressourcen werden nur berechnet wenn der Spieler eine Aktion ausführt oder die 
 - `resolve_buildings()` — fertige Gebäude → level+1, build_ends_at=NULL, Slot-Unlocks, popBonus
 - `resolve_global_research()` — fertige Forschungen → level+1
 - `resolve_missions()` — colony_ship → Planet-Ownership anlegen + init_planet(); beide Typen → status='done'
-- `resolve_conversions()` — Output liefern, Queue weiterschieben oder löschen
+- `resolve_conversions()` — fälliger Batch: `output × runs` auf einmal gutschreiben, Zeile löschen (Rezept ist damit wieder frei)
 
 ---
 
@@ -177,7 +177,8 @@ hs_conversion_queues (
   id, planet_id, player_id,
   building_key, recipe_index INT,
   ends_at DATETIME,
-  remaining INT     -- verbleibende Batches nach dem laufenden
+  runs INT          -- Einheiten in diesem Batch, alle zusammen bei ends_at
+                    -- (max. 1 Zeile je building_key+recipe_index = Sperre)
 )
 
 -- ── Phase 2: Communication ─────────────────────────────────────────────────────
@@ -219,7 +220,8 @@ POST /api/star/game/research   { buildingKey }
 
 -- Konvertierungen
 POST /api/star/game/convert    { planetId, buildingKey, recipeIndex, count }
-  → { endsAt, count, totalDuration }
+  → { endsAt, count, totalDuration }   -- count = Batch-Größe (max CONVERSION_MAX_BATCH)
+  -- Fehler 'Conversion already running', solange ein Batch dieses Rezepts läuft
 
 -- Einheiten bauen (Dock-Inventar)
 POST /api/star/game/unit/build { planetId, unitKey }   -- 'recon_drone' | 'colony_ship'

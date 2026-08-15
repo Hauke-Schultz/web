@@ -88,29 +88,38 @@ const availableConversions = computed(() =>
     })))
 )
 
-// The running job for a recipe, if any — drives the fill inside its button.
+// The running batch for a recipe, if any — drives the fill inside its button
+// and locks both the stepper and the button until it delivers.
 const queueFor = (buildingId, recipeIndex) =>
   conversionQueues.value.find(q => q.buildingId === buildingId && q.recipeIndex === recipeIndex) ?? null
 
 // ── ×N order picker ───────────────────────────────────────────────────────────
 // Every recipe takes 30 minutes, so one run per click made refining a chore of
 // coming back rather than a decision. The count is ordered and paid for up
-// front; the runs then resolve back to back without anyone being present.
-// Throughput is unchanged — this buys absence, not speed.
+// front, then the facility works the whole batch and delivers it in one piece:
+// ×4 = two hours, then four units. The recipe stays locked for that whole time,
+// which is what keeps four units per two hours the ceiling.
 const orderCount = ref({})
+
+const isLocked = (recipe) => !!queueFor(recipe.buildingId, recipe.index)
 
 const countFor = (recipe) => {
   const max = maxConversionRuns(recipe.buildingId, recipe.index)
   // Clamped on read, so a count picked while rich stays valid after spending.
+  // A locked recipe keeps showing the size of the batch that is running.
+  const running = queueFor(recipe.buildingId, recipe.index)
+  if (running) return running.runs ?? 1
   return Math.max(1, Math.min(orderCount.value[recipe.key] ?? 1, Math.max(1, max)))
 }
 
 const setCount = (recipe, delta) => {
+  if (isLocked(recipe)) return
   const max = Math.max(1, maxConversionRuns(recipe.buildingId, recipe.index))
   orderCount.value[recipe.key] = Math.max(1, Math.min(countFor(recipe) + delta, max))
 }
 
-const canRaise = (recipe) => countFor(recipe) < maxConversionRuns(recipe.buildingId, recipe.index)
+const canRaise = (recipe) =>
+  !isLocked(recipe) && countFor(recipe) < maxConversionRuns(recipe.buildingId, recipe.index)
 
 // ── Onboarding checklist ──────────────────────────────────────────────────────
 // Permanent guide on the base tile. Each step ticks itself off from real state,
@@ -313,12 +322,16 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
             >{{ RESOURCES[resId]?.icon }} +{{ amt }} {{ t('hawkStar.res.' + resId) }}</span>
           </div>
 
-          <!-- How many runs to order. Paid for up front, then resolved back to
-               back — the queue buys absence, not speed. -->
-          <div class="hs-conv-count" :title="t('hawkStar.tile.convCountHint')">
+          <!-- How many units this batch makes. Paid for up front, delivered
+               together at the end — and frozen at that number while it runs. -->
+          <div
+            class="hs-conv-count"
+            :class="{ 'hs-conv-count--locked': isLocked(recipe) }"
+            :title="isLocked(recipe) ? t('hawkStar.tile.convCountLocked') : t('hawkStar.tile.convCountHint')"
+          >
             <button
               class="hs-conv-count__btn"
-              :disabled="countFor(recipe) <= 1"
+              :disabled="isLocked(recipe) || countFor(recipe) <= 1"
               @click="setCount(recipe, -1)"
             >−</button>
             <span class="hs-conv-count__value">×{{ countFor(recipe) }}</span>
@@ -329,15 +342,15 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
             >+</button>
           </div>
 
-          <!-- One button. It fills up while the job runs and shows the time left.
-               Clicking it while running appends to the queue instead of opening
-               a second line — the server merges the order into the same row. -->
+          <!-- One button. It fills over the whole batch and shows the time left.
+               While a batch runs the recipe is locked — no second order, so the
+               facility can never be made to produce faster than one batch. -->
           <button
             class="hs-btn-convert"
             :class="{ 'hs-btn-convert--running': queueFor(recipe.buildingId, recipe.index) }"
             :disabled="!canConvert(recipe.buildingId, recipe.index)"
             :title="queueFor(recipe.buildingId, recipe.index)
-              ? t('hawkStar.tile.convAppend', { n: countFor(recipe) })
+              ? t('hawkStar.tile.convBatchRunning', { n: countFor(recipe) })
               : t('hawkStar.tile.convOrder', { n: countFor(recipe), time: formatTime(conversionTime(recipe.buildingId, recipe.index) * countFor(recipe)) })"
             @click="startConversion(recipe.buildingId, recipe.index, countFor(recipe))"
           >
@@ -349,8 +362,8 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
             <span class="hs-btn-convert__label">
               <template v-if="queueFor(recipe.buildingId, recipe.index)">
                 {{ formatTime(remainingConversionSec(queueFor(recipe.buildingId, recipe.index))) }}
-                <span v-if="queueFor(recipe.buildingId, recipe.index).remaining > 0" class="hs-btn-convert__queued">
-                  +{{ queueFor(recipe.buildingId, recipe.index).remaining }}
+                <span v-if="(queueFor(recipe.buildingId, recipe.index).runs ?? 1) > 1" class="hs-btn-convert__queued">
+                  ×{{ queueFor(recipe.buildingId, recipe.index).runs }}
                 </span>
               </template>
               <template v-else>
@@ -738,6 +751,10 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
   border: 1px solid var(--hs-line-sm);
   background: var(--hs-glass-sm);
   overflow: hidden;
+
+  // Locked while the batch runs — the number stays readable (it is the size of
+  // the running order), only the two steppers go dead.
+  &--locked { opacity: 0.45; }
 }
 
 .hs-conv-count__btn {
@@ -801,10 +818,12 @@ const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.d
     cursor: not-allowed;
   }
 
-  // While a job runs the button stays clickable to queue another one
+  // A running batch always disables the button — the recipe is locked until it
+  // delivers. It must still read as "working", not as "unavailable", so it keeps
+  // its lit border and a much softer dim than a genuinely blocked button.
   &--running {
     border-color: rgba(139,92,246,0.7);
-    &:disabled { opacity: 0.6; }
+    &:disabled { opacity: 0.75; cursor: default; }
   }
 }
 

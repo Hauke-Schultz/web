@@ -117,8 +117,10 @@ const inProgressItems = computed(() => {
           type:     'conversion',
           icon:     '⚗️',
           title:    bDef.name,
-          subtitle: q.remaining > 0
-            ? `${pname} · ${t('hawkStar.notifications.conversionRemaining', { n: q.remaining + 1 })}`
+          // A batch delivers all its units at once, so the count is what is
+          // coming, not what is left to run.
+          subtitle: (q.runs ?? 1) > 1
+            ? `${pname} · ${t('hawkStar.notifications.conversionBatch', { n: q.runs })}`
             : pname,
           remSec:   remSec(q.endsAt),
           pct:      null,

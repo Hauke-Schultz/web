@@ -927,9 +927,51 @@ function resolve_missions(PDO $db, int $playerId): void {
     }
 }
 
+// An order is ONE batch: `runs` units, delivered together when the batch ends.
+// The column replaces the old `remaining` counter, which meant "runs still to
+// come" back when a queue paid out one unit every durationBase and re-armed
+// itself. The batch never re-arms, so nothing counts down any more.
+function ensure_conversion_queue_table(PDO $db): void {
+    static $tableReady = false;
+    if ($tableReady) return;
+    $tableReady = true;
+
+    try {
+        $fresh = !$db->query("SHOW TABLES LIKE 'hs_conversion_queues'")->fetch();
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS hs_conversion_queues (
+               id           INT AUTO_INCREMENT PRIMARY KEY,
+               planet_id    INT NOT NULL,
+               player_id    INT NOT NULL,
+               building_key VARCHAR(64) NOT NULL,
+               recipe_index INT NOT NULL,
+               ends_at      DATETIME NOT NULL,
+               runs         INT NOT NULL DEFAULT 1
+             )'
+        );
+
+        if ($fresh) return;
+
+        // Column by column, so a half-migrated database heals itself.
+        if (!$db->query("SHOW COLUMNS FROM hs_conversion_queues LIKE 'runs'")->fetch()) {
+            $db->exec('ALTER TABLE hs_conversion_queues ADD COLUMN runs INT NOT NULL DEFAULT 1');
+            // An in-flight old queue was "one running + `remaining` to come", so
+            // its batch size is remaining + 1. It now finishes as one delivery.
+            if ($db->query("SHOW COLUMNS FROM hs_conversion_queues LIKE 'remaining'")->fetch()) {
+                $db->exec('UPDATE hs_conversion_queues SET runs = remaining + 1');
+            }
+        }
+        if ($db->query("SHOW COLUMNS FROM hs_conversion_queues LIKE 'remaining'")->fetch()) {
+            $db->exec('ALTER TABLE hs_conversion_queues DROP COLUMN remaining');
+        }
+    } catch (Throwable $e) { /* table stays as it is */ }
+}
+
 function resolve_conversions(PDO $db, int $planetId, int $playerId): void {
+    ensure_conversion_queue_table($db);
+
     $done = $db->prepare(
-        'SELECT id, building_key, recipe_index, remaining
+        'SELECT id, building_key, recipe_index, runs
          FROM hs_conversion_queues
          WHERE planet_id=? AND player_id=? AND ends_at <= NOW()'
     );
@@ -948,26 +990,22 @@ function resolve_conversions(PDO $db, int $planetId, int $playerId): void {
             continue;
         }
 
+        // The whole batch lands at once — a ×4 order pays four times the output
+        // after four times the duration, not one unit every durationBase.
+        $batch = [];
+        $runs  = max(1, (int)$q['runs']);
+        foreach ($recipe['output'] as $res => $amt) {
+            $batch[$res] = $amt * $runs;
+        }
+
         // Paid out through the cap-aware credit. A raw-resource output (the deep
         // shaft ships 1200 metal at a time) landing on a nearly full silo fills
         // it and stops; a plain `res = res + amt` would show an over-cap number
         // that the next compute_resources() tick quietly shaves back down.
         // Population has no cap and passes straight through.
-        credit_resources($db, $planetId, $playerId, $recipe['output'], $caps);
+        credit_resources($db, $planetId, $playerId, $batch, $caps);
 
-        if ((int)$q['remaining'] > 0) {
-            $lvlRow = $db->prepare('SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=?');
-            $lvlRow->execute([$planetId, $playerId, $q['building_key']]);
-            $bLevel   = max(1, (int)$lvlRow->fetchColumn());
-            $duration = max(1, (int)ceil($recipe['durationBase'] / $bLevel));
-
-            $db->prepare(
-                'UPDATE hs_conversion_queues SET remaining = remaining - 1,
-                 ends_at = DATE_ADD(NOW(), INTERVAL ? SECOND) WHERE id=?'
-            )->execute([$duration, $q['id']]);
-        } else {
-            $db->prepare('DELETE FROM hs_conversion_queues WHERE id=?')->execute([$q['id']]);
-        }
+        $db->prepare('DELETE FROM hs_conversion_queues WHERE id=?')->execute([$q['id']]);
     }
 }
 

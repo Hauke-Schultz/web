@@ -27,7 +27,7 @@
       "colonyBuilding": "Colony Ship building",
       "missionFrom": "from {planet}",
       "shipDock": "{planet} · Dock",
-      "conversionRemaining": "×{n} remaining"
+      "conversionBatch": "×{n} in one delivery"
     },
 
     "nav": {
@@ -54,9 +54,10 @@
       "convTitle": "⚗️ Conversions",
       "btnConvert": "Convert",
       "convRunning": "Conversion running",
-      "convCountHint": "How many runs to order at once — they resolve back to back, even while you are away",
-      "convOrder": "Order {n} runs · all costs up front · done in {time}",
-      "convAppend": "Append {n} more runs to the running queue",
+      "convCountHint": "How many units this order makes — all delivered together at the end of the full run time",
+      "convCountLocked": "Order running — the facility is locked until it delivers",
+      "convOrder": "Order {n} units · all costs up front · delivered in {time}",
+      "convBatchRunning": "Order of {n} units running — delivered at the end, then orderable again",
       "convEmptyNoRefinery": "Build the refinery to unlock conversions",
       "convEmptyNoFacility": "Build a High-Tech facility to unlock conversions",
       "onboarding": {

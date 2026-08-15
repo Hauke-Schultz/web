@@ -63,6 +63,13 @@ const CARGO_LOADABLE = ['power_cell', 'duraplate', 'plasma_core', 'superconducto
 // Four single items, freely mixed — not four stacks.
 const CARGO_CAPACITY = 4;
 
+// ── Conversions ───────────────────────────────────────────────────────────────
+// Largest batch a single order may hold. Because a running batch locks its
+// recipe, this is also the hard ceiling on production: at most 4 units per
+// 4 durations. Mirrors CONVERSION_MAX_QUEUE in hawkStarConfig.js — the client
+// caps the picker, this caps the request.
+const CONVERSION_MAX_BATCH = 4;
+
 const GLOBAL_BUILDINGS = ['star_map', 'interstellar_comm'];
 
 const BUILDINGS = [

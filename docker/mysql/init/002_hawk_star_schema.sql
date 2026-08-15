@@ -225,7 +225,9 @@ CREATE TABLE IF NOT EXISTS hs_conversion_queues (
   building_key VARCHAR(64) NOT NULL,
   recipe_index INT NOT NULL,
   ends_at      DATETIME NOT NULL,
-  remaining    INT DEFAULT 0
+  -- Units in this batch. They are produced together at ends_at, and the recipe
+  -- is locked until then — one batch per (building, recipe) at a time.
+  runs         INT NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Phase 2: Communication ────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ $b        = body();
 $planetId    = (int)($b['planetId']    ?? 0);
 $buildingKey = trim($b['buildingKey']  ?? '');
 $recipeIndex = (int)($b['recipeIndex'] ?? 0);
-$count       = max(1, (int)($b['count'] ?? 1));
+$count       = min(CONVERSION_MAX_BATCH, max(1, (int)($b['count'] ?? 1)));
 
 if (!$planetId || !$buildingKey) fail('planetId and buildingKey required');
 
@@ -41,6 +41,18 @@ if ($bLevel < 1) fail('Building not constructed or in progress');
 
 compute_resources($db, $planetId, $playerId, $planet['type']);
 
+// One batch per (building, recipe) at a time. The order is the commitment: a
+// ×4 order ties the facility up for four durations and then delivers all four
+// units together, so there is nothing to append to and no second line to open.
+// This is also what caps production per window — you cannot make more than
+// CONVERSION_MAX_QUEUE units of a good in CONVERSION_MAX_QUEUE durations.
+$running = $db->prepare(
+    'SELECT UNIX_TIMESTAMP(ends_at) AS ends_ts FROM hs_conversion_queues
+     WHERE planet_id=? AND player_id=? AND building_key=? AND recipe_index=?'
+);
+$running->execute([$planetId, $playerId, $buildingKey, $recipeIndex]);
+if ($running->fetch()) fail('Conversion already running');
+
 // Check total cost (recipe input × count)
 $totalCost = [];
 foreach ($recipe['input'] as $res => $amt) {
@@ -59,43 +71,18 @@ $db->prepare(
     'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
 )->execute([...array_values($totalCost), $planetId, $playerId]);
 
-// Duration per batch: durationBase / building level (higher level = faster)
-$duration = max(1, (int)ceil($recipe['durationBase'] / $bLevel));
+// Duration per run: durationBase / building level (higher level = faster).
+// The batch runs them end to end and delivers once, so its clock is the sum.
+$duration      = max(1, (int)ceil($recipe['durationBase'] / $bLevel));
 $totalDuration = $duration * $count;
 
-// One queue row per (building, recipe) — ordering more DEEPENS it, it never
-// opens a second production line. A plain INSERT here meant that clicking twice
-// while a job ran created two rows that resolved side by side, which quietly
-// doubled a refinery's throughput for the price of a second click. The queue is
-// the intended shape: `remaining` counts the runs still to come.
-$existing = $db->prepare(
-    'SELECT id, UNIX_TIMESTAMP(ends_at) AS ends_ts FROM hs_conversion_queues
-     WHERE planet_id=? AND player_id=? AND building_key=? AND recipe_index=?'
-);
-$existing->execute([$planetId, $playerId, $buildingKey, $recipeIndex]);
-$queue = $existing->fetch();
-
-if ($queue) {
-    $db->prepare('UPDATE hs_conversion_queues SET remaining = remaining + ? WHERE id=?')
-       ->execute([$count, $queue['id']]);
-
-    // The running batch keeps its own clock — only the tail grew.
-    ok([
-        'endsAt'        => (int)$queue['ends_ts'] * 1000,
-        'count'         => $count,
-        'queued'        => true,
-        'totalDuration' => $totalDuration,
-    ]);
-}
-
 $db->prepare(
-    'INSERT INTO hs_conversion_queues (planet_id, player_id, building_key, recipe_index, ends_at, remaining)
+    'INSERT INTO hs_conversion_queues (planet_id, player_id, building_key, recipe_index, ends_at, runs)
      VALUES (?,?,?,?, DATE_ADD(NOW(), INTERVAL ? SECOND), ?)'
-)->execute([$planetId, $playerId, $buildingKey, $recipeIndex, $duration, $count - 1]);
+)->execute([$planetId, $playerId, $buildingKey, $recipeIndex, $totalDuration, $count]);
 
 ok([
-    'endsAt'        => (time() + $duration) * 1000,
+    'endsAt'        => (time() + $totalDuration) * 1000,
     'count'         => $count,
-    'queued'        => false,
     'totalDuration' => $totalDuration,
 ]);

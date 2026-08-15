@@ -128,7 +128,7 @@ $cargoDoneRaw->execute([$playerId]);
 $cargoDeliveries = (int)$cargoDoneRaw->fetchColumn();
 
 $convRaw = $db->prepare(
-    'SELECT id, building_key, recipe_index, ends_at, remaining
+    'SELECT id, building_key, recipe_index, ends_at, runs
      FROM hs_conversion_queues WHERE planet_id=? AND player_id=? ORDER BY ends_at ASC'
 );
 $convRaw->execute([$planetId, $playerId]);
@@ -138,8 +138,9 @@ foreach ($convRaw->fetchAll() as $c) {
         'id'          => (int)$c['id'],
         'buildingKey' => $c['building_key'],
         'recipeIndex' => (int)$c['recipe_index'],
+        // One delivery of `runs` units at endsAt — nothing resolves before it.
         'endsAt'      => strtotime($c['ends_at']) * 1000,
-        'remaining'   => (int)$c['remaining'],
+        'runs'        => (int)$c['runs'],
     ];
 }
 

@@ -49,9 +49,11 @@ export const SPY = {
   interceptCost:  { power_cell: 1 },   // mirrors INTERCEPT_COST in config.php
 }
 
-// Deepest order the ×N picker offers. Every recipe runs 30 min, so four runs are
-// two hours of queue — an evening's worth of refining in one click, and short
-// enough that the stepper stays a stepper.
+// Largest batch the ×N picker offers. Every recipe runs 30 min per unit, so a
+// ×4 order occupies the facility for two hours and then delivers all four units
+// at once. Because a running batch locks its recipe, this is also the hard
+// ceiling on output: 4 units per 4 durations. Mirrors CONVERSION_MAX_BATCH in
+// api/star/config.php.
 export const CONVERSION_MAX_QUEUE = 4
 
 // ── Cargo drone ───────────────────────────────────────────────────────────────

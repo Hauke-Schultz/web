@@ -29,7 +29,7 @@
 
       "missionFrom": "von {planet}",
       "shipDock": "{planet} · Dock",
-      "conversionRemaining": "×{n} verbleibend"
+      "conversionBatch": "×{n} auf einmal"
     },
 
     "nav": {
@@ -56,9 +56,10 @@
       "convTitle": "⚗️ Umwandlungen",
       "btnConvert": "Umwandeln",
       "convRunning": "Umwandlung läuft",
-      "convCountHint": "Wie viele Durchläufe auf einmal bestellen — sie laufen nacheinander, auch wenn du weg bist",
-      "convOrder": "{n} Durchläufe bestellen · alle Kosten sofort · fertig in {time}",
-      "convAppend": "{n} weitere Durchläufe an die laufende Warteschlange anhängen",
+      "convCountHint": "Wie viele Einheiten der Auftrag herstellt — alle zusammen am Ende der Gesamtlaufzeit",
+      "convCountLocked": "Auftrag läuft — die Anlage ist bis zur Lieferung gesperrt",
+      "convOrder": "{n} Einheiten bestellen · alle Kosten sofort · Lieferung in {time}",
+      "convBatchRunning": "Auftrag über {n} Einheiten läuft — Lieferung am Ende, danach wieder bestellbar",
       "convEmptyNoRefinery": "Bau die Raffinerie um Umwandlungen freizuschalten",
       "convEmptyNoFacility": "Bau eine Hightech-Anlage um Umwandlungen freizuschalten",
       "onboarding": {

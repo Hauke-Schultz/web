@@ -140,25 +140,15 @@ switch ($action) {
         $own->execute([$planetId, $playerId]);
         if (!$own->fetch()) fail('Planet not owned', 403);
 
-        // resolve_conversions() finishes one item per queue and re-arms the rest
-        // with a fresh duration, so a queue of N needs N passes. Capped so a long
-        // queue can never spin here indefinitely.
-        $left = $db->prepare('SELECT COUNT(*) FROM hs_conversion_queues WHERE planet_id=? AND player_id=?');
-        $due  = $db->prepare(
+        // A batch delivers everything in one go, so a single pass empties every
+        // queue on the planet however deep the orders were.
+        $db->prepare(
             "UPDATE hs_conversion_queues SET ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND)
              WHERE planet_id=? AND player_id=?"
-        );
+        )->execute([$planetId, $playerId]);
+        resolve_conversions($db, $planetId, $playerId);
 
-        $passes = 0;
-        while ($passes < 50) {
-            $left->execute([$planetId, $playerId]);
-            if (!(int)$left->fetchColumn()) break;
-
-            $due->execute([$planetId, $playerId]);
-            resolve_conversions($db, $planetId, $playerId);
-            $passes++;
-        }
-        ok(['action' => 'complete_conversions', 'passes' => $passes]);
+        ok(['action' => 'complete_conversions']);
 
     case 'complete_drone_missions':
         $db->prepare(

@@ -177,15 +177,19 @@ All High-Tech buildings (the four refineries plus `power_cell_lab`) are delibera
 
 Every recipe runs at **1800 s (30 min)** per unit. Refined output is deliberately slow *and* expensive — one unit is a half-hour plus roughly half of what the mines produce in that window. These are intended as pre-products for future starship construction and small orbital installations, so they are meant to accumulate slowly. All inputs still fit inside level-1 storage caps, so no recipe can soft-lock a fresh planet.
 
-### Ordering more than one  *(2026-08-13)*
+### Ordering more than one — the batch  *(2026-08-13, reworked 2026-08-15)*
 
-A 30-minute recipe with one run per click is not a decision, it is an alarm clock. The **×N picker** next to the Convert button orders up to `CONVERSION_MAX_QUEUE` (4) runs at once: all costs are deducted immediately, the runs then resolve back to back whether or not anyone is watching. **Throughput is unchanged** — four runs still take two hours. What the queue buys is absence, not speed, and that is the whole intent: the mechanic that was tuned via `durationBase` stays exactly as tuned.
+A 30-minute recipe with one run per click is not a decision, it is an alarm clock. The **×N picker** next to the Convert button orders up to `CONVERSION_MAX_QUEUE` (4) units at once: all costs are deducted immediately, and the facility then works the **whole order as one batch** — `×4` runs for 4 × `durationBase` (two hours) and delivers all four units together at the end.
 
-The ceiling is what the stock pays for (`maxConversionRuns()`, the minimum over the inputs), capped at `CONVERSION_MAX_QUEUE` and clamped on read — a count chosen while rich stays valid after spending. The button's duration line shows the *total* for the order, so `×3` reads as ninety minutes up front. The cap is a comfort setting, not a balance lever: raising it never changes throughput, only how long you can stay away.
+**The order is a commitment, not a queue.** The first version resolved a queue one unit at a time and re-armed itself, so a ×4 order paid out after 30, 60, 90 and 120 minutes — the picker was pure convenience and nothing stopped a player from ordering four more the moment the first unit dropped. Now:
 
-**One queue row per (building, recipe) — ordering deepens it, it never opens a second line.** `convert.php` merges into an existing row (`remaining + count`) instead of inserting. The plain `INSERT` it used before was a quiet hole: clicking Convert again while a job ran created a *second* row, and `resolve_conversions()` iterates every due row, so two batches resolved side by side. That doubled a refinery's throughput for the price of a second click — and it was invisible, because `queueFor()` only ever finds the first row. The running batch now keeps its own clock and only the tail grows.
+- **One batch, one delivery.** `runs` on `hs_conversion_queues` is the batch size; `resolve_conversions()` credits `output × runs` once and deletes the row. Nothing counts down any more (the old `remaining` column is migrated to `runs = remaining + 1` and dropped).
+- **The recipe is locked while its batch runs.** `convert.php` refuses a second order for the same (building, recipe) — *Conversion already running* — and `canConvert()` mirrors that client-side, with the ×N stepper frozen at the running batch's size. **That lock is the production ceiling:** at most 4 units per 4 durations, no matter how often anyone clicks.
+- **Throughput is still unchanged** relative to single runs — four units still take two hours. What the batch removes is the ability to *front-load* by re-ordering after every payout, and what it buys the player is absence.
 
-The client tick already handled deep queues (`remaining > 0` → re-arm `endsAt`, decrement), so nothing there needed changing.
+The picker's ceiling is what the stock pays for (`maxConversionRuns()`, the minimum over the inputs), capped at `CONVERSION_MAX_QUEUE` and clamped on read — a count chosen while rich stays valid after spending. The server clamps the same way via `CONVERSION_MAX_BATCH` in `config.php` (mirror of the JS constant); the client caps the picker, the constant caps the request. The button's duration line shows the *total* for the order, so `×3` reads as ninety minutes up front, and the progress fill spans the whole batch — there is no per-unit reset to show.
+
+Historical note: before the merge-into-one-row fix, `convert.php` did a plain `INSERT`, so clicking Convert while a job ran created a *second* row and two batches resolved side by side — a silent throughput doubling, invisible because `queueFor()` only ever finds the first row. The lock supersedes that fix: there is now never a second order to merge.
 
 ### Where refined goods are spent  *(2026-08-11)*
 
