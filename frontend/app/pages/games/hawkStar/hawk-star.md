@@ -699,6 +699,7 @@ Four things in the resolution are worth remembering:
 - **`resolve_missions()` has a re-entrancy guard, and the raid is why.** Resolving an attack calls `resolve_timers()` for the *defender* so their meters are current, and the defender may have a raid of their own in flight against the attacker. Two players raiding each other would otherwise resolve each other forever.
 - **The orbital battery fires itself**, once as the fleet arrives and a second time while a plundering fleet loads, one power cell per kill out of the defender's own stock, `RAID_INTERCEPT_SHOTS` per volley. It produces a genuinely good emergent case: a defender who spends their power cells shooting has none left in the silo for the raider to steal.
 - **A fleet wiped out over the target starts no return leg** — there is nothing left to fly it.
+- **A repelled raid loses no hulls of its own accord.** Attrition scaled to the surviving defence was proposed and **rejected** (2026-08-16): losses stay a question of what the defender *built*, not of how the battle ended. The known consequence is accepted — a small squadron can fly repeatedly to grind a shield down for the price of one power cell per hull, and softening over two waves stays cheap.
 
 The client cannot resolve an arrival itself, because the battle reads another player's state. The tick therefore only clears the countdown and calls `refreshPlanetState()`; the server answers with the outcome.
 
@@ -706,17 +707,33 @@ The client cannot resolve an arrival itself, because the battle reads another pl
 
 `hs_battle_reports` is read by both sides. `seen_by_attacker` / `seen_by_defender` are outboxes in the spirit of `satellite_lost_at`: `unseen_battle_reports()` hands each side its news exactly once and clears the flag in the same call, so there is still no notification table in this codebase. Four notification texts, because the same battle reads differently from each chair: raid won / raid repelled / knocked out by X / attack from X repelled.
 
-`raid_history()` is a `GROUP BY attacker_id` over the same table and needs no storage of its own. It rides along on every state load and drives the `⚔️ 3 · vor 2 h` badge in the galaxy card's owner list — red while the last raid is under 24 h old, grey after that.
+`raid_history()` is a `GROUP BY` over the same table and needs no storage of its own. It rides along on every state load and returns, keyed by the *other* player's id, the full record between the two of you:
+
+- `count` / `lastAt` — **their** raids on you, the red `⚔️ 3 · vor 2 h` badge in the galaxy card's owner list
+- `outCount` / `outLastAt` — **your** raids on them, the amber `🎯 2 · vor 5 h` badge next to it
+- `log` — the last `RAID_LOG_ENTRIES` (5) battles **from either direction**, newest first
+
+The two directions are counted apart because they read as opposite news, but the log interleaves them: a feud is one story and reads best in one column, with a role icon (🎯 we flew, 🛡️ they flew) saying which way each battle went. It is symmetric by construction — a battle names both sides, so the attacker's log entry is the same row as the defender's, only read from the other seat.
+
+The card merges the logs of *all* commanders living in the selected system into one chronology (`systemBattles`, capped at `BATTLE_LOG_MAX` = 5, deduplicated by report id because two colonies can belong to the same player). The entries are deliberately **not** filtered to this system's planets: a raid they flew hit one of our colonies somewhere else, and dropping those would leave the list showing only half of every feud.
+
+Counts come from an exact aggregate; only the detail list is capped, at `RAID_LOG_SCAN` (200) rows scanned, which covers five per opponent many times over. Note that `won` in a report always means *the attacker* won, so from the defender's chair `won: true` is the loss — `logOutcome()` in `HsGalaxyMap` is the one place that translation happens.
 
 ### UI
 
 The **⚔️ button** sits at the end of a planet row in the system card, next to the espionage buttons but red, and only appears on a foreign colony you have surveyed while a fleet is parked in the active planet's dock. It opens the **attack order** inline under the planet list: ship count against what is in the dock, the firepower that buys (`n × 20`) with its fuel cost, and the two orders as a pair of cards — ⚡ *Ausschalten* and 💰 *Plündern*, the second spelling out that the fleet has to load in orbit and takes another volley for it. Both legs then show up in the dock's mission list with the order in the label, so an in-flight fleet says what it is going to do.
 
+The **two badges** at the end of an owner row are the running count only. The single battles live in **Letzte Gefechte** at the foot of the card, always open and never folded away: it is the one part of the card that is history rather than a control, and it belongs at the bottom for exactly that reason. Each entry is a three-line block, bordered on the left in amber for our sorties and red for theirs:
+
+1. role icon · target planet · opponent · outcome (*erobert / abgewehrt / ausgeschaltet / gehalten*) · how long ago — the outcome turns green whenever the fight went our way, whichever chair we sat in, and the opponent is named on every line because a system can hold several commanders
+2. `🚀 4 −1` hulls launched and shot down · `💥 60` firepower · `🛡️ 40 → 0 %` · `🔋 15 → 0 %`, the meters as before/after rather than a delta, so the drop is visible; a target with neither generator nor reactor says *ohne Schild und Batterie* instead of printing zeros
+3. the haul, on plunder orders only — green when we carried it off, red when we lost it, and an explicit *keine Beute* when a plunder came home empty because the silo was bare or on cooldown
+
 Dev cheat **⚔️ Überfall** (`complete_raid_missions`) runs both legs — the battle and the way home — since waiting out two three-hour flights is not a test.
 
 ### Files  *(raid)*
 
-`RAID_*` in `api/star/config.php` · `migrate_raid_missions`, `ensure_battle_reports_table`, `raid_flight_seconds`, `planet_plunder_locked`, `player_is_protected`, `orbital_volley`, `set_meter_charge`, `meter_charge_at`, `resolve_raid_battle`, the `raid` branch in `resolve_missions_inner`, `unseen_battle_reports`, `raid_history` in `bootstrap.php` · `api/star/game/mission/raid.php` · `hs_battle_reports` + `hs_missions.ships/raid_order/loot` in the schema · `complete_raid_missions` in `dev/cheat.php` · `battleReports` / `raidHistory` in `game/state.php` · `RAID` in `hawkStarConfig.js` · `battleReports` / `raidHistory` / `startRaid` / `isRaidTarget` / `raidFlightTime` / `activeRaids` in `useHawkStar.js` · raid dialog + `⚔️` badge in `HsGalaxyMap.vue` · raid rows in `HsDockPanel.vue` · `hawkStar.galaxy.raid*` / `notifications.raid*` in de/en
+`RAID_*` in `api/star/config.php` · `migrate_raid_missions`, `ensure_battle_reports_table`, `raid_flight_seconds`, `planet_plunder_locked`, `player_is_protected`, `orbital_volley`, `set_meter_charge`, `meter_charge_at`, `resolve_raid_battle`, the `raid` branch in `resolve_missions_inner`, `unseen_battle_reports`, `raid_history` in `bootstrap.php` · `api/star/game/mission/raid.php` · `hs_battle_reports` + `hs_missions.ships/raid_order/loot` in the schema · `complete_raid_missions` in `dev/cheat.php` · `battleReports` / `raidHistory` in `game/state.php` · `RAID` in `hawkStarConfig.js` · `battleReports` / `raidHistory` / `raidsAgainstMe` / `raidsByMe` / `raidLog` / `startRaid` / `isRaidTarget` / `raidFlightTime` / `activeRaids` in `useHawkStar.js` · raid dialog + `⚔️`/`🎯` badges + raid log in `HsGalaxyMap.vue` · raid rows in `HsDockPanel.vue` · `hawkStar.galaxy.raid*` / `notifications.raid*` in de/en
 
 ### Files  *(production step)*
 
@@ -1063,7 +1080,7 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
 | Phase 3 — Player trade | ❌ Dropped (2026-08-15) — plunder replaces it |
 | Phase 5 — Raid: launch, battle, plunder, reports, raid history | ✅ Implemented |
 | Phase 5 — Corvette + shipyard batch + fleet cap (`weapons_building` Lv1–3) | ✅ Implemented |
-| Phase 4 <br/>— Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
+| Phase 4 — Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
 | Phase 4 — Espionage — buildings / resources / fleet recon | ⬜ Planned |
 | Phase 4 — Defense tile detects and destroys foreign satellites | ✅ Implemented |
 | Phase 5 — Early warning for the defender (~30 min, needs orbital_defense) | ⬜ Planned |

@@ -50,7 +50,10 @@
       "Bash(php -l api/star/bootstrap.php)",
       "Bash(php -l api/star/galaxy/index.php)",
       "Bash(grep *)",
-      "Bash(export MSYS_NO_PATHCONV=1)"
+      "Bash(export MSYS_NO_PATHCONV=1)",
+      "Bash(git -C \"C:/Users/hauke/WebstormProjects/web\" status --short)",
+      "Bash(git *)",
+      "PowerShell(npx nuxt build 2>&1 | Select-Object -Last 8)"
     ]
   }
 }

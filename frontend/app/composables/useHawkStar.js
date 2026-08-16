@@ -1275,14 +1275,31 @@ const canBuildCorvette = computed(() => !corvetteBuild.value && maxCorvetteBatch
 // Battle reports arrive through state.php exactly once — the server clears the
 // flag as it hands them over — so they are accumulated here rather than re-read.
 const battleReports = ref([])
-// { [playerId]: { count, lastAt } } — how often that player has raided US.
+// { [foePlayerId]: { count, lastAt, outCount, outLastAt, log[] } } — the record
+// between us and that commander. `count`/`lastAt` are their raids on us,
+// `outCount`/`outLastAt` ours on them, `log` the last few battles from either
+// direction, newest first.
 const raidHistory   = ref({})
 
 const activeRaids = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeRaids ?? [])
 const returningRaids = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.returningRaids ?? [])
 const allActiveRaids = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeRaids ?? []))
 
-const raidsAgainstMe = (playerId) => raidHistory.value[playerId] ?? null
+// Both directions return null when there is nothing to show, so a badge can be
+// hung straight off them: a player we have raided but who never raided back has
+// a history entry with count 0, and that must not draw an incoming badge.
+const raidsAgainstMe = (playerId) => {
+  const rec = raidHistory.value[playerId]
+  return rec?.count ? rec : null
+}
+
+const raidsByMe = (playerId) => {
+  const rec = raidHistory.value[playerId]
+  return rec?.outCount ? { count: rec.outCount, lastAt: rec.outLastAt } : null
+}
+
+// The interleaved list of battles with one commander, newest first.
+const raidLog = (playerId) => raidHistory.value[playerId]?.log ?? []
 
 // Same distance curve as everything else that crosses systems, but warships are
 // heavy — a bigger floor and a slower rate than a spy drone's signal-speed run.
@@ -2536,6 +2553,8 @@ export function useHawkStar() {
     battleReports,
     raidHistory,
     raidsAgainstMe,
+    raidsByMe,
+    raidLog,
     activeRaids,
     returningRaids,
     allActiveRaids,

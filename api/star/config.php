@@ -113,6 +113,16 @@ const RAID_PLUNDER_COOLDOWN_HOURS = 12;
 // finished learning it months ago.
 const RAID_NEWBIE_PROTECTION_DAYS = 3;
 
+// How many battles the per-opponent log in the galaxy card keeps. A short list
+// that is read at a glance beats a full archive nobody scrolls — the running
+// counts next to it already carry the long-term record.
+const RAID_LOG_ENTRIES = 5;
+
+// Upper bound on the rows raid_history() reads to fill those logs. The counts
+// come from an exact GROUP BY; only the detail list is capped, and 200 battles
+// covers five per opponent many times over.
+const RAID_LOG_SCAN = 200;
+
 // ── Conversions ───────────────────────────────────────────────────────────────
 // Largest batch a single order may hold. Because a running batch locks its
 // recipe, this is also the hard ceiling on production: at most 4 units per

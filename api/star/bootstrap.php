@@ -933,26 +933,111 @@ function unseen_battle_reports(PDO $db, int $playerId): array {
     }
 }
 
-// How often each player has raided this one, and when they last did — the data
-// behind the ⚔️ badge in the galaxy card's owner list. Counts won AND repelled
-// attacks: three bounced attempts are exactly the thing worth seeing build up.
+// The full record between this player and every commander they have ever fought,
+// keyed by the OTHER player's id — the data behind the ⚔️ badges in the galaxy
+// card's owner list and the log that unfolds under them.
+//
+// Both directions are kept apart (`in*` = what they did to us, `out*` = what we
+// did to them) because they read as opposite news, but the log interleaves them:
+// a feud is one story and reads best in one column. Counts include won AND
+// repelled attacks — three bounced attempts are exactly the thing worth seeing
+// build up, from either chair.
+//
+// Symmetric by construction: a battle names both sides, so the attacker's log is
+// the same row as the defender's, only read from the other seat.
 function raid_history(PDO $db, int $playerId): array {
     ensure_battle_reports_table($db);
 
     try {
-        $rows = $db->prepare(
-            'SELECT attacker_id, COUNT(*) AS n, UNIX_TIMESTAMP(MAX(fought_at)) AS last_ts
-             FROM hs_battle_reports WHERE defender_id=? GROUP BY attacker_id'
-        );
-        $rows->execute([$playerId]);
-
         $history = [];
+
+        // A helper so a first sighting in either query creates the same shape.
+        $slot = function (int $foeId) use (&$history): void {
+            if (!isset($history[$foeId])) {
+                $history[$foeId] = [
+                    'count'     => 0,      // their raids on us — the badge's number
+                    'lastAt'    => null,
+                    'outCount'  => 0,      // our raids on them
+                    'outLastAt' => null,
+                    'log'       => [],
+                ];
+            }
+        };
+
+        // Exact counts per direction. Grouping by the pair rather than by one
+        // column keeps this to a single query for both.
+        $counts = $db->prepare(
+            'SELECT attacker_id, defender_id, COUNT(*) AS n, UNIX_TIMESTAMP(MAX(fought_at)) AS last_ts
+             FROM hs_battle_reports
+             WHERE attacker_id=? OR defender_id=?
+             GROUP BY attacker_id, defender_id'
+        );
+        $counts->execute([$playerId, $playerId]);
+
+        foreach ($counts->fetchAll() as $r) {
+            $mine  = (int)$r['attacker_id'] === $playerId;
+            $foeId = $mine ? (int)$r['defender_id'] : (int)$r['attacker_id'];
+            $slot($foeId);
+            if ($mine) {
+                $history[$foeId]['outCount']  = (int)$r['n'];
+                $history[$foeId]['outLastAt'] = (int)$r['last_ts'] * 1000;
+            } else {
+                $history[$foeId]['count']  = (int)$r['n'];
+                $history[$foeId]['lastAt'] = (int)$r['last_ts'] * 1000;
+            }
+        }
+
+        if (!$history) return [];
+
+        // The detail rows. Capped (see RAID_LOG_SCAN) — only the list is
+        // truncated, never the counts above.
+        $rows = $db->prepare(
+            'SELECT br.id, br.attacker_id, br.defender_id, br.won, br.plundered, br.result,
+                    UNIX_TIMESTAMP(br.fought_at) AS fought_ts,
+                    p.name AS planet_name, s.name AS system_name
+             FROM hs_battle_reports br
+             JOIN hs_planets p      ON p.id = br.planet_id
+             JOIN hs_star_systems s ON s.id = p.system_id
+             WHERE br.attacker_id=? OR br.defender_id=?
+             ORDER BY br.fought_at DESC
+             LIMIT ' . (int)RAID_LOG_SCAN
+        );
+        $rows->execute([$playerId, $playerId]);
+
         foreach ($rows->fetchAll() as $r) {
-            $history[(int)$r['attacker_id']] = [
-                'count'  => (int)$r['n'],
-                'lastAt' => (int)$r['last_ts'] * 1000,
+            $mine  = (int)$r['attacker_id'] === $playerId;
+            $foeId = $mine ? (int)$r['defender_id'] : (int)$r['attacker_id'];
+            $slot($foeId);
+            if (count($history[$foeId]['log']) >= RAID_LOG_ENTRIES) continue;
+
+            $res = json_decode((string)$r['result'], true);
+            if (!is_array($res)) $res = [];
+
+            $history[$foeId]['log'][] = [
+                'id'         => (int)$r['id'],
+                // Which chair we were sitting in decides how every number below
+                // reads: `lost` is our hulls when attacking, theirs when not.
+                'role'       => $mine ? 'attacker' : 'defender',
+                'won'        => (bool)$r['won'],
+                'plundered'  => (bool)$r['plundered'],
+                'planetName' => $r['planet_name'],
+                'systemName' => $r['system_name'],
+                'foughtAt'   => (int)$r['fought_ts'] * 1000,
+                'order'      => $res['order'] ?? 'disable',
+                // Attacker's side of the ledger: hulls sent, hulls shot down.
+                'ships'      => (int)($res['ships'] ?? 0),
+                'lost'       => (int)($res['lost'] ?? 0),
+                'firepower'  => (int)($res['firepower'] ?? 0),
+                // Defender's side: what the volley did to the two meters. Sent
+                // as before/after so the UI can show the drop, not just a delta.
+                'shieldBefore'  => (float)($res['shieldBefore']  ?? 0),
+                'shieldAfter'   => (float)($res['shieldAfter']   ?? 0),
+                'batteryBefore' => (float)($res['batteryBefore'] ?? 0),
+                'batteryAfter'  => (float)($res['batteryAfter']  ?? 0),
+                'loot'       => (object)(is_array($res['loot'] ?? null) ? $res['loot'] : []),
             ];
         }
+
         return $history;
     } catch (\Throwable $e) {
         return [];

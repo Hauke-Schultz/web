@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
-import { PLANET_TYPES } from '~/utils/hawkStarConfig.js'
+import { PLANET_TYPES, RESOURCES } from '~/utils/hawkStarConfig.js'
 import HsCommLog from '~/components/hawk-star/HsCommLog.vue'
 
 const {
@@ -40,6 +40,8 @@ const {
   isRaidTarget,
   raidFlightTime,
   raidsAgainstMe,
+  raidsByMe,
+  raidLog,
   allActiveRaids,
   startRaid,
 } = useHawkStar()
@@ -85,24 +87,55 @@ const remainingRaidSec = (planetId) => {
 }
 
 // ── Raid history ──────────────────────────────────────────────────────────────
-// How often this player has attacked US. Counts repelled attacks too — three
-// bounced attempts are exactly the thing worth watching build up.
-const raidRecord = (owner) => raidsAgainstMe(owner.playerId)
+// Two badges per commander, because the two directions are opposite news: ⚔️ is
+// what they did to us, 🎯 what we did to them. Both count repelled attacks —
+// three bounced attempts are exactly the thing worth watching build up.
+const raidRecord    = (owner) => raidsAgainstMe(owner.playerId)
+const raidOutRecord = (owner) => raidsByMe(owner.playerId)
 
-const raidRecordFresh = (owner) => {
-  const rec = raidRecord(owner)
-  return !!rec && (now.value - rec.lastAt) < 24 * 3600 * 1000
+// The card's battle log is a short read, not an archive — the badges above it
+// already carry the long-term count. The server sends at most 5 per commander;
+// this caps the merged list of a multi-commander system to the same length.
+const BATTLE_LOG_MAX = 5
+
+const isFresh = (rec) => !!rec && (now.value - rec.lastAt) < 24 * 3600 * 1000
+
+const raidRecordFresh    = (owner) => isFresh(raidRecord(owner))
+const raidOutRecordFresh = (owner) => isFresh(raidOutRecord(owner))
+
+const agoLabel = (ts) => {
+  const hours = Math.floor((now.value - ts) / 3600000)
+  return hours < 1  ? t('hawkStar.galaxy.raidJustNow')
+       : hours < 24 ? t('hawkStar.galaxy.raidHoursAgo', { n: hours })
+       : t('hawkStar.galaxy.raidDaysAgo', { n: Math.floor(hours / 24) })
 }
 
-const raidRecordLabel = (owner) => {
-  const rec = raidRecord(owner)
-  if (!rec) return ''
-  const hours = Math.floor((now.value - rec.lastAt) / 3600000)
-  const ago = hours < 1 ? t('hawkStar.galaxy.raidJustNow')
-            : hours < 24 ? t('hawkStar.galaxy.raidHoursAgo', { n: hours })
-            : t('hawkStar.galaxy.raidDaysAgo', { n: Math.floor(hours / 24) })
-  return `⚔️ ${rec.count} · ${ago}`
+const recordLabel = (icon, rec) => rec ? `${icon} ${rec.count} · ${agoLabel(rec.lastAt)}` : ''
+
+const raidRecordLabel    = (owner) => recordLabel('⚔️', raidRecord(owner))
+const raidOutRecordLabel = (owner) => recordLabel('🎯', raidOutRecord(owner))
+
+// ── Battle log entries ────────────────────────────────────────────────────────
+// 🎯 our fleet went out, 🛡️ theirs came in. Combined with won/lost this is the
+// whole headline: our win, our loss, their win, their loss.
+const logIcon = (e) => e.role === 'attacker' ? '🎯' : '🛡️'
+
+const logOutcome = (e) => {
+  if (e.role === 'attacker') {
+    return e.won ? t('hawkStar.galaxy.raidLogWon') : t('hawkStar.galaxy.raidLogFailed')
+  }
+  return e.won ? t('hawkStar.galaxy.raidLogLost') : t('hawkStar.galaxy.raidLogHeld')
 }
+
+const meter = (before, after) => `${Math.round(before)} → ${Math.round(after)} %`
+
+// A planet with neither generator nor reactor reads 0 → 0 on both meters, which
+// is not a measurement but the absence of one. Say so instead of printing zeros.
+const hasMeters = (e) => e.shieldBefore > 0 || e.batteryBefore > 0
+
+const lootItems = (e) => Object.entries(e.loot ?? {})
+  .filter(([, n]) => n > 0)
+  .map(([key, n]) => ({ key, n, icon: RESOURCES[key]?.icon ?? '📦', name: RESOURCES[key]?.name ?? key }))
 
 // ── System order: home first, then inhabited systems ─────────────────────────
 // `inhabited` is a system-level flag from the API. It used to be derived from the
@@ -236,6 +269,35 @@ const selectSystem = (sys) => {
   selectedId.value = selectedId.value === sys.id ? null : sys.id
 }
 
+// ── Battle log for the selected system ────────────────────────────────────────
+// Every battle fought with any commander who lives here, both directions, in one
+// list at the foot of the card. Merged rather than folded per owner: what a
+// player wants to see is "what has happened between us and this place", and that
+// is one chronology. The opponent is named on every line because the list is no
+// longer sitting under anybody's row.
+//
+// Note the entries are NOT filtered to this system's planets — a raid THEY flew
+// hit one of OUR colonies somewhere else, and dropping those would leave the
+// list showing only half of every feud.
+//
+// Defined here rather than up with the badges because it reads `selected`.
+const systemBattles = computed(() => {
+  if (!selected.value) return []
+
+  const seen = new Set()
+  const all  = []
+
+  for (const owner of uniqueOwners(selected.value)) {
+    for (const e of raidLog(owner.playerId)) {
+      if (seen.has(e.id)) continue      // two colonies, one commander, one battle
+      seen.add(e.id)
+      all.push({ ...e, foeName: owner.username ?? owner.name, foePortrait: owner.portrait ?? '👤' })
+    }
+  }
+
+  return all.sort((a, b) => b.foughtAt - a.foughtAt).slice(0, BATTLE_LOG_MAX)
+})
+
 // Card only visible when home or fully scanned
 const showCard = (sys) => isHome(sys) || resolvedScanState(sys) === 'scanned'
 
@@ -359,15 +421,26 @@ const tileClass = (sys) => {
                 <div class="hs-faction-info">
                   <span class="hs-faction-name">{{ owner.username ?? owner.name }}</span>
                 </div>
-                <!-- What this commander has done to US. Won and repelled raids
-                     both count: an attacker who keeps bouncing off is still an
-                     attacker, and the next fleet will be bigger. -->
-                <span
-                  v-if="raidRecord(owner)"
-                  class="hs-faction-raids"
-                  :class="{ 'hs-faction-raids--fresh': raidRecordFresh(owner) }"
-                  :title="t('hawkStar.galaxy.raidRecordHint', { n: raidRecord(owner).count })"
-                >{{ raidRecordLabel(owner) }}</span>
+
+                <!-- The running record, both ways round: ⚔️ what they did to us,
+                     🎯 what we did to them. Won and repelled raids both count —
+                     an attacker who keeps bouncing off is still an attacker, and
+                     the next fleet will be bigger. The single battles are in the
+                     log at the foot of the card. -->
+                <div class="hs-faction-record">
+                  <span
+                    v-if="raidOutRecord(owner)"
+                    class="hs-faction-raids hs-faction-raids--out"
+                    :class="{ 'hs-faction-raids--fresh-out': raidOutRecordFresh(owner) }"
+                    :title="t('hawkStar.galaxy.raidOutRecordHint', { n: raidOutRecord(owner).count })"
+                  >{{ raidOutRecordLabel(owner) }}</span>
+                  <span
+                    v-if="raidRecord(owner)"
+                    class="hs-faction-raids"
+                    :class="{ 'hs-faction-raids--fresh': raidRecordFresh(owner) }"
+                    :title="t('hawkStar.galaxy.raidRecordHint', { n: raidRecord(owner).count })"
+                  >{{ raidRecordLabel(owner) }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -528,6 +601,83 @@ const tileClass = (sys) => {
           <!-- One line of context under the list, so the ❓ is not a mystery -->
           <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-planet-list-hint">
             {{ t('hawkStar.galaxy.spyHint') }}
+          </div>
+
+          <!-- Everything that has been fought out with the commanders of this
+               system, newest first, both directions. Always open: it is the one
+               part of the card that is history rather than a control, and it
+               belongs at the foot for exactly that reason. Each entry is one raid
+               read from our chair — who flew, what it cost the fleet, what it did
+               to the target's two meters, what came home in the hold. -->
+          <div v-if="systemBattles.length" class="hs-raid-log">
+            <div class="hs-raid-log-title">⚔️ {{ t('hawkStar.galaxy.raidLogTitle') }}</div>
+
+            <div
+              v-for="e in systemBattles"
+              :key="e.id"
+              class="hs-raid-log-entry"
+              :class="[
+                e.role === 'attacker' ? 'hs-raid-log-entry--out' : 'hs-raid-log-entry--in',
+                { 'hs-raid-log-entry--good': e.role === 'attacker' ? e.won : !e.won },
+              ]"
+            >
+              <div class="hs-raid-log-head">
+                <span class="hs-raid-log-icon">{{ logIcon(e) }}</span>
+                <span class="hs-raid-log-target">{{ e.planetName }}</span>
+                <!-- Named on every line: several commanders can share a system,
+                     and the list no longer sits under anybody's row -->
+                <span class="hs-raid-log-foe">{{ e.foePortrait }} {{ e.foeName }}</span>
+                <span class="hs-raid-log-outcome">{{ logOutcome(e) }}</span>
+                <span class="hs-raid-log-when">{{ agoLabel(e.foughtAt) }}</span>
+              </div>
+
+              <div class="hs-raid-log-stats">
+                <!-- The fleet's own bill — hulls sent, hulls shot down -->
+                <span class="hs-raid-log-stat" :title="t('hawkStar.galaxy.raidLogFleetHint')">
+                  🚀 {{ e.ships }}<span v-if="e.lost" class="hs-raid-log-loss"> −{{ e.lost }}</span>
+                </span>
+                <span class="hs-raid-log-stat" :title="t('hawkStar.galaxy.raidLogFirepowerHint')">
+                  💥 {{ e.firepower }}
+                </span>
+                <!-- and what it did on the ground -->
+                <template v-if="hasMeters(e)">
+                  <span
+                    v-if="e.shieldBefore > 0"
+                    class="hs-raid-log-stat hs-raid-log-stat--shield"
+                    :title="t('hawkStar.galaxy.raidLogShieldHint')"
+                  >🛡️ {{ meter(e.shieldBefore, e.shieldAfter) }}</span>
+                  <span
+                    v-if="e.batteryBefore > 0"
+                    class="hs-raid-log-stat hs-raid-log-stat--battery"
+                    :title="t('hawkStar.galaxy.raidLogBatteryHint')"
+                  >🔋 {{ meter(e.batteryBefore, e.batteryAfter) }}</span>
+                </template>
+                <span v-else class="hs-raid-log-stat hs-raid-log-stat--bare">
+                  {{ t('hawkStar.galaxy.raidLogNoMeters') }}
+                </span>
+              </div>
+
+              <!-- Booty. A plunder order that came home empty is worth showing
+                   too — the silo was already bare or on cooldown. -->
+              <div v-if="e.order === 'plunder'" class="hs-raid-log-loot">
+                <template v-if="lootItems(e).length">
+                  <span class="hs-raid-log-loot-label">
+                    {{ e.role === 'attacker'
+                        ? t('hawkStar.galaxy.raidLogLootGained')
+                        : t('hawkStar.galaxy.raidLogLootLost') }}
+                  </span>
+                  <span
+                    v-for="item in lootItems(e)"
+                    :key="item.key"
+                    class="hs-raid-log-loot-item"
+                    :title="item.name"
+                  >{{ item.icon }} {{ item.n }}</span>
+                </template>
+                <span v-else class="hs-raid-log-loot-empty">
+                  💰 {{ t('hawkStar.galaxy.raidLogNoLoot') }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -969,8 +1119,15 @@ const tileClass = (sys) => {
 
 // The raid record sits at the far end of the owner row — the name is who they
 // are, this is what they have done.
-.hs-faction-raids {
+.hs-faction-record {
   margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hs-faction-raids {
   flex-shrink: 0;
   font-size: 0.55rem;
   font-weight: 700;
@@ -979,8 +1136,109 @@ const tileClass = (sys) => {
   white-space: nowrap;
 
   // Recent means "still going on". After a day it is history, and history is grey.
-  &--fresh { color: rgba(248,113,113,0.95); }
+  &--fresh     { color: rgba(248,113,113,0.95); }   // they came for us — red
+  &--fresh-out { color: rgba(251,191,36,0.95); }    // we went for them — amber
 }
+
+// ── Raid log ──────────────────────────────────────────────────────────────────
+// Always open at the foot of the card, separated by a rule: it is history, not a
+// control. Each entry is bordered on the side that flew — amber on the left for
+// our sorties, red for theirs.
+.hs-raid-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.hs-raid-log-title {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 0.1rem;
+}
+
+.hs-raid-log-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--hs-r-sm);
+  border-left: 2px solid;
+  background: rgba(255,255,255,0.03);
+
+  &--out { border-left-color: rgba(251,191,36,0.6); }
+  &--in  { border-left-color: rgba(248,113,113,0.6); }
+}
+
+.hs-raid-log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 0.58rem;
+}
+
+.hs-raid-log-icon   { font-size: 0.62rem; }
+.hs-raid-log-target { font-weight: 700; color: rgba(255,255,255,0.85); }
+.hs-raid-log-foe    { color: rgba(255,255,255,0.45); }
+
+// Green when the fight went our way, whichever chair we sat in — attacking and
+// winning, or being attacked and holding.
+.hs-raid-log-outcome {
+  font-weight: 600;
+  color: rgba(248,113,113,0.85);
+
+  .hs-raid-log-entry--good & { color: rgba(52,211,153,0.9); }
+}
+
+.hs-raid-log-when {
+  margin-left: auto;
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+}
+
+.hs-raid-log-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.52rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.55);
+}
+
+.hs-raid-log-stat {
+  white-space: nowrap;
+
+  &--shield  { color: rgba(56,189,248,0.8); }
+  &--battery { color: rgba(251,191,36,0.8); }
+  &--bare    { color: rgba(255,255,255,0.3); font-style: italic; }
+}
+
+.hs-raid-log-loss { color: rgba(248,113,113,0.9); font-weight: 700; }
+
+.hs-raid-log-loot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  font-size: 0.52rem;
+  font-variant-numeric: tabular-nums;
+}
+
+// The same haul is a gain or a loss depending on which fleet carried it off.
+.hs-raid-log-loot-item {
+  font-weight: 700;
+  color: rgba(52,211,153,0.9);
+
+  .hs-raid-log-entry--in & { color: rgba(248,113,113,0.9); }
+}
+
+.hs-raid-log-loot-label { color: rgba(255,255,255,0.4); }
+.hs-raid-log-loot-empty { color: rgba(255,255,255,0.3); }
 
 .hs-raid-dialog {
   margin-top: 0.5rem;
