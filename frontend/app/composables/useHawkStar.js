@@ -2354,7 +2354,8 @@ export const initFromApi = async () => {
     playerDisposition.value = player.value?.disposition ?? 'neutral'
     lastResourceSync.value   = Math.floor(Date.now() / 60000)
     lastResourceSyncMs.value = Date.now()
-    // Always open on the base tile so new players see the onboarding panel
+    // The planet view always opens on the base tile — it is the one tile every
+    // planet has, so it is the safe default whenever nothing picked a tile.
     activeSlot.value = 5
     gameLoaded.value = true
     // The empire board and the planet strip need every colony, not just home.
@@ -2635,6 +2636,18 @@ const planetStatus = (planetId) => {
   const fresh = !!raid && (now.value - raid.foughtAt) < EMPIRE_BATTLE_NEWS_HOURS * 3600000
   const lastRaid = raid ? { ...raid, fresh } : null
 
+  // What the planet is DOING, as opposed to how it is doing. Read from the
+  // planet state and not from `rows`, because `running` is capped at
+  // EMPIRE_RUNNING_MAX — a conversion that got cut off the card is still a
+  // conversion that is running, and the badge must not lie about that.
+  // Ship builds are deliberately not counted: the dock rows already say that,
+  // and "building" would stop meaning a building.
+  const isBuilding   = Object.values(st.buildings ?? {}).some(b => b.buildEndsAt)
+  const isConverting = (st.conversionQueues ?? []).length > 0
+  // Construction outranks a batch — it is the longer commitment and the one
+  // that changes what the planet can do next.
+  const activity = isBuilding ? 'building' : isConverting ? 'converting' : null
+
   const rowSeverity = rows.length ? Math.min(...rows.map(r => EMPIRE_RANK[r.kind])) : 9
 
   return {
@@ -2645,6 +2658,7 @@ const planetStatus = (planetId) => {
     battery:   hasBattery ? { pct: bat ?? 0, hours: batHours, down: dark } : null,
     shield:    st.shield  ? { pct: shd ?? 0, hours: shdHours } : null,
     rows,
+    activity,
     lastRaid,
     moreRunning: running.length - shown.length,
     // The worst thing on the card decides where the card sits.
@@ -2700,6 +2714,51 @@ const focusPlanetTile = (planetId, slot = null) => {
   activeSlot.value = target?.unlocked ? slot : 5
   return true
 }
+
+
+// ── Onboarding checklist ───────────────────────────────────
+// The early-game guide. Every step ticks itself off from real state, so it
+// doubles as a progress overview once the early game is behind you. It lives
+// here rather than in a component because two panels show it — the home base
+// tile and the empire board — and they must never disagree.
+// Home-planet scoped on purpose: the first steps are about the base you were
+// given, and must not change meaning just because a colony is selected.
+const homeLevel = (id) => allPlanetStates.value[homePlanetId.value]?.buildings?.[id]?.level ?? 0
+
+// A foreign system counts once it is fully scanned — the home system is scanned
+// from the start and must not tick this off.
+const foreignSystemScanned = computed(() =>
+  Object.entries(systemContacts.value).some(([sysId, c]) =>
+    c?.scanState === 'scanned' && String(sysId) !== String(homeSystemId.value)
+  )
+)
+
+const onboardingSteps = computed(() => [
+  { key: 'step1', done: homeLevel('command_center') >= 1 },
+  // The home planet starts at 1 population — anything above it came from recruiting.
+  { key: 'step2', done: (homeResources.value.population ?? 0) >= 2 },
+  { key: 'step3', done: homeLevel('power_plant') >= 1 && (batteryChargeOf(homePlanetId.value) ?? 0) > 0 },
+  { key: 'step4', done: homeLevel('metal_mine') >= 1 && homeLevel('crystal_drill') >= 1 },
+  { key: 'step5', done: starMapLevel.value >= 1 },
+  // playerScannedPlanets is seeded with the home planet — only a foreign one counts
+  { key: 'step6', done: playerScannedPlanets.value.some(id => id !== homePlanetId.value) },
+  // You start with one settlement, so only the second one is an achievement.
+  { key: 'step7', done: playerColonizedPlanets.value.length > 1 },
+  { key: 'step8', done: cargoDeliveries.value > 0 },
+  { key: 'step9', done: foreignSystemScanned.value },
+  // Espionage, in the order it has to happen: a satellite can only be placed on
+  // a planet a drone has already surveyed.
+  { key: 'step10', done: spiedPlanets.value.length > 0 },
+  // A count of satellites ever placed, not of live ones — an expiring satellite
+  // must not un-tick a step that was achieved.
+  { key: 'step11', done: satelliteDeployments.value > 0 },
+])
+
+const onboardingDoneCount = computed(() => onboardingSteps.value.filter(s => s.done).length)
+
+// Once every step is ticked the checklist has nothing left to teach, so it
+// retires itself from both panels instead of sitting there fully struck through.
+const onboardingComplete = computed(() => onboardingDoneCount.value === onboardingSteps.value.length)
 
 // ── Composable export ──────────────────────────────────────
 export function useHawkStar() {
@@ -2784,6 +2843,12 @@ export function useHawkStar() {
     empireAlertCount,
     empireResearch,
     focusPlanetTile,
+
+    // onboarding
+    onboardingSteps,
+    onboardingDoneCount,
+    onboardingComplete,
+
     // production
     grossProduction,
     totalEnergyDrain,

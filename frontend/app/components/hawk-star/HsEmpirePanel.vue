@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RESOURCES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
+import HsOnboardingPanel from '~/components/hawk-star/HsOnboardingPanel.vue'
 
 const emit = defineEmits(['go-planet'])
 
@@ -66,12 +67,27 @@ const lootItems = (raid) => Object.entries(raid.loot ?? {})
   .filter(([, amount]) => amount > 0)
   .map(([res, amount]) => ({ res, amount, icon: RESOURCES[res]?.icon ?? '•' }))
 
-// The card's headline state, in one word. It reads the rows rather than
-// recomputing anything, so it can never disagree with the list below it.
-const headline = (p) => {
-  if (p.battery?.down)                     return { key: 'stateBlackout', cls: 'alarm' }
-  if (p.rows.some(r => r.kind === 'alarm')) return { key: 'stateAlert',   cls: 'alarm' }
-  if (p.rows.some(r => r.kind === 'warn'))  return { key: 'stateIdle',    cls: 'warn'  }
+// How the planet IS — this drives the card's frame, and only severity may
+// colour that. It reads the rows rather than recomputing anything, so the frame
+// can never disagree with the list below it.
+const cardTone = (p) => {
+  if (p.battery?.down)                      return 'alarm'
+  if (p.rows.some(r => r.kind === 'alarm')) return 'alarm'
+  if (p.rows.some(r => r.kind === 'warn'))  return 'warn'
+  return 'ok'
+}
+
+// The badge, in one word. Above "idle" it answers how the planet is; below it,
+// what the planet is doing. Activity outranks "idle" on purpose: an empty build
+// slot is a warning on nearly every young planet, so a badge that let it win
+// would practically never get to say "building". Nothing is lost by that — the
+// amber frame stays, and the warning is still a row on the card.
+const stateBadge = (p) => {
+  if (p.battery?.down)                      return { key: 'stateBlackout',   cls: 'alarm' }
+  if (p.rows.some(r => r.kind === 'alarm')) return { key: 'stateAlert',      cls: 'alarm' }
+  if (p.activity === 'building')            return { key: 'stateBuilding',   cls: 'busy'  }
+  if (p.activity === 'converting')          return { key: 'stateConverting', cls: 'busy'  }
+  if (p.rows.some(r => r.kind === 'warn'))  return { key: 'stateIdle',       cls: 'warn'  }
   return { key: 'stateOk', cls: 'ok' }
 }
 
@@ -131,15 +147,15 @@ const alertCount = computed(() => empireAlertCount.value)
         v-for="p in empireStatus"
         :key="p.planetId"
         class="hs-empire-card"
-        :class="`hs-empire-card--${headline(p).cls}`"
+        :class="`hs-empire-card--${cardTone(p)}`"
       >
         <!-- Head: who this is, and the one-word verdict -->
         <button class="hs-empire-cardhead" @click="jumpTo(p.planetId, 5)">
           <span class="hs-empire-planeticon">{{ planetIcon(p.type) }}</span>
           <span class="hs-empire-planetname">{{ p.name }}</span>
           <span v-if="p.isHome" class="hs-empire-home" :title="t('hawkStar.solar.home')">🏠</span>
-          <span class="hs-empire-state" :class="`hs-empire-state--${headline(p).cls}`">
-            {{ t('hawkStar.empire.' + headline(p).key) }}
+          <span class="hs-empire-state" :class="`hs-empire-state--${stateBadge(p).cls}`">
+            {{ t('hawkStar.empire.' + stateBadge(p).key) }}
           </span>
         </button>
 
@@ -240,6 +256,13 @@ const alertCount = computed(() => empireAlertCount.value)
 
       <!-- Colonies whose state has not arrived yet simply are not here -->
       <div v-if="!empireStatus.length" class="hs-empire-empty">{{ t('hawkStar.empire.loading') }}</div>
+
+      <!-- The early-game guide, as the last card in the grid: the planet cards
+           answer "what needs me now", this one answers "what comes next". It is
+           a grid item like the rest, so it takes half the width on desktop and
+           fills the gap next to an odd number of planets. It removes itself
+           once every step is ticked, so a settled empire keeps the board clean. -->
+      <HsOnboardingPanel />
     </div>
   </div>
 </template>
@@ -368,6 +391,7 @@ const alertCount = computed(() => empireAlertCount.value)
 
   &--alarm { color: var(--hs-danger-muted); background: var(--hs-danger-bg-cost); }
   &--warn  { color: var(--hs-warn-text);    background: rgba(250, 204, 21, 0.14); }
+  &--busy  { color: #c7d2fe;                background: rgba(129, 140, 248, 0.16); }
   &--ok    { color: var(--hs-ok-muted);     background: var(--hs-ok-bg-dim); }
 }
 

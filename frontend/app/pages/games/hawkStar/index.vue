@@ -12,7 +12,7 @@ import HsEmpirePanel from '~/components/hawk-star/HsEmpirePanel.vue'
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
-const { starMapLevel, gameLoaded, initError, initErrorDetail, ownPlanetIds, empireStatus } = useHawkStar()
+const { starMapLevel, gameLoaded, initError, initErrorDetail } = useHawkStar()
 const { player, authError, authLoading, isAuthenticated, rememberMe, register, login, verifyToken, logout } = useHawkStarAuth()
 
 // ── Error screen ───────────────────────────────────────────────────────────────
@@ -44,7 +44,14 @@ async function logoutAndReset() {
   initErrorDetail.value = null
 }
 
-const currentView = ref('planet')
+// Where a session starts — always the empire board, for every commander. It is
+// the one view that answers "where did I leave off", it is never gated, and the
+// onboarding checklist lives there, so a brand-new single-planet player needs no
+// landing of their own. Reassigned on every init and not only at ref creation:
+// logging out and back in with another account must not keep the last view.
+const LANDING_VIEW = 'empire'
+
+const currentView = ref(LANDING_VIEW)
 const activePanel = ref('')
 const panelRef    = ref(null)
 
@@ -59,18 +66,6 @@ function switchMode(mode) {
   authError.value = ''
 }
 
-// Where a returning player lands. A fresh single-planet commander still starts
-// on the base tile, because that is where the onboarding checklist lives; the
-// board takes over as soon as there is more than one planet to keep track of,
-// or something is actually broken. A brand-new player cannot raise an alarm —
-// with no power plant there is no battery to run flat, and no shield, no
-// satellite and no battle report either.
-function pickLandingView() {
-  const manyPlanets = ownPlanetIds.value.length > 1
-  const alarm = empireStatus.value.some(p => p.rows.some(r => r.kind === 'alarm'))
-  currentView.value = (manyPlanets || alarm) ? 'empire' : 'planet'
-}
-
 async function submitAuth() {
   let data = null
   if (authMode.value === 'register') {
@@ -81,7 +76,7 @@ async function submitAuth() {
   if (data) {
     await initFromApi()
     activePanel.value = ''
-    pickLandingView()
+    currentView.value = LANDING_VIEW
   }
 }
 
@@ -92,7 +87,7 @@ onMounted(async () => {
     if (ok) {
       await initFromApi()
       activePanel.value = ''
-      pickLandingView()
+      currentView.value = LANDING_VIEW
     }
   }
   startTick()

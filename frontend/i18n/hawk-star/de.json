@@ -55,6 +55,8 @@
       "stateAlert": "Alarm",
       "stateIdle": "Leerlauf",
       "stateOk": "Produktiv",
+      "stateBuilding": "Baut",
+      "stateConverting": "Wandelt um",
       "holds": "hält {h} h",
       "noReactor": "kein Reaktor",
       "noShield": "kein Schild",

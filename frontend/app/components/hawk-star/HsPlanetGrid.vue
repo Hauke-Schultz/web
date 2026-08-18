@@ -49,8 +49,8 @@ const conversionsOnSlot = (slot) => {
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 
-// The base tile marks itself as the home base — that is where the onboarding
-// checklist lives, and a colony's base tile stays a plain "Base".
+// The base tile of the home planet is labelled "Home Base"; a colony's base
+// tile stays a plain "Base". Purely a label — the tile itself is the same.
 const isHomePlanet = computed(() => activePlanetId.value === homePlanetId.value)
 
 const tileLabel = (slot) => {

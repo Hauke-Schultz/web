@@ -31,9 +31,23 @@ The answer to *"I have not played for two days — where did I leave off?"*. Bef
 
 | Part | Content |
 |---|---|
-| Head | Type icon, name, 🏠, and the verdict in one word: **Blackout / Alarm / Leerlauf / Produktiv** |
+| Head | Type icon, name, 🏠, and the state badge in one word: **Blackout / Alarm / Baut / Wandelt um / Leerlauf / Produktiv** |
 | Meters | 🔋 battery and 🛡️ shield as bar + % + **remaining runtime** (`hält 28 h`) |
 | Rows | Every finding, most serious first |
+
+#### The badge says what the planet is doing, the frame says how it is  *(2026-08-18)*
+
+Two functions, deliberately not one. `cardTone()` drives the card's **frame** and may only ever be severity — alarm red, warn amber, otherwise plain. `stateBadge()` drives the **word**, and its ladder is:
+
+```
+Blackout → Alarm → Baut → Wandelt um → Leerlauf → Produktiv
+```
+
+**The calm state is `Produktiv` / *Productive*, not *Running*** *(2026-08-18)*. English `stateOk` used to read *Running*, which was fine while the badge only ever said how a planet was — and wrong the moment *Building* and *Converting* joined it, because *Running* then reads as "something is under way" when it means the exact opposite: nothing is under way, the planet is simply producing. It also collided with the `running` row kind. German said *Produktiv* all along; the English now mirrors it.
+
+**Activity outranks `Leerlauf` on purpose.** An empty build slot is a warn row on nearly every young planet, so a badge that let warn win would practically never get to say *Baut* — the feature would be dead on arrival. Nothing is lost by the swap: the amber frame stays, and the warning is still a row on the card. Alarms are the other way round — something broken always beats something under way.
+
+`activity` is computed in `planetStatus()` from `st.buildings` / `st.conversionQueues` **directly, not from `rows`**: `running` is capped at `EMPIRE_RUNNING_MAX`, so a conversion can be cut off the card while still running, and the badge must not lie about that. Construction outranks a batch when both are going, being the longer commitment. **Ship builds are not counted** — the dock rows already say that, and letting them in would make *Baut* stop meaning a building.
 
 **The meters print a runtime, not only a percentage.** `🛡️ 35 %` does not answer the question a returning player actually has; *hält noch 28 h* does. Both drains are known client-side (shield 1.25 %/h, battery level-scaled), so it costs nothing. A missing building is a greyed icon with *kein Schild* / *kein Reaktor* — the same "missing, not absent" rule the solar map and the galaxy card follow.
 
@@ -84,9 +98,11 @@ A persistent planet strip — a chip row under the nav bar with meters and a bad
 
 The tab therefore sits **first** in the nav bar, before Planet / System / Galaxy: it is where a session starts, and the views below it run outward from there.
 
-### Where you land
+### Where you land  *(simplified 2026-08-18)*
 
-`pickLandingView()` in `index.vue` sends you to the board when **you own more than one planet, or something is raising an alarm**. Otherwise the planet view stays the landing page, because that is where the onboarding checklist lives. A brand-new player cannot raise an alarm by construction: with no power plant there is no battery to run flat, and no shield, no satellite and no battle report either — so the rule needs no extra "is this a beginner" test.
+**Every session starts on the board — there is no rule.** `LANDING_VIEW` in `index.vue` is the constant `'empire'`, assigned on every init (not only at ref creation, so logging out and back in with another account cannot keep the last view).
+
+The first version branched: the board when *you own more than one planet, or something is raising an alarm*, the planet view otherwise, because the onboarding checklist lived on the home base tile. That branch existed only to serve the beginner, and it was the wrong fix — **the checklist moved onto the board instead**, so the board now answers the beginner’s question *and* the returning commander’s. A `pickLandingView()` that can only ever return one value is not a decision worth keeping, and `ownPlanetIds` / `empireStatus` are no longer read in `index.vue` at all.
 
 ### Implementation notes
 
@@ -99,7 +115,27 @@ The tab therefore sits **first** in the nav bar, before Planet / System / Galaxy
 
 ### Files
 
-`ownPlanetIds`, `loadOwnPlanetStates`, `storageCapsOf`, `tileHasBuildings`, `anyPlanetName`, `planetStatus`, `empireStatus`, `empireAlertCount`, `focusPlanetTile`, `empireResearch`, `buildStartOf`, `lastRaids` + `EMPIRE_*` / `TILE_SLOT` / `EMPIRE_RANK` in `useHawkStar.js` · `last_raids_on_planets()` in `api/star/bootstrap.php` · `lastRaids` in `api/star/game/state.php` · `HsEmpirePanel.vue` · first tab + badge in `HsNavBar.vue` · `pickLandingView` + view wiring in `pages/games/hawkStar/index.vue` · `hawkStar.empire.*` and `hawkStar.nav.empire` in de/en
+`ownPlanetIds`, `loadOwnPlanetStates`, `storageCapsOf`, `tileHasBuildings`, `anyPlanetName`, `planetStatus`, `empireStatus`, `empireAlertCount`, `planetStatus.activity`, `focusPlanetTile`, `empireResearch`, `buildStartOf`, `lastRaids` + `EMPIRE_*` / `TILE_SLOT` / `EMPIRE_RANK` in `useHawkStar.js` · `last_raids_on_planets()` in `api/star/bootstrap.php` · `lastRaids` in `api/star/game/state.php` · `HsEmpirePanel.vue` · first tab + badge in `HsNavBar.vue` · `LANDING_VIEW` + view wiring in `pages/games/hawkStar/index.vue` · `hawkStar.empire.*` and `hawkStar.nav.empire` in de/en
+
+---
+
+## Onboarding Checklist
+
+Eleven steps, from *build a command center* to *place a spy satellite*. Nothing ticks them off by hand — each step reads real state, so the list doubles as a progress overview for as long as it is still there.
+
+**It lives on the empire board and nowhere else** *(2026-08-18)*. It used to sit on the home planet’s base tile as well; that was the reason `pickLandingView()` had to send beginners to the planet view, and dropping the second copy is what let the landing rule collapse into a constant (see *Where you land*). One checklist, one place, and every session opens on it.
+
+**It is the last card in `.hs-empire-cards`**, not a strip under the grid — so it is a grid item like the planet cards: half width on desktop, full width below 720 px, and it fills the gap next to an odd number of planets. It shares the cards’ corner radius so a row lines up, keeps its own blue tint because it is a different kind of thing, and takes `align-self: start` so the grid does not stretch it to the height of a tall planet card. It comes after the planet cards on purpose: the cards answer *what needs me now*, the checklist answers *what comes next*.
+
+**When every step is ticked it disappears** — permanently, without a dismiss button. A checklist with nothing left on it teaches nothing; leaving eleven struck-through lines on the board would only cost room.
+
+**The steps are home-planet scoped.** `homeLevel()` reads `allPlanetStates[homePlanetId]` rather than the active planet, and step 3 uses `batteryChargeOf(homePlanetId)`. On the old base-tile copy “active planet” and “home” were the same thing by construction; on the board they are not, and *build a command center* must not un-tick because you last clicked a colony card.
+
+Two steps are deliberately counted rather than measured, so an achievement cannot be lost again: `cargoDeliveries` (step 8) and `satelliteDeployments` (step 11) are server-side totals of deliveries/satellites **ever** completed. Four more guard against a freebie ticking a step: step 2 needs population ≥ 2 (you start with 1), step 6 needs a scanned planet that is not home (`playerScannedPlanets` is seeded with home), step 7 needs a second settlement, and step 9 needs a scanned system that is not the home system.
+
+### Files
+
+`onboardingSteps`, `onboardingDoneCount`, `onboardingComplete`, `homeLevel`, `foreignSystemScanned` in `useHawkStar.js` · `HsOnboardingPanel.vue` · rendered inside the cards grid in `HsEmpirePanel.vue` · `hawkStar.tile.onboarding.*` in de/en (the key prefix is still `tile.`, from when it lived there)
 
 ---
 
@@ -653,7 +689,7 @@ The system card's planet list is the whole interface. Per planet, left to right:
 - **One endpoint, two units.** `mission/spy.php` takes `unit`; the route, the gates and the flight time are identical, only `resolve_missions()` branches — the satellite passes `true` into the same recorder. Its "a live satellite already covers this planet" refusal needed no change: it reads `spy_intel_map()`'s `live`, which now comes from the flag. With no expiry that refusal simply lasts until somebody shoots the thing down.
 - **A landed flight changes what the server will say**, so the tick calls `reloadGalaxy()` — re-fetching is the point, since the client never had the hidden data to unhide.
 - Two things broke when owners disappeared from the response and are worth remembering as the pattern: the galaxy tile row filtered systems by `planets.some(p => p.owner)`, and `HsCommLog` decided whether to show the send bar the same way. Both now read the **system-level** `inhabited` / `inhabitants`. Anything else that wants "is somebody there" must do the same — per-planet owners are no longer a reliable population signal.
-- **Two onboarding steps** close the checklist (`HsTilePanel`): *step10* first surveyed foreign planet (`spiedPlanets.length > 0`) and *step11* first satellite placed. The second reads `satelliteDeployments` — a server-side count of satellites **ever** placed, not of live ones, because a satellite that is lost must never un-tick a step that was achieved. Same pattern as `cargoDeliveries`. It is also counted locally on arrival so the tick ticks it, not the next state sync.
+- **Two onboarding steps** close the checklist (`HsOnboardingPanel`): *step10* first surveyed foreign planet (`spiedPlanets.length > 0`) and *step11* first satellite placed. The second reads `satelliteDeployments` — a server-side count of satellites **ever** placed, not of live ones, because a satellite that is lost must never un-tick a step that was achieved. Same pattern as `cargoDeliveries`. It is also counted locally on arrival so the tick ticks it, not the next state sync.
 - Dev cheat **🕵️ Spionage** lands every espionage flight instantly.
 
 ### Files
@@ -1080,6 +1116,7 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsResourceBar` | Compact resource bar shown at top of all views. Two rows: the raw resources (icon, name, amount, rate) and below them a High-Tech stock row (`hs-res-card--mini`) showing only icon + count for `power_cell` and the four refined resources. Both rows are per active planet. |
 | `HsPlanetGrid` | 5×3 unified tile grid — 2 panel tiles (row 1) + 12 planet building slots (rows 2–5). Manages single active-tile state across all 15 cells. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
+| `HsOnboardingPanel` | Early-game checklist — the last card in the empire board’s grid, and the only place it appears. Renders nothing once every step is ticked. |
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — all planets + one action row per unit class (drone / colony / cargo). Clicking a planet tile selects it (`hs-solar-tile--selected`); if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** is marked three ways (`hs-solar-tile--home`): brighter border, lit background and a 🏠 corner badge — blue alone only says "mine", and every colony is blue too. The badge is absolute-positioned on purpose: the collapsed mobile tile hides every text line, including the *Heimat* chip, so the badge is the only marker left there. |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
