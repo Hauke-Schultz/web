@@ -10,11 +10,96 @@ The game has three nested views, each unlocked progressively via the Star Map gl
 
 | View | Unlock condition | Shows |
 |------|-----------------|-------|
+| **Empire** | Always available | One status card per own planet — what is broken, what is idle, what is running |
 | **Planet** | Always available | The active planet's 3×3 building grid |
 | **Solar System** | Star Map Lv1 (global research) | All planets in the home system |
 | **Galaxy Map** | Star Map Lv2 (global research) | Star systems on a canvas — all systems always visible |
 
+The order is the reach of each view: the empire first, then one planet, then its system, then the galaxy.
+
 The NavBar (`HsNavBar.vue`) handles view switching and gate checks. It also renders `HsPlanetHeader` as its first item (planet name + type), which doubles as the planet-view button.
+
+---
+
+## Empire Overview  *(implemented 2026-08-17)*
+
+The answer to *"I have not played for two days — where did I leave off?"*. Before this, every session started on the home planet's base tile (`initFromApi` set `activePlanetId = homePlanetId` and `activeSlot = 5` unconditionally), and finding a blackout, a raid or an expiring anomaly on a colony meant visiting every planet in turn. Nothing told you where to look.
+
+**An empire is at most four planets.** `mission/colony.php` refuses any target outside the home system and a system holds exactly four habitable planets, so this is a board of ≤ 4 cards, not a table — and it is designed for that size.
+
+### What a card says
+
+| Part | Content |
+|---|---|
+| Head | Type icon, name, 🏠, and the verdict in one word: **Blackout / Alarm / Leerlauf / Produktiv** |
+| Meters | 🔋 battery and 🛡️ shield as bar + % + **remaining runtime** (`hält 28 h`) |
+| Rows | Every finding, most serious first |
+
+**The meters print a runtime, not only a percentage.** `🛡️ 35 %` does not answer the question a returning player actually has; *hält noch 28 h* does. Both drains are known client-side (shield 1.25 %/h, battery level-scaled), so it costs nothing. A missing building is a greyed icon with *kein Schild* / *kein Reaktor* — the same "missing, not absent" rule the solar map and the galaxy card follow.
+
+### The four row kinds
+
+| Kind | Colour | Examples |
+|---|---|---|
+| **alarm** | red | Blackout · shield empty · foreign satellite in orbit |
+| **warn** | amber | shield < 20 % · battery < 12 h · anomaly waiting · **storage full** · **refinery idle** · recruit pool full · empty build slot |
+| **running** | grey | building (never capped) · conversion batch · ship batch · raids (named target) · other flights (aggregated) |
+
+**The warn tier is the point of the board, more than the alarms.** A blackout is noticed anyway. A crystal store that filled up and stopped the drill, or an `alloy_refinery` that has been standing idle since the last batch delivered, are silent losses that a returning player never spots — and the refinery case is worse than it looks, because *one refinery feeds exactly one converter*, so an idle one stalls a whole chain.
+
+Deliberate asymmetries:
+
+- **Raids get an individual row, other flights are aggregated** into `Missionen unterwegs: n`. A raid is the flight whose outcome you are waiting for; the dock and the Activity feed already list every drone one by one.
+- **Running rows are capped at `EMPIRE_RUNNING_MAX` (4)**, sorted by arrival, with a `+ n weitere laufen` line. Alarms, warnings **and buildings under construction** are never capped — *"what am I building right now"* is the first thing anyone looks for on a card and must not be pushed out by four cargo flights. Only one building per tile can be under construction, so that list stays short by itself.
+- **The build bar's start is derived, not stored.** `hs_buildings` and `hs_global_research` have a `build_ends_at` column and no `build_started_at`, so `buildStartOf()` reconstructs the start from the level's configured `buildTime` — the same formula `buildProgressStyle()` uses for the planet tile, which is the whole point: the two bars must never disagree. (Note that `HsNotificationPanel` reads a `buildStartedAt` the server never sends, so its building bars have always sat at 0 %.)
+
+### The last attack, at the foot of the card  *(2026-08-17)*
+
+Under the rows, every raided planet carries the attack it last took: portrait, attacker, outcome, how long ago — and on a plunder, **exactly what was carried off**.
+
+```
+👤 ⚔️ Zerrak · ausgeschaltet · vor 2 h
+   Beute: 🔷 4  🔋 7
+```
+
+- **It is a footer, not a row.** Rows are things to act on; a battle already happened. Same reasoning that put *Letzte Gefechte* at the bottom of the galaxy card rather than into an accordion.
+- **It comes from the server, not from the notification stream.** The first version read `battleReports`, which is the `unseen_battle_reports()` outbox: handed over once, flag cleared, gone on the next reload. `last_raids_on_planets()` reads `hs_battle_reports` directly — one row per planet via a `MAX(fought_at)` join, so the whole board costs one query and the record is still there a week later. It deliberately does **not** touch the seen flags; the outbox keeps its own job of firing the one-time notification.
+- **Fresh is red, old is grey** (`EMPIRE_BATTLE_NEWS_HOURS`, 24 h) — the same rule the galaxy card's ⚔️ badge follows. A fresh raid also lifts the card to alarm severity and counts into the nav badge, *without* also appearing as a row: one battle, one place on the card.
+- **`won` in a report always means the ATTACKER won**, so from this seat it reads *ausgeschaltet*; a repelled raid reads *abgewehrt*. `raidOutcome()` is the only place that flip happens here, mirroring `logOutcome()` in the galaxy card.
+- **An empty haul on a plunder is a finding**, printed as such (*Plünderung — Lager war leer*): it means the silo was bare or the planet was still inside the 12 h plunder cooldown.
+- **Only incoming attacks.** Our own raids target foreign planets, which have no card here — that story belongs to the galaxy map, which is where the targets live.
+
+### Research sits above the cards
+
+Global research is the one build the Activity feed misses entirely — that walks `allPlanetStates`, and research lives in `globalResearch`. It gets a violet strip **above** the planet cards, because it belongs to no planet: the server does not record which planet ordered it and the result applies everywhere. The jump goes to the **home** comm center (slot 6), the one planet guaranteed to have the tile.
+- **A tile with nothing buildable on this planet type raises no empty-slot row** — an orbit tile is not "unused", it has nothing to build. Global research is excluded for the same reason: it lives in `globalResearch`, not in the planet's buildings, so the comm center would always read as empty.
+
+### Every row is a jump
+
+`focusPlanetTile(planetId, slot)` sets the active planet **and** the tile, then the page turns to the planet view. Unlike `setActivePlanet()` it does not force the base tile — the row knows which tile it is about, and falls back to the base tile only when that slot is still locked on the target planet. A finding you cannot act on from where it is shown is only half an answer.
+
+### One entry point, deliberately
+
+A persistent planet strip — a chip row under the nav bar with meters and a badge per colony, doubling as a planet switcher — was built alongside the board and **removed again** (2026-08-17). It was a second, permanently visible answer to the same question the board already answers, and the board reaches every planet in one click. The Empire tab is the single entry point; there is no ambient status furniture.
+
+The tab therefore sits **first** in the nav bar, before Planet / System / Galaxy: it is where a session starts, and the views below it run outward from there.
+
+### Where you land
+
+`pickLandingView()` in `index.vue` sends you to the board when **you own more than one planet, or something is raising an alarm**. Otherwise the planet view stays the landing page, because that is where the onboarding checklist lives. A brand-new player cannot raise an alarm by construction: with no power plant there is no battery to run flat, and no shield, no satellite and no battle report either — so the rule needs no extra "is this a beginner" test.
+
+### Implementation notes
+
+- **The board needs every colony's state, and `initFromApi` loads only the home planet.** `loadOwnPlanetStates()` moved out of `HsSolarSystem` into the composable and is fired at the end of `initFromApi` — **after** `gameLoaded`, so the game never waits on the colonies; each card appears as its planet arrives. Worst case that is three extra `state.php` calls. A `state.php?all=1` would be tidier and is the thing to build if it ever becomes noticeable.
+- **Rows carry keys, not text.** `useI18n()` cannot be called at module scope, so a row ships `labelKey` + `labelParams`, plus `paramKeys` for parameters that are themselves translated (a resource name, a tile name, a unit name) — the component resolves those first and merges them in. Same reason notifications carry a `labelKey`.
+- **Pipe-form i18n messages need the count as the third argument** (`t(key, { n }, n)`). Passed only as a named parameter, vue-i18n always picks the singular branch. Row labels therefore avoid plural forms entirely and use a `Label: n` shape, since they all go through one generic renderer.
+- **The board reads battles from the table, not from the outbox** — see *The last attack* above. `notifications` (the Activity feed) is still session-only and still loses a report on reload; that is now the only place the outbox gap shows.
+- **`hasBattery` repeats the `powerPlantLevel > 0` guard from `gridDownOn()`** — a planet without a power plant has no grid to lose, so its battery is not a meter that means anything yet.
+- `empireStatus` recomputes on every tick because it reads `now`. With ≤ 4 planets and ~20 rows that is free; anything that makes this list longer should reconsider it.
+
+### Files
+
+`ownPlanetIds`, `loadOwnPlanetStates`, `storageCapsOf`, `tileHasBuildings`, `anyPlanetName`, `planetStatus`, `empireStatus`, `empireAlertCount`, `focusPlanetTile`, `empireResearch`, `buildStartOf`, `lastRaids` + `EMPIRE_*` / `TILE_SLOT` / `EMPIRE_RANK` in `useHawkStar.js` · `last_raids_on_planets()` in `api/star/bootstrap.php` · `lastRaids` in `api/star/game/state.php` · `HsEmpirePanel.vue` · first tab + badge in `HsNavBar.vue` · `pickLandingView` + view wiring in `pages/games/hawkStar/index.vue` · `hawkStar.empire.*` and `hawkStar.nav.empire` in de/en
 
 ---
 
@@ -506,7 +591,7 @@ Both are built at the **Drone Hangar** and fly the same route. The superconducto
 - **Flight time is the scan curve** — `max(2 h, distance × 180 s)` between star **systems**, so a neighbour is 2 h and the far side of the galaxy ~8 h. Inside a system every planet is the same trip.
 - **Stale after 48 h** (`SPY_INTEL_STALE_HOURS`): keeping a planet current by drone alone is a chore every two days, and that is what makes the satellite worth its price.
 - **A satellite has no lifetime — it orbits until it is shot down** *(2026-08-13)*. It used to expire after 168 h, on the reasoning that an unlimited satellite is a single purchase that settles espionage forever. That reasoning was right and the timer was the wrong answer to it: what limits a satellite now is the planet it watches. See **Orbital Defense** below — the timer was replaced by an opponent.
-- **What it reveals:** the planet's type and who owns it — or that it is genuinely empty; the satellite adds the shield. Buildings, resources and fleets are a later step, and they *have* to be snapshots, which is the other reason the report model comes first.
+- **What it reveals:** the planet's type and who owns it — or that it is genuinely empty; the satellite adds the shield. **Buildings, resources and fleets are never reported** — that is the whole of espionage, and the gap is deliberate: see the raid section on why a half-blind report keeps every attack a risk.
 
 ### Orbital Defense — what ends a satellite  *(implemented 2026-08-13)*
 
@@ -579,7 +664,7 @@ The system card's planet list is the whole interface. Per planet, left to right:
 
 ## Combat — The Raid  *(implemented 2026-08-16)*
 
-Phase 5, and the phase that replaces trade: **player trade is dropped from the roadmap** (2026-08-15). Without a market, plunder is the only reason to fly to another player's planet, which is exactly the intent — the cargo drone moves goods between *your own* planets, a raid moves them between *players*.
+Phase 5, and what stands in place of a market: **the game has no player trade and will not get one**. Without a market, plunder is the only reason to fly to another player's planet, which is exactly the intent — the cargo drone moves goods between *your own* planets, a raid moves them between *players*.
 
 ### Leitprinzip — a raid costs time, never progress
 
@@ -668,7 +753,9 @@ The crew is what makes a fleet a commitment: 2 population per ship, gone from th
 Three implementation notes worth keeping:
 
 - **`build_count` on `hs_units` is the batch.** `resolve_units()` adds `GREATEST(1, build_count)` hulls in one step and resets the column to 1 — a squadron never trickles in one hull per tick. Added by a runtime `ALTER` probed on its own, per the migration rule.
-- **Berths count hulls in the dock *and* hulls in the running batch** (`fleet_size()`), so an order can never be placed past the cap by ordering twice. The server clamps the requested count to the free berths and returns the number it actually built — the client trusts that number over its own.
+- **Berths count hulls in the dock, hulls in the running batch *and* hulls in the air** (`fleet_size()`), so an order can never be placed past the cap by ordering twice. The server clamps the requested count to the free berths and returns the number it actually built — the client trusts that number over its own.
+
+  **A fleet on a sortie keeps its berths reserved** *(2026-08-17)*. `mission/raid.php` takes the hulls out of `hs_units` at launch, so until this was fixed a raid emptied the dock and freed its berths: launch four, immediately order four replacements, and the survivors came home to a fleet over the cap. `fleet_away()` sums the `ships` of this planet's `in_flight` raid rows — the **outbound** leg carries what launched, the **return** leg what survived, so the reservation shrinks to the real number the moment the battle resolves, and a fleet wiped out over the target releases its berths entirely. An incoming enemy raid reserves nothing, since the rows are keyed by `player_id`. The frontend mirrors it in `fleetAway`, and the dock's berth line prints `(2 unterwegs)` — otherwise the count looks broken: the hulls are visibly gone from the dock but the number does not move.
 - **Batching is opt-in per unit** (`UNIT_BATCH_KEYS`). Every other unit ignores `count` and stays at one per build, so nothing about the drone or colony-ship flow changed.
 
 **UI.** A red ⚔️ row in the dock panel, under the colony ship: berth count (`🚩 Flotte 3 / 4`) under the description, the ×N stepper next to the Build button, and cost **and crew for the whole order** so the number under the picker is the one that will be spent. While a batch runs the row shows `Baut… ×3` and one bar. Without a weapons building the row reads `🔒 Waffenkammer` instead of a price.
@@ -737,11 +824,11 @@ Dev cheat **⚔️ Überfall** (`complete_raid_missions`) runs both legs — the
 
 ### Files  *(production step)*
 
-`corvette` + `UNIT_BATCH_KEYS` + `FLEET_PER_WEAPONS_LEVEL` + `weapons_building` Lv2/Lv3 in `api/star/config.php` · `build_count` column, `weapons_building_level`, `fleet_cap`, `fleet_size` in `bootstrap.php` (`ensure_units_table`, `resolve_units`, `units_state`) · batch + berth check in `api/star/game/unit/build.php` · `hs_units.build_count` in the schema · `FLEET_PER_WEAPONS_LEVEL` + `corvette` in `hawkStarConfig.js` · `corvette*` / `fleet*` / `maxCorvetteBatch` / `buildCorvette` in `useHawkStar.js` · `HsDockPanel.vue` fleet row · `HsPlanetGrid.vue` dock chips · `HsNotificationPanel.vue` ship builds · `hawkStar.dock.*` / `notifications.corvette*` in de/en
+`corvette` + `UNIT_BATCH_KEYS` + `FLEET_PER_WEAPONS_LEVEL` + `weapons_building` Lv2/Lv3 in `api/star/config.php` · `build_count` column, `weapons_building_level`, `fleet_cap`, `fleet_size`, `fleet_away` in `bootstrap.php` (`ensure_units_table`, `resolve_units`, `units_state`) · batch + berth check in `api/star/game/unit/build.php` · `hs_units.build_count` in the schema · `FLEET_PER_WEAPONS_LEVEL` + `corvette` in `hawkStarConfig.js` · `corvette*` / `fleet*` / `maxCorvetteBatch` / `buildCorvette` in `useHawkStar.js` · `HsDockPanel.vue` fleet row · `HsPlanetGrid.vue` dock chips · `HsNotificationPanel.vue` ship builds · `hawkStar.dock.*` / `notifications.corvette*` in de/en
 
 ### Out of scope for v1
 
-Damage to **buildings** (explicitly excluded), planet **conquest**, **fleet-versus-fleet** battles in open space, ship repair/damage states, and player **trade** — dropped, not postponed.
+Damage to **buildings** (explicitly excluded), planet **conquest**, **fleet-versus-fleet** battles in open space, ship repair/damage states, and player **trade** — none of these are postponed, they are not coming.
 
 ### What this reuses
 
@@ -988,7 +1075,8 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 
 | Component | Role |
 |-----------|------|
-| `HsNavBar` | View switching (Planet / Solar System / Galaxy Map) + gate checks. First item is `HsPlanetHeader` (planet name + type, clickable to switch to planet view). |
+| `HsNavBar` | View switching (Empire / Planet / Solar System / Galaxy Map) + gate checks. **Empire is the first tab**, never gated, and carries the alert badge; the planet tab doubles as `HsPlanetHeader` (planet name + type). |
+| `HsEmpirePanel` | Empire board — one status card per own planet (verdict, meters with runtime, alarm/news/warn/running rows). Every row jumps to the planet + tile it is about. |
 | `HsResourceBar` | Compact resource bar shown at top of all views. Two rows: the raw resources (icon, name, amount, rate) and below them a High-Tech stock row (`hs-res-card--mini`) showing only icon + count for `power_cell` and the four refined resources. Both rows are per active planet. |
 | `HsPlanetGrid` | 5×3 unified tile grid — 2 panel tiles (row 1) + 12 planet building slots (rows 2–5). Manages single active-tile state across all 15 cells. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
@@ -1073,17 +1161,15 @@ All Hawk-Star keys live under `hawkStar.*`:
 
 ### Implementation Status
 
-Phases 1 + 2 fully implemented and live (since 2026-06-01). Planned:
+Phases 1 + 2 fully implemented and live (since 2026-06-01). Everything built since:
 
 | Feature | Status |
 |---------|--------|
-| Phase 3 — Player trade | ❌ Dropped (2026-08-15) — plunder replaces it |
+| Empire overview — status board + planet switcher, landing view after a break | ✅ Implemented |
 | Phase 5 — Raid: launch, battle, plunder, reports, raid history | ✅ Implemented |
 | Phase 5 — Corvette + shipyard batch + fleet cap (`weapons_building` Lv1–3) | ✅ Implemented |
 | Phase 4 — Espionage — spy drone (report that ages) + spy satellite (live) | ✅ Implemented |
-| Phase 4 — Espionage — buildings / resources / fleet recon | ⬜ Planned |
 | Phase 4 — Defense tile detects and destroys foreign satellites | ✅ Implemented |
-| Phase 5 — Early warning for the defender (~30 min, needs orbital_defense) | ⬜ Planned |
 | Power battery (power_plant, click-to-charge, blackout when empty) | ✅ Implemented |
 | Population recruitment (+1 click, pool with cap, quarters removed) | ✅ Implemented |
 | Cargo drone (one per planet, 4 items, one-way delivery + empty return) | ✅ Implemented |

@@ -22,6 +22,7 @@ const {
   allActiveCargoMissions, activeCargoMissions,
   homeSystem, homePlanetId,
   shieldChargeOf, batteryChargeOf, gridDownOn,
+  ownPlanetIds, loadOwnPlanetStates,
   activePlanetId, setActivePlanet,
   formatTime,
   playerResources,
@@ -157,18 +158,10 @@ const meterChips = (planetId) => {
 }
 
 // Every own planet draws its meters, so the map needs all their states on open —
-// not just the one that happens to be selected. Missing ones are pulled in once;
-// a failed fetch simply leaves that tile without meters.
-const ownPlanetIds = computed(() =>
-  planets.value.filter(p => effectivePlanetState(p) === 'own').map(p => p.id)
-)
-
-const loadOwnPlanetStates = () => {
-  for (const id of ownPlanetIds.value) {
-    if (!allPlanetStates.value[id]) refreshPlanetState(id).catch(() => {})
-  }
-}
-
+// not just the one that happens to be selected. `loadOwnPlanetStates` lives in
+// the composable now because the empire board needs exactly the same set; the
+// game load already fires it once, this covers a colony founded since.
+//
 // The galaxy usually arrives after mount, so the watch is what actually fires on
 // a cold open; onMounted covers a re-entry where it is already there.
 onMounted(loadOwnPlanetStates)

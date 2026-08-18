@@ -372,9 +372,29 @@ function fleet_cap(PDO $db, int $planetId, int $playerId): int {
     return weapons_building_level($db, $planetId, $playerId) * FLEET_PER_WEAPONS_LEVEL;
 }
 
-// Hulls that already count against the cap: docked plus the ones in the running
-// batch. Ships away on a mission are still this planet's ships and will be
-// counted here too once raids exist — they never leave hs_units.
+// Corvettes of this planet that are in the air rather than in the dock. A raid
+// takes its hulls out of hs_units at launch (mission/raid.php), so without this
+// the berths they came from read as free — launch four, order four replacements,
+// and the survivors come home to a fleet over the cap.
+//
+// The outbound leg carries what launched, the return leg what survived, so the
+// reservation shrinks to the real number the moment the battle is resolved. A
+// fleet wiped out over the target keeps its berths reserved until its mission
+// row is resolved; every caller runs resolve_timers() first, so that is a matter
+// of the same request.
+function fleet_away(PDO $db, int $planetId, int $playerId): int {
+    $row = $db->prepare(
+        "SELECT COALESCE(SUM(ships), 0) FROM hs_missions
+         WHERE player_id=? AND type='raid' AND status='in_flight'
+           AND ((leg <> 'back' AND from_planet_id=?) OR (leg='back' AND to_planet_id=?))"
+    );
+    $row->execute([$playerId, $planetId, $planetId]);
+    return (int)$row->fetchColumn();
+}
+
+// Hulls that already count against the cap: docked, in the running batch, and
+// away on a raid. A fleet in flight is still this planet's fleet — it is coming
+// back to these berths.
 function fleet_size(PDO $db, int $planetId, int $playerId): int {
     ensure_units_table($db);
     $row = $db->prepare(
@@ -383,8 +403,10 @@ function fleet_size(PDO $db, int $planetId, int $playerId): int {
     );
     $row->execute([$planetId, $playerId, 'corvette']);
     $u = $row->fetch();
-    if (!$u) return 0;
-    return (int)$u['quantity'] + ($u['build_ends_at'] ? max(1, (int)$u['build_count']) : 0);
+    $docked = $u
+        ? (int)$u['quantity'] + ($u['build_ends_at'] ? max(1, (int)$u['build_count']) : 0)
+        : 0;
+    return $docked + fleet_away($db, $planetId, $playerId);
 }
 
 function units_state(PDO $db, int $planetId, int $playerId): array {
@@ -929,6 +951,59 @@ function unseen_battle_reports(PDO $db, int $playerId): array {
             ];
         }, $reports);
     } catch (\Throwable $e) {
+        return [];
+    }
+}
+
+// The most recent attack on each of this player's planets, keyed by planet id.
+//
+// Deliberately NOT read through the seen-flag outbox: `unseen_battle_reports()`
+// hands a report over exactly once and clears the flag, which makes it a
+// notification. This is the standing record the empire board prints under a
+// planet — "you were raided, this is who and this is what they took" has to
+// survive a reload, and it has to still be there a week later.
+//
+// One row per planet, so the whole board costs a single query.
+function last_raids_on_planets(PDO $db, int $playerId): array {
+    ensure_battle_reports_table($db);
+
+    try {
+        $rows = $db->prepare(
+            'SELECT br.planet_id, br.attacker_id, br.won, br.plundered, br.result,
+                    UNIX_TIMESTAMP(br.fought_at) AS fought_ts,
+                    a.username AS attacker_name, a.portrait AS attacker_portrait
+             FROM hs_battle_reports br
+             JOIN (
+                 SELECT planet_id, MAX(fought_at) AS mx
+                 FROM hs_battle_reports WHERE defender_id = ?
+                 GROUP BY planet_id
+             ) last ON last.planet_id = br.planet_id AND last.mx = br.fought_at
+             LEFT JOIN hs_players a ON a.id = br.attacker_id
+             WHERE br.defender_id = ?
+             ORDER BY br.id ASC'
+        );
+        $rows->execute([$playerId, $playerId]);
+
+        $out = [];
+        foreach ($rows->fetchAll() as $r) {
+            $result = json_decode((string)$r['result'], true) ?: [];
+            // Two raids landing in the same second on the same planet both match
+            // the MAX(); ordering by id means the later one wins the slot.
+            $out[(int)$r['planet_id']] = [
+                'attackerId' => (int)$r['attacker_id'],
+                'attacker'   => $r['attacker_name'] ?? '?',
+                'portrait'   => $r['attacker_portrait'] ?? '👤',
+                // `won` is always from the ATTACKER's seat — from here it is the loss.
+                'won'        => (bool)$r['won'],
+                'plundered'  => (bool)$r['plundered'],
+                'foughtAt'   => (int)$r['fought_ts'] * 1000,
+                'loot'       => $result['loot'] ?? [],
+            ];
+        }
+        return $out;
+    } catch (\Throwable $e) {
+        // Same rule as the espionage reads: state.php is the endpoint the whole
+        // game hangs off, and a missing history line is survivable.
         return [];
     }
 }

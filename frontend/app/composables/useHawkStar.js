@@ -1248,9 +1248,22 @@ const fleetCap = computed(() =>
   (playerBuildings.value['weapons_building']?.level ?? 0) * FLEET_PER_WEAPONS_LEVEL
 )
 
-// Hulls that already hold a berth: docked plus the ones in the running batch.
+// Hulls in the air rather than in the dock. A raid removes them from the dock
+// at launch, so without counting them here the berths of a fleet in flight read
+// as free and the cap leaks — mirror of fleet_away() on the server, which is
+// the side that enforces it. The outbound leg carries what launched, the return
+// leg what survived, so the reservation shrinks as soon as the battle resolves.
+const fleetAway = computed(() => {
+  const dock = allPlanetStates.value[activePlanetId.value]?.dock
+  if (!dock) return 0
+  return [...(dock.activeRaids ?? []), ...(dock.returningRaids ?? [])]
+    .reduce((n, m) => n + (m.ships ?? 1), 0)
+})
+
+// Hulls that already hold a berth: docked, in the running batch, or out on a
+// raid and coming back to this dock.
 const fleetSize = computed(() =>
-  corvetteInventory.value + (corvetteBuild.value?.count ?? 0)
+  corvetteInventory.value + (corvetteBuild.value?.count ?? 0) + fleetAway.value
 )
 
 const fleetFree = computed(() => Math.max(0, fleetCap.value - fleetSize.value))
@@ -1280,6 +1293,10 @@ const battleReports = ref([])
 // `outCount`/`outLastAt` ours on them, `log` the last few battles from either
 // direction, newest first.
 const raidHistory   = ref({})
+// { [planetId]: { attacker, portrait, won, plundered, foughtAt, loot } } — the
+// last attack on each of our planets. Player-wide and NOT an outbox, so unlike
+// `battleReports` it survives a reload and still reads a week later.
+const lastRaids     = ref({})
 
 const activeRaids = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeRaids ?? [])
 const returningRaids = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.returningRaids ?? [])
@@ -2171,6 +2188,7 @@ const applyGameState = (planetId, state) => {
   // Who has raided us, how often, last when. Player-wide, so the last response
   // wins — every planet's state carries the same figure.
   if (state.raidHistory) raidHistory.value = state.raidHistory
+  if (state.lastRaids)   lastRaids.value   = state.lastRaids
 
   // Battles, from either side, handed over exactly once. Same duplicate guard as
   // the satellite losses: several planets may load at the same moment.
@@ -2339,6 +2357,10 @@ export const initFromApi = async () => {
     // Always open on the base tile so new players see the onboarding panel
     activeSlot.value = 5
     gameLoaded.value = true
+    // The empire board and the planet strip need every colony, not just home.
+    // Fired after gameLoaded on purpose: the game must not wait on the colonies,
+    // and each card appears as its planet arrives.
+    loadOwnPlanetStates()
   } catch (e) {
     console.error('[hawk-star] Game state load failed:', e)
     initError.value = `Failed to load planet data: ${e.message}`
@@ -2354,6 +2376,329 @@ export const startTick = () => {
 export const stopTick = () => {
   clearInterval(tickInterval)
   tickInterval = null
+}
+
+// ── Empire overview ────────────────────────────────────────
+// One board that answers "what is going on everywhere" without visiting each
+// planet first. Everything below takes a planet id instead of reading the
+// active planet — that is the whole point of it.
+//
+// The list is short by construction: colonisation is same-system only
+// (`mission/colony.php` refuses any other target) and a system holds exactly
+// four habitable planets, so an empire is at most four cards. This is a board,
+// not a table, and it is sized for that.
+
+const TILE_SLOT = Object.fromEntries(PLANET_GRID.map(g => [g.tileType, g.slot]))
+
+// Where the line between "worth a warning" and "fine" sits. The shield is the
+// cheap one to let slide — an empty shield costs nothing today — so it only
+// warns near zero. The battery is not: empty means the planet stops.
+const EMPIRE_SHIELD_LOW_PCT    = 20
+const EMPIRE_BATTERY_LOW_HOURS = 12
+// A battle stays news for a day; after that the galaxy card's log is the place.
+const EMPIRE_BATTLE_NEWS_HOURS = 24
+// The card lists every alarm, but a busy planet can have a dozen timers running
+// and the card must stay readable — the Activity feed is the complete list.
+const EMPIRE_RUNNING_MAX = 4
+
+// Home first, then the colonies in the order they were founded — the board's
+// order is by urgency, but this is the fallback and the strip's order.
+const ownPlanetIds = computed(() => {
+  const rest = playerColonizedPlanets.value.filter(id => id !== homePlanetId.value)
+  return homePlanetId.value ? [homePlanetId.value, ...rest] : rest
+})
+
+// `initFromApi` loads the home planet only. The board needs every colony, so it
+// pulls the missing ones in once. A failed fetch simply leaves that planet off
+// the board — it must never take the game load down with it.
+const loadOwnPlanetStates = () => {
+  for (const id of ownPlanetIds.value) {
+    if (!allPlanetStates.value[id]) refreshPlanetState(id).catch(() => {})
+  }
+}
+
+// Same rule as maxStorage, for any planet: the cap is the summed
+// storageCapacity of the finished buildings and nothing else.
+const storageCapsOf = (planetId) => {
+  const caps = {}
+  for (const [id, st] of Object.entries(allPlanetStates.value[planetId]?.buildings ?? {})) {
+    if (st.level === 0) continue
+    for (const [res, cap] of Object.entries(BUILDINGS[id]?.levels[st.level - 1]?.storageCapacity ?? {})) {
+      caps[res] = (caps[res] ?? 0) + cap
+    }
+  }
+  return caps
+}
+
+// An orbit tile is not "unused", it has nothing to build — a tile with no
+// buildable building on this planet type has no empty-slot finding to report.
+// Global research lives in `globalResearch`, not in the planet's buildings, so
+// the comm center would always read as empty; it is excluded for that reason.
+const tileHasBuildings = (tileType, planetType) =>
+  Object.values(BUILDINGS).some(b =>
+    b.tileType === tileType && !b.global &&
+    (!b.planetTypes || b.planetTypes.includes(planetType))
+  )
+
+// `hs_buildings` and `hs_global_research` store only `build_ends_at` — there is
+// no `build_started_at` column, so a build's start has to be derived from the
+// level's configured duration. Same formula `buildProgressStyle()` uses for the
+// tile, which is the point: the two bars must never disagree.
+const buildStartOf = (buildingId, level, endsAt) => {
+  const secs = BUILDINGS[buildingId]?.levels[level]?.buildTime
+  return secs ? endsAt - secs * buildTimeFactor.value * 1000 : null
+}
+
+// A mission target may be a planet whose state was never loaded — the galaxy
+// knows every name, the state object only the ones we have visited.
+const anyPlanetName = (planetId) =>
+  allPlanetStates.value[planetId]?.planetName
+  ?? galaxySystems.value.flatMap(s => s.planets).find(p => p.id === planetId)?.name
+  ?? `#${planetId}`
+
+// Rank decides both the row order inside a card and which card floats to the
+// top. Alarm is something broken, warn is something idle or about to lapse,
+// running is just a timer. A battle is none of the three — it is history, so it
+// lives at the foot of the card rather than in this list.
+const EMPIRE_RANK = { alarm: 0, warn: 1, running: 2 }
+
+// Everything worth knowing about one planet, as rows. Each row carries the tile
+// it belongs to, so the board can jump straight to the thing it is talking
+// about — a finding you cannot act on from where it is displayed is only half
+// an answer.
+//
+// Labels stay unresolved: `labelParams` holds plain values and `paramKeys` maps
+// a parameter to an i18n key the component translates first. `useI18n()` cannot
+// be called at module scope, which is the same reason notifications carry a
+// `labelKey` rather than a finished string.
+const planetStatus = (planetId) => {
+  const st = allPlanetStates.value[planetId]
+  if (!st) return null
+
+  const rows    = []
+  const running = []
+
+  const makeRow = (kind, key, icon, labelKey, opts = {}) => ({
+    id:          `${planetId}_${key}`,
+    kind, icon, labelKey,
+    labelParams: opts.params    ?? {},
+    paramKeys:   opts.paramKeys ?? null,
+    titleKey:    opts.titleKey  ?? null,
+    slot:        opts.tile ? (TILE_SLOT[opts.tile] ?? null) : (opts.slot ?? null),
+    endsAt:      opts.endsAt    ?? null,
+    startedAt:   opts.startedAt ?? null,
+  })
+
+  const add        = (kind, key, icon, labelKey, opts) => rows.push(makeRow(kind, key, icon, labelKey, opts))
+  const addRunning = (key, icon, labelKey, opts) => running.push(makeRow('running', key, icon, labelKey, opts))
+
+  const bat = batteryChargeOf(planetId)
+  const shd = shieldChargeOf(planetId)
+  const batHours = st.battery?.drainPerHour ? (bat ?? 0) / st.battery.drainPerHour : null
+  const shdHours = st.shield?.drainPerHour  ? (shd ?? 0) / st.shield.drainPerHour  : null
+  const dark = gridDownOn(planetId)
+  // Same guard gridDownOn() uses: a planet without a power plant has no grid to
+  // lose, so its battery is not a meter that means anything yet.
+  const hasBattery = !!st.battery && (st.battery.powerPlantLevel ?? 0) > 0
+
+  // ── Alarms — something is broken right now ──
+  if (dark) add('alarm', 'blackout', '⏹', 'hawkStar.empire.rowBlackout', { tile: 'energy' })
+
+  if (st.shield && (shd ?? 0) <= 0)
+    add('alarm', 'shieldEmpty', '🛡️', 'hawkStar.empire.rowShieldEmpty', { tile: 'defense' })
+
+  // Always empty without an orbital_defense — the building is the sensor, so a
+  // planet without one never raises this and that is intended.
+  if (st.foreignSatellites?.length)
+    add('alarm', 'bogey', '📡', 'hawkStar.empire.rowBogey',
+        { params: { n: st.foreignSatellites.length }, tile: 'defense' })
+
+  // ── Warnings — nothing broken, but something is idling or about to lapse ──
+  if (st.shield && (shd ?? 0) > 0 && shd < EMPIRE_SHIELD_LOW_PCT)
+    add('warn', 'shieldLow', '🛡️', 'hawkStar.empire.rowShieldLow',
+        { params: { pct: Math.round(shd), h: Math.max(1, Math.round(shdHours ?? 0)) }, tile: 'defense' })
+
+  if (hasBattery && !dark && batHours != null && batHours < EMPIRE_BATTERY_LOW_HOURS)
+    add('warn', 'batteryLow', '🔋', 'hawkStar.empire.rowBatteryLow',
+        { params: { h: Math.max(1, Math.round(batHours)) }, tile: 'energy' })
+
+  // An anomaly expires whether or not anyone looked at it, so it carries its
+  // deadline rather than a progress bar.
+  const ano = st.anomaly
+  if (ano && (ano.expiresAt ?? 0) > now.value)
+    add('warn', 'anomaly', ano.icon ?? '☄️', 'hawkStar.empire.rowAnomaly',
+        { titleKey: `hawkStar.anomaly.types.${ano.type}.name`, tile: 'anomaly', endsAt: ano.expiresAt })
+
+  // A full store produces nothing — the server clamps at the cap on every tick.
+  // This is the finding a returning player never spots on their own.
+  for (const [res, cap] of Object.entries(storageCapsOf(planetId))) {
+    if ((st.resources?.[res] ?? 0) < cap) continue
+    add('warn', `full_${res}`, RESOURCES[res]?.icon ?? '📦', 'hawkStar.empire.rowStorageFull',
+        { paramKeys: { res: `hawkStar.res.${res}` },
+          tile: (res === 'metal' || res === 'crystal') ? 'mining' : 'hightech' })
+  }
+
+  // A refinery with no batch running is the other silent loss: one refinery
+  // feeds exactly one converter, so an idle one stalls a whole chain.
+  for (const [bid, bst] of Object.entries(st.buildings ?? {})) {
+    const def = BUILDINGS[bid]
+    if (!def?.conversions?.length || bst.level === 0 || bst.buildEndsAt) continue
+    if ((st.conversionQueues ?? []).some(q => q.buildingId === bid)) continue
+    add('warn', `idle_${bid}`, def.icon ?? '⚗️', 'hawkStar.empire.rowConverterIdle',
+        { params: { name: def.name }, tile: def.tileType })
+  }
+
+  // A pool at its cap stops growing — every hour past that is a lost recruit.
+  const rec = st.recruit
+  if (rec?.poolMax > 0) {
+    const pool = Math.min(rec.poolMax, rec.pool + rec.growthPerHour * (now.value - rec.syncedAt) / 3600000)
+    if (pool >= rec.poolMax)
+      add('warn', 'recruitFull', '👥', 'hawkStar.empire.rowRecruitFull',
+          { params: { n: Math.floor(pool) }, tile: 'base' })
+  }
+
+  for (const s of st.slots ?? []) {
+    if (!s.unlocked || !tileHasBuildings(s.tileType, st.planetType)) continue
+    const used = Object.entries(st.buildings ?? {}).some(([bid, bs]) =>
+      BUILDINGS[bid]?.tileType === s.tileType && (bs.level > 0 || bs.buildEndsAt))
+    if (used) continue
+    add('warn', `empty_${s.slot}`, '🏗️', 'hawkStar.empire.rowSlotEmpty',
+        { paramKeys: { tile: `hawkStar.tiles.${s.tileType}.name` }, slot: s.slot })
+  }
+
+  // ── Running — timers, so the card also says what is already under way ──
+  // Buildings under construction go straight into `rows`, not through the
+  // capped `running` list: "what am I building right now" is the first thing
+  // anyone looks for on a card, and it must never be pushed out by four cargo
+  // flights. Only one building per tile can be under construction, so this list
+  // is short by itself.
+  for (const [bid, bst] of Object.entries(st.buildings ?? {})) {
+    if (!bst.buildEndsAt) continue
+    const def = BUILDINGS[bid]
+    if (!def) continue
+    add('running', `build_${bid}`, '🏗️', 'hawkStar.empire.rowBuilding',
+      { params: { name: def.name, level: bst.level + 1 }, tile: def.tileType,
+        endsAt: bst.buildEndsAt, startedAt: buildStartOf(bid, bst.level, bst.buildEndsAt) })
+  }
+
+  for (const q of st.conversionQueues ?? []) {
+    const def = BUILDINGS[q.buildingId]
+    if (!def) continue
+    addRunning(`conv_${q.buildingId}_${q.recipeIndex}`, '⚗️', 'hawkStar.empire.rowConversion',
+      { params: { name: def.name, n: q.runs ?? 1 }, tile: def.tileType, endsAt: q.endsAt })
+  }
+
+  const dock = st.dock ?? {}
+  for (const [key, unit, icon] of [
+    ['reconDroneBuild',   'reconDrone',   '🛸'], ['colonyShipBuild',  'colonyShip',   '🚀'],
+    ['cargoDroneBuild',   'cargoDrone',   '📦'], ['spyDroneBuild',    'spyDrone',     '🕵️'],
+    ['spySatelliteBuild', 'spySatellite', '📡'], ['corvetteBuild',    'corvette',     '⚔️'],
+  ]) {
+    const b = dock[key]
+    if (!b) continue
+    addRunning(`ship_${key}`, icon, 'hawkStar.empire.rowShipBuild',
+      { params: { n: b.count ?? 1 }, paramKeys: { unit: `hawkStar.dock.${unit}` },
+        tile: 'dock', endsAt: b.endsAt, startedAt: b.startedAt })
+  }
+
+  // A raid gets its own row with its target — it is the flight whose outcome
+  // the player is waiting for. Everything else is aggregated, because the dock
+  // and the Activity feed already list flights one by one.
+  for (const m of dock.activeRaids ?? [])
+    addRunning(`raid_${m.planetId}`, '⚔️', 'hawkStar.empire.rowRaidOut',
+      { params: { planet: anyPlanetName(m.planetId), n: m.ships ?? 1 }, tile: 'dock', endsAt: m.endsAt })
+  for (const m of dock.returningRaids ?? [])
+    addRunning(`raidback_${m.planetId}`, '⚔️', 'hawkStar.empire.rowRaidBack',
+      { params: { n: m.ships ?? 1 }, tile: 'dock', endsAt: m.endsAt })
+
+  const flights = [
+    ...(dock.activeDroneMissions ?? []), ...(dock.activeColonyMissions ?? []),
+    ...(dock.activeCargoMissions ?? []), ...(dock.returningCargoMissions ?? []),
+    ...(dock.activeSpyMissions ?? []),
+  ]
+  if (flights.length)
+    addRunning('flights', '🛰️', 'hawkStar.empire.rowFlights',
+      { params: { n: flights.length }, tile: 'dock',
+        endsAt: Math.min(...flights.map(f => f.endsAt)) })
+
+  running.sort((a, b) => (a.endsAt ?? 0) - (b.endsAt ?? 0))
+  const shown = running.slice(0, EMPIRE_RUNNING_MAX)
+  rows.push(...shown)
+
+  rows.sort((a, b) => EMPIRE_RANK[a.kind] - EMPIRE_RANK[b.kind])
+
+  // The last attack this planet took. It is history, not a task, so it is not a
+  // row — it sits at the foot of the card, the way the galaxy card keeps its
+  // battle log at the bottom. A fresh one still counts: it raises the card and
+  // fires the nav badge without duplicating itself as a row.
+  const raid = lastRaids.value[planetId] ?? null
+  const fresh = !!raid && (now.value - raid.foughtAt) < EMPIRE_BATTLE_NEWS_HOURS * 3600000
+  const lastRaid = raid ? { ...raid, fresh } : null
+
+  const rowSeverity = rows.length ? Math.min(...rows.map(r => EMPIRE_RANK[r.kind])) : 9
+
+  return {
+    planetId,
+    name:      st.planetName,
+    type:      st.planetType,
+    isHome:    planetId === homePlanetId.value,
+    battery:   hasBattery ? { pct: bat ?? 0, hours: batHours, down: dark } : null,
+    shield:    st.shield  ? { pct: shd ?? 0, hours: shdHours } : null,
+    rows,
+    lastRaid,
+    moreRunning: running.length - shown.length,
+    // The worst thing on the card decides where the card sits.
+    severity:  fresh ? Math.min(rowSeverity, EMPIRE_RANK.alarm) : rowSeverity,
+    // Everything that is not merely a timer — a recent raid counts, which is
+    // why the badge is labelled "notices" and not "to do".
+    alerts:    rows.filter(r => r.kind !== 'running').length + (fresh ? 1 : 0),
+  }
+}
+
+// Sorted by urgency, not by planet id — the point of opening this is to be told
+// where to look, and home is only the tiebreak.
+const empireStatus = computed(() =>
+  ownPlanetIds.value
+    .map(planetStatus)
+    .filter(Boolean)
+    .sort((a, b) => a.severity - b.severity || (a.isHome === b.isHome ? 0 : a.isHome ? -1 : 1))
+)
+
+// Drives the badge on the nav tab: everything that is not just a timer.
+const empireAlertCount = computed(() =>
+  empireStatus.value.reduce((n, p) => n + p.alerts, 0)
+)
+
+// Research is player-wide — it belongs to the board's header, not to any one
+// planet's card, because the server does not record which planet ordered it and
+// the result applies everywhere anyway. It is also the one build the Activity
+// feed misses entirely, since that walks `allPlanetStates` and research lives
+// in `globalResearch`.
+const empireResearch = computed(() =>
+  Object.entries(globalResearch.value)
+    .filter(([id, st]) => st?.buildEndsAt && BUILDINGS[id])
+    .map(([id, st]) => ({
+      id,
+      icon:      BUILDINGS[id].icon ?? '🔬',
+      name:      BUILDINGS[id].name,
+      level:     (st.level ?? 0) + 1,
+      endsAt:    st.buildEndsAt,
+      startedAt: buildStartOf(id, st.level ?? 0, st.buildEndsAt),
+    }))
+    .sort((a, b) => a.endsAt - b.endsAt)
+)
+
+// Jumping to a finding is what makes the board more than a list. Unlike
+// setActivePlanet() this keeps the caller's tile instead of forcing the base
+// tile — the row knows which tile it is about.
+const focusPlanetTile = (planetId, slot = null) => {
+  const st = allPlanetStates.value[planetId]
+  if (!st) return false
+  activePlanetId.value     = planetId
+  lastResourceSyncMs.value = Date.now()
+  const target = st.slots?.find(s => s.slot === slot)
+  activeSlot.value = target?.unlocked ? slot : 5
+  return true
 }
 
 // ── Composable export ──────────────────────────────────────
@@ -2432,6 +2777,13 @@ export function useHawkStar() {
     anomalyBusy,
     anomalyError,
     resolveAnomaly,
+    // empire overview
+    ownPlanetIds,
+    loadOwnPlanetStates,
+    empireStatus,
+    empireAlertCount,
+    empireResearch,
+    focusPlanetTile,
     // production
     grossProduction,
     totalEnergyDrain,
@@ -2546,12 +2898,14 @@ export function useHawkStar() {
     fleetCap,
     fleetSize,
     fleetFree,
+    fleetAway,
     maxCorvetteBatch,
     canBuildCorvette,
     buildCorvette,
     // raids
     battleReports,
     raidHistory,
+    lastRaids,
     raidsAgainstMe,
     raidsByMe,
     raidLog,

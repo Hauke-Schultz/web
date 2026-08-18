@@ -9,12 +9,27 @@ const props = defineProps({
 const emit = defineEmits(['update:currentView'])
 
 const { t } = useI18n()
-const { starMapLevel, planetName, planetType, PLANET_TYPES } = useHawkStar()
+const { starMapLevel, planetName, planetType, PLANET_TYPES, empireAlertCount } = useHawkStar()
 const planetIcon = computed(() => PLANET_TYPES[planetType.value]?.icon ?? '🪐')
 </script>
 
 <template>
   <nav class="hs-nav">
+    <!-- First, and never gated: the board is the answer to "where did I leave
+         off", which is the question a session opens with. The views below it
+         run outward from there — planet, system, galaxy. The badge is what
+         makes it worth glancing at from any of them. -->
+    <button
+      class="hs-nav-tab"
+      :class="{ 'hs-nav-tab--active': currentView === 'empire' }"
+      :title="t('hawkStar.nav.empire')"
+      @click="emit('update:currentView', 'empire')"
+    >
+      <span class="hs-nav-icon">🏛️</span>
+      <span>{{ t('hawkStar.nav.empire') }}</span>
+      <span v-if="empireAlertCount > 0" class="hs-nav-badge">{{ empireAlertCount }}</span>
+    </button>
+
     <button
       class="hs-nav-tab"
       :class="{ 'hs-nav-tab--active': currentView === 'planet' }"
@@ -107,5 +122,18 @@ const planetIcon = computed(() => PLANET_TYPES[planetType.value]?.icon ?? '🪐'
 
 .hs-nav-icon { font-size: 1.1rem; line-height: 1; }
 .hs-nav-lock { font-size: 0.6rem; opacity: 0.7; margin-left: 2px; }
+
+.hs-nav-badge {
+  min-width: 0.85rem;
+  margin-left: 2px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(248, 113, 113, 0.22);
+  color: #fca5a5;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
 
 </style>

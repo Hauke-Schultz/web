@@ -77,6 +77,7 @@ const {
   fleetCap,
   fleetSize,
   fleetFree,
+  fleetAway,
   maxCorvetteBatch,
   canBuildCorvette,
   buildCorvette,
@@ -402,6 +403,12 @@ const raidProgress = (m, total) => {
                  fleet size decision hangs off the weapons building. -->
             <div v-if="colonyShipLevel > 0 && fleetCap > 0" class="hs-fleet-cap">
               {{ t('hawkStar.dock.fleetCap', { n: fleetSize, cap: fleetCap }) }}
+              <!-- A fleet in flight holds its berths. Without this the count
+                   looks wrong: hulls are gone from the dock but the number does
+                   not drop, and nothing on screen says why. -->
+              <span v-if="fleetAway > 0" class="hs-fleet-away" :title="t('hawkStar.dock.fleetAwayHint')">
+                {{ t('hawkStar.dock.fleetAway', { n: fleetAway }) }}
+              </span>
             </div>
           </div>
         </div>
@@ -779,6 +786,12 @@ const raidProgress = (m, total) => {
   font-size: 0.62rem;
   color: rgba(248,113,113,0.85);
   font-variant-numeric: tabular-nums;
+}
+
+// Quieter than the count itself — it explains the number, it is not the number.
+.hs-fleet-away {
+  margin-left: 0.25rem;
+  color: rgba(255,255,255,0.4);
 }
 
 // Picker and Build sit on one line — the count is part of the button's price,

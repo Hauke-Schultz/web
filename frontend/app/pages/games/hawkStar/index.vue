@@ -8,10 +8,11 @@ import HsTilePanel from '~/components/hawk-star/HsTilePanel.vue'
 import HsNavBar from '~/components/hawk-star/HsNavBar.vue'
 import HsGalaxyMap from '~/components/hawk-star/HsGalaxyMap.vue'
 import HsSolarSystem from '~/components/hawk-star/HsSolarSystem.vue'
+import HsEmpirePanel from '~/components/hawk-star/HsEmpirePanel.vue'
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
-const { starMapLevel, gameLoaded, initError, initErrorDetail } = useHawkStar()
+const { starMapLevel, gameLoaded, initError, initErrorDetail, ownPlanetIds, empireStatus } = useHawkStar()
 const { player, authError, authLoading, isAuthenticated, rememberMe, register, login, verifyToken, logout } = useHawkStarAuth()
 
 // ── Error screen ───────────────────────────────────────────────────────────────
@@ -58,6 +59,18 @@ function switchMode(mode) {
   authError.value = ''
 }
 
+// Where a returning player lands. A fresh single-planet commander still starts
+// on the base tile, because that is where the onboarding checklist lives; the
+// board takes over as soon as there is more than one planet to keep track of,
+// or something is actually broken. A brand-new player cannot raise an alarm —
+// with no power plant there is no battery to run flat, and no shield, no
+// satellite and no battle report either.
+function pickLandingView() {
+  const manyPlanets = ownPlanetIds.value.length > 1
+  const alarm = empireStatus.value.some(p => p.rows.some(r => r.kind === 'alarm'))
+  currentView.value = (manyPlanets || alarm) ? 'empire' : 'planet'
+}
+
 async function submitAuth() {
   let data = null
   if (authMode.value === 'register') {
@@ -68,6 +81,7 @@ async function submitAuth() {
   if (data) {
     await initFromApi()
     activePanel.value = ''
+    pickLandingView()
   }
 }
 
@@ -78,6 +92,7 @@ onMounted(async () => {
     if (ok) {
       await initFromApi()
       activePanel.value = ''
+      pickLandingView()
     }
   }
   startTick()
@@ -151,6 +166,10 @@ watchEffect(() => {
       </template>
       <HsSolarSystem v-else-if="currentView === 'solar-system'" @go-planet="currentView = 'planet'; activePanel = ''" />
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
+      <!-- Every row on the board sets planet + tile itself, then asks the page
+           to turn to the planet view — that jump is what makes it a board and
+           not a list. -->
+      <HsEmpirePanel v-else-if="currentView === 'empire'" @go-planet="currentView = 'planet'; activePanel = ''" />
     </div>
 
     <!-- ── Auth overlay ── -->
@@ -553,11 +572,10 @@ watchEffect(() => {
   backdrop-filter: blur(12px);
   border-bottom: 1px solid transparent;
   padding: 0.4rem 0;
-  margin-bottom: 1rem;
+  margin-bottom: .5rem;
 
   @media (min-width: 640px) {
     padding: 0.5rem 0;
-    margin-bottom: 1.5rem;
   }
 }
 

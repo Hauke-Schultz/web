@@ -138,6 +138,10 @@ $battleReports = unseen_battle_reports($db, $playerId);
 // the galaxy card's owner list.
 $raidHistory = raid_history($db, $playerId);
 
+// The standing record, one entry per raided planet — unlike $battleReports this
+// is not an outbox, so the empire board can still show it after a reload.
+$lastRaids = last_raids_on_planets($db, $playerId);
+
 $convRaw = $db->prepare(
     'SELECT id, building_key, recipe_index, ends_at, runs
      FROM hs_conversion_queues WHERE planet_id=? AND player_id=? ORDER BY ends_at ASC'
@@ -180,6 +184,7 @@ ok([
     'satellitesLost'     => $lostSats,
     'battleReports'      => $battleReports,
     'raidHistory'        => $raidHistory,
+    'lastRaids'          => $lastRaids,
     'recruit'            => $recruit,
     'cargo'              => $cargo,
     'anomaly'            => $anomaly,
