@@ -1831,6 +1831,139 @@ function recruit_state(PDO $db, int $planetId, int $playerId): array {
     ];
 }
 
+// ── Salvage fishing ───────────────────────────────────────────────────────────
+// Player-wide, not per planet: scrap is a currency, and one purse for four
+// planets is what stops four planets being four incomes. Which planet you fish
+// from decides flavour later, never amount.
+function ensure_salvage(PDO $db, int $playerId): void {
+    static $tableReady = false;
+    if (!$tableReady) {
+        try {
+            $db->exec(
+                'CREATE TABLE IF NOT EXISTS hs_salvage (
+                   player_id INT NOT NULL,
+                   scrap INT NOT NULL DEFAULT 0,
+                   hold FLOAT NOT NULL DEFAULT 0,
+                   hold_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                   last_catch_at DATETIME NULL,
+                   PRIMARY KEY (player_id)
+                 )'
+            );
+            $db->exec(
+                'CREATE TABLE IF NOT EXISTS hs_salvage_finds (
+                   player_id INT NOT NULL,
+                   find_key VARCHAR(32) NOT NULL,
+                   found_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                   PRIMARY KEY (player_id, find_key)
+                 )'
+            );
+        } catch (\Throwable $e) {}
+        $tableReady = true;
+    }
+    // A new player starts with a full hold. The tile opens with the very first
+    // build, and an empty hold would meet them with a toy that pays nothing.
+    $db->prepare(
+        'INSERT IGNORE INTO hs_salvage (player_id, scrap, hold, hold_updated_at)
+         VALUES (?, 0, ?, NOW())'
+    )->execute([$playerId, SALVAGE_HOLD_MAX]);
+}
+
+// What is already in the cabinet. Three callers need it — the state block, the
+// hold ceiling and the roll — so it is one query in one place.
+function salvage_owned_finds(PDO $db, int $playerId): array {
+    $rows = $db->prepare('SELECT find_key FROM hs_salvage_finds WHERE player_id=?');
+    $rows->execute([$playerId]);
+    return $rows->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// The live hold: stored value plus what has regenerated since, clamped to the
+// cap. Same no-cron trick as the recruit pool — an absent player finds a full
+// hold, never a backlog. The cap itself is per player, because `hold` finds
+// raise it permanently.
+function salvage_state(PDO $db, int $playerId): array {
+    ensure_salvage($db, $playerId);
+    $row = $db->prepare(
+        'SELECT scrap, hold, TIMESTAMPDIFF(SECOND, hold_updated_at, NOW()) AS elapsed
+         FROM hs_salvage WHERE player_id=?'
+    );
+    $row->execute([$playerId]);
+    $r = $row->fetch();
+
+    $finds   = salvage_owned_finds($db, $playerId);
+    $max     = salvage_hold_max($finds);
+    $stored  = $r ? (float)$r['hold'] : $max;
+    $elapsed = $r ? max(0, (int)$r['elapsed']) : 0;
+    $hold    = min($max, $stored + SALVAGE_HOLD_PER_HOUR * ($elapsed / 3600.0));
+
+    return [
+        'scrap'       => $r ? (int)$r['scrap'] : 0,
+        'hold'        => round($hold, 3),
+        'holdMax'     => $max,
+        'holdPerHour' => SALVAGE_HOLD_PER_HOUR,
+        'finds'       => $finds,
+    ];
+}
+
+// Artefacts are unique per player, so the roll only ever considers what is not
+// already in the cabinet and stops entirely once the list is exhausted. That
+// uniqueness IS the rate limit — there is nothing here to farm however often
+// the client claims a hit.
+function salvage_roll_find(PDO $db, int $playerId): string|null {
+    if (!SALVAGE_FINDS) return null;
+    if (mt_rand(1, 10000) > (int)round(SALVAGE_FIND_CHANCE * 10000)) return null;
+
+    $pool = array_values(array_diff(array_keys(SALVAGE_FINDS), salvage_owned_finds($db, $playerId)));
+    if (!$pool) return null;
+    return $pool[mt_rand(0, count($pool) - 1)];
+}
+
+// Pays out an artefact's one-off. Call it AFTER the find is recorded: the hold
+// bonus reads the cabinet back to work out the new ceiling, and the entry has
+// to be in there for that number to include itself.
+//
+// The return value is what the panel prints. It says what was actually granted
+// rather than what the catalogue promises — a capped store or a missing planet
+// changes the answer, and the line under the toast should not lie about it.
+function salvage_apply_find(PDO $db, int $playerId, ?int $planetId, string $key): array {
+    $effect = SALVAGE_FINDS[$key]['effect'] ?? null;
+    if (!$effect) return [];
+
+    switch ($effect['type']) {
+        case 'hold':
+            // The bonus arrives as free room as well, not merely as a higher
+            // ceiling: a permanent +25 that only pays out over the next two
+            // hours of regeneration would not read as a reward at all.
+            $max = salvage_hold_max(salvage_owned_finds($db, $playerId));
+            $db->prepare('UPDATE hs_salvage SET hold = LEAST(hold + ?, ?) WHERE player_id=?')
+               ->execute([(float)$effect['amount'], $max, $playerId]);
+            return ['type' => 'hold', 'amount' => (int)$effect['amount']];
+
+        case 'scrap':
+            // Straight into the purse, past the hold — same licence the finds
+            // themselves have, and safe for the same reason: it happens once.
+            $db->prepare('UPDATE hs_salvage SET scrap = scrap + ? WHERE player_id=?')
+               ->execute([(int)$effect['amount'], $playerId]);
+            return ['type' => 'scrap', 'amount' => (int)$effect['amount']];
+
+        case 'resources':
+            // Capped on delivery like every other payout in the game, so a full
+            // store keeps what fits and nothing more.
+            if (!$planetId) return ['type' => 'resources', 'resources' => []];
+            credit_resources(
+                $db, $planetId, $playerId,
+                $effect['resources'],
+                planet_storage_caps($db, $planetId, $playerId)
+            );
+            return ['type' => 'resources', 'resources' => $effect['resources']];
+
+        case 'portrait':
+            // Nothing to do here. The profile panel reads the cabinet and adds
+            // the avatar to its picker — the server only records that it is owned.
+            return ['type' => 'portrait', 'portrait' => $effect['portrait']];
+    }
+    return [];
+}
+
 // ── Storage caps ──────────────────────────────────────────────────────────────
 // Summed storageCapacity of every completed building. compute_resources (for the
 // clamp), the max_resources cheat and the anomaly payouts all need this exact

@@ -12,6 +12,7 @@ import HsShieldPanel from '~/components/hawk-star/HsShieldPanel.vue'
 import HsRecruitPanel from '~/components/hawk-star/HsRecruitPanel.vue'
 import HsOrbitDefensePanel from '~/components/hawk-star/HsOrbitDefensePanel.vue'
 import HsAnomalyPanel from '~/components/hawk-star/HsAnomalyPanel.vue'
+import HsSalvagePanel from '~/components/hawk-star/HsSalvagePanel.vue'
 
 defineProps({ activePanel: { type: String, default: null } })
 
@@ -29,10 +30,12 @@ const {
   startBuild,
   hasEnoughPower,
   hasEnoughStaff,
+  energyDelta,
   staffDelta,
   isOffline,
   freeWorkers,
   hasOrbitalDefense,
+  stockOf,
   remainingSec,
   formatTime,
   buildProgressStyle,
@@ -56,6 +59,7 @@ const isEnergyTile       = computed(() => activeTileType.value?.id === 'energy')
 const isDefenseTile      = computed(() => activeTileType.value?.id === 'defense')
 const isBaseTile         = computed(() => activeTileType.value?.id === 'base')
 const isAnomalyTile      = computed(() => activeTileType.value?.id === 'anomaly')
+const isSalvageTile      = computed(() => activeTileType.value?.id === 'salvage')
 
 // Recipes are no longer a High-Tech privilege: the med station sits on the base
 // tile and the plasma compressor in the tech center. Any tile showing a building
@@ -74,6 +78,12 @@ const availableConversions = computed(() =>
       buildingId: b.id,
       key: `${b.id}_${index}`,
     })))
+    // Recipes may carry planetTypes of their own — the smelter uses it so that
+    // only this planet's exclusive raw is on offer. Filtered after the map on
+    // purpose: `index` is the position in the FULL array and is what lands in
+    // hs_conversion_queues, so re-indexing here would make a running batch
+    // deliver a different recipe's goods.
+    .filter(r => !r.planetTypes || r.planetTypes.includes(planetType.value))
 )
 
 // The running batch for a recipe, if any — drives the fill inside its button
@@ -124,6 +134,7 @@ const canRaise = (recipe) =>
   <!-- Dock slot -->
   <HsDockPanel v-else-if="isDockTile" />
 
+
   <!-- Building panel -->
   <div v-else class="hs-panel">
     <div class="hs-panel-header">
@@ -149,6 +160,12 @@ const canRaise = (recipe) =>
 
     <!-- Passing events — anomaly tile (has no buildings of its own) -->
     <HsAnomalyPanel v-if="isAnomalyTile" />
+
+    <!-- Salvage fishing. It sits INSIDE the building panel, not instead of it:
+         the tile now also carries the smelter, so it needs the ordinary build
+         rows and recipe section underneath. Same arrangement as the recruit
+         panel on the base tile. -->
+    <HsSalvagePanel v-if="isSalvageTile" />
 
     <div class="hs-building-list">
       <div
@@ -208,21 +225,29 @@ const canRaise = (recipe) =>
               v-if="Object.keys(nextLevelDef(bDef.id).cost).length || staffDelta(bDef.id) > 0 || nextLevelDef(bDef.id).energyDrain > 0"
               class="hs-cost-row"
             >
+<!-- Paid once, out of the planet's stock. `stockOf` rather than
+                   playerResources so a cost in a player-wide currency reads
+                   correctly if one is ever introduced. -->
               <span
                 v-for="(amt, resId) in nextLevelDef(bDef.id).cost"
                 :key="resId"
                 class="hs-cost-tag"
-                :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+                :class="stockOf(resId) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+                :title="t('hawkStar.tile.costOnce')"
               >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+              <!-- Not paid but tied up, and only the DIFFERENCE to the level
+                   below: an upgrade asks for what it adds. -->
               <span
-                v-if="nextLevelDef(bDef.id).energyDrain > 0"
+                v-if="energyDelta(bDef.id) > 0"
                 class="hs-cost-tag"
                 :class="hasEnoughPower(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
-              >⚡ {{ nextLevelDef(bDef.id).energyDrain }}</span>
+                :title="t('hawkStar.tile.costEnergy')"
+              >⚡ {{ energyDelta(bDef.id) }}</span>
               <span
                 v-if="staffDelta(bDef.id) > 0"
                 class="hs-cost-tag"
                 :class="freeWorkers >= staffDelta(bDef.id) ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'"
+                :title="t('hawkStar.tile.costStaff')"
               >👥 {{ staffDelta(bDef.id) }}</span>
             </div>
 
@@ -264,7 +289,7 @@ const canRaise = (recipe) =>
               v-for="(amt, resId) in recipe.input"
               :key="resId"
               class="hs-conv-res"
-              :class="(playerResources[resId] ?? 0) >= amt ? 'hs-conv-res--ok' : 'hs-conv-res--no'"
+              :class="stockOf(resId) >= amt ? 'hs-conv-res--ok' : 'hs-conv-res--no'"
             >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
             <span class="hs-conv-arrow">→</span>
             <!-- The amount carries the decision: "1200 Metall" is what makes a

@@ -27,6 +27,43 @@ switch ($action) {
         resolve_buildings($db, $planetId, $playerId);
         ok(['action' => 'complete_buildings']);
 
+    case 'fill_salvage':
+        // Player-wide, so it takes no planetId. A full hold is eight hours of
+        // regeneration and a refined-good recipe wants two of them — testing
+        // the smelter by waiting is not a plan. The ceiling is the player's own,
+        // since every `hold` artefact raised it.
+        ensure_salvage($db, $playerId);
+        $db->prepare(
+            'UPDATE hs_salvage SET scrap = scrap + 500, hold = ?, hold_updated_at = NOW()
+             WHERE player_id=?'
+        )->execute([salvage_hold_max(salvage_owned_finds($db, $playerId)), $playerId]);
+        ok(['action' => 'fill_salvage', 'salvage' => salvage_state($db, $playerId)]);
+
+    case 'grant_find':
+        // The next artefact in catalogue order, paid out exactly as a real catch
+        // would pay it. At 1.5 % a roll there is no other way to see all sixteen
+        // cabinet entries, let alone check that their effects land.
+        ensure_salvage($db, $playerId);
+        $pool = array_values(array_diff(array_keys(SALVAGE_FINDS), salvage_owned_finds($db, $playerId)));
+        if (!$pool) ok(['action' => 'grant_find', 'find' => null, 'salvage' => salvage_state($db, $playerId)]);
+
+        $key = $pool[0];
+        $db->prepare(
+            'INSERT IGNORE INTO hs_salvage_finds (player_id, find_key, found_at) VALUES (?,?,NOW())'
+        )->execute([$playerId, $key]);
+
+        if (!$planetId) {
+            $home = $db->prepare('SELECT planet_id FROM hs_planet_ownership WHERE player_id=? AND is_home=1 LIMIT 1');
+            $home->execute([$playerId]);
+            $planetId = (int)$home->fetchColumn();
+        }
+        $grant = salvage_apply_find($db, $playerId, $planetId ?: null, $key);
+        ok([
+            'action'  => 'grant_find',
+            'find'    => ['key' => $key, 'icon' => SALVAGE_FINDS[$key]['icon'], 'grant' => $grant],
+            'salvage' => salvage_state($db, $playerId),
+        ]);
+
     case 'drain_shield':
         if (!$planetId) fail('planetId required');
         $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');

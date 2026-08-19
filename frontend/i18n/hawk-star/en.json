@@ -52,9 +52,9 @@
       "stateBlackout": "Blackout",
       "stateAlert": "Alert",
       "stateIdle": "Idle",
-      "stateOk": "Productive",
       "stateBuilding": "Building",
       "stateConverting": "Converting",
+      "stateNoBuild": "Nothing building",
       "holds": "holds {h} h",
       "noReactor": "no reactor",
       "noShield": "no shield",
@@ -74,6 +74,8 @@
       "raidHint": "Last attack on this planet — jump to the defense tile",
       "rowShieldLow": "Shield at {pct} % — holds {h} h",
       "rowBatteryLow": "Battery holds only {h} h",
+      "rowEnergyDeficit": "Not enough energy — {n} short, buildings offline",
+      "rowEnergyLow": "Energy tight — only {n} of {produced} spare",
       "rowAnomaly": "Anomaly waiting",
       "rowStorageFull": "{res} storage full — extraction stalled",
       "rowConverterIdle": "{name} is idle",
@@ -86,6 +88,55 @@
       "rowRaidBack": "{n} corvettes returning",
       "rowFlights": "Missions en route: {n}"
     },
+    "salvage": {
+      "title": "Salvage",
+      "intro": "Cast the salvage beam into the debris field. When the echo jumps, lock on in time.",
+      "holdLabel": "Free hold",
+      "holdEmpty": "Hold full — catches go back over the side",
+      "cast": "Cast",
+      "waiting": "Beam out…",
+      "now": "Now!",
+      "landed": "Locked on",
+      "perfect": "Dead centre!",
+      "fled": "Got away",
+      "fledLong": "Signal lost — nothing hauled in",
+      "failed": "Report did not get through",
+      "thrownBack": "thrown back",
+      "findFound": "Artefact recovered: {name}",
+      "catches": {
+        "debris": "Debris shard",
+        "fragment": "Hull fragment",
+        "module": "Intact module",
+        "haul": "Big haul"
+      },
+      "cabinet": "Artefacts",
+      "cabinetHint": "Each one only once — artefacts are not charged to the hold. Tap a slot for details.",
+      "cabinetLocked": "Not recovered yet",
+      "effects": {
+        "hold": "Hold permanently +{amount}",
+        "scrap": "+{amount} 🔩 at once",
+        "resources": "One-off delivery: {list}",
+        "portrait": "Portrait {portrait} unlocked"
+      },
+      "finds": {
+        "signal_buoy": { "name": "Orphaned Signal Buoy", "lore": "Still broadcasting the distress call of a convoy that stopped existing years ago." },
+        "trawl_coil": { "name": "Trimmed Trawl Coil", "lore": "Rewound by hand. Whoever did it understood salvage better than the shipyard did." },
+        "winch_drum": { "name": "Salvaged Anchor Winch", "lore": "Hauling on a cable that has had nothing on the end of it for decades." },
+        "cargo_frame": { "name": "Extended Cargo Frame", "lore": "Cut out of a heavy hauler. It does not fit — it holds anyway." },
+        "scrap_cache": { "name": "Forgotten Scrap Cache", "lore": "Neatly sorted, neatly lashed down, never collected." },
+        "pay_chest": { "name": "Pay Chest", "lore": "A whole shift's wages, sealed on payday. The shift never came back." },
+        "derelict": { "name": "Gutted Derelict", "lore": "Two decks, no name, no bodies. Someone got here first — but not thoroughly." },
+        "sealed_drum": { "name": "Sealed Cargo Drum", "lore": "Seal intact, customs mark ground off. The contents do not ask for papers." },
+        "reactor_shard": { "name": "Reactor Shard", "lore": "Still warm. The engineers advise against looking at it for long." },
+        "medbay_locker": { "name": "Medbay Locker", "lore": "Four ampoules of vital gel and a note to a crew that no longer reads." },
+        "plating_bundle": { "name": "Bundle of Hull Plating", "lore": "Yard-fresh, never fitted. The freighter never made it to the yard." },
+        "foundry_haul": { "name": "Foundry Haul", "lore": "Half-set melt out of a burst furnace — finished in transit, which the yard never managed." },
+        "void_mask": { "name": "Void Mask", "lore": "Ritual mask of a sect that worshipped the vacuum. They wore it without a helmet — exactly once." },
+        "pilot_helmet": { "name": "Star Pilot's Helmet", "lore": "Visor scoured blind by a decade of dust. The call sign underneath is still legible." },
+        "fleet_crown": { "name": "Crown of the First Fleet", "lore": "No title, no office — a medal a crew forged for itself once nobody else came." },
+        "deep_pilgrim": { "name": "Deep Pilgrim", "lore": "The helm of a species that held the debris field sacred. They came to pray, not to salvage." }
+      }
+    },
 
     "tile": {
       "selectTile": "Select an unlocked tile to manage buildings",
@@ -96,6 +147,9 @@
       "btnUpgrade": "Upgrade",
       "btnResearch": "Research",
       "maxLevel": "Max level reached",
+      "costOnce":  "One-off build cost, from this planet's stock",
+      "costEnergy": "Extra continuous draw over the current level — tied up, not paid",
+      "costStaff": "Extra workers over the current level — assigned for good",
       "needPower": "⚡ Need power",
       "needStaff": "👥 Need staff",
       "lockedRequires": "🔒 {name} Lv{level}",
@@ -120,8 +174,8 @@
         "step7": "🚀 Colonize a second planet and specialize each one",
         "step8": "📦 Send a cargo drone to another planet",
         "step9": "🔭 Scan a foreign star system on the galaxy map",
-      "step10": "🕵️ Survey a foreign planet with a spy drone",
-      "step11": "📡 Place a spy satellite in orbit of a surveyed planet"
+        "step10": "🕵️ Survey a foreign planet with a spy drone",
+        "step11": "📡 Place a spy satellite in orbit of a surveyed planet"
       }
     },
 
@@ -312,6 +366,8 @@
     },
 
     "resourceBar": {
+      "energyLowHint": "Less than {n} energy to spare — the next building may not get powered",
+      "scrapHint":    "Salvage scrap — empire-wide, not per planet",
       "madeHere": "refinable here ({type})",
       "madeOn": "only refinable on {type}",
       "madeAnywhere": "refinable on any planet"
@@ -479,6 +535,7 @@
       "plasma_core": "Plasma Core",
       "superconductor": "Superconductor",
       "vital_gel": "Vital Gel",
+      "scrap":      "Salvage Scrap",
       "power_cell": "Power Cell"
     },
 
@@ -494,7 +551,10 @@
       "hightech":    { "name": "High-Tech",   "desc": "Advanced material refinement and planet-exclusive processing" },
       "dock":        { "name": "Dock",        "desc": "Ship management, missions and fleet operations" },
       "warship_bay": { "name": "Warship Bay", "desc": "Placeholder — no buildings yet" },
-      "orbit":       { "name": "Orbit",       "desc": "Orbital infrastructure — placeholder" }
+      "salvage": {
+        "name": "Salvage",
+        "desc": "Orbital debris field — cast the salvage beam and see what the trawl brings up"
+      }
     },
 
     "planetTypes": {
@@ -659,7 +719,9 @@
       "weapons_building": {
         "name": "Weapon Technology",
         "desc": "Military science division. Unlocks the planetary Defense tile.",
-        "lv1": "Unlocks Defense tile · basic weapon blueprints"
+        "lv1": "Unlocks Defense tile · basic weapon blueprints",
+        "lv2":  "+4 corvette berths · improved weapon blueprints",
+        "lv3":  "+4 corvette berths · heavy weapon blueprints"
       },
       "plasma_compressor": {
         "name": "Plasma Compressor",
@@ -687,23 +749,28 @@
       },
       "alloy_refinery": {
         "name": "Alloy Refinery",
-        "desc": "Presses metal and alloy into Duraplate hull plating. Terrestrial planets only.",
+        "desc": "Presses metal and alloy into Duraplate hull plating. Buildable anywhere — the alloy is the hard part.",
         "lv1": "Unlocks Duraplate production"
       },
       "obsidian_foundry": {
         "name": "Obsidian Foundry",
-        "desc": "Superheats obsidian and crystal into Plasma Cores. Volcanic planets only.",
+        "desc": "Superheats obsidian and crystal into Plasma Cores. Buildable anywhere — the obsidian is the hard part.",
         "lv1": "Unlocks Plasma Core production"
       },
       "cryo_refinery": {
         "name": "Cryo Refinery",
-        "desc": "Grows Superconductors from crystal in a cryonite bath. Frozen planets only.",
+        "desc": "Grows Superconductors from crystal in a cryonite bath. Buildable anywhere — the cryonite is the hard part.",
         "lv1": "Unlocks Superconductor production"
       },
       "bio_lab": {
         "name": "Bio Lab",
-        "desc": "Cultures biomass and metal into life-supporting Vital Gel. Ocean planets only.",
+        "desc": "Cultures biomass and metal into life-supporting Vital Gel. Buildable anywhere — the biomass is the hard part.",
         "lv1": "Unlocks Vital Gel production"
+      },
+      "salvage_smelter": {
+        "name": "Salvage Smelter",
+        "desc": "Melts scrap into metal, crystal and this planet's own raw — and, slowly and dearly, into any refined good.",
+        "lv1": "Melt scrap into raw material and refined goods"
       },
       "power_cell_lab": {
         "name": "Power Cell Lab",

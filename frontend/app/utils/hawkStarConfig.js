@@ -164,6 +164,11 @@ export const RESOURCES = {
   superconductor: { id: 'superconductor', name: 'Superconductor', icon: '🔌',  color: '#38bdf8', refined: true },
   vital_gel:      { id: 'vital_gel',      name: 'Vital Gel',      icon: '🧬',  color: '#2dd4bf', refined: true },
   power_cell:      { id: 'power_cell',      name: 'Power Cell',      icon: '🔋',  color: '#fbbf24' },
+  // Not a planet stock: salvage scrap is player-wide, has no storage cap and is
+  // never produced by a building. It sits here so recipe costs can look up an
+  // icon and a name like any other input — `currency: true` is what keeps it out
+  // of the resource bar and the full resource panel.
+  scrap:           { id: 'scrap',           name: 'Salvage Scrap',   icon: '🔩',  color: '#fcd34d', currency: true },
 }
 
 // ── Anomaly types ─────────────────────────────────────────────────────────────
@@ -190,7 +195,7 @@ export const TILE_TYPES = {
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
   dock:          { id: 'dock',          name: 'Dock',          icon: '🛸', description: 'Ship management, missions and fleet operations' },
   warship_bay:   { id: 'warship_bay',   name: 'Warship Bay',   icon: '⚔️', description: 'Placeholder — no buildings yet' },
-  orbit:         { id: 'orbit',         name: 'Orbit',         icon: '🛰️', description: 'Orbital infrastructure — placeholder' },
+  salvage:       { id: 'salvage',       name: 'Salvage',       icon: '🧲', description: 'Orbital debris field — cast the salvage beam and see what the trawl brings up' },
 }
 
 // ── Planet grid (3×3, slot 5 = center = base) ────────────────────────────────
@@ -208,7 +213,7 @@ export const PLANET_GRID = [
   { slot: 9,  tileType: 'hightech',    startsUnlocked: false },
   { slot: 10, tileType: 'dock',        startsUnlocked: false },
   { slot: 11, tileType: 'warship_bay', startsUnlocked: false },
-  { slot: 12, tileType: 'orbit',       startsUnlocked: false },
+  { slot: 12, tileType: 'salvage',     startsUnlocked: false },
 ]
 
 // ── Buildings ─────────────────────────────────────────────────────────────────
@@ -254,7 +259,7 @@ export const BUILDINGS = {
         effect:     'First Building · 1 worker',
         production: {},
         staffDrain: 1,
-        unlocks:    [{ slot: 2 }, { slot: 4 }],
+        unlocks:    [{ slot: 2 }, { slot: 4 }, { slot: 12 }],
       },
       {
         level:       2,
@@ -1037,6 +1042,16 @@ export const BUILDINGS = {
         effect:     'Unlock system scanning and predefined messaging',
         production: {},
       },
+      // signalTravelTime() halves its factor from here. The level was in
+      // config.php and in both translations all along; only this list was
+      // missing it, which made an implemented feature unreachable.
+      {
+        level:      2,
+        cost:       { metal: 600, crystal: 800 },
+        buildTime:  21600,
+        effect:     'Halves signal travel time',
+        production: {},
+      },
     ],
   },
 
@@ -1267,9 +1282,8 @@ export const BUILDINGS = {
     id:          'alloy_refinery',
     name:        'Alloy Refinery',
     tileType:    'hightech',
-    planetTypes: ['terrestrial'],
     icon:        '🧱',
-    description: 'Fuses metal and alloy into Duraplate. Terrestrial planets only.',
+    description: 'Fuses metal and alloy into Duraplate. Buildable anywhere — the alloy is the hard part.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
@@ -1291,9 +1305,8 @@ export const BUILDINGS = {
     id:          'obsidian_foundry',
     name:        'Obsidian Foundry',
     tileType:    'hightech',
-    planetTypes: ['volcanic'],
     icon:        '🌋',
-    description: 'Superheats obsidian and crystal under volcanic pressure into Plasma Cores. Volcanic planets only.',
+    description: 'Superheats obsidian and crystal into Plasma Cores. Buildable anywhere — the obsidian is the hard part.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
@@ -1315,9 +1328,8 @@ export const BUILDINGS = {
     id:          'cryo_refinery',
     name:        'Cryo Refinery',
     tileType:    'hightech',
-    planetTypes: ['frozen'],
     icon:        '🧬',
-    description: 'Purifies crystal using cryonite into Superconductor. Frozen planets only.',
+    description: 'Purifies crystal using cryonite into Superconductor. Buildable anywhere — the cryonite is the hard part.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
@@ -1339,9 +1351,8 @@ export const BUILDINGS = {
     id:          'bio_lab',
     name:        'Bio Lab',
     tileType:    'hightech',
-    planetTypes: ['ocean'],
     icon:        '🧫',
-    description: 'Synthesizes biomass and metal into Vital Gel. Ocean planets only.',
+    description: 'Synthesizes biomass and metal into Vital Gel. Buildable anywhere — the biomass is the hard part.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
@@ -1381,6 +1392,66 @@ export const BUILDINGS = {
     ],
     conversions: [
       { input: { metal: 200, crystal: 100 }, output: { power_cell: 1 }, durationBase: 1800 },
+    ],
+  },
+
+  // ── Salvage tile ───────────────────────────────────────────────────────────
+
+  // Turns salvaged debris back into usable stock. Two kinds of recipe:
+  //
+  //   raw     — metal, crystal and THIS planet's own exclusive raw. Cheap and
+  //             quick, and every one of them already has a storage cap on this
+  //             planet type, so the smelter needs no bins of its own.
+  //   refined — all five finished goods, directly. Expensive and slow, and the
+  //             only way a one-planet commander reaches the four they cannot
+  //             refine locally.
+  //
+  // Deliberately poor next to mining: a native alloy_forge makes 60 alloy/h from
+  // level 1 for nothing but energy, while a whole salvage hold (120 scrap per
+  // 8 h) melts down to 40. Owning the right planet stays the good way; this is
+  // the way that always exists.
+  //
+  // Single level on purpose, like the refineries — the recipes carry the cost
+  // curve, the building does not need one too.
+  salvage_smelter: {
+    id:          'salvage_smelter',
+    name:        'Salvage Smelter',
+    tileType:    'salvage',
+    icon:        '⚗️',
+    description: 'Melts scrap into metal, crystal and the raw this planet has — and, slowly and dearly, into any refined good.',
+    levels: [
+      {
+        level:       1,
+        cost:        { metal: 150, crystal: 80 },
+        buildTime:   900,
+        effect:      'Melt scrap into raw material and refined goods · uses 4 energy · 2 workers',
+        production:  {},
+        energyDrain: 4,
+        staffDrain:  2,
+      },
+    ],
+    // `planetTypes` on a recipe restricts it to those planet types — the same
+    // idiom the buildings use. It is what keeps the smelter to metal, crystal
+    // and the planet's OWN exclusive raw: every one of those already has a cap
+    // here, so nothing needs a storage bin invented for it.
+    //
+    // Order matters and must never be rearranged: `recipeIndex` is stored in
+    // hs_conversion_queues, so a running batch would deliver the wrong goods.
+    conversions: [
+      { input: { scrap: 30 },  output: { metal: 50 },          durationBase: 1200 },
+      { input: { scrap: 40 },  output: { crystal: 30 },        durationBase: 1200 },
+      { input: { scrap: 60 },  output: { alloy: 20 },          durationBase: 1800, planetTypes: ['terrestrial'] },
+      { input: { scrap: 60 },  output: { obsidian: 20 },       durationBase: 1800, planetTypes: ['volcanic'] },
+      { input: { scrap: 60 },  output: { cryo: 20 },           durationBase: 1800, planetTypes: ['frozen'] },
+      { input: { scrap: 60 },  output: { biomass: 20 },        durationBase: 1800, planetTypes: ['ocean'] },
+      // The finished goods, straight out of scrap. Costlier and far slower than
+      // any refinery, which is the point: this is the path that exists on every
+      // planet, not the good one.
+      { input: { scrap: 140 }, output: { power_cell: 1 },      durationBase: 3600 },
+      { input: { scrap: 250 }, output: { duraplate: 1 },       durationBase: 5400 },
+      { input: { scrap: 250 }, output: { plasma_core: 1 },     durationBase: 5400 },
+      { input: { scrap: 250 }, output: { superconductor: 1 },  durationBase: 5400 },
+      { input: { scrap: 250 }, output: { vital_gel: 1 },       durationBase: 5400 },
     ],
   },
 
@@ -1463,3 +1534,33 @@ export const COMM_EMOJIS = [
 // Base signal travel time in seconds per galaxy-distance unit.
 // Halved at interstellar_comm Lv2.
 export const SIGNAL_SPEED_BASE = 120
+
+// ── Salvage finds (Fundstücke) ───────────────────────────────────────────────
+// Mirrors SALVAGE_FINDS in api/star/config.php, key order included — the cabinet
+// draws the whole catalogue, owned or not, so the frontend needs the full list
+// and not merely what the server says is found. Names and lore are i18n
+// (`hawkStar.salvage.finds.<key>.name` / `.lore`); the effect is here because
+// the cabinet prints what each artefact did, and a locked slot still has to say
+// nothing at all about it.
+//
+// Nothing here is authoritative: the server pays out from its own copy. Keep
+// the two in step the way hawkStarConfig and config.php already are everywhere
+// else.
+export const SALVAGE_FINDS = {
+  signal_buoy:    { icon: '📡', effect: { type: 'hold',      amount: 10 } },
+  trawl_coil:     { icon: '🌀', effect: { type: 'hold',      amount: 15 } },
+  winch_drum:     { icon: '⚓', effect: { type: 'hold',      amount: 20 } },
+  cargo_frame:    { icon: '🧰', effect: { type: 'hold',      amount: 25 } },
+  scrap_cache:    { icon: '🗃️', effect: { type: 'scrap',     amount: 75 } },
+  pay_chest:      { icon: '💰', effect: { type: 'scrap',     amount: 100 } },
+  derelict:       { icon: '🚢', effect: { type: 'scrap',     amount: 150 } },
+  sealed_drum:    { icon: '🛢️', effect: { type: 'resources', resources: { metal: 500, crystal: 200 } } },
+  reactor_shard:  { icon: '☢️', effect: { type: 'resources', resources: { power_cell: 3 } } },
+  medbay_locker:  { icon: '🧪', effect: { type: 'resources', resources: { vital_gel: 2 } } },
+  plating_bundle: { icon: '🛠️', effect: { type: 'resources', resources: { duraplate: 2 } } },
+  foundry_haul:   { icon: '🔥', effect: { type: 'resources', resources: { plasma_core: 1, superconductor: 1 } } },
+  void_mask:      { icon: '🎭', effect: { type: 'portrait',  portrait: '🎭' } },
+  pilot_helmet:   { icon: '🪖', effect: { type: 'portrait',  portrait: '🪖' } },
+  fleet_crown:    { icon: '👑', effect: { type: 'portrait',  portrait: '👑' } },
+  deep_pilgrim:   { icon: '🐙', effect: { type: 'portrait',  portrait: '🐙' } },
+}

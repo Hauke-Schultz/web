@@ -30,6 +30,13 @@ $own->execute([$planetId, $playerId]);
 $planet = $own->fetch();
 if (!$planet) fail('Planet not found or not owned', 404);
 
+// A recipe may be planet-type-restricted even when its building is not — the
+// smelter offers only this planet's own exclusive raw. The panel filters the
+// same list, but the client is not the authority on it.
+if (!empty($recipe['planetTypes']) && !in_array($planet['type'], $recipe['planetTypes'], true)) {
+    fail('Recipe not available on this planet type');
+}
+
 // Resolve completed build timers first, so a freshly-finished refinery
 // (build_ends_at just elapsed client-side) can convert without a page reload.
 resolve_timers($db, $planetId, $playerId);
@@ -58,6 +65,20 @@ $totalCost = [];
 foreach ($recipe['input'] as $res => $amt) {
     $totalCost[$res] = $amt * $count;
 }
+// Salvage scrap is player-wide and lives in hs_salvage, so it can neither be
+// checked nor deducted alongside the planet's resource columns. Split it out
+// before either happens — and note that every smelter recipe is scrap-ONLY,
+// which is why the planet update below has to tolerate an empty cost.
+$scrapCost = (int)($totalCost['scrap'] ?? 0);
+unset($totalCost['scrap']);
+
+if ($scrapCost > 0) {
+    ensure_salvage($db, $playerId);
+    $have = $db->prepare('SELECT scrap FROM hs_salvage WHERE player_id=?');
+    $have->execute([$playerId]);
+    if ((int)$have->fetchColumn() < $scrapCost) fail('Not enough scrap');
+}
+
 $resRow = $db->prepare('SELECT * FROM hs_planet_resources WHERE planet_id=? AND player_id=?');
 $resRow->execute([$planetId, $playerId]);
 $res = $resRow->fetch();
@@ -65,11 +86,18 @@ foreach ($totalCost as $resource => $amount) {
     if (($res[$resource] ?? 0) < $amount) fail("Not enough $resource");
 }
 
-// Deduct cost
-$sets = array_map(fn($r) => "$r = $r - ?", array_keys($totalCost));
-$db->prepare(
-    'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
-)->execute([...array_values($totalCost), $planetId, $playerId]);
+// Deduct cost. The guard is not cosmetic: a scrap-only recipe leaves $totalCost
+// empty, and an empty SET list is a SQL syntax error rather than a no-op.
+if ($totalCost) {
+    $sets = array_map(fn($r) => "$r = $r - ?", array_keys($totalCost));
+    $db->prepare(
+        'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'
+    )->execute([...array_values($totalCost), $planetId, $playerId]);
+}
+if ($scrapCost > 0) {
+    $db->prepare('UPDATE hs_salvage SET scrap = scrap - ? WHERE player_id=?')
+       ->execute([$scrapCost, $playerId]);
+}
 
 // Duration per run: durationBase / building level (higher level = faster).
 // The batch runs them end to end and delivers once, so its clock is the sum.
@@ -82,6 +110,9 @@ $db->prepare(
 )->execute([$planetId, $playerId, $buildingKey, $recipeIndex, $totalDuration, $count]);
 
 ok([
+    // Only when the recipe actually spent from the purse — everything else has
+    // no business refreshing it.
+    'salvage'       => $scrapCost > 0 ? salvage_state($db, $playerId) : null,
     'endsAt'        => (time() + $totalDuration) * 1000,
     'count'         => $count,
     'totalDuration' => $totalDuration,

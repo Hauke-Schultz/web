@@ -9,7 +9,9 @@ const { t } = useI18n()
 
 const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 
-const EXCLUDED_IDS = ['population', 'energy']
+// 'scrap' is player-wide and has no planet stock or cap, so it has no business
+// in a per-planet breakdown — it lives in RESOURCES only for its icon and name.
+const EXCLUDED_IDS = ['population', 'energy', 'scrap']
 
 const allResources = computed(() =>
   Object.values(RESOURCES).filter(r => !EXCLUDED_IDS.includes(r.id))

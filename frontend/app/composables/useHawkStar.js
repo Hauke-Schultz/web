@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY, CONVERSION_MAX_QUEUE, FLEET_PER_WEAPONS_LEVEL, RAID } from '~/utils/hawkStarConfig.js'
+import { TILE_TYPES, PLANET_GRID, BUILDINGS, RESOURCES, UNIT_COSTS, PLANET_TYPES, COMM_EMOJIS, SIGNAL_SPEED_BASE, POWER_BATTERY, SHIELD, CARGO, SPY, CONVERSION_MAX_QUEUE, FLEET_PER_WEAPONS_LEVEL, RAID, SALVAGE_FINDS } from '~/utils/hawkStarConfig.js'
 import { useHawkStarAuth } from './useHawkStarAuth.js'
 import { useHawkStarApi } from './useHawkStarApi.js'
 
@@ -186,6 +186,29 @@ const batteryChargeOf = (planetId) => {
 
 const batteryCharge = computed(() => batteryChargeOf(activePlanetId.value))
 
+// Per-planet twin of production.energy — the board has to judge colonies the
+// active-planet computeds never look at.
+//
+// Production counts finished levels, drain counts the level a building is
+// UPGRADING to. That asymmetry is deliberate and matches the planet view: the
+// upgrade's appetite arrives the moment it is queued, its output only when it
+// lands, which is exactly the window in which a planet quietly runs dry.
+//
+// Null during a blackout: nothing produces and nothing draws, and the blackout
+// alarm already says everything there is to say.
+const energyBalanceOf = (planetId) => {
+  const st = allPlanetStates.value[planetId]
+  if (!st || gridDownOn(planetId)) return null
+  let produced = 0
+  let drain    = 0
+  for (const [id, bs] of Object.entries(st.buildings ?? {})) {
+    if ((bs.level ?? 0) > 0) produced += BUILDINGS[id]?.levels[bs.level - 1]?.production?.energy ?? 0
+    const lvl = bs.buildEndsAt ? (bs.level ?? 0) + 1 : (bs.level ?? 0)
+    if (lvl > 0) drain += BUILDINGS[id]?.levels[lvl - 1]?.energyDrain ?? 0
+  }
+  return { produced, drain, free: produced - drain }
+}
+
 // A planet without a power plant has no grid to lose — that is not a blackout.
 const gridDownOn = (planetId) => {
   const b = allPlanetStates.value[planetId]?.battery
@@ -335,6 +358,18 @@ const production = computed(() => ({
 
 const energyDeficit = computed(() => production.value.energy < 0)
 
+// Below this much spare energy a planet is one upgrade away from browning out.
+// Absolute rather than a share of production: what decides whether the next
+// building can be switched on is the number of units left over, not the
+// percentage — six spare is six spare on a starter colony and on a full one.
+const ENERGY_LOW_FREE = 6
+
+// Active planet, for the resource bar. The board computes the same thing per
+// planet in planetStatus() off energyBalanceOf().
+const energyLow = computed(() =>
+  !energyDeficit.value && (production.value.energy ?? 0) < ENERGY_LOW_FREE
+)
+
 // 0 → 1 measured from the last server resource sync — avoids the visual drop when % 60000 resets
 const tickProgress = computed(() => Math.min((now.value - lastResourceSyncMs.value) / 60000, 1))
 
@@ -350,6 +385,75 @@ const totalStaffDrain = computed(() => {
 })
 
 const freeWorkers = computed(() => playerResources.value.population - totalStaffDrain.value)
+
+// ── Salvage fishing (slot 12) ──────────────────────────────
+// Player-wide, not per planet: scrap is a currency and the hold is what caps it,
+// so one purse serves the whole empire. The timing game itself never comes here
+// — the panel plays it and reports only the outcome.
+const salvageState = ref(null)
+
+const salvageScrap = computed(() => salvageState.value?.scrap ?? 0)
+const salvageFinds = computed(() => salvageState.value?.finds ?? [])
+const salvageHoldMax = computed(() => salvageState.value?.holdMax ?? 0)
+
+// `hold` is the room LEFT, not the load — it drains as you catch and refills with
+// time. Recomputed against `now` for the same reason the recruit pool is: the
+// panel is looked at for minutes at a stretch and must not show a stale number.
+const salvageHold = computed(() => {
+  const s = salvageState.value
+  if (!s) return 0
+  const hours = (now.value - s.syncedAt) / 3600000
+  return Math.min(s.holdMax, s.hold + s.holdPerHour * hours)
+})
+
+// Room gone. Casting stays allowed — that is the whole point of capping the
+// catch instead of the cast — but the scrap goes back over the side.
+const salvageHoldEmpty = computed(() => salvageHold.value < 1)
+
+// The cabinet, in catalogue order and with the locked entries still in it: the
+// panel draws all sixteen either way, and a slot that is not yet found is the
+// part that makes it a collection rather than a list. `found` is the only thing
+// the server has a say in.
+const salvageCabinet = computed(() =>
+  Object.entries(SALVAGE_FINDS).map(([key, def]) => ({
+    key,
+    icon:   def.icon,
+    effect: def.effect,
+    found:  salvageFinds.value.includes(key),
+  }))
+)
+
+// Avatars that artefacts unlocked. The profile picker appends them to its own
+// fixed list — the one reward track the server does nothing about beyond
+// recording that the find is owned.
+const salvagePortraits = computed(() =>
+  salvageCabinet.value.filter(f => f.found && f.effect.type === 'portrait').map(f => f.effect.portrait)
+)
+
+// No optimistic update anywhere here: what bites is rolled server-side on
+// purpose, so there is nothing to guess, and a refused report (too fast) must
+// not leave a phantom gain on screen. A failure is reported as a plain miss.
+// `zone` is 'perfect' | 'good' — how tight the click was. It only ever picks
+// which weight column the server rolls on, never the payout itself, so claiming
+// 'perfect' every time buys a better table and nothing more: the hold still caps
+// the day. Skill buys time, exactly as everywhere else in this feature.
+// The planet goes along only so an artefact that pays in planet stock has
+// somewhere to land; scrap and the hold are player-wide and ignore it.
+const reportSalvageCatch = async (hit, zone = null) => {
+  const { postSalvageCatch } = useHawkStarApi()
+  try {
+    const r = await postSalvageCatch(!!hit, zone, activePlanetId.value)
+    if (r.salvage) salvageState.value = { ...r.salvage, syncedAt: Date.now() }
+    // An artefact that pays in planet stock has just changed this planet's
+    // resources behind the composable's back — the same reload every other
+    // payout endpoint triggers.
+    if (r.find?.grant?.type === 'resources') await refreshPlanetState(activePlanetId.value)
+    return r
+  } catch (e) {
+    console.error('[hawk-star] salvage catch failed:', e)
+    return { hit: false, catch: null, gained: 0, find: null, failed: true }
+  }
+}
 
 // ── Storage caps ───────────────────────────────────────────
 // The cap is the summed storageCapacity of the finished buildings and nothing
@@ -394,9 +498,16 @@ const resourceDisplay = (id) => {
 }
 
 // ── Build checks ───────────────────────────────────────────
+// One lookup for "how much of this do I have". Almost everything is a stock on
+// the active planet; salvage scrap is the exception — player-wide, its own
+// table, no column in hs_planet_resources. Every affordability check goes
+// through here so that exception is written down exactly once.
+const stockOf = (res) =>
+  res === 'scrap' ? salvageScrap.value : (playerResources.value[res] ?? 0)
+
 const canAfford = (cost) => {
   for (const [res, amt] of Object.entries(cost)) {
-    if ((playerResources.value[res] ?? 0) < amt) return false
+    if (stockOf(res) < amt) return false
   }
   return true
 }
@@ -424,6 +535,17 @@ const hasEnoughStaff = (id) => {
   const currentDrain = getLevel(id) > 0
     ? (BUILDINGS[id]?.levels[getLevel(id) - 1]?.staffDrain ?? 0) : 0
   return freeWorkers.value - (next.staffDrain - currentDrain) >= 0
+}
+
+// What an upgrade adds to the grid, not what the finished level draws in
+// total. metal_mine Lv3 already pays 9; going to Lv4 (drain 12) costs 3 more,
+// and the row said 12 — a number that appears in no cost anywhere. Mirrors
+// staffDelta below, and matches what hasEnoughPower() has always checked.
+const energyDelta = (id) => {
+  const next = nextLevelDef(id)
+  if (!next?.energyDrain) return 0
+  const current = getLevel(id) > 0 ? (BUILDINGS[id]?.levels[getLevel(id) - 1]?.energyDrain ?? 0) : 0
+  return next.energyDrain - current
 }
 
 const staffDelta = (id) => {
@@ -1675,7 +1797,7 @@ const maxConversionRuns = (buildingId, recipeIndex) => {
   const recipe = BUILDINGS[buildingId]?.conversions?.[recipeIndex]
   if (!recipe) return 0
   const runs = Object.entries(recipe.input).map(
-    ([res, amt]) => Math.floor((playerResources.value[res] ?? 0) / amt)
+    ([res, amt]) => Math.floor(stockOf(res) / amt)
   )
   return Math.max(0, Math.min(CONVERSION_MAX_QUEUE, ...runs))
 }
@@ -1702,9 +1824,24 @@ const startConversion = async (buildingId, recipeIndex, count = 1) => {
     const res    = allPlanetStates.value[planetId]?.resources
     if (recipe && res) {
       for (const [r, amt] of Object.entries(recipe.input)) {
+        // Scrap is not in the planet's resources object at all — it comes back
+        // authoritative in the response below, this only stops the number
+        // sitting stale for one round trip.
+        if (r === 'scrap') {
+          if (salvageState.value) {
+            salvageState.value = {
+              ...salvageState.value,
+              scrap: Math.max(0, salvageState.value.scrap - amt * runs),
+              syncedAt: Date.now(),
+            }
+          }
+          continue
+        }
         res[r] = Math.max(0, (res[r] ?? 0) - amt * runs)
       }
     }
+    // The server sends the purse back whenever a recipe spent from it.
+    if (result.salvage) salvageState.value = { ...result.salvage, syncedAt: Date.now() }
 
     queues.push({
       buildingId,
@@ -2161,6 +2298,10 @@ const applyGameState = (planetId, state) => {
     if (!spiedPlanets.value.includes(pid)) spiedPlanets.value.push(pid)
   }
 
+  // Player-wide too: the scrap purse and the salvage hold belong to the
+  // commander, so every planet's state carries the same block.
+  if (state.salvage) salvageState.value = { ...state.salvage, syncedAt: Date.now() }
+
   // Player-wide, not per planet — every state load reports the same total
   cargoDeliveries.value      = state.cargoDeliveries ?? 0
   satelliteDeployments.value = state.satelliteDeployments ?? 0
@@ -2514,10 +2655,25 @@ const planetStatus = (planetId) => {
     add('alarm', 'bogey', '📡', 'hawkStar.empire.rowBogey',
         { params: { n: st.foreignSatellites.length }, tile: 'defense' })
 
+  // A grid that cannot cover its own buildings is broken, not tight: the server
+  // takes buildings offline for it. Only raised once something actually draws —
+  // a bare planet with no plant and no consumers is not in deficit, it is empty.
+  const energy = energyBalanceOf(planetId)
+  if (energy && energy.drain > 0 && energy.free < 0)
+    add('alarm', 'energyDeficit', '⚡', 'hawkStar.empire.rowEnergyDeficit',
+        { params: { n: Math.abs(energy.free) }, tile: 'energy' })
+
   // ── Warnings — nothing broken, but something is idling or about to lapse ──
   if (st.shield && (shd ?? 0) > 0 && shd < EMPIRE_SHIELD_LOW_PCT)
     add('warn', 'shieldLow', '🛡️', 'hawkStar.empire.rowShieldLow',
         { params: { pct: Math.round(shd), h: Math.max(1, Math.round(shdHours ?? 0)) }, tile: 'defense' })
+
+  // Still covered, but the next upgrade will not be. This is the one finding
+  // that is cheapest to act on *before* it becomes the alarm above, and it uses
+  // the very same ENERGY_LOW_FREE the resource bar turns orange on.
+  if (energy && energy.drain > 0 && energy.free >= 0 && energy.free < ENERGY_LOW_FREE)
+    add('warn', 'energyLow', '⚡', 'hawkStar.empire.rowEnergyLow',
+        { params: { n: energy.free, produced: energy.produced }, tile: 'energy' })
 
   if (hasBattery && !dark && batHours != null && batHours < EMPIRE_BATTERY_LOW_HOURS)
     add('warn', 'batteryLow', '🔋', 'hawkStar.empire.rowBatteryLow',
@@ -2541,9 +2697,16 @@ const planetStatus = (planetId) => {
 
   // A refinery with no batch running is the other silent loss: one refinery
   // feeds exactly one converter, so an idle one stalls a whole chain.
+  //
+  // Scrap-fed converters are exempt. The rule assumes the input piles up by
+  // itself, so standing idle means throwing away production; salvage scrap only
+  // arrives when the player goes fishing, and an idle smelter is the normal,
+  // correct state. Warning about it would nag forever and teach the player to
+  // stop reading the warn tier.
   for (const [bid, bst] of Object.entries(st.buildings ?? {})) {
     const def = BUILDINGS[bid]
     if (!def?.conversions?.length || bst.level === 0 || bst.buildEndsAt) continue
+    if (def.conversions.some(c => "scrap" in (c.input ?? {}))) continue
     if ((st.conversionQueues ?? []).some(q => q.buildingId === bid)) continue
     add('warn', `idle_${bid}`, def.icon ?? '⚗️', 'hawkStar.empire.rowConverterIdle',
         { params: { name: def.name }, tile: def.tileType })
@@ -2795,6 +2958,7 @@ export function useHawkStar() {
     startBuild,
     hasEnoughPower,
     hasEnoughStaff,
+    energyDelta,
     staffDelta,
     isOffline,
     // power battery
@@ -2844,6 +3008,17 @@ export function useHawkStar() {
     empireResearch,
     focusPlanetTile,
 
+    // salvage fishing
+    salvageScrap,
+    stockOf,
+    salvageHold,
+    salvageHoldMax,
+    salvageHoldEmpty,
+    salvageFinds,
+    salvageCabinet,
+    salvagePortraits,
+    reportSalvageCatch,
+
     // onboarding
     onboardingSteps,
     onboardingDoneCount,
@@ -2854,6 +3029,9 @@ export function useHawkStar() {
     totalEnergyDrain,
     production,
     energyDeficit,
+    energyLow,
+    ENERGY_LOW_FREE,
+    energyBalanceOf,
     tickProgress,
     // staff
     totalStaffDrain,

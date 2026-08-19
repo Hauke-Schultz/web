@@ -135,7 +135,7 @@ const GLOBAL_BUILDINGS = ['star_map', 'interstellar_comm'];
 const BUILDINGS = [
 
   'command_center' => ['tileType' => 'base', 'levels' => [
-    ['level'=>1,'cost'=>[],'buildTime'=>20,'production'=>[],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[['slot'=>2],['slot'=>4]],'popBonus'=>0],
+    ['level'=>1,'cost'=>[],'buildTime'=>20,'production'=>[],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[['slot'=>2],['slot'=>4],['slot'=>12]],'popBonus'=>0],
     ['level'=>2,'cost'=>['metal'=>80,'crystal'=>30],'buildTime'=>480,'production'=>[],'energyDrain'=>2,'staffDrain'=>2,'unlocks'=>[['slot'=>6],['slot'=>7],['slot'=>8]],'popBonus'=>5,'requiresBuilding'=>'metal_mine','requiresLevel'=>2],
     ['level'=>3,'cost'=>['metal'=>300,'crystal'=>100],'buildTime'=>3600,'production'=>[],'energyDrain'=>3,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>10],
   ]],
@@ -325,32 +325,54 @@ const BUILDINGS = [
     ['level'=>2,'cost'=>['metal'=>600,'crystal'=>800],'buildTime'=>21600,'production'=>[],'energyDrain'=>0,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'alloy_refinery' => ['tileType'=>'hightech','planetTypes'=>['terrestrial'],'conversions'=>[
+  'alloy_refinery' => ['tileType'=>'hightech','conversions'=>[
     ['input'=>['metal'=>150,'alloy'=>60],'output'=>['duraplate'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'alloy'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'obsidian_foundry' => ['tileType'=>'hightech','planetTypes'=>['volcanic'],'conversions'=>[
+  'obsidian_foundry' => ['tileType'=>'hightech','conversions'=>[
     ['input'=>['crystal'=>80,'obsidian'=>80],'output'=>['plasma_core'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'obsidian'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'cryo_refinery' => ['tileType'=>'hightech','planetTypes'=>['frozen'],'conversions'=>[
+  'cryo_refinery' => ['tileType'=>'hightech','conversions'=>[
     ['input'=>['crystal'=>100,'cryo'=>50],'output'=>['superconductor'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'cryo'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'bio_lab' => ['tileType'=>'hightech','planetTypes'=>['ocean'],'conversions'=>[
+  'bio_lab' => ['tileType'=>'hightech','conversions'=>[
     ['input'=>['metal'=>120,'biomass'=>40],'output'=>['vital_gel'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'biomass'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
+  ]],
+
+  // Salvage tile. Raw recipes are limited to metal, crystal and the planet's OWN
+  // exclusive raw — all of which already have a cap here, so the smelter needs
+  // no storage of its own. The five finished goods come straight out of scrap,
+  // costlier and far slower than any refinery: that is the path that exists on
+  // every planet, not the good one. Recipe ORDER is load-bearing (recipe_index
+  // is stored on running batches) — append, never rearrange.
+  'salvage_smelter' => ['tileType'=>'salvage','conversions'=>[
+    ['input'=>['scrap'=>30],'output'=>['metal'=>50],'durationBase'=>1200],
+    ['input'=>['scrap'=>40],'output'=>['crystal'=>30],'durationBase'=>1200],
+    ['input'=>['scrap'=>60],'output'=>['alloy'=>20],'durationBase'=>1800,'planetTypes'=>['terrestrial']],
+    ['input'=>['scrap'=>60],'output'=>['obsidian'=>20],'durationBase'=>1800,'planetTypes'=>['volcanic']],
+    ['input'=>['scrap'=>60],'output'=>['cryo'=>20],'durationBase'=>1800,'planetTypes'=>['frozen']],
+    ['input'=>['scrap'=>60],'output'=>['biomass'=>20],'durationBase'=>1800,'planetTypes'=>['ocean']],
+    ['input'=>['scrap'=>140],'output'=>['power_cell'=>1],'durationBase'=>3600],
+    ['input'=>['scrap'=>250],'output'=>['duraplate'=>1],'durationBase'=>5400],
+    ['input'=>['scrap'=>250],'output'=>['plasma_core'=>1],'durationBase'=>5400],
+    ['input'=>['scrap'=>250],'output'=>['superconductor'=>1],'durationBase'=>5400],
+    ['input'=>['scrap'=>250],'output'=>['vital_gel'=>1],'durationBase'=>5400],
+  ],'levels'=>[
+    ['level'=>1,'cost'=>['metal'=>150,'crystal'=>80],'buildTime'=>900,'production'=>[],'energyDrain'=>4,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
   ]],
 
   'power_cell_lab' => ['tileType'=>'hightech','conversions'=>[
@@ -693,6 +715,110 @@ function pick_anomaly_type(string $planetType, array $buildingLevels): string|nu
         if ($roll <= 0) return $type;
     }
     return array_key_first($eligible);
+}
+
+// ── Salvage fishing (slot 12) ─────────────────────────────────────────────────
+// A skill toy for the minutes spent waiting on a build. The timing happens in
+// the browser and cannot be verified here — a faked report always hits — so this
+// does not try to verify it. It caps the yield instead: whatever a cheater
+// claims, the ceiling is what a perfect player would have earned anyway.
+//
+// Two reward tracks, two different ceilings:
+//   scrap → the cargo hold, a regenerating allowance (below)
+//   finds → unique per player, so there is nothing to farm in the first place
+const SALVAGE_HOLD_MAX      = 120.0;  // BASE hold — `hold` artefacts raise it per player
+const SALVAGE_HOLD_PER_HOUR = 15.0;   // refill rate — a full hold every 8 h
+
+// The shortest a real cast can run (wait + ring). Reports arriving faster are
+// refused. It changes nothing about the ceilings — it only stops a script from
+// emptying the find table in one burst.
+const SALVAGE_MIN_CAST_SECONDS = 4;
+
+// What comes up and what it is worth. Weights are relative, not percentages.
+// Two columns: a hit anywhere in the window rolls `weight`, a hit in the gold
+// core rolls `weightPerfect`. Precision therefore changes the odds, never the
+// ceiling — the hold still caps what a day can yield, so a client that claims a
+// perfect strike every time simply reaches that ceiling sooner.
+const SALVAGE_CATCHES = [
+    'debris'   => ['weight' => 50, 'weightPerfect' => 22, 'scrap' => 3,  'icon' => '🪨'],
+    'fragment' => ['weight' => 30, 'weightPerfect' => 34, 'scrap' => 6,  'icon' => '🔧'],
+    'module'   => ['weight' => 15, 'weightPerfect' => 30, 'scrap' => 12, 'icon' => '📦'],
+    'haul'     => ['weight' => 5,  'weightPerfect' => 14, 'scrap' => 25, 'icon' => '💠'],
+];
+
+// Artefacts ride on top of a catch, once per player each, and are deliberately
+// NOT charged to the hold — that is what keeps the toy worth playing once the
+// hold is full, and it is safe precisely because a unique item cannot be farmed.
+// Names and lore are i18n; the icon and the effect are below. An empty list
+// would simply disable the roll.
+const SALVAGE_FIND_CHANCE = 0.015;
+// The cabinet: sixteen artefacts, each findable once per player. Names and lore
+// live in i18n — what stays here is the icon and the effect, the two things the
+// server has to be the authority on.
+//
+// Four kinds of effect, all of them things the game can already do:
+//   hold       permanent +N cargo, credited to the current hold as well
+//   scrap      a one-off gift to the purse, uncapped for the same reason a find is
+//   resources  a one-off delivery to the planet that was fished, storage-capped
+//   portrait   unlocks an extra avatar in the profile panel — frontend only
+//
+// Titles were on the sketch's list and are not here: nothing in the game shows
+// one, and building that system for a single reward is out of proportion. The
+// lore line carries the flavour instead.
+//
+// The roll picks uniformly from what is not yet owned — no weights. Weighting
+// would only change the ORDER a collection is completed in, since every entry
+// is eventually taken and none of them repeats.
+const SALVAGE_FINDS = [
+    // ── Permanent hold, +70 across the four of them (120 → 190) ──────────────
+    'signal_buoy'  => ['icon' => '📡', 'effect' => ['type' => 'hold', 'amount' => 10]],
+    'trawl_coil'   => ['icon' => '🌀', 'effect' => ['type' => 'hold', 'amount' => 15]],
+    'winch_drum'   => ['icon' => '⚓', 'effect' => ['type' => 'hold', 'amount' => 20]],
+    'cargo_frame'  => ['icon' => '🧰', 'effect' => ['type' => 'hold', 'amount' => 25]],
+
+    // ── Scrap, straight into the purse ───────────────────────────────────────
+    'scrap_cache'  => ['icon' => '🗃️', 'effect' => ['type' => 'scrap', 'amount' => 75]],
+    'pay_chest'    => ['icon' => '💰', 'effect' => ['type' => 'scrap', 'amount' => 100]],
+    'derelict'     => ['icon' => '🚢', 'effect' => ['type' => 'scrap', 'amount' => 150]],
+
+    // ── Planet stock. Capped on delivery like every other payout, so a full
+    //    store keeps what fits and nothing more.
+    'sealed_drum'  => ['icon' => '🛢️', 'effect' => ['type' => 'resources', 'resources' => ['metal' => 500, 'crystal' => 200]]],
+    'reactor_shard'=> ['icon' => '☢️', 'effect' => ['type' => 'resources', 'resources' => ['power_cell' => 3]]],
+    'medbay_locker'=> ['icon' => '🧪', 'effect' => ['type' => 'resources', 'resources' => ['vital_gel' => 2]]],
+    'plating_bundle'=>['icon' => '🛠️', 'effect' => ['type' => 'resources', 'resources' => ['duraplate' => 2]]],
+    'foundry_haul' => ['icon' => '🔥', 'effect' => ['type' => 'resources', 'resources' => ['plasma_core' => 1, 'superconductor' => 1]]],
+
+    // ── Avatars. The only purely cosmetic track, and the only one the server
+    //    does nothing about beyond recording that it is owned.
+    'void_mask'    => ['icon' => '🎭', 'effect' => ['type' => 'portrait', 'portrait' => '🎭']],
+    'pilot_helmet' => ['icon' => '🪖', 'effect' => ['type' => 'portrait', 'portrait' => '🪖']],
+    'fleet_crown'  => ['icon' => '👑', 'effect' => ['type' => 'portrait', 'portrait' => '👑']],
+    'deep_pilgrim' => ['icon' => '🐙', 'effect' => ['type' => 'portrait', 'portrait' => '🐙']],
+];
+
+// The hold ceiling is per player, not a constant: every `hold` find raises it
+// for good. Pure on purpose — it takes the owned list a caller already has in
+// hand rather than reaching for the DB, because both callers have just read it.
+function salvage_hold_max(array $ownedFinds): float {
+    $max = SALVAGE_HOLD_MAX;
+    foreach ($ownedFinds as $key) {
+        $e = SALVAGE_FINDS[$key]['effect'] ?? null;
+        if ($e && $e['type'] === 'hold') $max += (float)$e['amount'];
+    }
+    return $max;
+}
+
+function salvage_roll_catch(string $zone = 'good'): string {
+    $col = $zone === 'perfect' ? 'weightPerfect' : 'weight';
+    $total = 0;
+    foreach (SALVAGE_CATCHES as $c) $total += $c[$col];
+    $roll = mt_rand(1, max(1, $total));
+    foreach (SALVAGE_CATCHES as $key => $c) {
+        $roll -= $c[$col];
+        if ($roll <= 0) return $key;
+    }
+    return array_key_first(SALVAGE_CATCHES);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

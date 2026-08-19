@@ -31,7 +31,7 @@ The answer to *"I have not played for two days — where did I leave off?"*. Bef
 
 | Part | Content |
 |---|---|
-| Head | Type icon, name, 🏠, and the state badge in one word: **Blackout / Alarm / Baut / Wandelt um / Leerlauf / Produktiv** |
+| Head | Type icon, name, 🏠, and the state badge in one word: **Blackout / Alarm / Baut / Wandelt um / Leerlauf / Nichts im Bau** |
 | Meters | 🔋 battery and 🛡️ shield as bar + % + **remaining runtime** (`hält 28 h`) |
 | Rows | Every finding, most serious first |
 
@@ -40,10 +40,16 @@ The answer to *"I have not played for two days — where did I leave off?"*. Bef
 Two functions, deliberately not one. `cardTone()` drives the card's **frame** and may only ever be severity — alarm red, warn amber, otherwise plain. `stateBadge()` drives the **word**, and its ladder is:
 
 ```
-Blackout → Alarm → Baut → Wandelt um → Leerlauf → Produktiv
+Blackout → Alarm → Baut → Wandelt um → Leerlauf → Nichts im Bau
 ```
 
-**The calm state is `Produktiv` / *Productive*, not *Running*** *(2026-08-18)*. English `stateOk` used to read *Running*, which was fine while the badge only ever said how a planet was — and wrong the moment *Building* and *Converting* joined it, because *Running* then reads as "something is under way" when it means the exact opposite: nothing is under way, the planet is simply producing. It also collided with the `running` row kind. German said *Produktiv* all along; the English now mirrors it.
+**There is no calm state any more** *(2026-08-19)*. The bottom of the ladder went *Running* → *Produktiv* → **`Nichts im Bau`**, and the last step removed `stateOk` rather than renaming it again.
+
+The reason is that the bottom rung was never really "everything is fine" — it is "no alarm, no warning, and nothing under way", and since a build would have been caught by *Baut* two rungs up, it **always** means nothing is being built. A word like *Produktiv* stated the least useful half of that. The badge now names the half a commander can act on, and a card that used to read "fine" and get closed without a click asks for a build instead.
+
+`stateOk` is therefore unreachable and its i18n keys are deleted in both languages. Restoring a genuine "nothing left to do here" state would need a test for *has this planet anything worth building* — free unlocked slot, affordable upgrade — which does not exist yet.
+
+**The nudge sits below the warn tier, not above it.** A storage that has actually stopped producing outranks an empty build queue, and its `--idle` badge tone is deliberately quieter than amber: this is a suggestion, not a fault.
 
 **Activity outranks `Leerlauf` on purpose.** An empty build slot is a warn row on nearly every young planet, so a badge that let warn win would practically never get to say *Baut* — the feature would be dead on arrival. Nothing is lost by the swap: the amber frame stays, and the warning is still a row on the card. Alarms are the other way round — something broken always beats something under way.
 
@@ -55,9 +61,27 @@ Blackout → Alarm → Baut → Wandelt um → Leerlauf → Produktiv
 
 | Kind | Colour | Examples |
 |---|---|---|
-| **alarm** | red | Blackout · shield empty · foreign satellite in orbit |
-| **warn** | amber | shield < 20 % · battery < 12 h · anomaly waiting · **storage full** · **refinery idle** · recruit pool full · empty build slot |
+| **alarm** | red | Blackout · **energy deficit** · shield empty · foreign satellite in orbit |
+| **warn** | amber | shield < 20 % · battery < 12 h · **energy tight** · anomaly waiting · **storage full** · **refinery idle** · recruit pool full · empty build slot |
 | **running** | grey | building (never capped) · conversion batch · ship batch · raids (named target) · other flights (aggregated) |
+
+#### Energy, on the board  *(2026-08-19)*
+
+The board never said anything about energy, which was the biggest hole in it: a planet whose grid cannot cover its buildings has them switched off by the server, and nothing on the card mentioned it. Two rows now, both on the energy tile:
+
+| Row | Kind | When |
+|---|---|---|
+| `rowEnergyDeficit` | alarm | `free < 0` — the grid cannot cover its own buildings and the server is taking them offline |
+| `rowEnergyLow` | warn | `0 ≤ free < ENERGY_LOW_FREE` (6) — still covered, but the next upgrade will not be |
+
+- **The threshold is a flat six spare, not a share of production** *(2026-08-19)*. It started out as `max(2, produced × 0.15)`, on the theory that tightness is relative. It is not: what decides whether the next building can be switched on is the number of units left over, and six spare is six spare on a starter colony and on a full one. One constant, `ENERGY_LOW_FREE`, and the resource bar turns amber off the very same number — the corner of the screen and the card can never disagree about what "tight" means.
+- **Production counts finished levels, drain counts the level a building is upgrading to.** `energyBalanceOf()` repeats that asymmetry from the planet view on purpose: the upgrade's appetite arrives the moment it is queued and its output only when it lands, and that gap is exactly the window in which a planet quietly runs dry. This is why the warn can appear the second an upgrade is ordered — that is the useful moment, not the one after.
+- **Neither row fires when nothing draws.** A bare planet with no power plant and no consumers is not in deficit, it is empty; `drain > 0` guards both.
+- **Neither fires during a blackout either** — `energyBalanceOf()` returns null there, because production and drain are both zero and the blackout alarm already says everything worth saying.
+
+**The resource bar carries the same warning** *(2026-08-19)*. On `energyLow` the ⚡ card turns amber — tint, value, and the `net/gross` rate line, which goes from green to amber and is where the state is actually read. No badge next to it: the number *is* the message, and a second element only competed with it. Amber sits one step short of the red deficit tint, so the two read as a sequence rather than as unrelated states.
+
+**A trap worth remembering: all three `--low` rules were dead on arrival.** They were written *above* `.hs-res-card`, `.hs-res-value` and `.hs-res-prod` in the stylesheet. Same specificity, so the base rules won on source order and quietly repainted every one of them back to normal — the card kept its tint, the value its colour, the rate line its grey. Only the grey was noticed. Modifiers belong nested inside the block they modify, next to `--deficit`, which is where they are now.
 
 **The warn tier is the point of the board, more than the alarms.** A blackout is noticed anyway. A crystal store that filled up and stopped the drill, or an `alloy_refinery` that has been standing idle since the last batch delivered, are silent losses that a returning player never spots — and the refinery case is worse than it looks, because *one refinery feeds exactly one converter*, so an idle one stalls a whole chain.
 
@@ -115,7 +139,7 @@ The first version branched: the board when *you own more than one planet, or som
 
 ### Files
 
-`ownPlanetIds`, `loadOwnPlanetStates`, `storageCapsOf`, `tileHasBuildings`, `anyPlanetName`, `planetStatus`, `empireStatus`, `empireAlertCount`, `planetStatus.activity`, `focusPlanetTile`, `empireResearch`, `buildStartOf`, `lastRaids` + `EMPIRE_*` / `TILE_SLOT` / `EMPIRE_RANK` in `useHawkStar.js` · `last_raids_on_planets()` in `api/star/bootstrap.php` · `lastRaids` in `api/star/game/state.php` · `HsEmpirePanel.vue` · first tab + badge in `HsNavBar.vue` · `LANDING_VIEW` + view wiring in `pages/games/hawkStar/index.vue` · `hawkStar.empire.*` and `hawkStar.nav.empire` in de/en
+`ownPlanetIds`, `loadOwnPlanetStates`, `storageCapsOf`, `tileHasBuildings`, `anyPlanetName`, `planetStatus`, `empireStatus`, `empireAlertCount`, `planetStatus.activity`, `energyBalanceOf` + `energyLow` + `ENERGY_LOW_FREE`, `focusPlanetTile`, `empireResearch`, `buildStartOf`, `lastRaids` + `EMPIRE_*` / `TILE_SLOT` / `EMPIRE_RANK` in `useHawkStar.js` · `last_raids_on_planets()` in `api/star/bootstrap.php` · `lastRaids` in `api/star/game/state.php` · `HsEmpirePanel.vue` · first tab + badge in `HsNavBar.vue` · `LANDING_VIEW` + view wiring in `pages/games/hawkStar/index.vue` · `hawkStar.empire.*` and `hawkStar.nav.empire` in de/en
 
 ---
 
@@ -229,6 +253,31 @@ The mines' **energy drain now scales past Lv3** as well (metal 9 → 12/16/21, c
 ### Building row layout
 
 `hs-building-row` (in `HsTilePanel`) splits along one question: *what is this* on the left, *what does the next level cost me* on the right.
+
+#### The three cost tags mean three different things  *(fixed 2026-08-19)*
+
+They are drawn identically, which is why the difference has to be stated:
+
+| Tag | Meaning | Value shown |
+|---|---|---|
+| resource | paid once, out of this planet's stock | the level's `cost` |
+| ⚡ | **tied up, not paid** — continuous draw | `energyDelta()`, the difference to the current level |
+| 👥 | tied up, not paid — workers assigned for good | `staffDelta()`, likewise a difference |
+
+**The ⚡ tag used to print the level's total drain.** On a metal mine going Lv3 → Lv4 it read *⚡ 12* — a number that appears in no cost anywhere: Lv3 is already paying 9, so the upgrade asks for 3. Staff was a delta from the start and `hasEnoughPower()` had always *checked* the delta, so the display was the only thing out of step, and it was out of step with itself. `energyDelta()` now mirrors `staffDelta()` exactly.
+
+Each tag also carries a title explaining which of the three it is, because "cost" is the wrong word for two of them and the row has no room to say so.
+
+The resource tags read their stock through `stockOf()` rather than `playerResources` — no build cost is in a player-wide currency today, but the conversion row had exactly that bug with scrap and this is the same code shape.
+
+#### Two things the config audit turned up
+
+Both configs are duplicated by hand (`hawkStarConfig.js` / `config.php`) and the level texts restate numbers from them, so all three can drift. Comparing them mechanically found:
+
+- **`interstellar_comm` Lv2 was unbuildable.** `config.php` had the level, both translations described it (*Signalreisezeit halbiert*), and `signalTravelTime()` halves its factor at level ≥ 2 — but the level was missing from `hawkStarConfig.js`, so `nextLevelDef()` returned null and the row showed MAX. An implemented feature no player could reach. Restored to the frontend rather than deleted from the backend, because everything except that one list agreed it should exist.
+- **`weapons_building` Lv2 and Lv3 had no effect text in either language**, so the build row printed the raw i18n key. Both levels buy `FLEET_PER_WEAPONS_LEVEL` (4) corvette berths; the strings now say so.
+
+Everything else checks out: 34 buildings, every level's cost / buildTime / energyDrain / staffDrain / popBonus identical between the two configs, and every number in every `lvN` string matching the level it describes. Worth knowing when reading those strings: **they state deltas, not totals** — *"+8 Metall/min · +900 Lager"* on mine Lv4 means 12 → 20 and 1500 → 2400.
 
 | Left (`hs-building-ident`) | Right (`hs-building-action`) |
 |---|---|
@@ -466,6 +515,263 @@ The open anomaly is drawn as **one closed card**: the head (icon, name, descript
 ### Files
 
 `ANOMALY_*` / `ANOMALIES` in `api/star/config.php` · `anomaly_state`, `create_anomaly`, `materialize_anomaly_choice`, `apply_anomaly_choice`, `credit_resources` in `api/star/bootstrap.php` · `api/star/game/anomaly/resolve.php` · table `hs_anomalies` · `HsAnomalyPanel.vue` · `anomaly`/`hasAnomaly`/`resolveAnomaly` in `useHawkStar.js`
+
+---
+
+## Salvage Fishing  *(designed 2026-08-18 · built 2026-08-19 · shop replaced by the smelter, same day)*
+
+**The shop was cut before it was written.** Scrap does not buy finished goods from a menu; it feeds a **Salvage Smelter** that melts it back into raw material — see *Every refined good, on every planet* below. Everything in this section describes what the code does.
+
+A small skill toy on its own tile, for the minutes you spend waiting on a build. Cast a salvage beam into the planet's debris field, a signal wobbles, lock on in time. The design rule it must never break: **a pastime must not become an obligation.**
+
+### The unverifiable-skill problem, and the two caps
+
+Timing happens in the browser. The server **cannot** check whether the click was on time — a faked response always hits. Everything else in the game is server-authoritative; this cannot be, by construction.
+
+The answer is not anti-cheat, it is a ceiling: if the yield per unit of time is capped server-side, perfect cheating earns exactly what a perfect player earns. Two different ceilings do that, one per reward track:
+
+| Track | Ceiling | Why it holds |
+|---|---|---|
+| **Bergungsschrott 🔩** (currency) | the **cargo hold** — a regenerating allowance, live from elapsed time, no cron | Hold empty → you still fish, the catch is thrown back. The toy stays available, the faucet closes. |
+| **Fundstücke** (artefacts) | **each one is unique per player** | Once found, it leaves your table. There is nothing to farm, so it needs no rate limit at all. |
+
+The second row is what lets finds bypass the hold: a repeatable bonus outside the cap would have reopened the hole the cap was there to close, but a one-time artefact cannot be farmed however hard the response is faked.
+
+### Bergungsschrott is player-wide, not per planet
+
+No entry in `RESOURCES`, no storage cap, no production — a single counter per player, the way `globalResearch` is global. Four planets sharing one purse is also what stops four planets being four incomes; the planet type changes only **what** bites (cryonite chunks on ice, obsidian shards on volcanic), never how much.
+
+It therefore does **not** appear in the resource bar, which is per planet and stays that way. It shows on the salvage tile and in the profile panel.
+
+### The loop
+
+```
+Cast → 4–12 s wait (rings) → BITE → shrinking ring 1.8 s → click
+                               ↑                            │
+                               └────── up to 3 bites ───────┘
+```
+
+Starting values, all of them tuning knobs:
+
+- Hit window **±200 ms**, with a **±100 ms gold core** inside it; the tile's building widens both per level.
+- **Three bites per cast** — only the third miss lets it get away. A near-miss must not be pure punishment.
+- A cast runs 10–20 s → **~3–4 casts per minute**; a full hold is ≈ 6 minutes of play, which is about one tier-2 build.
+- Cargo hold **120 🔩, +15/h**, player-wide. Same live-from-elapsed-time trick as `hs_recruit_pool`.
+
+**Skill buys time, not access.** A good player fills the hold in ~20 casts, a weak one in ~40, and both end up with 120 🔩. That is the right way round for a pastime — missing must not hurt — and the reason finds exist at all: they are the one place where playing better pays more, because more casts per minute means more rolls on the artefact table.
+
+**The judgement is arithmetic, the animation is CSS.** Timestamp at the bite, difference at the click. A dropped frame must never cost a catch.
+
+#### Two zones, and a window you can actually see  *(2026-08-19)*
+
+The first build drew a hairline target ring and printed *Jetzt!* for the whole approach. Both were wrong, and playtesting said so immediately: **±180 ms of travel is about five pixels**, so there was nothing to aim at, and a label that stands there for 1.8 s answers *what* but never *when*.
+
+Three changes, all pulling the same way:
+
+- **The bands are the rule, drawn.** `bandStyle(halfWindow)` derives each band's radius *and its thickness* from `HIT_MS` / `PERFECT_MS` through the same `scaleAt()` the ring animation uses. What you aim at is exactly what the clock accepts, and widening a window widens its band automatically — there is no second place to keep in sync.
+- **Geometry follows from that, not from taste.** Band thickness is `TARGET_R × (RING_START − 1) × window / RING_MS`, which is why the landing radius is small (1.5 rem) and the start scale large (2.7): a target drawn near the rim leaves the gold core a two-pixel hairline. These values put the ring at 4.05 rem inside a 4.25 rem button at *t*=0, and give the core ~4.5 px and the outer band ~9 px.
+- **The ring overshoots.** It keeps shrinking ~350 ms past the target so that *too late* is something you watch happen rather than only feel.
+- **Colour is information, not decoration.** The approach is cool grey; the button, ring and both bands warm the instant the window opens, driven by the same `inWindow` flag as the label. The word and the light therefore cannot promise a window that has already shut.
+
+**Precision now pays.** A hit anywhere in the band rolls `weight`; a hit in the gold core rolls `weightPerfect` — the same four catches, weighted 22/34/30/14 instead of 50/30/15/5. This is the one place in the feature where skill pays *more* rather than merely *faster*, and it is safe for the same reason everything else here is: the zone only picks a weight column, the hold still caps the day, so a client that claims `perfect` on every cast just reaches the same ceiling sooner. The endpoint treats anything that is not the literal string `'perfect'` as `'good'`, so a malformed report can only cost the player.
+
+**A cast is client-only state and is lost on reload.** The server never hears about a cast until it is reported, so there is nothing to persist and no timer to resolve — unlike every other running thing in this game. Leaving the tile mid-cast simply drops it, which costs nothing, because a cast costs nothing.
+
+### Catch table
+
+| Catch | `weight` (band) | `weightPerfect` (core) | 🔩 |
+|---|---|---|---|
+| Debris shard | 50 | 22 | 3 |
+| Hull fragment | 30 | 34 | 6 |
+| Intact module | 15 | 30 | 12 |
+| **Big haul** | 5 | 14 | 25 |
+
+Ø 6.35 🔩 on the band, 9.8 🔩 in the core → 19 or 13 catches to fill the hold. Precision buys about a third off the time, and nothing else.
+
+### Fundstücke  *(written 2026-08-19)*
+
+Sixteen named artefacts, each findable **once per player**, rolled at ~1.5 % per catch and **not counted against the hold**. When the list is exhausted the roll stops. They are the collection layer under the currency, and the only skill-positive reward in the feature.
+
+**A full hold still rolls for finds.** That is their whole purpose: once the scrap ceiling is reached the toy keeps a reason to be played, and that reason cannot be farmed. The catch is thrown back, the artefact is not.
+
+**Sixteen and not twelve, because of the grid.** Four rows of four read as a board at any width; twelve was one long row on a desktop and three ragged ones on a phone. The cabinet is `repeat(4, minmax(0, 1fr))` capped at 13 rem, so the shape is the same on both and a slot stays a ~3 rem tap target.
+
+#### The sixteen, and their four effects
+
+| Effect | Artefacts | What it does |
+|---|---|---|
+| `hold` | 📡 Signalboje +10 · 🌀 Fangspule +15 · ⚓ Ankerwinde +20 · 🧰 Laderahmen +25 | Raises the cargo hold **permanently**, and credits the bonus as free room straight away |
+| `scrap` | 🗃️ Schrottdepot +75 · 💰 Sold-Kassette +100 · 🚢 Wrack +150 | Straight into the purse, past the hold |
+| `resources` | 🛢️ 500 Metall + 200 Kristall · ☢️ 3 Energiezellen · 🧪 2 Vitalgel · 🛠️ 2 Duraplatten · 🔥 1 Plasmakern + 1 Supraleiter | A one-off delivery to the planet that was fished, storage-capped like every other payout |
+| `portrait` | 🎭 Leeremaske · 🪖 Pilotenhelm · 👑 Krone der Ersten Flotte · 🐙 Tiefenpilger | Appends an avatar to the profile picker |
+
+**The hold ceiling stopped being a constant.** Four `hold` finds carry +70 between them, so `SALVAGE_HOLD_MAX` is now only the *base*: `salvage_hold_max($ownedFinds)` is what `salvage_state()`, `catch.php` and the `fill_salvage` cheat all ask instead. A complete cabinet ends at **190 🔩** — and at 15/h that is a ~12.7 h refill rather than the 8 h the base hold takes, so the documented "a full hold every 8 h" holds for a beginner, not for a collector. `SALVAGE_HOLD_PER_HOUR` is the knob if that turns out too generous; raising the ceiling was the deliberate choice, because the reward has to be felt.
+
+**One `resources` artefact covers two goods** (🔥 Plasmakern + Supraleiter) so that all four refined goods appear somewhere in the cabinet. The other three each carry one.
+
+**The bonus lands as free room, not merely as a higher ceiling.** A permanent +25 that only materialises over the next two hours of regeneration does not read as a reward at the moment it is found.
+
+**No weights on the roll.** Uniform over what is not yet owned, because weighting would only change the *order* a collection is completed in — every entry is eventually taken and none of them repeats.
+
+**Titles were dropped.** The sketch listed them alongside portraits, and nothing in the game shows one: there is no name plate, no profile line, no place a title would appear. Building that system for one reward is out of proportion, so the **lore line** carries the flavour instead — every artefact has two i18n strings, a name and a sentence, and the sentence is the whole reason to open the cabinet twice.
+
+**Portraits are the one track the server does not pay out.** It records the find; `salvagePortraits` derives the avatars from the cabinet and `HsProfilePanel` appends them to its fixed twenty. Nothing is gated server-side — a portrait is cosmetic, and the picker was never authoritative.
+
+#### The cabinet
+
+All sixteen slots are drawn from the very first cast, found or not. The locked ones are what make it a collection rather than a payout log, and the `4 / 16` counter is the only place the game says how many there are. A locked slot opens too and says only *Noch nicht geborgen* — naming an unfound artefact would give the collection away.
+
+**What a find says it paid is the server's `grant`, not the catalogue.** The two are the same shape on purpose, so the toast and the cabinet share one `effectText()`; the difference is that a capped store can cut a delivery short, and the line under the toast should not promise what did not arrive.
+
+**Recording comes before paying.** `INSERT IGNORE` first, then `salvage_apply_find()` — the hold bonus reads the cabinet back to work out the new ceiling, so the entry has to be in there for that number to include itself, and a race that inserts nothing (`rowCount() === 0`) pays nothing.
+
+**The endpoint now takes a `planetId`**, which it did not before: a `resources` artefact has to land somewhere real. Ownership is checked, and a missing or foreign planet falls back to the **home planet** rather than dropping a once-per-player reward on the floor. Scrap and the hold ignore it — they are player-wide.
+
+### What scrap is for
+
+Nothing here is bought. The **Salvage Smelter** on the same tile turns scrap back into raw material, and that is its only sink — see the next chapter. A shop was designed and dropped: four fixed offers priced in scrap answered *what do I spend this on* but not *why can I not reach three of the four refined goods at all*, which was the real complaint underneath it.
+
+### The tile — slot 12
+
+`orbit` becomes `salvage`. Three things this touches:
+
+- **The tile-type rename is frontend-only.** The spec claimed a two-file edit; it is not. `bootstrap.php` seeds `hs_planet_slots` by **index alone** and never stores a tile type, so `orbit` → `salvage` touched `hawkStarConfig.js` and the two i18n files and nothing else. The `unlocks` array *is* mirrored, and that is the real two-file edit.
+- The tile is **`salvage` 🧲** — a salvage magnet reads as machinery rather than as angling, and no other tile uses that emoji.
+- **Slot 12 is unlocked by no building today** (nor is slot 11); it needs a trigger. It gets **`command_center` Lv1**, alongside slots 2 and 4 — that build takes 20 s and costs nothing, so the toy is there from the first minute, which is exactly when a player has unlocked two tiles and nothing to do while they build. Consequence to watch: the shop is then also open at minute one. If that turns out to be too much, gate **shop entries** by progress rather than moving the tile — the toy should stay early even if its rewards do not.
+- **The tile carries the `salvage_smelter`** — which is what makes it a real tile rather than a third panel tile, and why `HsSalvagePanel` renders *inside* the ordinary building panel (like `HsRecruitPanel` on the base tile) rather than replacing it: the tile needs its build rows and recipe section underneath the game. A rod-upgrade building that widens the hit window is still open.
+
+### Built differently from the sketch, on purpose
+
+- **A miss never reaches the server.** The spec had every finished cast reported; the panel now reports only hits. The rate limit is on reports either way, a cheater would skip the misses regardless, and this halves the traffic for the honest player.
+- **The endpoint returns the catch's icon and worth**, not just its key — otherwise the panel would need a mirror of `SALVAGE_CATCHES` and the two would drift. `worth` is what the catch was worth, `gained` what the hold had room for; the gap between them *is* the "thrown back" message.
+- **`hold` is the room LEFT, not the load.** It starts at the cap, drains as you catch, and refills with time. The panel therefore labels it *Freier Laderaum* and its bar empties as you fish — calling a hold at 0 "full" would have been true physically and unreadable in a UI.
+- **A new player starts with a full hold.** The tile opens with the very first build; an empty hold would have met a beginner with a toy that pays nothing.
+- Note the pre-existing `ANOMALY_SALVAGE_POOL` / `'salvage' => n` keys in the anomaly config: unrelated, older, and they mean "roll n random high-tech goods". The new constants are all `SALVAGE_*` and do not collide, but the word is now overloaded in `config.php`.
+
+### Backend sketch
+
+```
+hs_salvage       (player_id, scrap, hold, hold_updated_at)   -- player-wide, one row
+hs_salvage_finds (player_id, find_id, found_at)              -- what is already taken
+POST /game/salvage/catch  { planetId, hit }  → rolls the tier, checks the hold, grants 🔩 (+ maybe a find)
+POST /game/salvage/buy    { itemId }         → charges and delivers
+state.php: a salvage block { scrap, hold, holdMax, holdPerHour, finds }
+```
+
+`/catch` should refuse reports arriving faster than the shortest possible cast (a few seconds). It changes nothing about the ceilings — it only stops a script from emptying the artefact list in one burst.
+
+**The cast itself needs no endpoint** — the server rolls only when the result is reported. A faker reports "hit" every time and collects the hold ceiling, which is what a perfect player collects; the find table cannot be farmed because its entries are unique. That is the accepted limit, and it is why both ceilings had to exist before the feature was worth building.
+
+### What was considered and dropped
+
+Recorded so the decisions are not reopened by accident:
+
+| Idea | Why not |
+|---|---|
+| Reward = **resource nibbles** (metal/crystal shares like anomalies) | Feeds straight into the main economy, so every payout has to be balanced against mines and refineries. A separate currency makes the exchange rate one knob instead of many. |
+| Reward = **temporary buffs** (−build time, +yield) | Serves the occasion perfectly, but then anyone who wants to play optimally *has* to fish. That is the one thing a pastime must never become. |
+| Reward = **collection only**, no currency | Zero balance risk, but it carries the tile only if collecting alone motivates. It survives as the **second** track (Fundstücke) rather than the only one. |
+| Limit = **bait pool** (casts capped, like `hs_recruit_pool`) | Consistent with an existing pattern, but it takes the toy away exactly when it is wanted. Capping the *catch* instead keeps casting free forever. |
+| Limit = **cooldown per cast** | A waiting room inside a waiting room. |
+| Home = **third panel tile** (the free cell in row 1) | Defensible — it is an activity, not a planet building — but a real tile can carry the Bergungsdrohne building later, and that is what ties the feature into the build economy. |
+| Timing = **orbiting pointer on a dial** | Loops naturally and has two difficulty knobs, so it stays on the table for a later revision. The shrinking ring is less state and matches the original sketch. |
+
+### Not in v1
+
+No rod levels (the salvage tile's building is the smelter, not a better rod), no catch log UI beyond the artefact list, no leaderboards.
+
+### Nothing open
+
+Everything in this chapter is built. What used to stand here:
+
+1. ~~The Fundstück list~~ — **written 2026-08-19**: sixteen entries in `SALVAGE_FINDS`, four kinds of effect, names and lore in i18n. Titles were cut for want of anywhere to show one; see *Fundstücke* above.
+2. ~~What the maintenance drone shortens~~ — **moot**: the shop was replaced by the smelter, so there is no maintenance drone.
+3. ~~The `salvage` entry in `TILE_TYPES`~~ — **settled**: 🧲 *Bergung* / *Salvage*.
+4. ~~A dev cheat that fills the hold~~ — **built**: 🔩 +500 in `HsSettingsPanel` (`fill_salvage`). Player-wide, so it takes no planetId; it tops the hold up and adds 500 scrap, because a refined-good recipe costs two full holds and testing that by waiting is not a plan. Its companion is ✨ **Fundstück** (`grant_find`), which hands out the next artefact in catalogue order and pays it exactly as a real catch would — at 1.5 % a roll there is no other way to see all sixteen cabinet entries, let alone check that their effects land.
+
+### Suggested order
+
+*(all five done 2026-08-19)*
+
+1. ✅ **Config + tile.** `orbit` → `salvage` in `hawkStarConfig.js` *and* `api/star/config.php`, slot 12 added to `command_center` Lv1's `unlocks`. Nothing plays yet, but the tile is reachable and the two configs are in sync — the change most likely to be forgotten halfway.
+2. ✅ **Backend.** Two tables, `/salvage/catch`, the salvage block in `state.php`. Testable with curl before any UI exists.
+3. ✅ **Panel + timing.** `HsSalvagePanel.vue` — cast loop, ring, report. The part that is actually a game.
+4. ✅ **Sink for the scrap** — built as the Salvage Smelter instead of a shop (2026-08-19). `/salvage/buy` was never written.
+5. ✅ **The cabinet** — the sixteen Fundstücke, their effects and the collection UI in a 4×4 grid (2026-08-19).
+
+
+---
+
+## Every refined good, on every planet  *(2026-08-19)*
+
+Before this, the planet type was a **hard gate** on three of the four refined goods. A one-planet commander on a frozen world could not make Duraplate, Plasma Cores or Vital Gel at all, except by luck from an anomaly or by colonising. That is the problem this solves — and the thing it deliberately does *not* do is make the planet type meaningless.
+
+### The gate had two layers
+
+| Type | Exclusive raw | Extractor | Refinery | Refined good |
+|---|---|---|---|---|
+| terrestrial | alloy 🧱 | `alloy_forge` | `alloy_refinery` | Duraplate 🔷 |
+| volcanic | obsidian 🪨 | `obsidian_quarry` | `obsidian_foundry` | Plasma Core 🔥 |
+| frozen | cryo ❄️ | `cryo_extractor` | `cryo_refinery` | Superconductor 🔌 |
+| ocean | biomass 🌿 | `biomass_collector` | `bio_lab` | Vital Gel 🧬 |
+
+`planetTypes` sat on **the building** *and* on **the raw resource**. Lifting only one changes nothing: an obsidian foundry on an ice world with no obsidian just stands there. `power_cell_lab` was already the precedent for a converter with no gate at all.
+
+### What changed
+
+1. **`planetTypes` came off the four refineries.** Four deleted lines, in `hawkStarConfig.js` and `config.php` both. Any planet can now build any refinery.
+2. **A single-level `salvage_smelter` on slot 12** with two kinds of recipe:
+   - **raw** — metal, crystal and **this planet's own** exclusive raw. Cheap, quick.
+   - **refined** — all five finished goods, straight out of scrap. Costly, slow, and the actual answer for a commander who owns one planet.
+
+The gate moves from *which planet you are on* to *what are you willing to pay*. Ungating the refineries is what makes an **imported** raw useful — ship obsidian in from a volcanic colony and refine it at home, far cheaper than melting scrap — while the smelter's refined recipes are the path that needs no colony at all.
+
+### The recipes
+
+| # | Recipe | Time | Only on |
+|---|---|---|---|
+| 0 | 30 🔩 → 50 metal | 20 min | |
+| 1 | 40 🔩 → 30 crystal | 20 min | |
+| 2 | 60 🔩 → 20 alloy | 30 min | terrestrial |
+| 3 | 60 🔩 → 20 obsidian | 30 min | volcanic |
+| 4 | 60 🔩 → 20 cryo | 30 min | frozen |
+| 5 | 60 🔩 → 20 biomass | 30 min | ocean |
+| 6 | 140 🔩 → 1 Power Cell | 60 min | |
+| 7–10 | 250 🔩 → 1 Duraplate / Plasma Core / Superconductor / Vital Gel | 90 min each | |
+
+**`planetTypes` on a *recipe*** is new — the same idiom the buildings already use, one level down. It is what keeps the raw recipes to the planet's own exclusive material.
+
+**Recipe order is load-bearing.** `recipe_index` is stored on running batches in `hs_conversion_queues`, so appending is safe and rearranging would make a batch in flight deliver a different recipe's goods. The panel filters *after* mapping the index for exactly that reason, and `convert.php` re-checks the restriction because the client is not the authority on it.
+
+### Why it is deliberately poor
+
+A native `alloy_forge` makes **60 alloy/h from level 1** and costs nothing but energy and staff. A whole salvage hold — 120 scrap, eight hours of regeneration — melts down to **40 alloy**, or a fifth of one refined good. Owning the right planet stays the good way; the smelter is the way that always exists.
+
+**One level, like the refineries.** The recipes carry the cost curve; the building does not need one on top of it.
+
+### Three things this broke, and how
+
+- **A scrap-only recipe leaves the planet cost empty.** `convert.php` built its `UPDATE` from `array_keys($totalCost)`; with every smelter recipe paying in scrap alone, that is `SET` with nothing after it — a SQL syntax error, not a harmless no-op. The planet update is now guarded by `if ($totalCost)`.
+- **Scrap is player-wide, conversion costs are per planet.** It has no column in `hs_planet_resources`, so it is split out of the cost before either the check or the deduction and settled against `hs_salvage` separately. On the client, `stockOf(res)` is the single place that knows the exception; `canAfford` and `maxConversionRuns` both go through it, and `convert.php` returns the fresh purse whenever a recipe spent from it.
+- **The "made here" border in the resource bar had to change its source.** `producerTypes()` read a good's home off its building's `planetTypes` — which every refinery just lost, so all four goods began answering *buildable anywhere* and every card in the High-Tech row would have been bordered. It now derives the home from the raw a recipe **eats** (duraplate needs alloy, alloy is terrestrial) and skips scrap-fed recipes, since the smelter makes everything everywhere and counting it would mark everything again. The border means "this planet makes it the cheap way", and it resolves to exactly the same four goods it did before the ungating.
+- **Recipe costs are coloured through `stockOf()`.** The affordability class compared against `playerResources` directly, which reads 0 for scrap — every smelter recipe would have shown as permanently unaffordable while its button worked fine. `stockOf` is exported from the composable for this; `HsResourceBar` needs the same exception for its scrap card.
+- **Foreign raws had no storage cap, so they are no longer made.** `credit_resources()` leaves anything without a cap entry **unclamped**, and caps come from buildings' `storageCapacity` — all of them planet-type-gated. An earlier version had the smelter make all four exclusive raws and carry bins of its own for them; a frozen planet would otherwise have held *infinite* alloy while a terrestrial one stopped at 150. Restricting the raw recipes to the planet's **own** material removed the problem instead of papering over it: metal, crystal and the native raw all already have a cap here, so the smelter needs no storage of its own and the planet's existing maximum simply applies.
+
+One more consequence, on the empire board: **scrap-fed converters are exempt from the *refinery idle* warning.** That rule assumes the input piles up by itself, so idling wastes production; scrap only arrives when the player goes fishing, and an idle smelter is the normal state. Warning about it would nag forever and teach the player to stop reading the warn tier.
+
+### The scrap card in the resource bar
+
+Salvage scrap closes the High-Tech stock row: 🔩 plus its count, in its own gold border rather than the border-when-local rule the other cards follow. It is the odd one out on purpose — **player-wide, not per planet**, so it does not change when you switch planets, and the hover hint says so. It sits last because it is what the smelter turns into every card to its left.
+
+### Files
+
+`salvage_smelter` + the four ungated refineries in `hawkStarConfig.js` and `api/star/config.php` · recipe-level `planetTypes` filter in `availableConversions` (`HsTilePanel.vue`) and its check in `convert.php` · `scrap` in `RESOURCES` (with `currency: true`) and in `EXCLUDED_IDS` in `HsAllResourcePanel.vue` · `stockOf()` + the scrap branch in `startConversion` in `useHawkStar.js` · the cost split in `api/star/game/convert.php` · `salvageScrap` card + `producerTypes()` in `HsResourceBar.vue` · `fill_salvage` in `api/star/dev/cheat.php` + its button in `HsSettingsPanel.vue` · `hawkStar.buildings.salvage_smelter.*`, `hawkStar.res.scrap` and `hawkStar.resourceBar.scrapHint` in de/en
+
+---
+
+### Files
+
+`SALVAGE_HOLD_MAX` / `SALVAGE_HOLD_PER_HOUR` / `SALVAGE_MIN_CAST_SECONDS` / `SALVAGE_CATCHES` / `SALVAGE_FIND_CHANCE` / `SALVAGE_FINDS` (the sixteen) / `salvage_roll_catch()` / `salvage_hold_max()` in `api/star/config.php` · `ensure_salvage()`, `salvage_owned_finds()`, `salvage_state()`, `salvage_roll_find()`, `salvage_apply_find()` in `api/star/bootstrap.php` · `api/star/game/salvage/catch.php` · `fill_salvage` + `grant_find` in `api/star/dev/cheat.php` · tables `hs_salvage` + `hs_salvage_finds` · salvage block in `api/star/game/state.php` · `HsSalvagePanel.vue` (game **and** cabinet) · `salvage` in `TILE_TYPES`, slot 12 in `PLANET_GRID` and the `SALVAGE_FINDS` mirror in `hawkStarConfig.js` plus `planet_grid_slots` (`config.php`) · `salvageScrap` / `salvageHold` / `salvageHoldMax` / `salvageHoldEmpty` / `salvageFinds` / `salvageCabinet` / `salvagePortraits` / `reportSalvageCatch` in `useHawkStar.js` · the unlocked-portrait list in `HsProfilePanel.vue` · an `isSalvageTile` branch in `HsTilePanel.vue` · `hawkStar.salvage.*` (incl. `finds.*` and `effects.*`) and `hawkStar.tiles.salvage.*` in de/en
 
 ---
 
@@ -1117,6 +1423,7 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsPlanetGrid` | 5×3 unified tile grid — 2 panel tiles (row 1) + 12 planet building slots (rows 2–5). Manages single active-tile state across all 15 cells. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
 | `HsOnboardingPanel` | Early-game checklist — the last card in the empire board’s grid, and the only place it appears. Renders nothing once every step is ticked. |
+| `HsSalvagePanel` | Salvage fishing on slot 12 — cast loop, shrinking timing ring, scrap balance, free-hold bar. The shop is not built yet. See *Salvage Fishing*. |
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — all planets + one action row per unit class (drone / colony / cargo). Clicking a planet tile selects it (`hs-solar-tile--selected`); if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** is marked three ways (`hs-solar-tile--home`): brighter border, lit background and a 🏠 corner badge — blue alone only says "mine", and every colony is blue too. The badge is absolute-positioned on purpose: the collapsed mobile tile hides every text line, including the *Heimat* chip, so the badge is the only marker left there. |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
@@ -1180,6 +1487,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | `hawkStar.nav.*` | HsNavBar — view tabs, lock tooltips |
 | `hawkStar.tile.*` | HsTilePanel — build buttons, status, conversions |
 | `hawkStar.dock.*` | HsDockPanel — ship names, build buttons, slots |
+| `hawkStar.salvage.*` | HsSalvagePanel — cast/bite/catch copy, catch names, hold labels |
 | `hawkStar.solar.*` | HsSolarSystem — planet states, mission actions |
 | `hawkStar.galaxy.*` | HsGalaxyMap — planet states, star meta |
 | `hawkStar.comm.*` | HsGalaxyMap — scan states, message keys, NPC responses, comm log |
@@ -1213,6 +1521,8 @@ Phases 1 + 2 fully implemented and live (since 2026-06-01). Everything built sin
 | Slot 7 — anomaly tile (timed events, two guaranteed outcomes each) | ✅ Implemented |
 | Med Station + Plasma Compressor (first consumers for Vital Gel / Plasma Core) | ✅ Implemented |
 | Deep Shaft Frame + Survey Array (recurring sinks for Duraplate / Superconductor) | ✅ Implemented |
+| Slot 12 — Salvage Fishing (timing game, cargo hold as the ceiling, 16 Fundstücke) | ✅ Implemented |
+| Salvage Smelter + ungated refineries — every refined good reachable on every planet | ✅ Implemented |
 
 See `hawk-star-backend.md` for the full backend concept.
 

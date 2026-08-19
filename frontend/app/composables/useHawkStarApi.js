@@ -80,5 +80,8 @@ export function useHawkStarApi() {
     interceptSatellite:    (planetId, targetPlayerId) => post('/game/defense/intercept', { planetId, targetPlayerId }),
     recruit:               (planetId)                 => post('/game/base/recruit', { planetId }),
     resolveAnomaly:        (planetId, choice)         => post('/game/anomaly/resolve', { planetId, choice }),
+    // Only the OUTCOME of a cast — the cast itself never reaches the server, and
+    // what bites is rolled there, not here.
+    postSalvageCatch:      (hit, zone, planetId)      => post('/game/salvage/catch', { hit, zone, planetId }),
   }
 }

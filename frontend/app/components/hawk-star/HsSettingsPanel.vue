@@ -17,7 +17,7 @@ const anomalyOptions = computed(() =>
   ANOMALY_TYPES.map(id => ({ id, label: t('hawkStar.anomaly.types.' + id + '.name') }))
 )
 
-const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'complete_conversions', 'max_resources', 'drain_battery', 'drain_shield', 'add_population', 'roll_anomaly', 'spy_on_me']
+const PLANET_CHEATS  = ['complete_buildings', 'complete_units', 'complete_conversions', 'max_resources', 'drain_battery', 'drain_shield', 'add_population', 'roll_anomaly', 'spy_on_me', 'grant_find']
 const FULL_RELOAD    = ['complete_drone_missions', 'complete_colony_missions', 'complete_cargo_missions', 'complete_spy_missions', 'complete_raid_missions', 'complete_scanning']
 
 async function runCheat(action) {
@@ -57,6 +57,8 @@ async function runCheat(action) {
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Alle Galaxy-Scans abschließen" @click="runCheat('complete_scanning')">✓ Scan</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Reaktor-Batterie sofort leeren (Blackout testen)" @click="runCheat('drain_battery')">🔋 Leeren</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Planetenschild sofort entladen" @click="runCheat('drain_shield')">🛡️ Leeren</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="+500 Bergungsschrott und Laderaum voll — die Schmelze sonst zu testen heißt stundenlang angeln" @click="runCheat('fill_salvage')">🔩 +500</button>
+      <button class="hs-cheat-btn" :disabled="cheatBusy" title="Nächstes Fundstück aus dem Katalog vergeben — bei 1,5 % pro Fang sonst nicht testbar" @click="runCheat('grant_find')">✨ Fundstück</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Fremden Spionagesatelliten über diesen Planeten setzen (Orbitalabwehr testen)" @click="runCheat('spy_on_me')">🛰️ Bespitzeln</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="+1 Bevölkerung hinzufügen" @click="runCheat('add_population')">👥 +1 Pop</button>
       <button class="hs-cheat-btn" :disabled="cheatBusy" title="Sofort eine neue Anomalie auf diesem Planeten auswürfeln" @click="runCheat('roll_anomaly')">☄️ Anomalie</button>

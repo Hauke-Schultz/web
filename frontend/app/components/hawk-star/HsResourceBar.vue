@@ -8,6 +8,7 @@ const { t } = useI18n()
 
 const {
   playerResources,
+  salvageScrap,
   production,
   grossProduction,
   freeWorkers,
@@ -15,6 +16,8 @@ const {
   isStorageFull,
   resourceDisplay,
   energyDeficit,
+  energyLow,
+  ENERGY_LOW_FREE,
   planetType,
 } = useHawkStar()
 
@@ -41,12 +44,24 @@ const refinedResources = computed(() =>
 // by whichever building lists it as a conversion output, and that building's
 // `planetTypes` is the answer. An unrestricted producer (power_cell_lab) means
 // the good is universal, so one `null` beats any list.
+// A good's home used to be read off its building's `planetTypes`. That stopped
+// working when the four refineries were ungated: every one of them now answers
+// "buildable anywhere", which would border every card and leave the row saying
+// nothing. What still separates them is the raw they EAT — duraplate needs
+// alloy, and alloy is terrestrial.
 const producerTypes = (resId) => {
   const types = new Set()
   for (const b of Object.values(BUILDINGS)) {
-    if (!b.conversions?.some(c => c.output?.[resId])) continue
-    if (!b.planetTypes) return null          // buildable anywhere
-    for (const p of b.planetTypes) types.add(p)
+    for (const c of b.conversions ?? []) {
+      if (!c.output?.[resId]) continue
+      // The smelter makes every refined good on every planet, so counting it
+      // would mark everything again. The border means "this planet makes it the
+      // cheap way", and the expensive scrap route is not that.
+      if ('scrap' in (c.input ?? {})) continue
+      const exclusive = Object.keys(c.input ?? {}).flatMap(r => RESOURCES[r]?.planetTypes ?? [])
+      if (!exclusive.length) return null    // fed by universal stock → anywhere
+      for (const p of exclusive) types.add(p)
+    }
   }
   return types.size ? [...types] : null
 }
@@ -78,7 +93,8 @@ const originLabel = (res) => {
         :key="res.id"
         class="hs-res-card"
         :class="{
-          'hs-res-card--deficit': (res.id === 'energy' && energyDeficit) || (res.id === 'population' && freeWorkers < 0)
+          'hs-res-card--deficit': (res.id === 'energy' && energyDeficit) || (res.id === 'population' && freeWorkers < 0),
+          'hs-res-card--low': res.id === 'energy' && energyLow
         }"
       >
         <span class="hs-res-icon">{{ res.icon }}</span>
@@ -86,7 +102,8 @@ const originLabel = (res) => {
         <span
           class="hs-res-value"
           :class="{
-            'hs-res-value--deficit': (res.id === 'energy' && energyDeficit) || (res.id === 'population' && freeWorkers < 0)
+            'hs-res-value--deficit': (res.id === 'energy' && energyDeficit) || (res.id === 'population' && freeWorkers < 0),
+            'hs-res-value--low': res.id === 'energy' && energyLow
           }"
         >
           <template v-if="res.id === 'energy'">{{ production.energy > 0 ? `+${production.energy}` : production.energy }}</template>
@@ -96,7 +113,8 @@ const originLabel = (res) => {
         <span
           v-if="res.id === 'energy'"
           class="hs-res-prod"
-          :class="energyDeficit ? 'hs-res-prod--neg' : 'hs-res-prod--pos'"
+          :class="energyDeficit ? 'hs-res-prod--neg' : energyLow ? 'hs-res-prod--low' : 'hs-res-prod--pos'"
+          :title="energyLow ? t('hawkStar.resourceBar.energyLowHint', { n: ENERGY_LOW_FREE }) : ''"
         >{{ production.energy }}/{{ grossProduction.energy ?? 0 }}</span>
         <span
           v-else-if="res.id === 'population'"
@@ -137,6 +155,19 @@ const originLabel = (res) => {
         <span class="hs-res-icon">{{ res.icon }}</span>
         <span class="hs-res-value">{{ Math.floor(playerResources[res.id] ?? 0) }}</span>
       </div>
+
+      <!-- Salvage scrap closes the row: it is what the smelter turns into every
+           card to its left. Player-wide rather than per planet, so it never
+           changes when you switch planets — hence its own border colour and the
+           hint on hover, so the odd one out is marked as odd. -->
+      <div
+        class="hs-res-card hs-res-card--mini hs-res-card--scrap"
+        :class="{ 'hs-res-card--empty': !salvageScrap }"
+        :title="t('hawkStar.resourceBar.scrapHint')"
+      >
+        <span class="hs-res-icon">🔩</span>
+        <span class="hs-res-value">{{ salvageScrap }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -166,6 +197,13 @@ const originLabel = (res) => {
 
 // High-Tech stock row — one slot per refined resource, fixed layout so the
 // row never reflows when a stock goes from 0 to 1.
+// The one card in this row that is not a planet stock, so it carries its own
+// colour instead of the border-when-local rule the others follow.
+.hs-res-card--scrap {
+  border-color: rgba(252, 211, 77, 0.55);
+  .hs-res-icon, .hs-res-value { color: #fcd34d; }
+}
+
 .hs-res-refined {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -194,6 +232,12 @@ const originLabel = (res) => {
   &--deficit {
     border-color: var(--hs-danger-border-card);
     background: var(--hs-danger-bg-card);
+  }
+
+  // One step short of the deficit state, so the two read as a sequence.
+  &--low {
+    border-color: rgba(250, 204, 21, 0.5);
+    background: rgba(250, 204, 21, 0.09);
   }
 
   // Compact variant: icon and count on one line, nothing else
@@ -236,6 +280,7 @@ const originLabel = (res) => {
   @media (min-width: 640px) { font-size: 1rem; }
 
   &--deficit { color: var(--hs-danger); }
+  &--low     { color: var(--hs-warn-text); }
 }
 
 .hs-res-prod {
@@ -247,6 +292,9 @@ const originLabel = (res) => {
 
   &--pos { color: var(--hs-ok); }
   &--neg { color: var(--hs-danger); }
+  // Amber instead of the usual green: the rate line is where the warning lives
+  // now, so "3/15" carries it without a badge next to it.
+  &--low { color: var(--hs-warn-text); }
 
   /* Storage at the cap: production is paused until something is spent */
   &--full {

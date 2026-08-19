@@ -54,9 +54,9 @@
       "stateBlackout": "Blackout",
       "stateAlert": "Alarm",
       "stateIdle": "Leerlauf",
-      "stateOk": "Produktiv",
       "stateBuilding": "Baut",
       "stateConverting": "Wandelt um",
+      "stateNoBuild": "Nichts im Bau",
       "holds": "hält {h} h",
       "noReactor": "kein Reaktor",
       "noShield": "kein Schild",
@@ -76,6 +76,8 @@
       "raidHint": "Letzter Angriff auf diesen Planeten — zur Verteidigung springen",
       "rowShieldLow": "Schild bei {pct} % — hält noch {h} h",
       "rowBatteryLow": "Batterie hält nur noch {h} h",
+      "rowEnergyDeficit": "Energie fehlt — {n} zu wenig, Gebäude offline",
+      "rowEnergyLow": "Energie knapp — nur {n} von {produced} frei",
       "rowAnomaly": "Anomalie wartet",
       "rowStorageFull": "{res}-Lager voll — Förderung steht",
       "rowConverterIdle": "{name} steht still",
@@ -88,6 +90,55 @@
       "rowRaidBack": "{n} Korvetten auf dem Rückflug",
       "rowFlights": "Missionen unterwegs: {n}"
     },
+    "salvage": {
+      "title": "Bergung",
+      "intro": "Fangstrahl ins Trümmerfeld auswerfen. Wenn das Echo anspringt: rechtzeitig einrasten.",
+      "holdLabel": "Freier Laderaum",
+      "holdEmpty": "Laderaum voll — Fänge gehen zurück über Bord",
+      "cast": "Auswerfen",
+      "waiting": "Liegt aus…",
+      "now": "Jetzt!",
+      "landed": "Eingerastet",
+      "perfect": "Volltreffer!",
+      "fled": "Entwischt",
+      "fledLong": "Signal abgerissen — nichts eingeholt",
+      "failed": "Meldung nicht durchgekommen",
+      "thrownBack": "zurückgeworfen",
+      "findFound": "Fundstück geborgen: {name}",
+      "catches": {
+        "debris": "Trümmersplitter",
+        "fragment": "Hüllenfragment",
+        "module": "Intaktes Modul",
+        "haul": "Großfund"
+      },
+      "cabinet": "Fundstücke",
+      "cabinetHint": "Jedes nur einmal — Fundstücke zählen nicht gegen den Laderaum. Slot antippen für Details.",
+      "cabinetLocked": "Noch nicht geborgen",
+      "effects": {
+        "hold": "Laderaum dauerhaft +{amount}",
+        "scrap": "+{amount} 🔩 sofort",
+        "resources": "Einmalige Lieferung: {list}",
+        "portrait": "Porträt {portrait} freigeschaltet"
+      },
+      "finds": {
+        "signal_buoy": { "name": "Verwaiste Signalboje", "lore": "Sendet noch immer den Notruf eines Konvois, den es seit Jahren nicht mehr gibt." },
+        "trawl_coil": { "name": "Justierte Fangspule", "lore": "Jemand hat sie von Hand nachgewickelt. Wer immer das war, verstand mehr vom Bergen als die Werft." },
+        "winch_drum": { "name": "Geborgene Ankerwinde", "lore": "Zieht seit Jahrzehnten an einem Kabel, an dessen Ende längst nichts mehr hängt." },
+        "cargo_frame": { "name": "Erweiterter Laderahmen", "lore": "Aus einem Schwerlastfrachter geschnitten. Passt nicht — hält trotzdem." },
+        "scrap_cache": { "name": "Vergessenes Schrottdepot", "lore": "Sauber sortiert, sauber vertäut, nie abgeholt." },
+        "pay_chest": { "name": "Sold-Kassette", "lore": "Der Sold einer ganzen Schicht, versiegelt am Zahltag. Die Schicht kam nie zurück." },
+        "derelict": { "name": "Ausgeweidetes Wrack", "lore": "Zwei Decks, kein Name, keine Leichen. Jemand war schneller — aber nicht gründlich." },
+        "sealed_drum": { "name": "Versiegelte Frachttonne", "lore": "Siegel intakt, Zollmarke abgeschliffen. Der Inhalt fragt nicht nach Papieren." },
+        "reactor_shard": { "name": "Reaktorscherbe", "lore": "Immer noch warm. Die Techniker raten davon ab, sie länger anzusehen." },
+        "medbay_locker": { "name": "Sanitätsspind", "lore": "Vier Ampullen Vitalgel, eine Notiz an eine Besatzung, die nicht mehr liest." },
+        "plating_bundle": { "name": "Panzerplattenbündel", "lore": "Werftfrisch, nie verbaut. Der Frachter kam nie bis zur Werft." },
+        "foundry_haul": { "name": "Gießerei-Bergung", "lore": "Halb erstarrte Schmelze aus einem geborstenen Ofen — an Bord fertig geworden, was die Werft nie vollendete." },
+        "void_mask": { "name": "Leeremaske", "lore": "Ritualmaske einer Sekte, die das Vakuum verehrte. Sie trugen sie ohne Helm — genau einmal." },
+        "pilot_helmet": { "name": "Helm eines Sternenpiloten", "lore": "Visier blind gescheuert von einem Jahrzehnt Staub. Der Rufname darunter ist noch lesbar." },
+        "fleet_crown": { "name": "Krone der Ersten Flotte", "lore": "Kein Adel, kein Amt — ein Orden, den sich eine Besatzung selbst schmiedete, als niemand mehr kam." },
+        "deep_pilgrim": { "name": "Tiefenpilger", "lore": "Der Helm einer Spezies, die das Trümmerfeld für heilig hielt. Sie kamen zum Beten, nicht zum Bergen." }
+      }
+    },
 
     "tile": {
       "selectTile": "Wähle ein freigeschaltetes Feld",
@@ -98,6 +149,9 @@
       "btnUpgrade": "Upgraden",
       "btnResearch": "Erforschen",
       "maxLevel": "Maximale Stufe erreicht",
+      "costOnce":  "Einmalige Baukosten aus dem Lager dieses Planeten",
+      "costEnergy": "Zusätzlicher Dauerverbrauch gegenüber der jetzigen Stufe — wird nicht bezahlt, sondern belegt",
+      "costStaff": "Zusätzliche Arbeiter gegenüber der jetzigen Stufe — dauerhaft gebunden",
       "needPower": "⚡ Energie fehlt",
       "needStaff": "👥 Personal fehlt",
       "lockedRequires": "🔒 {name} Lv{level}",
@@ -122,8 +176,8 @@
         "step7": "🚀 Besiedle einen zweiten Planeten und spezialisiere jede Kolonie",
         "step8": "📦 Schicke eine Frachtdrohne zu einem anderen Planeten",
         "step9": "🔭 Scanne ein fremdes Sternensystem auf der Galaxiekarte",
-      "step10": "🕵️ Späh mit einer Spionagedrohne einen fremden Planeten aus",
-      "step11": "📡 Setze einen Spionagesatelliten in den Orbit eines ausgespähten Planeten"
+        "step10": "🕵️ Späh mit einer Spionagedrohne einen fremden Planeten aus",
+        "step11": "📡 Setze einen Spionagesatelliten in den Orbit eines ausgespähten Planeten"
       }
     },
 
@@ -313,6 +367,8 @@
     },
 
     "resourceBar": {
+      "energyLowHint": "Weniger als {n} Energie übrig — das nächste Gebäude bekommt womöglich keinen Strom mehr",
+      "scrapHint":    "Bergungsschrott — imperiumsweit, nicht pro Planet",
       "madeHere": "hier herstellbar ({type})",
       "madeOn": "nur auf {type} herstellbar",
       "madeAnywhere": "auf jedem Planeten herstellbar"
@@ -480,6 +536,7 @@
       "plasma_core": "Plasmakern",
       "superconductor": "Supraleiter",
       "vital_gel": "Vitalgel",
+      "scrap":      "Bergungsschrott",
       "power_cell": "Power Cell"
     },
 
@@ -495,7 +552,10 @@
       "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" },
       "dock":        { "name": "Dock",            "desc": "Schiffsverwaltung, Missionen und Flottenoperationen" },
       "warship_bay": { "name": "Kriegsschiffwerft", "desc": "Platzhalter — noch keine Gebäude" },
-      "orbit":       { "name": "Orbit",           "desc": "Orbitale Infrastruktur — Platzhalter" }
+      "salvage": {
+        "name": "Bergung",
+        "desc": "Orbitales Trümmerfeld — Fangstrahl auswerfen und sehen, was hängen bleibt"
+      }
     },
 
     "planetTypes": {
@@ -660,7 +720,9 @@
       "weapons_building": {
         "name": "Waffentechnologie",
         "desc": "Militärische Forschungsabteilung. Schaltet das Verteidigungs-Feld frei.",
-        "lv1": "Schaltet Verteidigungs-Feld frei · grundlegende Waffenbauanleitungen"
+        "lv1": "Schaltet Verteidigungs-Feld frei · grundlegende Waffenbauanleitungen",
+        "lv2":  "+4 Korvetten-Liegeplätze · verbesserte Waffenbauanleitungen",
+        "lv3":  "+4 Korvetten-Liegeplätze · schwere Waffenbauanleitungen"
       },
       "plasma_compressor": {
         "name": "Plasma-Verdichter",
@@ -688,23 +750,28 @@
       },
       "alloy_refinery": {
         "name": "Legierungsraffinerie",
-        "desc": "Presst Metall und Legierung zu Duraplatten-Panzerung. Nur auf terrestrischen Planeten.",
+        "desc": "Presst Metall und Legierung zu Duraplatten-Panzerung. Überall baubar — knapp ist die Legierung.",
         "lv1": "Schaltet Duraplatten-Produktion frei"
       },
       "obsidian_foundry": {
         "name": "Obsidianschmelze",
-        "desc": "Erhitzt Obsidian und Kristall zu Plasmakernen. Nur auf vulkanischen Planeten.",
+        "desc": "Erhitzt Obsidian und Kristall zu Plasmakernen. Überall baubar — knapp ist der Obsidian.",
         "lv1": "Schaltet Plasmakern-Produktion frei"
       },
       "cryo_refinery": {
         "name": "Kryoraffinerie",
-        "desc": "Züchtet Supraleiter aus Kristall im Kryonit-Bad. Nur auf gefrorenen Planeten.",
+        "desc": "Züchtet Supraleiter aus Kristall im Kryonit-Bad. Überall baubar — knapp ist das Kryonit.",
         "lv1": "Schaltet Supraleiter-Produktion frei"
       },
       "bio_lab": {
         "name": "Biolabor",
-        "desc": "Kultiviert Biomasse und Metall zu lebenserhaltendem Vitalgel. Nur auf Ozeanplaneten.",
+        "desc": "Kultiviert Biomasse und Metall zu lebenserhaltendem Vitalgel. Überall baubar — knapp ist die Biomasse.",
         "lv1": "Schaltet Vitalgel-Produktion frei"
+      },
+      "salvage_smelter": {
+        "name": "Schrottschmelze",
+        "desc": "Schmilzt Schrott zu Metall, Kristall und dem Rohstoff dieses Planeten — und, teuer und langsam, zu jedem Edelmetall.",
+        "lv1": "Schrott zu Rohstoff und Edelmetall einschmelzen"
       },
       "power_cell_lab": {
         "name": "Power-Cell-Labor",

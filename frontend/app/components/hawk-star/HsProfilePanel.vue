@@ -1,15 +1,21 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { useHawkStarAuth } from '~/composables/useHawkStarAuth.js'
 import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
 const { t } = useI18n()
-const { playerName, playerPortrait, playerDisposition } = useHawkStar()
+const { playerName, playerPortrait, playerDisposition, salvagePortraits } = useHawkStar()
 const { logout, deleteAccount, saveProfile } = useHawkStarAuth()
 
 const PORTRAITS = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️']
+
+// Salvage artefacts add to the picker, they never replace part of it: the
+// twenty above stay free, and an unlocked one comes last so a new avatar is
+// exactly where you would look for it.
+const portraits = computed(() => [...PORTRAITS, ...salvagePortraits.value])
+
 const DISPOSITIONS = ['friendly', 'neutral', 'hostile']
 const DISP_ICON = { friendly: '🤝', neutral: '⚖️', hostile: '⚔️' }
 
@@ -72,7 +78,7 @@ const handleDelete = async () => {
           <div class="hs-profile-picker-backdrop" @click="showPicker = false" />
           <div class="hs-profile-picker">
             <button
-              v-for="p in PORTRAITS"
+              v-for="p in portraits"
               :key="p"
               class="hs-profile-picker-btn"
               :class="{ 'hs-profile-picker-btn--active': p === playerPortrait }"

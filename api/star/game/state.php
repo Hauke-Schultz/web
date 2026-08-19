@@ -37,6 +37,9 @@ $recruit = recruit_state($db, $planetId, $playerId);
 $units   = units_state($db, $planetId, $playerId);
 $cargo   = cargo_state($db, $planetId, $playerId);
 $anomaly = anomaly_state($db, $planetId, $playerId, $planet['type']);
+// Player-wide, like $lostSats — the scrap purse belongs to the commander, not
+// to whichever planet happened to load first.
+$salvage = salvage_state($db, $playerId);
 
 // ── Load current state ────────────────────────────────────────────────────────
 
@@ -188,4 +191,5 @@ ok([
     'recruit'            => $recruit,
     'cargo'              => $cargo,
     'anomaly'            => $anomaly,
+    'salvage'            => $salvage,
 ]);

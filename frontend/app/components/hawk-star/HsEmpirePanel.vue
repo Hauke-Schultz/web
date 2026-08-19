@@ -88,7 +88,12 @@ const stateBadge = (p) => {
   if (p.activity === 'building')            return { key: 'stateBuilding',   cls: 'busy'  }
   if (p.activity === 'converting')          return { key: 'stateConverting', cls: 'busy'  }
   if (p.rows.some(r => r.kind === 'warn'))  return { key: 'stateIdle',       cls: 'warn'  }
-  return { key: 'stateOk', cls: 'ok' }
+  // Nothing wrong and nothing under way — which, since a build would have been
+  // caught two lines up, always means nothing is being built. The badge says so
+  // instead of the old "Produktiv": an empty build queue is the one thing a
+  // commander can always act on, and a card that reads "fine" gets closed
+  // without a second look. `stateOk` is unreachable from here and is gone.
+  return { key: 'stateNoBuild', cls: 'idle' }
 }
 
 // The jump is the point of the board: set the planet AND the tile, then turn
@@ -392,6 +397,9 @@ const alertCount = computed(() => empireAlertCount.value)
   &--alarm { color: var(--hs-danger-muted); background: var(--hs-danger-bg-cost); }
   &--warn  { color: var(--hs-warn-text);    background: rgba(250, 204, 21, 0.14); }
   &--busy  { color: #c7d2fe;                background: rgba(129, 140, 248, 0.16); }
+  // Quieter than warn on purpose: an empty build queue is a nudge, not a fault,
+  // and it must not compete with a storage that has actually stopped producing.
+  &--idle  { color: #cbd5e1;                background: rgba(148, 163, 184, 0.16); }
   &--ok    { color: var(--hs-ok-muted);     background: var(--hs-ok-bg-dim); }
 }
 
