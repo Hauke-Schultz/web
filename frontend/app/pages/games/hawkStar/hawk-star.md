@@ -568,7 +568,7 @@ Three changes, all pulling the same way:
 
 - **The bands are the rule, drawn.** `bandStyle(halfWindow)` derives each band's radius *and its thickness* from `HIT_MS` / `PERFECT_MS` through the same `scaleAt()` the ring animation uses. What you aim at is exactly what the clock accepts, and widening a window widens its band automatically — there is no second place to keep in sync.
 - **Geometry follows from that, not from taste.** Band thickness is `TARGET_R × (RING_START − 1) × window / RING_MS`, which is why the landing radius is small (1.4 rem) and the start scale large (2.7): a target drawn near the rim leaves the gold core a two-pixel hairline. These values put the ring at 3.78 rem inside a 4 rem button at *t*=0, and give the core ~4 px and the outer band ~8.5 px. *(Both shrank by 0.1 rem with the button on 2026-08-24; the ratio, and therefore the picture, is unchanged.)*
-- **The ring overshoots.** It keeps shrinking ~350 ms past the target so that *too late* is something you watch happen rather than only feel.
+- **The ring overshoots.** It keeps shrinking past the target so that *too late* is something you watch happen rather than only feel. *(`OVERSHOOT_MS` 350 → 500 on 2026-08-24, when it also became the gap before the miss is announced — see* The beat between the window and the verdict *below.)*
 - **Colour is information, not decoration.** The approach is cool grey; the button, ring and both bands warm the instant the window opens, driven by the same `inWindow` flag as the label. The word and the light therefore cannot promise a window that has already shut.
 
 **Precision now pays.** A hit anywhere in the band rolls `weight`; a hit in the gold core rolls `weightPerfect` — the same four catches, weighted 22/34/30/14 instead of 50/30/15/5. This is the one place in the feature where skill pays *more* rather than merely *faster*, and it is safe for the same reason everything else here is: the zone only picks a weight column, the hold still caps the day, so a client that claims `perfect` on every cast just reaches the same ceiling sooner. The endpoint treats anything that is not the literal string `'perfect'` as `'good'`, so a malformed report can only cost the player.
@@ -594,7 +594,7 @@ The old button changed colour and nothing else, which is why it read as a label 
 | Idle | `hs-sal-breathe` — a slow halo *behind* the button (`.hs-sal-dial--idle::after`, `z-index: -1`), so hover and press keep their own box-shadow. The invitation to press it. |
 | Cast | An outward pulse (`.hs-sal-wave--cast`). The click has to leave the dial. |
 | Waiting | A conic `.hs-sal-sweep` behind the two ripples — a beam turning in the debris field, for up to twelve seconds that would otherwise be a blank circle. |
-| Bite | Unchanged: the bands and the shrinking ring, which are the rule made visible. |
+| Bite | The bands and the shrinking ring, plus **a red contact closing on the centre** — see below. |
 | Landed | `hs-sal-pop`, gold pulse, then **scrap flies out of the dial** — `burst()` rolls angle, distance, spin and a stagger per particle, and the count follows the haul. |
 | Dead centre | `hs-sal-pop-hard` — the same, harder, with a ring of light. |
 | Miss | `hs-sal-shrug`. It shrugs; it does not punish. |
@@ -603,7 +603,35 @@ The old button changed colour and nothing else, which is why it read as a label 
 
 Two rules hold this together. **Decoration never touches the four game timers**: `later()` / `clearDeco()` keep their own set, so nothing in the game can hang on a piece of confetti. And **the jolt fires on the click, not on the server's answer** — the hit was decided locally, so making the button wait for the network is what would make a good click feel unrewarded; only the scrap burst waits, because only the amount is the server's to say.
 
-`prefers-reduced-motion` turns all of it off and keeps the shrinking ring, which is not an effect but the thing you aim at.
+`prefers-reduced-motion` turns all of it off and keeps the shrinking ring and the contact, which are not effects but the thing you aim at.
+
+#### The contact  *(2026-08-24)*
+
+The bite now reads as a radar scope. A **red blip** appears on the rim at a random bearing and closes on the centre; a faint crosshair marks where it is going; *Jetzt!* lights up as it arrives.
+
+It is the same clock, not a second one:
+
+- **Distance and duration are the ring's.** The blip leaves at `TARGET_R × RING_START` — exactly where the ring starts — and is dead centre at `RING_MS`, the instant the ring sits on the target. Linear, for the same reason the ring is: the last 200 ms is the only part that matters.
+- **It does not stop on the crosshair, it tears past it.** One straight pass from the rim to `BLIP_PAST_REM` on the far side, and because the speed is constant it crosses zero at `RING_MS` without any keyframe having to say so. The first build parked it dead centre until the miss fired 200 ms later, so arrival and failure looked simultaneous — *Entwischt* appeared while the dot was still sitting on the target, which reads as the game taking the catch away rather than as having been too slow.
+- **Only the bearing is rolled**, once per bite in `startRing()`. A contact that also chose its own pace would be a second rule quietly contradicting the first; a contact that always came from the same side would teach the eye where to wait.
+- **Neither picture is ever asked what happened.** `strike()` still measures `Date.now()` against the bite timestamp. The blip is a reading of the clock, exactly like the bands — which is why a dropped frame still cannot cost a catch.
+- **The word lives in the lower third.** `.hs-sal-circle-label` is offset by `calc(var(--hs-sal-circle) * 0.26)` — derived from the button's size, so it stays put whatever `CIRCLE_REM` becomes. In *every* phase, not only during the bite: printed across the centre it covered the one thing it was telling you to look at, and moving only for the bite meant a label that had to be re-found each time it jumped.
+
+Two readings of one moment now: the dot is in the middle, and the ring is on the band. Whichever a player finds easier to watch, they are watching the same instant — and the gold core is still the only thing that pays more for watching it closely.
+
+#### The beat between the window and the verdict  *(2026-08-24)*
+
+`OVERSHOOT_MS` went 350 → **500** and now does a second job: it is the delay between the hit window shutting and the miss being announced. Three moments where there used to be two, and each one is a different piece of information:
+
+| ms | What happens | What the player sees |
+|---|---|---|
+| 1600–2000 | The window. `strike()` pays here, ±100 ms of `RING_MS` for the gold core. | *Jetzt!*, everything warm, the contact bright |
+| 2000 | The window shuts (`lateTimer`). The catch is lost. | Everything goes cold at once, *Entwischt*, the contact starts fading |
+| 2300 | `missed()` — the verdict (`ringTimer`, was `RING_MS + HIT_MS`) | Ring and contact have finished leaving; the panel says so |
+
+**The hit window is unchanged.** `HIT_MS` and `PERFECT_MS` are what they always were; only the moment the *announcement* lands moved, and the click that lands between 2000 and 2300 is a miss exactly as it was before — the difference is that it is now possible to make that click and watch why it failed.
+
+**The clock is re-stamped on the first painted frame.** `ringStarted` was set in `startRing()`, but Vue renders on the next tick and the browser starts the CSS animations on the frame after that — so the judgement ran a frame or two ahead of the ring and the contact on screen, always in the same direction and always against the player. A `nextTick` + `requestAnimationFrame` re-stamp costs nothing, is guarded by `ringKey` so a stale frame cannot land on the next bite, and falls back to the old stamp if the frame never comes (a backgrounded tab). Without it, "dead centre" on screen was reliably a hair late in the arithmetic.
 
 **A cast is client-only state and is lost on reload.** The server never hears about a cast until it is reported, so there is nothing to persist and no timer to resolve — unlike every other running thing in this game. Leaving the tile mid-cast simply drops it, which costs nothing, because a cast costs nothing.
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { RESOURCES } from '~/utils/hawkStarConfig.js'
@@ -20,8 +20,11 @@ const {
 const RING_MS    = 1800  // the moment the ring sits exactly on the target
 const HIT_MS     = 200   // ± window that counts as a catch at all
 const PERFECT_MS = 100   // ± core inside it — a tighter hit fishes a better table
-const OVERSHOOT_MS = 350 // the ring keeps shrinking past the target, so "too late"
-                         // is something you can see rather than only feel
+const OVERSHOOT_MS = 500 // the ring keeps shrinking and the contact keeps flying
+                         // past the target, so "too late" is something you can
+                         // see rather than only feel. It is also the delay
+                         // before the miss is announced: the verdict must not
+                         // land while the dot is still on the crosshair.
 // One bite per cast. Three made a miss cost nothing and turned the cast into a
 // three-round mini-game with its own bookkeeping — pips, a gap timer, a counter
 // on screen. A single bite is the same toy with the padding removed: the click
@@ -82,6 +85,38 @@ const ringStyle = {
   animationDuration: `${RING_TRAVEL_MS}ms`,
 }
 
+// ── The contact ───────────────────────────────────────────────────────────────
+// A radar blip closing on the middle, on the same clock as the ring: it leaves
+// the rim where the ring starts and is dead centre at RING_MS, the instant the
+// ring sits on the target. So "the dot is in the middle" and "the ring is on the
+// band" are two readings of one moment, and a player can watch whichever they
+// find easier — the judgement is still the timestamp arithmetic, and neither
+// picture is ever asked what happened.
+// Only the bearing is random. The distance is the ring's own starting radius and
+// the duration is RING_MS, because a contact that came in at its own pace would
+// be a second rule contradicting the first.
+// It does not stop dead on the crosshair either. One linear pass carries it from
+// the rim to the far side, and because the speed is constant it is at zero at
+// exactly RING_MS without anyone having to say so — the crossing is a
+// consequence of the geometry, not a keyframe that has to be kept in step.
+const BLIP_FROM_REM = TARGET_R * RING_START
+const BLIP_PAST_REM = BLIP_FROM_REM * OVERSHOOT_MS / RING_MS
+
+const blipAngle = ref(0)
+const blipStyle = computed(() => ({
+  '--hs-sal-blip-a':    `${blipAngle.value}deg`,
+  '--hs-sal-blip-r':    `${BLIP_FROM_REM}rem`,
+  '--hs-sal-blip-past': `${BLIP_PAST_REM}rem`,
+  // Two animations, two jobs: the pass (transform, the whole travel) and the
+  // exit (opacity, starting the instant the window shuts — not the instant it
+  // crosses the middle, because the last 200 ms of the window still pays and a
+  // dimming contact would say otherwise). Splitting them by property is what
+  // lets the fade start on a timing constant instead of on a keyframe
+  // percentage that would have to be recomputed whenever the timing moves.
+  animationDuration: `${RING_TRAVEL_MS}ms, ${OVERSHOOT_MS - HIT_MS}ms`,
+  animationDelay:    `0ms, ${RING_MS + HIT_MS}ms`,
+}))
+
 // The dial is the button plus the gap the hold ring is drawn in. Handing both
 // numbers to CSS keeps the stylesheet from re-stating them.
 const dialStyle = {
@@ -97,6 +132,11 @@ const ringStarted  = ref(0)
 // glow and nothing else — the same timer, so the word and the light can never
 // promise a window that has already closed.
 const inWindow     = ref(false)
+// True for the short stretch between the window shutting and the verdict being
+// announced — the beat in which the contact tears past the middle. A click here
+// is a miss like any other; the flag only decides what the button looks like
+// and what the word says.
+const windowClosed = ref(false)
 // Bumping this re-keys the ring element, which is what restarts its animation —
 // a CSS animation cannot be told to play again without being remounted.
 const ringKey      = ref(0)
@@ -105,13 +145,15 @@ const result       = ref(null)
 let waitTimer = null
 let ringTimer = null
 let windowTimer = null
+let lateTimer = null
 let resetTimer = null
 
 const clearTimers = () => {
   clearTimeout(waitTimer); clearTimeout(ringTimer)
-  clearTimeout(windowTimer); clearTimeout(resetTimer)
-  waitTimer = ringTimer = windowTimer = resetTimer = null
+  clearTimeout(windowTimer); clearTimeout(lateTimer); clearTimeout(resetTimer)
+  waitTimer = ringTimer = windowTimer = lateTimer = resetTimer = null
   inWindow.value = false
+  windowClosed.value = false
 }
 
 // ── Feedback ──────────────────────────────────────────────────────────────────
@@ -190,12 +232,37 @@ const scheduleReset = () => {
 
 const startRing = () => {
   ringKey.value  += 1
+  // A fresh bearing every bite: the eye must not be able to learn where to wait.
+  blipAngle.value = Math.random() * 360
   ringStarted.value = Date.now()
   phase.value = 'bite'
-  inWindow.value = false
+  inWindow.value    = false
+  windowClosed.value = false
   windowTimer = setTimeout(() => { inWindow.value = true }, RING_MS - HIT_MS)
-  // Letting the window pass counts as the same miss a wrong click does.
-  ringTimer = setTimeout(missed, RING_MS + HIT_MS)
+  // The window shuts on time — the word and the glow go out with it, and the
+  // contact is still on screen to be seen tearing past the middle.
+  lateTimer = setTimeout(() => {
+    inWindow.value = false
+    windowClosed.value = true
+  }, RING_MS + HIT_MS)
+  // …and the verdict lands a beat later, when the ring and the contact have
+  // finished their overshoot. Letting the window pass counts as the same miss a
+  // wrong click does; it is only *announced* once the miss is visible, because
+  // "gone" arriving while the dot still sits dead centre reads as the game
+  // having taken the catch away rather than as having been too slow.
+  ringTimer = setTimeout(missed, RING_TRAVEL_MS)
+
+  // Judge against the clock the player is actually watching. Vue renders on the
+  // next tick and the browser starts the CSS animations on the frame after that,
+  // so a bite timed from this function is a frame or two ahead of the ring and
+  // the contact on screen — always in the same direction, always against the
+  // player. Re-stamping on the first painted frame costs nothing and makes "dead
+  // centre" mean dead centre. If the frame never comes (a backgrounded tab), the
+  // original stamp stands and nothing is worse than it was.
+  const bite = ringKey.value
+  nextTick(() => requestAnimationFrame(() => {
+    if (ringKey.value === bite) ringStarted.value = Date.now()
+  }))
 }
 
 const cast = () => {
@@ -275,7 +342,14 @@ const onCircle = () => {
 const circleLabel = computed(() => {
   if (phase.value === 'idle')    return t('hawkStar.salvage.cast')
   if (phase.value === 'waiting') return t('hawkStar.salvage.waiting')
-  if (phase.value === 'bite')    return inWindow.value ? t('hawkStar.salvage.now') : ''
+  // Empty on the approach, *Jetzt!* in the window, and *Entwischt* for the beat
+  // the contact spends tearing past — the catch is already lost by then, and
+  // saying so while it is still visibly leaving is what makes the miss legible.
+  if (phase.value === 'bite') {
+    if (inWindow.value)     return t('hawkStar.salvage.now')
+    if (windowClosed.value) return t('hawkStar.salvage.fled')
+    return ''
+  }
   if (!result.value?.hit)        return t('hawkStar.salvage.fled')
   return result.value?.zone === 'perfect'
     ? t('hawkStar.salvage.perfect')
@@ -374,7 +448,10 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 
         <button
           class="hs-sal-circle"
-          :class="[`hs-sal-circle--${phase}`, { 'hs-sal-circle--open': inWindow }]"
+          :class="[
+            `hs-sal-circle--${phase}`,
+            { 'hs-sal-circle--open': inWindow, 'hs-sal-circle--late': windowClosed },
+          ]"
           :disabled="phase === 'waiting' || phase === 'result'"
           @click="onCircle"
         >
@@ -395,6 +472,12 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
             <span class="hs-sal-band hs-sal-band--good"    :style="goodBandStyle" />
             <span class="hs-sal-band hs-sal-band--perfect" :style="perfectBandStyle" />
             <span :key="ringKey" class="hs-sal-ring" :style="ringStyle" />
+            <!-- The scope's centre, so that "wait until it is in the middle" has
+                 a middle to point at. -->
+            <span class="hs-sal-core" />
+            <!-- The contact itself: rolled bearing, geometry and clock from the
+                 ring. Keyed with the ring so both restart together. -->
+            <span :key="`blip-${ringKey}`" class="hs-sal-blip" :style="blipStyle" />
           </template>
 
           <span class="hs-sal-circle-label">{{ circleLabel }}</span>
@@ -677,11 +760,31 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
     background: radial-gradient(circle at 50% 45%, rgba(250, 204, 21, 0.2), rgba(40, 28, 8, 0.62));
     box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.14);
   }
+  // The window has shut but the bite is still on screen. Everything goes cold at
+  // once — that is the moment the catch was lost, and it has to be the moment it
+  // looks lost, not half a second later when the panel gets round to saying so.
+  &--late {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: radial-gradient(circle at 50% 45%, rgba(100, 116, 139, 0.1), rgba(8, 20, 40, 0.6));
+    color: rgba(255, 255, 255, 0.4);
+  }
   &--result { border-color: rgba(255, 255, 255, 0.18); }
 }
+.hs-sal-circle--late {
+  .hs-sal-band--good    { border-color: rgba(255, 255, 255, 0.05); }
+  .hs-sal-band--perfect { border-color: rgba(255, 255, 255, 0.08); }
+  .hs-sal-ring          { border-color: rgba(226, 232, 240, 0.3); }
+  .hs-sal-core          { border-color: rgba(255, 255, 255, 0.1); }
+}
+// The middle of the button belongs to the contact and the ring, so the word
+// lives in the lower third — in every phase, not only during the bite, because
+// a label that jumps to make room is a label you have to re-find each time.
+// Derived from the button's own size, so it stays in the lower third whatever
+// CIRCLE_REM becomes.
 .hs-sal-circle-label {
   position: relative;
   z-index: 2;
+  transform: translateY(calc(var(--hs-sal-circle) * 0.26));
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -725,6 +828,97 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   from { transform: scale(var(--hs-sal-from)); opacity: 0.3; }
   20%  { opacity: 1; }
   to   { transform: scale(var(--hs-sal-to));   opacity: 1; }
+}
+
+// ── The contact ──────────────────────────────────────────────────────────────
+// The scope's centre. Faint on purpose: it is where the contact is going, not a
+// thing to look at — but without it the middle is nowhere in particular, and
+// "click when it reaches the middle" has nothing to reach.
+.hs-sal-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: -0.45rem 0 0 -0.45rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+  transition: border-color 0.12s;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.18);
+  }
+  // The crosshair, one hairline each way, overhanging the little circle.
+  &::before { left: 50%;  top: -0.3rem; bottom: -0.3rem; width: 1px;  margin-left: -0.5px; }
+  &::after  { top:  50%;  left: -0.3rem; right: -0.3rem; height: 1px; margin-top: -0.5px; }
+}
+.hs-sal-circle--open .hs-sal-core { border-color: rgba(253, 224, 71, 0.7); }
+
+// The blip. Red because a contact is red, and because nothing else on the dial
+// is — the eye finds it without being told. Its transform is
+// `rotate(bearing) translateY(−distance)`, so one animation carries it straight
+// down the bearing to the centre and the wake below rides along.
+.hs-sal-blip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: -0.275rem 0 0 -0.275rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fee2e2 0%, #ef4444 60%, rgba(239, 68, 68, 0.4) 100%);
+  box-shadow: 0 0 9px rgba(239, 68, 68, 0.8);
+  // Duration and delay are set inline; the pass is linear for the same reason
+  // the ring is — an eased approach would make the last 200 ms unreadable, and
+  // a constant speed is also what puts the dot on the crosshair at RING_MS.
+  animation-name: hs-sal-blip-pass, hs-sal-blip-gone;
+  animation-timing-function: linear, ease-in;
+  animation-fill-mode: forwards, forwards;
+  pointer-events: none;
+  z-index: 1;
+
+  // The wake: a short streak pointing back the way it came. The parent's
+  // rotation carries it, so it is always along the line of travel — motion you
+  // can still see in a freeze-frame.
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 50%;
+    width: 2px;
+    height: 1.5rem;
+    margin-left: -1px;
+    border-radius: 1px;
+    background: linear-gradient(to top, rgba(239, 68, 68, 0.5), rgba(239, 68, 68, 0));
+  }
+}
+// Arrived. The window and the contact light up together, from the same flag.
+.hs-sal-circle--open .hs-sal-blip {
+  box-shadow: 0 0 14px rgba(248, 113, 113, 0.95), 0 0 0 5px rgba(239, 68, 68, 0.18);
+}
+
+// One straight pass: rim → crosshair → out the far side. Zero is crossed at
+// RING_MS because the speed is constant, and the wake keeps pointing back the
+// way it came all the way through.
+@keyframes hs-sal-blip-pass {
+  from {
+    transform: rotate(var(--hs-sal-blip-a)) translateY(calc(-1 * var(--hs-sal-blip-r))) scale(0.65);
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  to {
+    transform: rotate(var(--hs-sal-blip-a)) translateY(var(--hs-sal-blip-past)) scale(1);
+    opacity: 1;
+  }
+}
+// The exit, on its own property so it can start exactly when the window shuts.
+@keyframes hs-sal-blip-gone {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
 .hs-sal-ripple {
