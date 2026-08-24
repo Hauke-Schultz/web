@@ -28,7 +28,10 @@ const OVERSHOOT_MS = 350 // the ring keeps shrinking past the target, so "too la
 // is the cast, and casting again is free.
 const WAIT_MIN = 4000
 const WAIT_MAX = 12000
-const SHOW_RESULT_MS = 1800
+// Long enough to read the outcome on the dial, short enough that the button is
+// back before the hand is: the result line beside it survives the next cast
+// anyway, so this only governs how long the button stays locked.
+const SHOW_RESULT_MS = 1200
 
 // ── Geometry ─────────────────────────────────────────────────────────────────
 // Every circle on screen is derived from the timing above, never hand-tuned.
@@ -39,11 +42,17 @@ const SHOW_RESULT_MS = 1800
 // The landing radius is deliberately small and the starting scale large: band
 // thickness works out to TARGET_R × (RING_START − 1) × window/RING_MS, so a
 // target drawn near the rim leaves the gold core a two-pixel hairline. These
-// values keep the ring inside the button at t=0 (1.5 × 2.7 = 4.05 < 4.25) and
-// still give the core ~4.5 px to aim at.
-const CIRCLE_REM = 8.5   // the button
-const TARGET_R   = 1.5   // rem, radius at which the ring "lands"
+// values keep the ring inside the button at t=0 (1.4 × 2.7 = 3.78 < 4.0) and
+// still give the core ~4 px to aim at.
+// CIRCLE_REM is the single source of the button's size — the stylesheet reads it
+// back as a custom property, because the geometry above and the drawn circle
+// drifting apart is exactly the bug this file is built to avoid.
+const CIRCLE_REM = 8     // the button
+const TARGET_R   = 1.4   // rem, radius at which the ring "lands"
 const RING_START = 2.7   // scale the ring starts from
+
+// The hold ring is drawn outside the button, in the dial's padding.
+const HOLD_GAP_REM = 0.55
 
 const scaleAt = (ms) => RING_START - (RING_START - 1) * (ms / RING_MS)
 
@@ -73,6 +82,14 @@ const ringStyle = {
   animationDuration: `${RING_TRAVEL_MS}ms`,
 }
 
+// The dial is the button plus the gap the hold ring is drawn in. Handing both
+// numbers to CSS keeps the stylesheet from re-stating them.
+const dialStyle = {
+  '--hs-sal-circle': `${CIRCLE_REM}rem`,
+  '--hs-sal-gap':    `${HOLD_GAP_REM}rem`,
+  padding: `${HOLD_GAP_REM}rem`,
+}
+
 // idle → waiting → bite → result → idle
 const phase        = ref('idle')
 const ringStarted  = ref(0)
@@ -96,7 +113,76 @@ const clearTimers = () => {
   waitTimer = ringTimer = windowTimer = resetTimer = null
   inWindow.value = false
 }
-onUnmounted(clearTimers)
+
+// ── Feedback ──────────────────────────────────────────────────────────────────
+// Purely decorative state, kept strictly apart from the four timers above: the
+// game must not be able to hang on a piece of confetti. Nothing here is ever
+// read back, and all of it is dropped on unmount.
+//
+// What it is for: the button was a circle that changed colour, and a toy whose
+// only feedback is a colour change does not feel like it is doing anything. The
+// cast throws something out, a catch throws scrap back at you, a miss shrugs.
+const wave    = ref(null)   // one expanding pulse: { kind: 'cast' | 'catch', id }
+const flash   = ref(null)   // 'perfect' | 'good' | 'miss', drives the button's own jolt
+const sparks  = ref([])     // flying scrap, one element per particle
+const floater = ref(null)   // the "+N 🔩" that rises off the dial
+// The purse in the header, told that it just went up. Without it the sparks fly
+// off into nothing and the counter changes somewhere else entirely.
+const scrapPop = ref(false)
+
+let decoId = 0
+const decoTimers = new Set()
+// setTimeout that forgets itself, so `clearDeco` never has to know what is
+// outstanding — there can be a dozen of these in flight during a good burst.
+const later = (ms, fn) => {
+  const id = setTimeout(() => { decoTimers.delete(id); fn() }, ms)
+  decoTimers.add(id)
+}
+const clearDeco = () => {
+  decoTimers.forEach(clearTimeout); decoTimers.clear()
+  wave.value = flash.value = floater.value = null
+  scrapPop.value = false
+  sparks.value = []
+}
+
+const SPARK_MS = 750
+
+const pulse = (kind, ms) => {
+  wave.value = { kind, id: ++decoId }
+  later(ms, () => { if (wave.value?.kind === kind) wave.value = null })
+}
+
+// The class has to outlive the keyframes it triggers, or the animation is cut
+// off mid-way — hence one duration per kind rather than one for all three.
+const JOLT_MS = { good: 440, perfect: 540, miss: 420 }
+const jolt = (kind) => {
+  flash.value = kind
+  later(JOLT_MS[kind] ?? 450, () => { if (flash.value === kind) flash.value = null })
+}
+
+// Scrap thrown out of the dial. Count follows the haul, so a big catch looks
+// like one — the number in the line is the fact, this is the feeling.
+const burst = (count) => {
+  const made = []
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2
+    const dist  = 2.8 + Math.random() * 2.2
+    made.push({
+      id: ++decoId,
+      style: {
+        '--hs-sal-dx':  `${Math.cos(angle) * dist}rem`,
+        '--hs-sal-dy':  `${Math.sin(angle) * dist}rem`,
+        '--hs-sal-rot': `${-150 + Math.random() * 300}deg`,
+        animationDelay: `${Math.round(Math.random() * 110)}ms`,
+      },
+    })
+  }
+  sparks.value = [...sparks.value, ...made]
+  const ids = new Set(made.map(s => s.id))
+  later(SPARK_MS + 200, () => { sparks.value = sparks.value.filter(s => !ids.has(s.id)) })
+}
+
+onUnmounted(() => { clearTimers(); clearDeco() })
 
 const scheduleReset = () => {
   resetTimer = setTimeout(() => { phase.value = 'idle' }, SHOW_RESULT_MS)
@@ -114,6 +200,10 @@ const startRing = () => {
 
 const cast = () => {
   clearTimers()
+  clearDeco()
+  // The one thing the player does that has no outcome attached: the pulse is
+  // the whole acknowledgement, and without it the button swallowed the click.
+  pulse('cast', 700)
   // The last outcome deliberately survives the next cast: the line is the only
   // place a catch is ever named, and wiping it on cast meant the answer to
   // "what did I just pull up" vanished the moment you reached for the button.
@@ -142,9 +232,15 @@ const strike = () => {
 const finish = async (hit, zone = null) => {
   clearTimers()
   phase.value = 'result'
-  if (!hit) { result.value = { hit: false }; scheduleReset(); return }
+  if (!hit) { jolt('miss'); result.value = { hit: false }; scheduleReset(); return }
 
+  // The jolt fires on the click, not on the answer: the hit was decided here,
+  // and making the player wait for the network before the button reacts is what
+  // would make a good click feel unrewarded.
+  jolt(zone)
+  pulse('catch', 620)
   result.value = { hit: true, zone, pending: true }
+
   const r = await reportSalvageCatch(true, zone)
   result.value = {
     hit: true,
@@ -152,6 +248,16 @@ const finish = async (hit, zone = null) => {
     ...r,
     // The catch was real, the hold just had no room left for it.
     thrownBack: !r.failed && r.gained === 0,
+  }
+  // Scrap only flies when scrap was actually earned — a thrown-back catch has
+  // to look different from a paid one, or the hold ceiling stops reading as a
+  // ceiling at all.
+  if (r.gained > 0) {
+    burst(Math.min(12, 3 + Math.round(r.gained / 3)))
+    floater.value = `+${r.gained} 🔩`
+    scrapPop.value = true
+    later(1100, () => { floater.value = null })
+    later(700,  () => { scrapPop.value = false })
   }
   scheduleReset()
 }
@@ -179,6 +285,17 @@ const circleLabel = computed(() => {
 const holdPct = computed(() =>
   salvageHoldMax.value ? Math.min(100, Math.max(0, salvageHold.value / salvageHoldMax.value * 100)) : 0
 )
+
+// The hold, drawn as the ring around the button instead of a bar under it. It
+// is the one number that decides whether the next cast pays, so it belongs on
+// the thing you are about to click — and as a ring it costs no vertical space
+// at all. Radius 46 in a 0–100 viewBox, so the arc lands just outside the rim.
+const HOLD_R = 46
+const HOLD_C = 2 * Math.PI * HOLD_R
+const holdArcStyle = computed(() => ({
+  strokeDasharray:  `${HOLD_C}`,
+  strokeDashoffset: `${HOLD_C * (1 - holdPct.value / 100)}`,
+}))
 
 const catchName = (key) => t('hawkStar.salvage.catches.' + key)
 
@@ -222,64 +339,95 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
     <div class="hs-sal-head">
       <span class="hs-sal-icon">🧲</span>
       <h2 class="hs-sal-title">{{ t('hawkStar.salvage.title') }}</h2>
-      <span class="hs-sal-scrap">🔩 {{ salvageScrap }}</span>
+      <span class="hs-sal-scrap" :class="{ 'hs-sal-scrap--pop': scrapPop }">🔩 {{ salvageScrap }}</span>
     </div>
 
-    <p class="hs-sal-intro">{{ t('hawkStar.salvage.intro') }}</p>
-
-    <!-- The hold is room LEFT, so the bar empties as you fish. At zero the toy
-         keeps working and the scrap goes back over the side — that is the whole
-         reason the catch is capped instead of the cast. -->
-    <div class="hs-sal-hold">
-      <div class="hs-sal-hold-row">
-        <span class="hs-sal-hold-label">{{ t('hawkStar.salvage.holdLabel') }}</span>
-        <span class="hs-sal-hold-val">{{ Math.floor(salvageHold) }} / {{ salvageHoldMax }}</span>
-      </div>
-      <span class="hs-sal-bar">
-        <span
-          class="hs-sal-bar-fill"
-          :class="{ 'hs-sal-bar-fill--empty': salvageHoldEmpty }"
-          :style="{ width: holdPct + '%' }"
-        />
-      </span>
-      <span v-if="salvageHoldEmpty" class="hs-sal-hold-warn">{{ t('hawkStar.salvage.holdEmpty') }}</span>
-    </div>
-
-    <!-- The game itself -->
+    <!-- The game itself: dial on the left, everything written on the right. -->
     <div class="hs-sal-stage">
-      <button
-        class="hs-sal-circle"
-        :class="[`hs-sal-circle--${phase}`, { 'hs-sal-circle--open': inWindow }]"
-        :disabled="phase === 'waiting' || phase === 'result'"
-        @click="onCircle"
+      <div
+        class="hs-sal-dial"
+        :class="[`hs-sal-dial--${phase}`, flash ? `hs-sal-dial--${flash}` : null]"
+        :style="dialStyle"
       >
-        <!-- Idle ripples: the tell that something is out there, and the reason
-             the waiting phase is watchable rather than a blank pause. -->
-        <template v-if="phase === 'waiting'">
-          <span class="hs-sal-ripple" />
-          <span class="hs-sal-ripple hs-sal-ripple--late" />
-        </template>
+        <!-- The hold, as the ring around the button. It is room LEFT, so the arc
+             empties as you fish; at zero the toy keeps working and the scrap
+             goes back over the side, which is the whole reason the catch is
+             capped instead of the cast. -->
+        <svg class="hs-sal-hold-ring" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="hs-sal-hold-track" cx="50" cy="50" :r="HOLD_R" />
+          <circle
+            class="hs-sal-hold-arc"
+            :class="{ 'hs-sal-hold-arc--empty': salvageHoldEmpty }"
+            cx="50" cy="50" :r="HOLD_R"
+            :style="holdArcStyle"
+          />
+        </svg>
 
-        <!-- The two bands ARE the hit window — both their radius and their
-             thickness come straight out of HIT_MS / PERFECT_MS, so what you aim
-             at is exactly what is judged. Amber counts, the gold core counts
-             for more. -->
-        <template v-if="phase === 'bite'">
-          <span class="hs-sal-band hs-sal-band--good"    :style="goodBandStyle" />
-          <span class="hs-sal-band hs-sal-band--perfect" :style="perfectBandStyle" />
-          <span :key="ringKey" class="hs-sal-ring" :style="ringStyle" />
-        </template>
+        <!-- One pulse, two meanings: outward on the cast, inward-lit on a catch.
+             Re-keyed so the animation restarts rather than being ignored. -->
+        <span
+          v-if="wave"
+          :key="wave.id"
+          class="hs-sal-wave"
+          :class="`hs-sal-wave--${wave.kind}`"
+        />
 
-        <span class="hs-sal-circle-label">{{ circleLabel }}</span>
-      </button>
+        <button
+          class="hs-sal-circle"
+          :class="[`hs-sal-circle--${phase}`, { 'hs-sal-circle--open': inWindow }]"
+          :disabled="phase === 'waiting' || phase === 'result'"
+          @click="onCircle"
+        >
+          <!-- The beam is out: a sweep and two ripples. This is the only thing
+               on screen during the wait, and a blank circle for up to twelve
+               seconds reads as broken rather than as patient. -->
+          <template v-if="phase === 'waiting'">
+            <span class="hs-sal-sweep" />
+            <span class="hs-sal-ripple" />
+            <span class="hs-sal-ripple hs-sal-ripple--late" />
+          </template>
 
-      <!-- Everything one cast produced, in one column beside the circle: the
-           eye is already on the ring, and the empty space next to it was the
-           one piece of room the panel had going spare. Keeping the catch line
-           and the artefact together also stops the reward arriving in two
-           places — the rare half used to appear below the fold while the
-           ordinary half sat up here. -->
+          <!-- The two bands ARE the hit window — both their radius and their
+               thickness come straight out of HIT_MS / PERFECT_MS, so what you aim
+               at is exactly what is judged. Amber counts, the gold core counts
+               for more. -->
+          <template v-if="phase === 'bite'">
+            <span class="hs-sal-band hs-sal-band--good"    :style="goodBandStyle" />
+            <span class="hs-sal-band hs-sal-band--perfect" :style="perfectBandStyle" />
+            <span :key="ringKey" class="hs-sal-ring" :style="ringStyle" />
+          </template>
+
+          <span class="hs-sal-circle-label">{{ circleLabel }}</span>
+        </button>
+
+        <!-- Scrap, thrown out of the dial and gone again. Outside the button so
+             the particles can leave it, and `pointer-events: none` so they can
+             never eat the next click. -->
+        <span
+          v-for="s in sparks"
+          :key="s.id"
+          class="hs-sal-spark"
+          :style="s.style"
+        >🔩</span>
+
+        <span v-if="floater" class="hs-sal-floater">{{ floater }}</span>
+      </div>
+
+      <!-- Everything written, in one column beside the dial: what the toy is,
+           how much room is left, what the last cast produced, and the artefact
+           on the rare cast that turns one up. The reward used to arrive in two
+           places — the rare half below the fold, the ordinary half above it. -->
       <div class="hs-sal-outcome">
+        <p class="hs-sal-intro">{{ t('hawkStar.salvage.intro') }}</p>
+
+        <div class="hs-sal-hold-row">
+          <span class="hs-sal-hold-label">{{ t('hawkStar.salvage.holdLabel') }}</span>
+          <span class="hs-sal-hold-val" :class="{ 'hs-sal-hold-val--empty': salvageHoldEmpty }">
+            {{ Math.floor(salvageHold) }} / {{ salvageHoldMax }}
+          </span>
+        </div>
+        <span v-if="salvageHoldEmpty" class="hs-sal-hold-warn">{{ t('hawkStar.salvage.holdEmpty') }}</span>
+
         <!-- What happened, in one line. It stays put — no fade, and not cleared
              by the next cast, so the haul is still readable while you fish. -->
         <div class="hs-sal-result">
@@ -353,11 +501,11 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   background: rgba(56, 189, 248, 0.06);
   border: 1px solid rgba(56, 189, 248, 0.18);
   border-radius: var(--hs-r-md);
-  padding: 0.75rem 0.85rem;
+  padding: 0.7rem 0.8rem;
   margin-bottom: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 
 .hs-sal-head {
@@ -373,20 +521,27 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   font-weight: 700;
   color: #fcd34d;
   font-variant-numeric: tabular-nums;
+  transform-origin: right center;
+
+  // Where the scrap ends up. The sparks leave the dial, the counter answers —
+  // otherwise the payout happens in one corner and the total in another.
+  &--pop { animation: hs-sal-scrap-pop 700ms ease-out; }
+}
+@keyframes hs-sal-scrap-pop {
+  0%   { transform: scale(1);    color: #fcd34d; }
+  25%  { transform: scale(1.18); color: #fff; text-shadow: 0 0 10px rgba(252, 211, 77, 0.7); }
+  100% { transform: scale(1);    color: #fcd34d; }
 }
 
 .hs-sal-intro {
   margin: 0;
-  font-size: 0.63rem;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.42);
 }
 
-.hs-sal-hold {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
+// The bar is gone — the hold is the ring around the button now. What is left of
+// it is the exact figure, which a ring cannot give you.
 .hs-sal-hold-row {
   display: flex;
   align-items: baseline;
@@ -395,49 +550,99 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 }
 .hs-sal-hold-label { font-size: 0.6rem; color: rgba(255, 255, 255, 0.5); }
 .hs-sal-hold-val {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.7);
   font-variant-numeric: tabular-nums;
-}
-.hs-sal-bar {
-  display: block;
-  height: 5px;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-}
-.hs-sal-bar-fill {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: #38bdf8;
-  transition: width 0.4s linear;
 
-  &--empty { background: var(--hs-warn); }
+  &--empty { color: var(--hs-warn-text); }
 }
 .hs-sal-hold-warn {
   font-size: 0.58rem;
+  line-height: 1.35;
   color: var(--hs-warn-text);
 }
 
 // ── The stage ────────────────────────────────────────────────────────────────
-// Circle left, outcome right. The circle keeps its fixed size, the outcome
-// column takes what is left and wraps under it when that is too narrow — the
-// panel lives inside a tile column, so it cannot assume any width.
+// Dial left, everything written right. The dial keeps its fixed size, the column
+// takes what is left and wraps under it when that is too narrow — the panel
+// lives inside a tile column, so it cannot assume any width.
 .hs-sal-stage {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 0.6rem 0.9rem;
-  padding: 0.75rem 0 0.25rem;
+  padding: 0.35rem 0 0.15rem;
+}
+
+// ── The dial ─────────────────────────────────────────────────────────────────
+// Button, hold ring and every piece of confetti in one positioned box. Its
+// padding is the gap the ring is drawn in and comes from `HOLD_GAP_REM`, its
+// size from `--hs-sal-circle` — both set inline, so the geometry in the script
+// and the picture on screen cannot drift.
+.hs-sal-dial {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+// Idle breathing. A button that sits perfectly still reads as a label, and this
+// is the whole invitation to press it. Drawn *behind* the button rather than on
+// it, so the button's own hover and press states keep their box-shadow to
+// themselves — one glow per meaning.
+.hs-sal-dial--idle::after {
+  content: '';
+  position: absolute;
+  inset: var(--hs-sal-gap);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0) 72%);
+  animation: hs-sal-breathe 3.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+@keyframes hs-sal-breathe {
+  0%, 100% { transform: scale(0.94); opacity: 0.3; }
+  50%      { transform: scale(1.09); opacity: 0.85; }
+}
+
+.hs-sal-hold-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  // 0° is East in SVG, and a gauge that starts anywhere but the top reads as
+  // decoration rather than as a measure.
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.hs-sal-hold-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.07);
+  stroke-width: 4;
+}
+.hs-sal-hold-arc {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.45));
+  // Slower than the bar was: the hold moves by a catch at a time, and a ring
+  // that snaps is a ring you never see move.
+  transition: stroke-dashoffset 0.6s ease, stroke 0.3s;
+
+  &--empty {
+    stroke: var(--hs-warn);
+    filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.4));
+  }
 }
 
 .hs-sal-circle {
   position: relative;
-  width: 8.5rem;
-  height: 8.5rem;
+  width: var(--hs-sal-circle);
+  height: var(--hs-sal-circle);
   flex: none;
   border-radius: 50%;
   border: 2px solid rgba(56, 189, 248, 0.35);
@@ -447,10 +652,18 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.2s, background 0.2s, transform 0.08s;
+  overflow: hidden;   // keeps the sweep and the ripples inside the rim
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.08s;
 
   &:disabled { cursor: default; }
-  &:not(:disabled):active { transform: scale(0.97); }
+  &:not(:disabled):active { transform: scale(0.96); }
+  // Hover belongs to the idle button alone. During the bite the glow is
+  // information — a blue hover ring on top of the gold one would be a second
+  // light saying something the clock does not.
+  &--idle:hover {
+    border-color: rgba(125, 211, 252, 0.65);
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1);
+  }
 
   // The approach stays cool. Warmth is reserved for the window itself, so the
   // colour change is information rather than decoration.
@@ -516,7 +729,7 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 
 .hs-sal-ripple {
   position: absolute;
-  inset: 2.6rem;
+  inset: 2.4rem;
   border-radius: 50%;
   border: 1px solid rgba(125, 211, 252, 0.5);
   animation: hs-sal-ripple 2.2s ease-out infinite;
@@ -529,27 +742,148 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   to   { transform: scale(1.75); opacity: 0; }
 }
 
-// The right-hand column: the catch line, plus the artefact card on the rare
-// cast that turns one up. It takes whatever the circle leaves and wraps under
-// it once that is narrower than a line of text.
+// The sweep behind them: a beam turning in the debris field. Conic, so the
+// bright edge leads and the tail fades — a plain rotating bar looks mechanical.
+.hs-sal-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(56, 189, 248, 0.28),
+    rgba(56, 189, 248, 0.05) 40%,
+    rgba(56, 189, 248, 0) 62%
+  );
+  animation: hs-sal-sweep 2.8s linear infinite;
+  pointer-events: none;
+}
+@keyframes hs-sal-sweep { to { transform: rotate(360deg); } }
+
+// ── Cast, catch, miss ────────────────────────────────────────────────────────
+// One pulse element, two jobs. The cast throws a ring outward — that is the
+// player's click leaving the dial. The catch flares inward-lit and gold, which
+// is the same event the sparks answer.
+.hs-sal-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+
+  &--cast {
+    border: 2px solid rgba(125, 211, 252, 0.85);
+    animation: hs-sal-cast 700ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  }
+  &--catch {
+    border: 3px solid rgba(253, 224, 71, 0.9);
+    box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+    animation: hs-sal-catch 620ms ease-out forwards;
+  }
+}
+@keyframes hs-sal-cast {
+  from { transform: scale(0.55); opacity: 0; }
+  20%  { opacity: 1; }
+  to   { transform: scale(1.35); opacity: 0; }
+}
+@keyframes hs-sal-catch {
+  from { transform: scale(1);    opacity: 0.95; }
+  to   { transform: scale(1.28); opacity: 0; }
+}
+
+// The button's own jolt. Landed pops, dead centre pops harder and glows, a miss
+// shrugs it off — three different answers to the same click, which is what makes
+// the click feel judged rather than merely recorded.
+.hs-sal-dial--good .hs-sal-circle    { animation: hs-sal-pop 420ms ease-out; }
+.hs-sal-dial--perfect .hs-sal-circle { animation: hs-sal-pop-hard 520ms ease-out; }
+.hs-sal-dial--miss .hs-sal-circle    { animation: hs-sal-shrug 400ms ease-out; }
+
+@keyframes hs-sal-pop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+@keyframes hs-sal-pop-hard {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.5); }
+  30%  { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(250, 204, 21, 0.22); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 16px rgba(250, 204, 21, 0); }
+}
+@keyframes hs-sal-shrug {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-5px) rotate(-1deg); }
+  50%      { transform: translateX(5px)  rotate(1deg); }
+  80%      { transform: translateX(-2px); }
+}
+
+// Scrap leaving the dial. Angle, distance, spin and a little stagger are rolled
+// per particle, because eight identical arcs read as a machine, not a haul.
+.hs-sal-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 0.8rem;
+  line-height: 1;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 4;
+  animation: hs-sal-spark 750ms ease-out forwards;
+}
+@keyframes hs-sal-spark {
+  from { transform: translate(-50%, -50%) scale(0.4) rotate(0deg); opacity: 0; }
+  18%  { opacity: 1; }
+  to   {
+    transform:
+      translate(calc(-50% + var(--hs-sal-dx)), calc(-50% + var(--hs-sal-dy)))
+      scale(1) rotate(var(--hs-sal-rot));
+    opacity: 0;
+  }
+}
+
+// The number, rising off the dial. The result line beside it is the record; this
+// is the moment, and it is the only place the gain is ever animated.
+.hs-sal-floater {
+  position: absolute;
+  left: 50%;
+  top: 26%;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--hs-ok-muted);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  animation: hs-sal-float 1100ms ease-out forwards;
+}
+@keyframes hs-sal-float {
+  from { transform: translate(-50%, 0.7rem); opacity: 0; }
+  22%  { opacity: 1; }
+  to   { transform: translate(-50%, -2.4rem); opacity: 0; }
+}
+
+// The right-hand column: what the toy is, how much room is left, what the last
+// cast produced, and the artefact card on the rare cast that turns one up. It
+// takes whatever the dial leaves and wraps under it once that is narrower than
+// a line of text. Left-aligned throughout — four centred blocks of different
+// widths have no edge for the eye to run down.
 .hs-sal-outcome {
-  flex: 1 1 9rem;
+  flex: 1 1 11rem;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  text-align: left;
 }
 
-// Always on. The reserved min-height is what stops the panel jumping before the
+// Always on. The reserved min-height is what stops the column jumping before the
 // first catch, so nothing here needs to fade.
 .hs-sal-result {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
   gap: 0.15rem 0.35rem;
   min-height: 1.2rem;
+  padding-top: 0.15rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.5);
 }
@@ -558,17 +892,25 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 .hs-sal-gain   { color: var(--hs-ok-muted); font-weight: 700; font-variant-numeric: tabular-nums; }
 .hs-sal-thrown { color: var(--hs-warn-text); }
 
+// The one thing in the panel that is allowed to announce itself: it appears on
+// about one cast in seventy, so it fades in rather than blinking into place.
 .hs-sal-find {
-  padding: 0.4rem 0.6rem;
+  padding: 0.35rem 0.5rem;
   border-radius: var(--hs-r-md);
   border: 1px solid rgba(196, 181, 253, 0.35);
   background: rgba(139, 92, 246, 0.12);
   font-size: 0.65rem;
+  line-height: 1.35;
   color: #ddd6fe;
-  text-align: center;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  animation: hs-sal-find-in 500ms ease-out;
+}
+@keyframes hs-sal-find-in {
+  from { opacity: 0; transform: translateY(-0.3rem); box-shadow: 0 0 0 0 rgba(196, 181, 253, 0.5); }
+  40%  { opacity: 1; box-shadow: 0 0 0 5px rgba(196, 181, 253, 0.16); }
+  to   { opacity: 1; transform: translateY(0); box-shadow: 0 0 0 0 rgba(196, 181, 253, 0); }
 }
 .hs-sal-find-line   { font-weight: 700; }
 .hs-sal-find-effect { font-size: 0.6rem; color: rgba(221, 214, 254, 0.75); }
@@ -651,4 +993,26 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 .hs-sal-cab-lore   { font-size: 0.62rem; line-height: 1.4; color: rgba(255, 255, 255, 0.5); font-style: italic; }
 .hs-sal-cab-effect { font-size: 0.62rem; font-weight: 600; color: #86efac; }
 .hs-sal-cab-hint   { margin: 0; font-size: 0.6rem; line-height: 1.4; color: rgba(255, 255, 255, 0.35); }
+
+// The celebration is optional, the game is not. Everything decorative stops;
+// the shrinking ring stays, because without it there is nothing to aim at — it
+// is the rule made visible, not an effect.
+@media (prefers-reduced-motion: reduce) {
+  .hs-sal-sweep,
+  .hs-sal-ripple,
+  .hs-sal-wave,
+  .hs-sal-spark,
+  .hs-sal-floater,
+  .hs-sal-find,
+  .hs-sal-dial--idle::after,
+  .hs-sal-scrap--pop,
+  .hs-sal-dial--good .hs-sal-circle,
+  .hs-sal-dial--perfect .hs-sal-circle,
+  .hs-sal-dial--miss .hs-sal-circle {
+    animation: none;
+  }
+  .hs-sal-spark,
+  .hs-sal-wave { display: none; }
+  .hs-sal-floater { opacity: 1; }
+}
 </style>

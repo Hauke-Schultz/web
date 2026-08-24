@@ -567,17 +567,43 @@ The first build drew a hairline target ring and printed *Jetzt!* for the whole a
 Three changes, all pulling the same way:
 
 - **The bands are the rule, drawn.** `bandStyle(halfWindow)` derives each band's radius *and its thickness* from `HIT_MS` / `PERFECT_MS` through the same `scaleAt()` the ring animation uses. What you aim at is exactly what the clock accepts, and widening a window widens its band automatically — there is no second place to keep in sync.
-- **Geometry follows from that, not from taste.** Band thickness is `TARGET_R × (RING_START − 1) × window / RING_MS`, which is why the landing radius is small (1.5 rem) and the start scale large (2.7): a target drawn near the rim leaves the gold core a two-pixel hairline. These values put the ring at 4.05 rem inside a 4.25 rem button at *t*=0, and give the core ~4.5 px and the outer band ~9 px.
+- **Geometry follows from that, not from taste.** Band thickness is `TARGET_R × (RING_START − 1) × window / RING_MS`, which is why the landing radius is small (1.4 rem) and the start scale large (2.7): a target drawn near the rim leaves the gold core a two-pixel hairline. These values put the ring at 3.78 rem inside a 4 rem button at *t*=0, and give the core ~4 px and the outer band ~8.5 px. *(Both shrank by 0.1 rem with the button on 2026-08-24; the ratio, and therefore the picture, is unchanged.)*
 - **The ring overshoots.** It keeps shrinking ~350 ms past the target so that *too late* is something you watch happen rather than only feel.
 - **Colour is information, not decoration.** The approach is cool grey; the button, ring and both bands warm the instant the window opens, driven by the same `inWindow` flag as the label. The word and the light therefore cannot promise a window that has already shut.
 
 **Precision now pays.** A hit anywhere in the band rolls `weight`; a hit in the gold core rolls `weightPerfect` — the same four catches, weighted 22/34/30/14 instead of 50/30/15/5. This is the one place in the feature where skill pays *more* rather than merely *faster*, and it is safe for the same reason everything else here is: the zone only picks a weight column, the hold still caps the day, so a client that claims `perfect` on every cast just reaches the same ceiling sooner. The endpoint treats anything that is not the literal string `'perfect'` as `'good'`, so a malformed report can only cost the player.
 
-#### One column for the outcome  *(2026-08-24)*
+#### The dial: one object, everything else beside it  *(2026-08-24)*
 
-The circle is 8.5 rem in a panel that is usually much wider, and everything the cast produced used to be stacked *under* it: the catch line first, the artefact card below that. On a phone the rare half — the one worth reading — landed below the fold while the ordinary half sat in view.
+The panel used to be five stacked blocks — intro, hold bar, circle, catch line, artefact card — of which exactly one was the game. Everything the cast produced sat *under* the circle, so on a phone the rare half (the artefact) landed below the fold while the ordinary half stayed in view. It is now two things side by side.
 
-`.hs-sal-outcome` is now a column beside the circle holding both, and `.hs-sal-stage` is a wrapping flex row: the circle is `flex: none`, the column is `flex: 1 1 9rem` and drops underneath when the tile is too narrow to hold a line of text next to it. The reward therefore arrives in one place, at the height the eye is already at.
+**Left: the dial.** `.hs-sal-dial` is a positioned box holding the button, the hold ring and every piece of confetti. Its size comes from `--hs-sal-circle` and its padding from `HOLD_GAP_REM`, both set inline from the script — the stylesheet no longer restates the button's diameter, which had been sitting in two places and was the obvious next thing to drift.
+
+**The hold is the ring around the button**, not a bar above it: an SVG circle at `r=46` in a 0–100 viewBox, `stroke-dashoffset` driven by the same `holdPct` the bar used, rotated −90° so it fills from the top. It costs no vertical space, and it puts the one number that decides whether the next cast pays on the thing you are about to press. The exact figure stays in the text column, because a ring cannot give you `87 / 120`.
+
+The button shrank to **8 rem** (`TARGET_R` to 1.4 with it, keeping `1.4 × 2.7 = 3.78 < 4.0`), so the dial including its ring is about what the bare button used to be.
+
+**Right: everything written.** `.hs-sal-outcome` — intro, hold figure, catch line, artefact card — left-aligned, `flex: 1 1 11rem`, wrapping under the dial when the tile is too narrow for a line of text beside it.
+
+#### Animation, and why a colour change was not enough
+
+The old button changed colour and nothing else, which is why it read as a label rather than as a toy. Each animation answers a specific event, and none of them is load-bearing — the judgement is still arithmetic on timestamps, and `clearDeco()` drops all of it on unmount:
+
+| Moment | What you see |
+|---|---|
+| Idle | `hs-sal-breathe` — a slow halo *behind* the button (`.hs-sal-dial--idle::after`, `z-index: -1`), so hover and press keep their own box-shadow. The invitation to press it. |
+| Cast | An outward pulse (`.hs-sal-wave--cast`). The click has to leave the dial. |
+| Waiting | A conic `.hs-sal-sweep` behind the two ripples — a beam turning in the debris field, for up to twelve seconds that would otherwise be a blank circle. |
+| Bite | Unchanged: the bands and the shrinking ring, which are the rule made visible. |
+| Landed | `hs-sal-pop`, gold pulse, then **scrap flies out of the dial** — `burst()` rolls angle, distance, spin and a stagger per particle, and the count follows the haul. |
+| Dead centre | `hs-sal-pop-hard` — the same, harder, with a ring of light. |
+| Miss | `hs-sal-shrug`. It shrugs; it does not punish. |
+| Paid | `+N 🔩` rises off the dial and the purse in the header pops. Only when `gained > 0`, so a thrown-back catch still looks different from a paid one. |
+| Artefact | The card fades in with a lilac flash — it appears on about one cast in seventy and is allowed to announce itself. |
+
+Two rules hold this together. **Decoration never touches the four game timers**: `later()` / `clearDeco()` keep their own set, so nothing in the game can hang on a piece of confetti. And **the jolt fires on the click, not on the server's answer** — the hit was decided locally, so making the button wait for the network is what would make a good click feel unrewarded; only the scrap burst waits, because only the amount is the server's to say.
+
+`prefers-reduced-motion` turns all of it off and keeps the shrinking ring, which is not an effect but the thing you aim at.
 
 **A cast is client-only state and is lost on reload.** The server never hears about a cast until it is reported, so there is nothing to persist and no timer to resolve — unlike every other running thing in this game. Leaving the tile mid-cast simply drops it, which costs nothing, because a cast costs nothing.
 
