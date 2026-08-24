@@ -63,7 +63,9 @@ const desc = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-/* Shares its shape with HsRecruitPanel: one slim button, status bar on the top edge. */
+/* One slim button, status bar on the top edge. The recruit panel used to share
+   this shape; it became a deck of its own on 2026-08-24, so this is now the only
+   copy and the class names are kept for the shape rather than for the sharing. */
 .hs-meter-btn {
   position: relative;
   overflow: hidden;

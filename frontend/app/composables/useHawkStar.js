@@ -273,6 +273,10 @@ const recruitPoolMax = computed(() => recruitState.value?.poolMax ?? 0)
 const canRecruit     = computed(() => Math.floor(recruitPool.value) >= 1)
 // For the UI hint — server-driven so it can't drift from RECRUIT_GROWTH_PER_DAY.
 const recruitGrowthPerDay = computed(() => Math.round((recruitState.value?.growthPerHour ?? 0) * 24))
+// The unrounded rate. The panel counts down to the next whole recruit with it,
+// and dividing the rounded per-day figure back down would put that countdown out
+// by however much the rounding threw away.
+const recruitGrowthPerHour = computed(() => recruitState.value?.growthPerHour ?? 0)
 
 // ── Anomaly (planet event) ─────────────────────────────────
 // The server ships the offer fully materialised — concrete resource deltas per
@@ -2990,6 +2994,7 @@ export function useHawkStar() {
     recruitPool,
     recruitPoolMax,
     recruitGrowthPerDay,
+    recruitGrowthPerHour,
     canRecruit,
     recruit,
     // anomalies

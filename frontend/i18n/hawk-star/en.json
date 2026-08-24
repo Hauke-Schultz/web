@@ -510,9 +510,22 @@
 
     "recruit": {
       "title": "Recruitment",
-      "perClick": "+1 worker per click",
-      "available": "{n} available",
-      "hint": "Grows ~{rate}/day up to {max}."
+      "queue": "Queue",
+      "hireHint": "Sign on {name}",
+      "nobody": "Nobody on the deck",
+      "nextIn": "Next in {time}",
+      "full": "Queue full — nobody else is coming",
+      "hint": "Grows ~{rate}/day up to {max}. Click the person, not a button — missing costs nothing.",
+      "bubbles": {
+        "b1": "Pick me!",
+        "b2": "Recruit me, please!",
+        "b3": "Handy with anything.",
+        "b4": "Own helmet!",
+        "b5": "I work nights too.",
+        "b6": "Free right now!",
+        "b7": "Click me, boss!",
+        "b8": "Is oxygen included?"
+      }
     },
 
     "starClass": {

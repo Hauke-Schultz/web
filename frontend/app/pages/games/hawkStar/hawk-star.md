@@ -455,12 +455,50 @@ Dev cheat **🛡️ Leeren** empties the shield — otherwise testing the empty 
 
 ## Population Recruitment  *(implemented)*
 
-Population starts at **1** — you grow it by recruiting on the base tile. A **recruit pool** fills over time (≈ 12/day) up to a **cap of 18**, so a long absence never queues hundreds. Click **+1 👥 Recruit** to move one recruit from the pool into your population. No timer, no mini-game.
+Population starts at **1** — you grow it by recruiting on the base tile. A **recruit pool** fills over time (≈ 12/day) up to a **cap of 18**, so a long absence never queues hundreds. Each click moves one recruit from the pool into your population.
 
 - Population is the workforce (`freeWorkers = population − Σ staffDrain`); recruited people are permanent.
 - The old `quarters` building was **removed** — recruiting replaces its population role; `command_center` stays.
-- Backend: table `hs_recruit_pool` (pool + timestamp), resolved live; `POST /game/base/recruit`. UI: pool bar + `+1 Recruit` button on the base tile (`HsRecruitPanel`).
+- Backend: table `hs_recruit_pool` (pool + timestamp), resolved live; `POST /game/base/recruit`.
 - The **home planet** starts with a full pool (recruit right away). A **fresh colony** starts with an **empty** pool (`init_planet`) — its people have to grow at the normal rate.
+
+### The muster deck  *(2026-08-24 — replaced the meter button)*
+
+It was one slim button with a bar on its top edge and a number on its face. The number was honest and told you nothing. A pool that fills at twelve a day and caps at eighteen **is a queue of people waiting to be taken on** — that is a picture, and drawing it costs no rule changes at all.
+
+```
+👥 Rekrutierung                                  🏠 12
+┌───────────────────────────────────┐ ┌──────────┐
+│ ╭───────────────────────────────╮ │ │👤👤👤👤👤👤│
+│ │      Arbeite auch nachts.     │ │ │◐· · · · ·│
+│ ╰──┬────────────────────────────╯ │ │· · · · · ·│
+│ 👤 → → →                 ╭─────╮  │ │   7 / 18 │
+│                          │  ║  │  │ └──────────┘
+└──────────────────────────╰─────╯──┘
+   ↑ deck                    ↑ airlock
+V. Ferrix-408          Nächste/r in 1h 12m
+Wächst um ~12/Tag bis max. 18. …
+```
+
+- **Deck left, queue right** *(2026-08-24)*. They are the same fact twice — who is on offer, and how many are behind them — so they share one row, and the queue stopped needing a heading to say which is which. The deck takes what is left (`flex: 1 1 9rem`) and the two stack below that width, because a walkway you cannot walk is worse than a tall panel. The queue block sets the row height and the deck stretches to it, so they read as one object.
+- **The queue is the pool, drawn.** Every slot the cap allows is on screen from the first visit, so the ceiling is something you can see instead of something the hint has to say — the same reason the salvage cabinet draws its locked slots. Six columns puts all eighteen in three rows in about 5.6 rem; at that size the *floor mark* under each place is what makes the empty ones countable, not the glyph.
+- **The next person grows in front of you.** The fractional part of the pool is a figure clipped from the bottom (`clip-path: inset(…)`), beside a countdown to the next whole recruit. That fraction is the one number the old panel could not show at all, and it is what makes the queue worth looking at when it is empty.
+- **The click target is a person, not a button.** A candidate steps out of the queue and paces the deck towards the airlock; clicking them signs them on. Reaching the far end without being clicked does nothing — they turn round and keep pacing, and every lap rolls a new designation.
+- **They ask.** A speech bubble over their head — *Nimm mich!*, *Klick mich, Chef!*, *Sauerstoff dabei?* — eight lines rolled with the candidate, and clicking the words counts as clicking the person. It is the only thing that says *this one, click it* in the place you are already looking; the hint line says the same and nobody reads hint lines. It is also the only silly thing in the game, on purpose.
+
+**The bubble is a sibling of the walker, not a child**, because its width has to be a share of the *deck* — up to 12.8 rem, wide enough that a line is a line — and inside the 3 rem figure a percentage would have meant nothing. That leaves it having to follow a walker it is four times wider than, without ever hanging over the edge of a deck that clips, at any tile width. Three things make that work:
+
+- **Facing moved off the walker.** The walk's `scaleX(-1)` would have printed the shout backwards on the way home, so the flip lives on its own element with its own animation on the same 16 s clock.
+- **The box is pinned at the turns, not clamped.** Left edge 0.2 rem in at the near end, right edge 0.2 rem in at the far one, and everything between is the browser interpolating. A centre-then-clamp correction depends on how wide the bubble ended up and is only right at one width; pinning is right at all of them.
+- **The tail's offset inside the box interpolates too**, from 3.7 rem to `100% − 3.3 rem`. Since the walker's travel, the box and the tail all move linearly on the same keys, halfway through the lap the tail sits at `50% + 0.2 rem` of the box and the walker at `50% + 0.2 rem` of the deck — the same point. Simulated across deck widths from 9 to 22 rem: the tail is on the speaker's head to within **0.0000 rem** at every moment, and the box never crosses an edge.
+- **A registry designation, rolled in the browser.** `V. Ferrix-408` — a sigil, a stem and a number, a quarter of a million of them, lost on reload exactly like a salvage cast. It says only *this is a specific person*, which is all the click needs and the same string in every language. An earlier build gave each candidate a **trade** (medic, pilot, hydroponics) and that was worse twice over: it promised a specialism the game does not have — a medic mans the mine like everybody else — and it needed a translated word to say something untrue.
+- **Pace is the whole playability of it.** The first build crossed the deck in three seconds and was genuinely hard to hit, which turns a pastime into a test of aim. A lap is now **16 s** — about 34 px/s, roughly a step a second — and the candidate **stands still for 2.6 s of every lap** at the turns, so anyone who would rather wait than chase gets a stationary target twice a lap. The tap area is 3 rem. There is nothing to win by being quick here, so there must be nothing to lose by being slow.
+
+**Why a moving target is safe here, and why it is not a second timing game.** The pool is already the ceiling: however fast or well anyone clicks, no more people come out of it than ≈ 12 a day. So skill can only ever save time, never earn more — the same argument that makes salvage fishing safe, arrived at from the other end. And there is deliberately **no window and no failure**: the timing toy belongs to the salvage beam, and a second one would wear both of them out. Missing costs nothing, because the only thing a miss can cost is a moment.
+
+The airlock is **not clickable**. It is where the recruits go, and a second way to do the same thing would quietly turn the deck back into a button.
+
+`prefers-reduced-motion` stops the walk and stands the candidate still on the deck, where they are clicked exactly as before.
 
 ---
 
@@ -1496,13 +1534,14 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsPlanetGrid` | 5×3 unified tile grid — 2 panel tiles (row 1) + 12 planet building slots (rows 2–5). Manages single active-tile state across all 15 cells. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
 | `HsOnboardingPanel` | Early-game checklist — the last card in the empire board’s grid, and the only place it appears. Renders nothing once every step is ticked. |
-| `HsSalvagePanel` | Salvage fishing on slot 12 — cast loop, shrinking timing ring, scrap balance, free-hold bar. The shop is not built yet. See *Salvage Fishing*. |
+| `HsSalvagePanel` | Salvage fishing on slot 12 — cast loop, shrinking ring with the radar contact, scrap balance, hold ring around the button, artefact cabinet. See *Salvage Fishing*. |
+| `HsRecruitPanel` | The muster deck on the base tile — the recruit pool drawn as a queue, a named candidate pacing towards the airlock, click them to sign them on. See *The muster deck*. |
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — all planets + one action row per unit class (drone / colony / cargo). Clicking a planet tile selects it (`hs-solar-tile--selected`); if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** is marked three ways (`hs-solar-tile--home`): brighter border, lit background and a 🏠 corner badge — blue alone only says "mine", and every colony is blue too. The badge is absolute-positioned on purpose: the collapsed mobile tile hides every text line, including the *Heimat* chip, so the badge is the only marker left there. |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
 | `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |
-| `HsProfilePanel` | Commander profile editor — portrait picker (12 emoji options), editable name (max 12 chars), disposition selector (friendly / neutral / hostile). Shown at the top of the Activity panel. |
+| `HsProfilePanel` | Commander profile editor — portrait picker (twenty fixed emoji plus any unlocked by salvage artefacts), editable name (max 12 chars), disposition selector (friendly / neutral / hostile). Shown at the top of the Activity panel. |
 | `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
 | `HsSettingsPanel` | Dev tuning controls (tick rate, build factor, game reset). Shown below `HsNotificationPanel` in the Activity view. |
 
@@ -1561,6 +1600,7 @@ All Hawk-Star keys live under `hawkStar.*`:
 | `hawkStar.tile.*` | HsTilePanel — build buttons, status, conversions |
 | `hawkStar.dock.*` | HsDockPanel — ship names, build buttons, slots |
 | `hawkStar.salvage.*` | HsSalvagePanel — cast/bite/catch copy, catch names, hold labels |
+| `hawkStar.recruit.*` | HsRecruitPanel — queue and deck copy, the next-recruit countdown. Candidate designations are rolled, not translated. |
 | `hawkStar.solar.*` | HsSolarSystem — planet states, mission actions |
 | `hawkStar.galaxy.*` | HsGalaxyMap — planet states, star meta |
 | `hawkStar.comm.*` | HsGalaxyMap — scan states, message keys, NPC responses, comm log |

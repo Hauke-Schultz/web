@@ -511,9 +511,22 @@
 
     "recruit": {
       "title": "Rekrutierung",
-      "perClick": "+1 Arbeiter pro Klick",
-      "available": "{n} verfügbar",
-      "hint": "Wächst um ~{rate}/Tag bis max. {max}."
+      "queue": "Warteschlange",
+      "hireHint": "{name} anheuern",
+      "nobody": "Niemand auf dem Deck",
+      "nextIn": "Nächste/r in {time}",
+      "full": "Warteschlange voll — es wächst niemand nach",
+      "hint": "Wächst um ~{rate}/Tag bis max. {max}. Klick die Person, nicht den Knopf — verpassen kostet nichts.",
+      "bubbles": {
+        "b1": "Nimm mich!",
+        "b2": "Rekrutier mich!",
+        "b3": "Kann fast alles.",
+        "b4": "Hab eigenen Helm.",
+        "b5": "Arbeite auch nachts.",
+        "b6": "Sofort verfügbar!",
+        "b7": "Klick mich, Chef!",
+        "b8": "Sauerstoff dabei?"
+      }
     },
 
     "starClass": {
