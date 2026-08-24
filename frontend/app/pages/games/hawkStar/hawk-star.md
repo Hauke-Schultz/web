@@ -584,7 +584,7 @@ It therefore does **not** appear in the resource bar, which is per planet and st
 ### The loop
 
 ```
-Cast → 4–12 s wait (rings) → BITE → shrinking ring 1.8 s → click → result
+Cast → 4–12 s wait (rings) → BITE → contact closes in 1.8 s → click → result
 ```
 
 Starting values, all of them tuning knobs:
@@ -604,10 +604,9 @@ The first build drew a hairline target ring and printed *Jetzt!* for the whole a
 
 Three changes, all pulling the same way:
 
-- **The bands are the rule, drawn.** `bandStyle(halfWindow)` derives each band's radius *and its thickness* from `HIT_MS` / `PERFECT_MS` through the same `scaleAt()` the ring animation uses. What you aim at is exactly what the clock accepts, and widening a window widens its band automatically — there is no second place to keep in sync.
-- **Geometry follows from that, not from taste.** Band thickness is `TARGET_R × (RING_START − 1) × window / RING_MS`, which is why the landing radius is small (1.4 rem) and the start scale large (2.7): a target drawn near the rim leaves the gold core a two-pixel hairline. These values put the ring at 3.78 rem inside a 4 rem button at *t*=0, and give the core ~4 px and the outer band ~8.5 px. *(Both shrank by 0.1 rem with the button on 2026-08-24; the ratio, and therefore the picture, is unchanged.)*
-- **The ring overshoots.** It keeps shrinking past the target so that *too late* is something you watch happen rather than only feel. *(`OVERSHOOT_MS` 350 → 500 on 2026-08-24, when it also became the gap before the miss is announced — see* The beat between the window and the verdict *below.)*
-- **Colour is information, not decoration.** The approach is cool grey; the button, ring and both bands warm the instant the window opens, driven by the same `inWindow` flag as the label. The word and the light therefore cannot promise a window that has already shut.
+- **The target is the rule, drawn.** `targetStyle(halfWindow)` derives each circle's radius from `HIT_MS` / `PERFECT_MS`. What you aim at is exactly what the clock accepts, and widening a window widens its circle automatically — there is no second place to keep in sync. *(Originally `bandStyle()`, deriving radius **and** thickness from the shrinking ring's scale; re-derived from the contact's travel on 2026-08-24 when that ring went — see* One moving part *below.)*
+- **The overshoot.** The moving part keeps going past the middle so that *too late* is something you watch happen rather than only feel. *(`OVERSHOOT_MS` 350 → 500 on 2026-08-24, when it also became the gap before the miss is announced — see* The beat between the window and the verdict *below.)*
+- **Colour is information, not decoration.** The approach is cool grey; the button and both circles warm the instant the window opens, driven by the same `inWindow` flag as the label. The word and the light therefore cannot promise a window that has already shut.
 
 **Precision now pays.** A hit anywhere in the band rolls `weight`; a hit in the gold core rolls `weightPerfect` — the same four catches, weighted 22/34/30/14 instead of 50/30/15/5. This is the one place in the feature where skill pays *more* rather than merely *faster*, and it is safe for the same reason everything else here is: the zone only picks a weight column, the hold still caps the day, so a client that claims `perfect` on every cast just reaches the same ceiling sooner. The endpoint treats anything that is not the literal string `'perfect'` as `'good'`, so a malformed report can only cost the player.
 
@@ -632,7 +631,7 @@ The old button changed colour and nothing else, which is why it read as a label 
 | Idle | `hs-sal-breathe` — a slow halo *behind* the button (`.hs-sal-dial--idle::after`, `z-index: -1`), so hover and press keep their own box-shadow. The invitation to press it. |
 | Cast | An outward pulse (`.hs-sal-wave--cast`). The click has to leave the dial. |
 | Waiting | A conic `.hs-sal-sweep` behind the two ripples — a beam turning in the debris field, for up to twelve seconds that would otherwise be a blank circle. |
-| Bite | The bands and the shrinking ring, plus **a red contact closing on the centre** — see below. |
+| Bite | **A red contact closing on the centre** of a two-ring target — see below. |
 | Landed | `hs-sal-pop`, gold pulse, then **scrap flies out of the dial** — `burst()` rolls angle, distance, spin and a stagger per particle, and the count follows the haul. |
 | Dead centre | `hs-sal-pop-hard` — the same, harder, with a ring of light. |
 | Miss | `hs-sal-shrug`. It shrugs; it does not punish. |
@@ -641,7 +640,7 @@ The old button changed colour and nothing else, which is why it read as a label 
 
 Two rules hold this together. **Decoration never touches the four game timers**: `later()` / `clearDeco()` keep their own set, so nothing in the game can hang on a piece of confetti. And **the jolt fires on the click, not on the server's answer** — the hit was decided locally, so making the button wait for the network is what would make a good click feel unrewarded; only the scrap burst waits, because only the amount is the server's to say.
 
-`prefers-reduced-motion` turns all of it off and keeps the shrinking ring and the contact, which are not effects but the thing you aim at.
+`prefers-reduced-motion` turns all of it off and keeps the contact, which is not an effect but the thing you aim at.
 
 #### The contact  *(2026-08-24)*
 
@@ -649,13 +648,29 @@ The bite now reads as a radar scope. A **red blip** appears on the rim at a rand
 
 It is the same clock, not a second one:
 
-- **Distance and duration are the ring's.** The blip leaves at `TARGET_R × RING_START` — exactly where the ring starts — and is dead centre at `RING_MS`, the instant the ring sits on the target. Linear, for the same reason the ring is: the last 200 ms is the only part that matters.
+- **Distance and duration come from the timing constants.** The blip leaves at `TARGET_R × RING_START` and is dead centre at `RING_MS`, the moment a click pays most. Linear, because an eased approach would make the last 200 ms — the only part that matters — unreadable.
 - **It does not stop on the crosshair, it tears past it.** One straight pass from the rim to `BLIP_PAST_REM` on the far side, and because the speed is constant it crosses zero at `RING_MS` without any keyframe having to say so. The first build parked it dead centre until the miss fired 200 ms later, so arrival and failure looked simultaneous — *Entwischt* appeared while the dot was still sitting on the target, which reads as the game taking the catch away rather than as having been too slow.
 - **Only the bearing is rolled**, once per bite in `startRing()`. A contact that also chose its own pace would be a second rule quietly contradicting the first; a contact that always came from the same side would teach the eye where to wait.
-- **Neither picture is ever asked what happened.** `strike()` still measures `Date.now()` against the bite timestamp. The blip is a reading of the clock, exactly like the bands — which is why a dropped frame still cannot cost a catch.
+- **The picture is never asked what happened.** `strike()` still measures `Date.now()` against the bite timestamp. The blip is a reading of the clock, not the clock — which is why a dropped frame still cannot cost a catch.
 - **The word lives in the lower third.** `.hs-sal-circle-label` is offset by `calc(var(--hs-sal-circle) * 0.26)` — derived from the button's size, so it stays put whatever `CIRCLE_REM` becomes. In *every* phase, not only during the bite: printed across the centre it covered the one thing it was telling you to look at, and moving only for the bite meant a label that had to be re-found each time it jumped.
 
-Two readings of one moment now: the dot is in the middle, and the ring is on the band. Whichever a player finds easier to watch, they are watching the same instant — and the gold core is still the only thing that pays more for watching it closely.
+#### One moving part  *(2026-08-24, later the same day)*
+
+The white ring that shrank from the rim went with the next playtest, and the target had to be rebuilt around what was left.
+
+**Why it went.** Ring and contact were two clocks for one instant, arriving together and saying the same thing. Once the blip was there, the ring was the redundant half: the dot is a *place* the eye can track, the ring was a *size* it had to judge.
+
+**Why the target had to move with it.** The bands were drawn where the ring landed — `TARGET_R`, 1.4 rem out. The contact crosses that radius at **~1130 ms**, some 470 ms before the window opens. Left alone, the picture would have shown a gold ring being flown straight through at a moment that pays nothing: exactly the drift between rule and picture this whole design exists to prevent.
+
+So the two circles are now derived from **the contact's own speed** — `BLIP_SPEED_REM_PER_MS × HIT_MS` and `× PERFECT_MS`, which puts them at 0.42 rem and 0.21 rem, dead centre:
+
+| | radius | on screen |
+|---|---|---|
+| amber circle = `HIT_MS` | 0.42 rem | 13.4 px across — dot inside it, the click counts |
+| gold core = `PERFECT_MS` | 0.21 rem | 6.7 px across — dot covering it, the better table |
+| the blip itself | — | 7.2 px, sized against the core it lands on |
+
+It is a small target, and it has to be: ±200 ms of the contact's travel *is* 0.42 rem, and drawing it any bigger would be a picture promising something the clock does not honour. The crosshair kept its hairlines and lost its circle — the target circles are the rings now, and a third one only muddled them.
 
 #### The beat between the window and the verdict  *(2026-08-24)*
 
@@ -665,7 +680,7 @@ Two readings of one moment now: the dot is in the middle, and the ring is on the
 |---|---|---|
 | 1600–2000 | The window. `strike()` pays here, ±100 ms of `RING_MS` for the gold core. | *Jetzt!*, everything warm, the contact bright |
 | 2000 | The window shuts (`lateTimer`). The catch is lost. | Everything goes cold at once, *Entwischt*, the contact starts fading |
-| 2300 | `missed()` — the verdict (`ringTimer`, was `RING_MS + HIT_MS`) | Ring and contact have finished leaving; the panel says so |
+| 2300 | `missed()` — the verdict (`ringTimer`, was `RING_MS + HIT_MS`) | The contact has finished leaving; the panel says so |
 
 **The hit window is unchanged.** `HIT_MS` and `PERFECT_MS` are what they always were; only the moment the *announcement* lands moved, and the click that lands between 2000 and 2300 is a miss exactly as it was before — the difference is that it is now possible to make that click and watch why it failed.
 
@@ -743,6 +758,16 @@ Nothing here is bought. The **Salvage Smelter** on the same tile turns scrap bac
 - **Slot 12 is unlocked by no building today** (nor is slot 11); it needs a trigger. It gets **`command_center` Lv1**, alongside slots 2 and 4 — that build takes 20 s and costs nothing, so the toy is there from the first minute, which is exactly when a player has unlocked two tiles and nothing to do while they build. Consequence to watch: the shop is then also open at minute one. If that turns out to be too much, gate **shop entries** by progress rather than moving the tile — the toy should stay early even if its rewards do not.
 - **The tile carries the `salvage_smelter`** — which is what makes it a real tile rather than a third panel tile, and why `HsSalvagePanel` renders *inside* the ordinary building panel (like `HsRecruitPanel` on the base tile) rather than replacing it: the tile needs its build rows and recipe section underneath the game. A rod-upgrade building that widens the hit window is still open.
 
+#### Home planet only  *(2026-08-24)*
+
+The beam is a fixture of the home base. On every other planet slot 12 is **locked** and reads 🔒 ***Nur Heimat*** — the reason goes in the tile's **label**, where the name would be, and the tile grows no unlock chip at all. `???` is the right label for a tile you have not reached yet: it is a question the game will answer. It is the wrong one for a tile that is simply somewhere else, which has no answer coming and exactly one thing worth saying — and a chip reading *build X to Lv1* underneath would promise something no amount of building will deliver.
+
+- **`homeOnly: true` on the slot in `PLANET_GRID`**, and one predicate — `slotUsable(slot, planetId)` in `useHawkStar.js` — that everything walking a planet's slots asks. `unlocked` alone is read in four places (the grid, `selectSlot`, the empire board's *empty build slot* warning, `focusPlanetTile`), and a rule enforced in the picture only would have kept the tile out of sight while the empire board still nagged about the empty slot on it.
+- **The stored state is left truthful.** The server's unlock flag is not rewritten; `playerSlots` closes the *view* of it, and `activeTileType` now returns nothing for a locked slot so a stale selection cannot render a game the planet does not have.
+- **The endpoint stopped asking.** `salvage/catch.php` always fishes from the home planet and ignores the `planetId` it is sent — that argument only ever decided where an artefact's resource gift landed, and a foreign planet already fell back to home.
+
+**The smelter goes with it, and that is a real change.** `salvage_smelter` sits on this tile, so scrap can now only be melted at home — the *every refined good on every planet* route in the chapter below is now *every refined good, at the home base*; colonies need a freighter. Smelters already built on a colony keep running server-side but have no tile to be seen on. If that is not wanted, the fix is to move `salvage_smelter` to a tile the colonies keep, not to unlock the beam again.
+
 ### Built differently from the sketch, on purpose
 
 - **A miss never reaches the server.** The spec had every finished cast reported; the panel now reports only hits. The rate limit is on reports either way, a cheater would skip the misses regardless, and this halves the traffic for the honest player.
@@ -777,7 +802,7 @@ Recorded so the decisions are not reopened by accident:
 | Limit = **bait pool** (casts capped, like `hs_recruit_pool`) | Consistent with an existing pattern, but it takes the toy away exactly when it is wanted. Capping the *catch* instead keeps casting free forever. |
 | Limit = **cooldown per cast** | A waiting room inside a waiting room. |
 | Home = **third panel tile** (the free cell in row 1) | Defensible — it is an activity, not a planet building — but a real tile can carry the Bergungsdrohne building later, and that is what ties the feature into the build economy. |
-| Timing = **orbiting pointer on a dial** | Loops naturally and has two difficulty knobs, so it stays on the table for a later revision. The shrinking ring is less state and matches the original sketch. |
+| Timing = **orbiting pointer on a dial** | Loops naturally and has two difficulty knobs, so it stays on the table for a later revision. The shrinking ring was less state and matched the original sketch; what it eventually became is the inbound contact, which is a pointer that travels in rather than around. |
 
 ### Not in v1
 
@@ -882,7 +907,7 @@ Salvage scrap closes the High-Tech stock row: 🔩 plus its count, in its own go
 
 ### Files
 
-`SALVAGE_HOLD_MAX` / `SALVAGE_HOLD_PER_HOUR` / `SALVAGE_MIN_CAST_SECONDS` / `SALVAGE_CATCHES` / `SALVAGE_FIND_CHANCE` / `SALVAGE_FINDS` (the sixteen) / `salvage_roll_catch()` / `salvage_hold_max()` in `api/star/config.php` · `ensure_salvage()`, `salvage_owned_finds()`, `salvage_state()`, `salvage_roll_find()`, `salvage_apply_find()` in `api/star/bootstrap.php` · `api/star/game/salvage/catch.php` · `fill_salvage` + `grant_find` in `api/star/dev/cheat.php` · tables `hs_salvage` + `hs_salvage_finds` · salvage block in `api/star/game/state.php` · `HsSalvagePanel.vue` (game **and** cabinet) · `salvage` in `TILE_TYPES`, slot 12 in `PLANET_GRID` and the `SALVAGE_FINDS` mirror in `hawkStarConfig.js` plus `planet_grid_slots` (`config.php`) · `salvageScrap` / `salvageHold` / `salvageHoldMax` / `salvageHoldEmpty` / `salvageFinds` / `salvageCabinet` / `salvagePortraits` / `reportSalvageCatch` in `useHawkStar.js` · the unlocked-portrait list in `HsProfilePanel.vue` **and** `salvage_portraits()` in `api/star/auth/profile.php` (the picker and the whitelist must agree, or the save silently reverts) · an `isSalvageTile` branch in `HsTilePanel.vue` · `hawkStar.salvage.*` (incl. `finds.*` and `effects.*`) and `hawkStar.tiles.salvage.*` in de/en
+`SALVAGE_HOLD_MAX` / `SALVAGE_HOLD_PER_HOUR` / `SALVAGE_MIN_CAST_SECONDS` / `SALVAGE_CATCHES` / `SALVAGE_FIND_CHANCE` / `SALVAGE_FINDS` (the sixteen) / `salvage_roll_catch()` / `salvage_hold_max()` in `api/star/config.php` · `ensure_salvage()`, `salvage_owned_finds()`, `salvage_state()`, `salvage_roll_find()`, `salvage_apply_find()` in `api/star/bootstrap.php` · `api/star/game/salvage/catch.php` · `fill_salvage` + `grant_find` in `api/star/dev/cheat.php` · tables `hs_salvage` + `hs_salvage_finds` · salvage block in `api/star/game/state.php` · `HsSalvagePanel.vue` (game **and** cabinet) · `salvage` in `TILE_TYPES`, slot 12 in `PLANET_GRID` and the `SALVAGE_FINDS` mirror in `hawkStarConfig.js` plus `planet_grid_slots` (`config.php`) · `salvageScrap` / `salvageHold` / `salvageHoldMax` / `salvageHoldEmpty` / `salvageFinds` / `salvageCabinet` / `salvagePortraits` / `reportSalvageCatch` in `useHawkStar.js` · the unlocked-portrait list in `HsProfilePanel.vue` **and** `salvage_portraits()` in `api/star/auth/profile.php` (the picker and the whitelist must agree, or the save silently reverts) · an `isSalvageTile` branch in `HsTilePanel.vue` · `homeOnly` on slot 12 in `PLANET_GRID` + `slotUsable()` / `isHomePlanet` in `useHawkStar.js` + the `lockedToHome` chip in `HsPlanetGrid.vue` · `hawkStar.salvage.*` (incl. `finds.*` and `effects.*`), `hawkStar.tile.homeOnly*` and `hawkStar.tiles.salvage.*` in de/en
 
 ---
 
@@ -1534,7 +1559,7 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsPlanetGrid` | 5×3 unified tile grid — 2 panel tiles (row 1) + 12 planet building slots (rows 2–5). Manages single active-tile state across all 15 cells. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
 | `HsOnboardingPanel` | Early-game checklist — the last card in the empire board’s grid, and the only place it appears. Renders nothing once every step is ticked. |
-| `HsSalvagePanel` | Salvage fishing on slot 12 — cast loop, shrinking ring with the radar contact, scrap balance, hold ring around the button, artefact cabinet. See *Salvage Fishing*. |
+| `HsSalvagePanel` | Salvage fishing on slot 12 — cast loop, radar contact closing on a two-ring target, scrap balance, hold ring around the button, artefact cabinet. See *Salvage Fishing*. |
 | `HsRecruitPanel` | The muster deck on the base tile — the recruit pool drawn as a queue, a named candidate pacing towards the airlock, click them to sign them on. See *The muster deck*. |
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — all planets + one action row per unit class (drone / colony / cargo). Clicking a planet tile selects it (`hs-solar-tile--selected`); if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** is marked three ways (`hs-solar-tile--home`): brighter border, lit background and a 🏠 corner badge — blue alone only says "mine", and every colony is blue too. The badge is absolute-positioned on purpose: the collapsed mobile tile hides every text line, including the *Heimat* chip, so the badge is the only marker left there. |

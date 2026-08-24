@@ -213,7 +213,10 @@ export const PLANET_GRID = [
   { slot: 9,  tileType: 'hightech',    startsUnlocked: false },
   { slot: 10, tileType: 'dock',        startsUnlocked: false },
   { slot: 11, tileType: 'warship_bay', startsUnlocked: false },
-  { slot: 12, tileType: 'salvage',     startsUnlocked: false },
+  // Home only. The salvage beam is a fixed installation of the home base, not
+  // something a colony brings with it — `homeOnly` is read in `playerSlots`,
+  // which locks the tile everywhere else however the server has flagged it.
+  { slot: 12, tileType: 'salvage',     startsUnlocked: false, homeOnly: true },
 ]
 
 // ── Buildings ─────────────────────────────────────────────────────────────────

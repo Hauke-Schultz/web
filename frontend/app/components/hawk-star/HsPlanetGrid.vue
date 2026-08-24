@@ -53,7 +53,18 @@ const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 // tile stays a plain "Base". Purely a label — the tile itself is the same.
 const isHomePlanet = computed(() => activePlanetId.value === homePlanetId.value)
 
+// A tile that is locked because you are standing on the wrong planet, not
+// because something still has to be built. The two look the same on the grid
+// and mean opposite things — one is a to-do, the other never will be — so the
+// chip has to say which.
+const lockedToHome = (slot) => !!slot.homeOnly && !isHomePlanet.value
+
 const tileLabel = (slot) => {
+  // The reason goes where the name would be. `???` is the right label for a tile
+  // you have not reached yet — it is a question the game will answer — and the
+  // wrong one for a tile that is simply somewhere else, which has no answer
+  // coming and only one thing worth saying.
+  if (lockedToHome(slot)) return t('hawkStar.tile.homeOnly')
   if (!slot.unlocked || !slot.tileType) return '???'
   if (slot.tileType === 'base' && isHomePlanet.value) return 'Home Base'
   return TILE_TYPES[slot.tileType]?.name
@@ -235,12 +246,20 @@ const onSelectSlot = (slot) => {
           <span class="hs-tile-icon">
             {{ slot.unlocked && slot.tileType ? TILE_TYPES[slot.tileType]?.icon : (slot.unlocked ? '?' : '🔒') }}
           </span>
-          <span class="hs-tile-label">
+          <span
+            class="hs-tile-label"
+            :class="{ 'hs-tile-label--home': lockedToHome(slot) }"
+            :title="lockedToHome(slot) ? t('hawkStar.tile.homeOnlyHint') : null"
+          >
             {{ tileLabel(slot) }}
           </span>
         </div>
         <div class="hs-tile-dots">
-          <template v-if="!slot.unlocked && unlockRequirement(slot.slot)">
+          <!-- Wrong planet, not "not yet": nothing you build here will ever open
+               it, so it must not wear a build requirement. The reason is in the
+               label instead — see `tileLabel`. -->
+          <template v-if="lockedToHome(slot)" />
+          <template v-else-if="!slot.unlocked && unlockRequirement(slot.slot)">
             <span
               class="hs-tile-unlock"
               :class="getLevel(unlockRequirement(slot.slot).building.id) >= unlockRequirement(slot.slot).level ? 'hs-tile-unlock--done' : ''"
@@ -427,6 +446,10 @@ const onSelectSlot = (slot) => {
 
 .hs-tile-icon  { font-size: 1.25rem; line-height: 1; }
 .hs-tile-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.04em; opacity: 0.7; }
+// A statement about where you are standing, not progress towards anything —
+// cool blue rather than the neutral grey the other locked tiles wear, and full
+// opacity, because it is the only thing this tile has to say.
+.hs-tile-label--home { color: rgba(125, 211, 252, 0.9); opacity: 1; }
 
 .hs-tile-unlock {
   font-size: 0.55rem;

@@ -10,27 +10,23 @@ $hit      = !empty($b['hit']);
 // Anything that is not the exact string falls back to the ordinary table, so a
 // malformed or missing zone can only ever cost the player, never pay them.
 $zone     = ($b['zone'] ?? null) === 'perfect' ? 'perfect' : 'good';
-// Only ever used to land a Fundstück that pays in planet stock. Scrap and the
-// hold are player-wide and do not care where you fished from.
+// Accepted and ignored — see below. Scrap and the hold are player-wide, and the
+// only thing a planet was ever needed for is landing a Fundstück that pays in
+// planet stock, which is now always the home planet.
 $planetId = (int)($b['planetId'] ?? 0);
 
 $db = getDB();
 
 ensure_salvage($db, $playerId);
 
-// An artefact gift has to go somewhere real. The client names the planet it is
-// fishing from; ownership is checked here, and a missing or foreign one falls
-// back to the home planet rather than dropping a once-per-player reward.
-if ($planetId) {
-    $own = $db->prepare('SELECT 1 FROM hs_planet_ownership WHERE planet_id=? AND player_id=?');
-    $own->execute([$planetId, $playerId]);
-    if (!$own->fetch()) $planetId = 0;
-}
-if (!$planetId) {
-    $home = $db->prepare('SELECT planet_id FROM hs_planet_ownership WHERE player_id=? AND is_home=1 LIMIT 1');
-    $home->execute([$playerId]);
-    $planetId = (int)$home->fetchColumn();
-}
+// The beam is a fixture of the home base — the tile exists there and nowhere
+// else — so the catch is always fished from home and the client's `planetId` is
+// no longer consulted. It stays in the request for the sake of older clients;
+// what it named never changed anything but where an artefact's gift landed, and
+// a foreign planet already fell back to here.
+$home = $db->prepare('SELECT planet_id FROM hs_planet_ownership WHERE player_id=? AND is_home=1 LIMIT 1');
+$home->execute([$playerId]);
+$planetId = (int)$home->fetchColumn();
 
 // The server never hears about a cast until it is reported, so `last_catch_at`
 // is the only thing standing between a script and the find table. It is not a

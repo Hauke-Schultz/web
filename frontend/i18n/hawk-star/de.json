@@ -156,6 +156,8 @@
       "needStaff": "👥 Personal fehlt",
       "lockedRequires": "🔒 {name} Lv{level}",
       "lockedGeneric": "🔒 Gesperrt",
+      "homeOnly": "Nur Heimat",
+      "homeOnlyHint": "Nur auf dem Heimatplaneten verfügbar",
       "convTitle": "⚗️ Umwandlungen",
       "btnConvert": "Umwandeln",
       "convRunning": "Umwandlung läuft",
@@ -518,14 +520,14 @@
       "full": "Warteschlange voll — es wächst niemand nach",
       "hint": "Wächst um ~{rate}/Tag bis max. {max}. Klick die Person, nicht den Knopf — verpassen kostet nichts.",
       "bubbles": {
-        "b1": "Nimm mich!",
-        "b2": "Rekrutier mich!",
-        "b3": "Kann fast alles.",
-        "b4": "Hab eigenen Helm.",
-        "b5": "Arbeite auch nachts.",
-        "b6": "Sofort verfügbar!",
-        "b7": "Klick mich, Chef!",
-        "b8": "Sauerstoff dabei?"
+        "b1": "Ich schlaf im Maschinenraum. Freiwillig.",
+        "b2": "Ich stelle keine Fragen.",
+        "b3": "Vakuum-tauglich, voll zertifiziert.",
+        "b4": "Ich brauche nur ein Labor. Und Ruhe.",
+        "b5": "Ich arbeite für Sauerstoff.",
+        "b6": "Ich mach auch Nachtschicht.",
+        "b7": "Ich näh alles. Auch Aliens.",
+        "b8": "Billiger als ein Reparaturbot."
       }
     },
 

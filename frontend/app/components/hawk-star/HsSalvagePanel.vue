@@ -15,16 +15,16 @@ const {
 } = useHawkStar()
 
 // ── Timing ────────────────────────────────────────────────────────────────────
-// The ring is CSS, the judgement is arithmetic on timestamps: a dropped frame
+// The contact is CSS, the judgement is arithmetic on timestamps: a dropped frame
 // must never cost a catch, so nothing here reads the animation's own progress.
-const RING_MS    = 1800  // the moment the ring sits exactly on the target
+const RING_MS    = 1800  // the moment the contact sits exactly on the middle
 const HIT_MS     = 200   // ± window that counts as a catch at all
 const PERFECT_MS = 100   // ± core inside it — a tighter hit fishes a better table
-const OVERSHOOT_MS = 500 // the ring keeps shrinking and the contact keeps flying
-                         // past the target, so "too late" is something you can
-                         // see rather than only feel. It is also the delay
-                         // before the miss is announced: the verdict must not
-                         // land while the dot is still on the crosshair.
+const OVERSHOOT_MS = 500 // the contact keeps flying past the middle, so "too
+                         // late" is something you can see rather than only
+                         // feel. It is also the delay before the miss is
+                         // announced: the verdict must not land while the dot
+                         // is still on the crosshair.
 // One bite per cast. Three made a miss cost nothing and turned the cast into a
 // three-round mini-game with its own bookkeeping — pips, a gap timer, a counter
 // on screen. A single bite is the same toy with the padding removed: the click
@@ -40,67 +40,56 @@ const SHOW_RESULT_MS = 1200
 // Every circle on screen is derived from the timing above, never hand-tuned.
 // The first version drew a hairline target and left the window implicit: ±180 ms
 // works out to about five pixels of travel, which is not something a player can
-// aim at. Deriving the bands means the picture is the rule — widen HIT_MS and
-// the band widens with it, and the two can never drift apart.
-// The landing radius is deliberately small and the starting scale large: band
-// thickness works out to TARGET_R × (RING_START − 1) × window/RING_MS, so a
-// target drawn near the rim leaves the gold core a two-pixel hairline. These
-// values keep the ring inside the button at t=0 (1.4 × 2.7 = 3.78 < 4.0) and
-// still give the core ~4 px to aim at.
+// aim at. Deriving the target from the clock means the picture *is* the rule —
+// widen HIT_MS and the target widens with it, and the two can never drift apart.
 // CIRCLE_REM is the single source of the button's size — the stylesheet reads it
-// back as a custom property, because the geometry above and the drawn circle
+// back as a custom property, because the geometry here and the drawn circle
 // drifting apart is exactly the bug this file is built to avoid.
 const CIRCLE_REM = 8     // the button
-const TARGET_R   = 1.4   // rem, radius at which the ring "lands"
-const RING_START = 2.7   // scale the ring starts from
+const TARGET_R   = 1.4   // rem, the radius the contact starts its run from ×
+const RING_START = 2.7   //      this scale — together, where a bite appears
 
 // The hold ring is drawn outside the button, in the dial's padding.
 const HOLD_GAP_REM = 0.55
 
-const scaleAt = (ms) => RING_START - (RING_START - 1) * (ms / RING_MS)
-
 const RING_TRAVEL_MS = RING_MS + OVERSHOOT_MS
 
-// A band spanning ±halfWindow around the landing moment, drawn as a ring whose
-// thickness IS the window.
-const bandStyle = (halfWindow) => {
-  const outer = TARGET_R * scaleAt(RING_MS - halfWindow)
-  const inner = TARGET_R * scaleAt(RING_MS + halfWindow)
-  return {
-    inset:       `${CIRCLE_REM / 2 - outer}rem`,
-    borderWidth: `${outer - inner}rem`,
-  }
-}
-
-const goodBandStyle    = bandStyle(HIT_MS)
-const perfectBandStyle = bandStyle(PERFECT_MS)
-
-// The ring's own box is the target circle; the animation scales it from the rim
-// through the bands and a little past. Its inset comes from TARGET_R too, so
-// there is exactly one number governing where "landed" is.
-const ringStyle = {
-  inset:           `${CIRCLE_REM / 2 - TARGET_R}rem`,
-  '--hs-sal-from': scaleAt(0),
-  '--hs-sal-to':   scaleAt(RING_TRAVEL_MS),
-  animationDuration: `${RING_TRAVEL_MS}ms`,
-}
-
 // ── The contact ───────────────────────────────────────────────────────────────
-// A radar blip closing on the middle, on the same clock as the ring: it leaves
-// the rim where the ring starts and is dead centre at RING_MS, the instant the
-// ring sits on the target. So "the dot is in the middle" and "the ring is on the
-// band" are two readings of one moment, and a player can watch whichever they
-// find easier — the judgement is still the timestamp arithmetic, and neither
-// picture is ever asked what happened.
-// Only the bearing is random. The distance is the ring's own starting radius and
-// the duration is RING_MS, because a contact that came in at its own pace would
-// be a second rule contradicting the first.
-// It does not stop dead on the crosshair either. One linear pass carries it from
+// A radar blip closing on the middle: it leaves the rim and is dead centre at
+// RING_MS, the moment a click pays most. It is now the *only* moving part —
+// a white ring used to shrink through the bands alongside it, saying the same
+// thing a second time, and two clocks for one instant is one too many.
+// Only the bearing is random. The distance and the duration are fixed, because a
+// contact that came in at its own pace would be a second rule contradicting the
+// first.
+// It does not stop dead in the middle either. One linear pass carries it from
 // the rim to the far side, and because the speed is constant it is at zero at
 // exactly RING_MS without anyone having to say so — the crossing is a
 // consequence of the geometry, not a keyframe that has to be kept in step.
 const BLIP_FROM_REM = TARGET_R * RING_START
 const BLIP_PAST_REM = BLIP_FROM_REM * OVERSHOOT_MS / RING_MS
+
+// ── The target ────────────────────────────────────────────────────────────────
+// Two circles at the centre, and their radii are the hit windows measured in the
+// contact's own travel: how far the blip gets in HIT_MS, and in PERFECT_MS. So
+// "the dot is inside the amber circle" is exactly "a click counts", and "the dot
+// covers the gold core" is exactly "this one rolls the better table" — the same
+// derived-from-the-clock rule the old bands followed, restated for the one thing
+// still moving.
+//
+// This had to be re-derived when the shrinking ring went. The bands used to sit
+// where the *ring* landed (TARGET_R, 1.4 rem out); the contact crosses that
+// radius at ~1130 ms, some 470 ms before the window opens, so leaving them there
+// would have left a gold ring being flown through at a moment that pays nothing.
+const BLIP_SPEED_REM_PER_MS = (BLIP_FROM_REM + BLIP_PAST_REM) / RING_TRAVEL_MS
+
+const targetStyle = (halfWindow) => {
+  const r = BLIP_SPEED_REM_PER_MS * halfWindow
+  return { inset: `${CIRCLE_REM / 2 - r}rem` }
+}
+
+const goodBandStyle    = targetStyle(HIT_MS)
+const perfectBandStyle = targetStyle(PERFECT_MS)
 
 const blipAngle = ref(0)
 const blipStyle = computed(() => ({
@@ -137,7 +126,7 @@ const inWindow     = ref(false)
 // is a miss like any other; the flag only decides what the button looks like
 // and what the word says.
 const windowClosed = ref(false)
-// Bumping this re-keys the ring element, which is what restarts its animation —
+// Bumping this re-keys the contact, which is what restarts its animation —
 // a CSS animation cannot be told to play again without being remounted.
 const ringKey      = ref(0)
 const result       = ref(null)
@@ -245,7 +234,7 @@ const startRing = () => {
     inWindow.value = false
     windowClosed.value = true
   }, RING_MS + HIT_MS)
-  // …and the verdict lands a beat later, when the ring and the contact have
+  // …and the verdict lands a beat later, once the contact has
   // finished their overshoot. Letting the window pass counts as the same miss a
   // wrong click does; it is only *announced* once the miss is visible, because
   // "gone" arriving while the dot still sits dead centre reads as the game
@@ -254,7 +243,7 @@ const startRing = () => {
 
   // Judge against the clock the player is actually watching. Vue renders on the
   // next tick and the browser starts the CSS animations on the frame after that,
-  // so a bite timed from this function is a frame or two ahead of the ring and
+  // so a bite timed from this function is a frame or two ahead of
   // the contact on screen — always in the same direction, always against the
   // player. Re-stamping on the first painted frame costs nothing and makes "dead
   // centre" mean dead centre. If the frame never comes (a backgrounded tab), the
@@ -336,7 +325,7 @@ const onCircle = () => {
   if (phase.value === 'bite')  return strike()
 }
 
-// Empty while the ring is still travelling: a word that stands there for the
+// Empty while the contact is still travelling: a word that stands there for the
 // whole approach tells you nothing about *when*, which is the only thing it
 // could usefully say. It appears the instant a click would count.
 const circleLabel = computed(() => {
@@ -464,19 +453,15 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
             <span class="hs-sal-ripple hs-sal-ripple--late" />
           </template>
 
-          <!-- The two bands ARE the hit window — both their radius and their
-               thickness come straight out of HIT_MS / PERFECT_MS, so what you aim
-               at is exactly what is judged. Amber counts, the gold core counts
-               for more. -->
+          <!-- The two circles ARE the hit window: their radii are how far the
+               contact travels in HIT_MS and in PERFECT_MS, so where the dot is
+               *is* what is judged. Amber counts, the gold core counts for more. -->
           <template v-if="phase === 'bite'">
+            <!-- The crosshair, so the middle is a place before anything is in it. -->
+            <span class="hs-sal-core" />
             <span class="hs-sal-band hs-sal-band--good"    :style="goodBandStyle" />
             <span class="hs-sal-band hs-sal-band--perfect" :style="perfectBandStyle" />
-            <span :key="ringKey" class="hs-sal-ring" :style="ringStyle" />
-            <!-- The scope's centre, so that "wait until it is in the middle" has
-                 a middle to point at. -->
-            <span class="hs-sal-core" />
-            <!-- The contact itself: rolled bearing, geometry and clock from the
-                 ring. Keyed with the ring so both restart together. -->
+            <!-- The contact itself: rolled bearing, one clock. -->
             <span :key="`blip-${ringKey}`" class="hs-sal-blip" :style="blipStyle" />
           </template>
 
@@ -652,7 +637,6 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 // lives inside a tile column, so it cannot assume any width.
 .hs-sal-stage {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 0.6rem 0.9rem;
@@ -771,12 +755,10 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   &--result { border-color: rgba(255, 255, 255, 0.18); }
 }
 .hs-sal-circle--late {
-  .hs-sal-band--good    { border-color: rgba(255, 255, 255, 0.05); }
-  .hs-sal-band--perfect { border-color: rgba(255, 255, 255, 0.08); }
-  .hs-sal-ring          { border-color: rgba(226, 232, 240, 0.3); }
-  .hs-sal-core          { border-color: rgba(255, 255, 255, 0.1); }
+  .hs-sal-band--good    { border-color: rgba(255, 255, 255, 0.06); }
+  .hs-sal-band--perfect { border-color: rgba(255, 255, 255, 0.1); background: none; }
 }
-// The middle of the button belongs to the contact and the ring, so the word
+// The middle of the button belongs to the contact and the target, so the word
 // lives in the lower third — in every phase, not only during the bite, because
 // a label that jumps to make room is a label you have to re-find each time.
 // Derived from the button's own size, so it stays in the lower third whatever
@@ -791,72 +773,55 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   text-transform: uppercase;
 }
 
-// The hit window, drawn. `inset` and `border-width` are set inline from the
-// timing constants — box-sizing keeps the border inside the box, so the painted
-// band spans exactly the radii the clock will accept.
+// ── The target ───────────────────────────────────────────────────────────────
+// The hit window, drawn: two circles at the centre whose radii are set inline
+// from `targetStyle()` — how far the contact travels in HIT_MS and in
+// PERFECT_MS. The dot inside the amber circle is a catch; the dot over the gold
+// core is the better table. Small, because the window is small: ±200 ms of the
+// contact's travel is 0.42 rem, and drawing it any larger would be a picture
+// promising something the clock does not.
 .hs-sal-band {
   position: absolute;
   box-sizing: border-box;
   border-radius: 50%;
-  border-style: solid;
-  transition: border-color 0.12s;
+  border: 1px solid;
+  transition: border-color 0.12s, background 0.12s;
 
-  &--good    { border-color: rgba(250, 204, 21, 0.16); }
-  &--perfect { border-color: rgba(253, 224, 71, 0.42); }
+  &--good    { border-color: rgba(250, 204, 21, 0.35); }
+  &--perfect {
+    border-color: rgba(253, 224, 71, 0.6);
+    background: rgba(250, 204, 21, 0.16);
+  }
 }
 .hs-sal-circle--open {
-  .hs-sal-band--good    { border-color: rgba(250, 204, 21, 0.3); }
-  .hs-sal-band--perfect { border-color: rgba(253, 224, 71, 0.72); }
+  .hs-sal-band--good    { border-color: rgba(250, 204, 21, 0.85); }
+  .hs-sal-band--perfect {
+    border-color: #fde68a;
+    background: rgba(250, 204, 21, 0.4);
+  }
 }
 
-// Travels from the rim through the target and a little past it. Linear on
-// purpose: an eased ring would make the last 200 ms unreadable, which is the
-// only part that matters. The overshoot is what makes "too late" visible.
-// Both scales come from the same `scaleAt()` the bands use.
-.hs-sal-ring {
-  position: absolute;  // inset comes from ringStyle — TARGET_R governs it
-  border-radius: 50%;
-  border: 3px solid rgba(226, 232, 240, 0.85);
-  animation-name: hs-sal-shrink;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-  transition: border-color 0.12s;
-}
-.hs-sal-circle--open .hs-sal-ring { border-color: #fde68a; }
-
-@keyframes hs-sal-shrink {
-  from { transform: scale(var(--hs-sal-from)); opacity: 0.3; }
-  20%  { opacity: 1; }
-  to   { transform: scale(var(--hs-sal-to));   opacity: 1; }
-}
-
-// ── The contact ──────────────────────────────────────────────────────────────
-// The scope's centre. Faint on purpose: it is where the contact is going, not a
-// thing to look at — but without it the middle is nowhere in particular, and
-// "click when it reaches the middle" has nothing to reach.
+// The crosshair. Faint on purpose: it is where the contact is going, not a thing
+// to look at — but without it the middle is nowhere in particular before the
+// circles have anything in them. No ring of its own any more; the target circles
+// are the rings now, and a third one only muddled them.
 .hs-sal-core {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 0.9rem;
-  height: 0.9rem;
-  margin: -0.45rem 0 0 -0.45rem;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  width: 0;
+  height: 0;
   pointer-events: none;
-  transition: border-color 0.12s;
 
   &::before,
   &::after {
     content: '';
     position: absolute;
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.16);
   }
-  // The crosshair, one hairline each way, overhanging the little circle.
-  &::before { left: 50%;  top: -0.3rem; bottom: -0.3rem; width: 1px;  margin-left: -0.5px; }
-  &::after  { top:  50%;  left: -0.3rem; right: -0.3rem; height: 1px; margin-top: -0.5px; }
+  &::before { left: 0; top: -0.75rem; height: 1.5rem; width: 1px;  margin-left: -0.5px; }
+  &::after  { top:  0; left: -0.75rem; width: 1.5rem; height: 1px; margin-top: -0.5px; }
 }
-.hs-sal-circle--open .hs-sal-core { border-color: rgba(253, 224, 71, 0.7); }
 
 // The blip. Red because a contact is red, and because nothing else on the dial
 // is — the eye finds it without being told. Its transform is
@@ -866,9 +831,13 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 0.55rem;
-  height: 0.55rem;
-  margin: -0.275rem 0 0 -0.275rem;
+  // Sized against the target it is flying into: a shade over the gold core
+  // (0.21 rem radius) and comfortably inside the amber one, so "covers the
+  // core" and "inside the ring" are both things you can actually see. The glow
+  // carries the visibility the pixels no longer have to.
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: -0.225rem 0 0 -0.225rem;
   border-radius: 50%;
   background: radial-gradient(circle, #fee2e2 0%, #ef4444 60%, rgba(239, 68, 68, 0.4) 100%);
   box-shadow: 0 0 9px rgba(239, 68, 68, 0.8);
@@ -1139,12 +1108,11 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 
 .hs-sal-cab-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+	grid-template-columns: repeat(8, minmax(0, 1fr));
   max-width: 24rem;
   gap: 0.3rem;
 
 	@media (min-width: 640px) {
-		grid-template-columns: repeat(8, minmax(0, 1fr));
 		max-width: 30rem;
 	}
 }
@@ -1188,9 +1156,9 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 .hs-sal-cab-effect { font-size: 0.62rem; font-weight: 600; color: #86efac; }
 .hs-sal-cab-hint   { margin: 0; font-size: 0.6rem; line-height: 1.4; color: rgba(255, 255, 255, 0.35); }
 
-// The celebration is optional, the game is not. Everything decorative stops;
-// the shrinking ring stays, because without it there is nothing to aim at — it
-// is the rule made visible, not an effect.
+// The celebration is optional, the game is not. Everything decorative stops; the
+// contact keeps flying, because without it there is nothing to aim at — it is
+// the rule made visible, not an effect.
 @media (prefers-reduced-motion: reduce) {
   .hs-sal-sweep,
   .hs-sal-ripple,

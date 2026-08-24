@@ -140,8 +140,27 @@ const setActivePlanet = (planetId) => {
   lastResourceSyncMs.value = Date.now()
 }
 
+const isHomePlanet = computed(() => !!homePlanetId.value && activePlanetId.value === homePlanetId.value)
+
+// One place decides whether a tile can be used on a given planet. `unlocked` is
+// the server's fact about the slot; `homeOnly` is a rule about the planet, and
+// everything that walks a planet's slots — the grid, the empire warnings, the
+// jump-to-tile — asks this instead of reading `unlocked` on its own. Three
+// copies of the same condition is how a locked tile ends up still raising an
+// "empty build slot" warning somewhere else.
+const slotUsable = (slot, planetId) =>
+  !!slot?.unlocked && (!slot.homeOnly || planetId === homePlanetId.value)
+
 // Computed aliases — Vue tracks nested mutations through these
-const playerSlots     = computed(() => allPlanetStates.value[activePlanetId.value]?.slots ?? [])
+//
+// The stored state stays truthful — the server's flag is untouched; what is
+// closed here is the view of it, because `unlocked` is what the grid, the panel
+// and `selectSlot` all key off.
+const playerSlots = computed(() => {
+  const pid = activePlanetId.value
+  return (allPlanetStates.value[pid]?.slots ?? [])
+    .map(s => (s.unlocked && !slotUsable(s, pid) ? { ...s, unlocked: false } : s))
+})
 const playerBuildings = computed(() => {
   const pb = allPlanetStates.value[activePlanetId.value]?.buildings ?? {}
   return { ...pb, ...globalResearch.value }
@@ -304,9 +323,14 @@ const activeSlotDef = computed(() =>
   playerSlots.value.find(s => s.slot === activeSlot.value)
 )
 
-const activeTileType = computed(() =>
-  activeSlotDef.value?.tileType ? TILE_TYPES[activeSlotDef.value.tileType] : null
-)
+// A locked tile has no type as far as the panel is concerned — every
+// `isXTile` in `HsTilePanel` hangs off this, so one guard here is what keeps a
+// stale selection (say, slot 12 still active when the view moves to a colony)
+// from rendering a game the planet does not have.
+const activeTileType = computed(() => {
+  const s = activeSlotDef.value
+  return s?.unlocked && s.tileType ? TILE_TYPES[s.tileType] : null
+})
 
 const selectSlot = (slot) => {
   if (!slot.unlocked) return
@@ -2726,7 +2750,7 @@ const planetStatus = (planetId) => {
   }
 
   for (const s of st.slots ?? []) {
-    if (!s.unlocked || !tileHasBuildings(s.tileType, st.planetType)) continue
+    if (!slotUsable(s, planetId) || !tileHasBuildings(s.tileType, st.planetType)) continue
     const used = Object.entries(st.buildings ?? {}).some(([bid, bs]) =>
       BUILDINGS[bid]?.tileType === s.tileType && (bs.level > 0 || bs.buildEndsAt))
     if (used) continue
@@ -2878,7 +2902,7 @@ const focusPlanetTile = (planetId, slot = null) => {
   activePlanetId.value     = planetId
   lastResourceSyncMs.value = Date.now()
   const target = st.slots?.find(s => s.slot === slot)
-  activeSlot.value = target?.unlocked ? slot : 5
+  activeSlot.value = slotUsable(target, planetId) ? slot : 5
   return true
 }
 
@@ -2945,6 +2969,7 @@ export function useHawkStar() {
     PLANET_TYPES,
     playerResources,
     playerSlots,
+    isHomePlanet,
     playerBuildings,
     activeSlot,
     now,
