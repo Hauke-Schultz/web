@@ -546,16 +546,14 @@ It therefore does **not** appear in the resource bar, which is per planet and st
 ### The loop
 
 ```
-Cast → 4–12 s wait (rings) → BITE → shrinking ring 1.8 s → click
-                               ↑                            │
-                               └────── up to 3 bites ───────┘
+Cast → 4–12 s wait (rings) → BITE → shrinking ring 1.8 s → click → result
 ```
 
 Starting values, all of them tuning knobs:
 
 - Hit window **±200 ms**, with a **±100 ms gold core** inside it; the tile's building widens both per level.
-- **Three bites per cast** — only the third miss lets it get away. A near-miss must not be pure punishment.
-- A cast runs 10–20 s → **~3–4 casts per minute**; a full hold is ≈ 6 minutes of play, which is about one tier-2 build.
+- **One bite per cast** *(2026-08-24, was three)* — the click ends the cast either way. Three bites made a miss cost nothing, and the mechanic needed its own bookkeeping to be legible at all: a pip row, a gap timer, an attempt counter. Casting again is free, which is the thing that was actually keeping the miss from hurting; the extra rounds only spent that leniency twice. The pips and `RING_GAP` went with them.
+- A cast runs ~6–14 s → **~5 casts per minute**; a full hold is ≈ 5 minutes of play, which is about one tier-2 build.
 - Cargo hold **120 🔩, +15/h**, player-wide. Same live-from-elapsed-time trick as `hs_recruit_pool`.
 
 **Skill buys time, not access.** A good player fills the hold in ~20 casts, a weak one in ~40, and both end up with 120 🔩. That is the right way round for a pastime — missing must not hurt — and the reason finds exist at all: they are the one place where playing better pays more, because more casts per minute means more rolls on the artefact table.
@@ -574,6 +572,12 @@ Three changes, all pulling the same way:
 - **Colour is information, not decoration.** The approach is cool grey; the button, ring and both bands warm the instant the window opens, driven by the same `inWindow` flag as the label. The word and the light therefore cannot promise a window that has already shut.
 
 **Precision now pays.** A hit anywhere in the band rolls `weight`; a hit in the gold core rolls `weightPerfect` — the same four catches, weighted 22/34/30/14 instead of 50/30/15/5. This is the one place in the feature where skill pays *more* rather than merely *faster*, and it is safe for the same reason everything else here is: the zone only picks a weight column, the hold still caps the day, so a client that claims `perfect` on every cast just reaches the same ceiling sooner. The endpoint treats anything that is not the literal string `'perfect'` as `'good'`, so a malformed report can only cost the player.
+
+#### One column for the outcome  *(2026-08-24)*
+
+The circle is 8.5 rem in a panel that is usually much wider, and everything the cast produced used to be stacked *under* it: the catch line first, the artefact card below that. On a phone the rare half — the one worth reading — landed below the fold while the ordinary half sat in view.
+
+`.hs-sal-outcome` is now a column beside the circle holding both, and `.hs-sal-stage` is a wrapping flex row: the circle is `flex: none`, the column is `flex: 1 1 9rem` and drops underneath when the tile is too narrow to hold a line of text next to it. The reward therefore arrives in one place, at the height the eye is already at.
 
 **A cast is client-only state and is lost on reload.** The server never hears about a cast until it is reported, so there is nothing to persist and no timer to resolve — unlike every other running thing in this game. Leaving the tile mid-cast simply drops it, which costs nothing, because a cast costs nothing.
 
@@ -615,7 +619,14 @@ Sixteen named artefacts, each findable **once per player**, rolled at ~1.5 % per
 
 **Titles were dropped.** The sketch listed them alongside portraits, and nothing in the game shows one: there is no name plate, no profile line, no place a title would appear. Building that system for one reward is out of proportion, so the **lore line** carries the flavour instead — every artefact has two i18n strings, a name and a sentence, and the sentence is the whole reason to open the cabinet twice.
 
-**Portraits are the one track the server does not pay out.** It records the find; `salvagePortraits` derives the avatars from the cabinet and `HsProfilePanel` appends them to its fixed twenty. Nothing is gated server-side — a portrait is cosmetic, and the picker was never authoritative.
+**Portraits are the one track the server does not pay out.** It records the find; `salvagePortraits` derives the avatars from the cabinet and `HsProfilePanel` appends them to its fixed twenty.
+
+**…but the save was gated, and that was a bug** *(fixed 2026-08-24)*. `auth/profile.php` validates the portrait against a hard-coded list of the fixed twenty, written long before the cabinet existed. Picking an unlocked artefact avatar therefore looked like it worked — the picker closed, the panel flashed *gespeichert* — and reverted at the next reload, because the write had been refused the whole time. Two halves to the fix:
+
+- **The server asks the cabinet.** `salvage_portraits()` in `profile.php` reads the owned finds and appends their `portrait` effects to the whitelist. It is only consulted when the pick is *not* one of the fixed twenty, so an ordinary portrait change still costs no query. The alternative — dropping the whitelist — was rejected: it is the only thing stopping an arbitrary string in the column that every other player's galaxy view renders.
+- **A refused save no longer says saved.** `saveProfile()` always returned a boolean and `HsProfilePanel` always ignored it. It now flashes only on success and puts the previous portrait back on failure, which is what would have made this visible on day one.
+
+The claim above is still true of the *payout*: no server-side grant, no column. What the server does own is which avatars a player may wear.
 
 #### The cabinet
 
@@ -726,18 +737,26 @@ Before this, the planet type was a **hard gate** on three of the four refined go
 
 The gate moves from *which planet you are on* to *what are you willing to pay*. Ungating the refineries is what makes an **imported** raw useful — ship obsidian in from a volcanic colony and refine it at home, far cheaper than melting scrap — while the smelter's refined recipes are the path that needs no colony at all.
 
-### The recipes
+### The recipes  *(retimed 2026-08-19)*
 
 | # | Recipe | Time | Only on |
 |---|---|---|---|
-| 0 | 30 🔩 → 50 metal | 20 min | |
-| 1 | 40 🔩 → 30 crystal | 20 min | |
+| 0 | 30 🔩 → 50 metal | **2 min** | |
+| 1 | 40 🔩 → 30 crystal | **2 min** | |
 | 2 | 60 🔩 → 20 alloy | 30 min | terrestrial |
 | 3 | 60 🔩 → 20 obsidian | 30 min | volcanic |
 | 4 | 60 🔩 → 20 cryo | 30 min | frozen |
 | 5 | 60 🔩 → 20 biomass | 30 min | ocean |
-| 6 | 140 🔩 → 1 Power Cell | 60 min | |
-| 7–10 | 250 🔩 → 1 Duraplate / Plasma Core / Superconductor / Vital Gel | 90 min each | |
+| 6 | 140 🔩 → 1 Power Cell | **2 h** | |
+| 7–10 | 250 🔩 → 1 Duraplate / Plasma Core / Superconductor / Vital Gel | **2 h each** | |
+
+**The two ends were pulled apart on purpose.** Metal and crystal are the recipes a player runs while standing at the tile — they are bulk, they are cheap, and a 20-minute wait for 50 metal made the smelter feel like a chore rather than a use for the scrap just fished. Two minutes is short enough to run one, fish another cast, and collect.
+
+The finished goods went the other way: **2 h each, Power Cells included**. They are the reason the smelter exists — the path to a refined good on a planet whose type does not offer it — and that path should cost a real part of a day, not an afternoon. Doubling the Power Cell's hour brought it in line with the other four rather than leaving it as the cheap way in.
+
+**The exclusive raws stayed at 30 minutes.** They sit between the two: still a bulk material, but planet-restricted and the input to a refinery that is far cheaper than melting the finished good directly. Moving them would have blurred exactly the choice the chapter is about.
+
+**Only the smelter was retimed.** The four refineries, the Deep Shaft, the Survey Array and the Power Cell Lab keep their 30 minutes — the smelter is the expensive alternative, and it is its own curve.
 
 **`planetTypes` on a *recipe*** is new — the same idiom the buildings already use, one level down. It is what keeps the raw recipes to the planet's own exclusive material.
 
@@ -745,7 +764,7 @@ The gate moves from *which planet you are on* to *what are you willing to pay*. 
 
 ### Why it is deliberately poor
 
-A native `alloy_forge` makes **60 alloy/h from level 1** and costs nothing but energy and staff. A whole salvage hold — 120 scrap, eight hours of regeneration — melts down to **40 alloy**, or a fifth of one refined good. Owning the right planet stays the good way; the smelter is the way that always exists.
+A native `alloy_forge` makes **60 alloy/h from level 1** and costs nothing but energy and staff. A whole salvage hold — 120 scrap, eight hours of regeneration — melts down to **40 alloy**, or a fifth of one refined good. Owning the right planet stays the good way; the smelter is the way that always exists — and since the retiming, the way that also takes two hours per unit.
 
 **One level, like the refineries.** The recipes carry the cost curve; the building does not need one on top of it.
 
@@ -771,7 +790,7 @@ Salvage scrap closes the High-Tech stock row: 🔩 plus its count, in its own go
 
 ### Files
 
-`SALVAGE_HOLD_MAX` / `SALVAGE_HOLD_PER_HOUR` / `SALVAGE_MIN_CAST_SECONDS` / `SALVAGE_CATCHES` / `SALVAGE_FIND_CHANCE` / `SALVAGE_FINDS` (the sixteen) / `salvage_roll_catch()` / `salvage_hold_max()` in `api/star/config.php` · `ensure_salvage()`, `salvage_owned_finds()`, `salvage_state()`, `salvage_roll_find()`, `salvage_apply_find()` in `api/star/bootstrap.php` · `api/star/game/salvage/catch.php` · `fill_salvage` + `grant_find` in `api/star/dev/cheat.php` · tables `hs_salvage` + `hs_salvage_finds` · salvage block in `api/star/game/state.php` · `HsSalvagePanel.vue` (game **and** cabinet) · `salvage` in `TILE_TYPES`, slot 12 in `PLANET_GRID` and the `SALVAGE_FINDS` mirror in `hawkStarConfig.js` plus `planet_grid_slots` (`config.php`) · `salvageScrap` / `salvageHold` / `salvageHoldMax` / `salvageHoldEmpty` / `salvageFinds` / `salvageCabinet` / `salvagePortraits` / `reportSalvageCatch` in `useHawkStar.js` · the unlocked-portrait list in `HsProfilePanel.vue` · an `isSalvageTile` branch in `HsTilePanel.vue` · `hawkStar.salvage.*` (incl. `finds.*` and `effects.*`) and `hawkStar.tiles.salvage.*` in de/en
+`SALVAGE_HOLD_MAX` / `SALVAGE_HOLD_PER_HOUR` / `SALVAGE_MIN_CAST_SECONDS` / `SALVAGE_CATCHES` / `SALVAGE_FIND_CHANCE` / `SALVAGE_FINDS` (the sixteen) / `salvage_roll_catch()` / `salvage_hold_max()` in `api/star/config.php` · `ensure_salvage()`, `salvage_owned_finds()`, `salvage_state()`, `salvage_roll_find()`, `salvage_apply_find()` in `api/star/bootstrap.php` · `api/star/game/salvage/catch.php` · `fill_salvage` + `grant_find` in `api/star/dev/cheat.php` · tables `hs_salvage` + `hs_salvage_finds` · salvage block in `api/star/game/state.php` · `HsSalvagePanel.vue` (game **and** cabinet) · `salvage` in `TILE_TYPES`, slot 12 in `PLANET_GRID` and the `SALVAGE_FINDS` mirror in `hawkStarConfig.js` plus `planet_grid_slots` (`config.php`) · `salvageScrap` / `salvageHold` / `salvageHoldMax` / `salvageHoldEmpty` / `salvageFinds` / `salvageCabinet` / `salvagePortraits` / `reportSalvageCatch` in `useHawkStar.js` · the unlocked-portrait list in `HsProfilePanel.vue` **and** `salvage_portraits()` in `api/star/auth/profile.php` (the picker and the whitelist must agree, or the save silently reverts) · an `isSalvageTile` branch in `HsTilePanel.vue` · `hawkStar.salvage.*` (incl. `finds.*` and `effects.*`) and `hawkStar.tiles.salvage.*` in de/en
 
 ---
 

@@ -30,24 +30,29 @@ const flashSaved = () => {
   savedTimer = setTimeout(() => { savedFlash.value = false }, 1500)
 }
 
+// The pick shows instantly and is put back if the server refuses it. Flashing
+// "gespeichert" on a rejected save is what hid the unlocked-portrait bug for so
+// long: the panel said saved, the reload said otherwise, and nothing in between
+// ever mentioned a failure.
 const selectPortrait = async (p) => {
+  const prev = playerPortrait.value
   playerPortrait.value = p
   showPicker.value = false
-  await saveProfile({ portrait: p })
-  flashSaved()
+  if (await saveProfile({ portrait: p })) flashSaved()
+  else playerPortrait.value = prev
 }
 
 const selectDisposition = async (d) => {
+  const prev = playerDisposition.value
   playerDisposition.value = d
-  await saveProfile({ disposition: d })
-  flashSaved()
+  if (await saveProfile({ disposition: d })) flashSaved()
+  else playerDisposition.value = prev
 }
 
 const saveName = async () => {
   const name = playerName.value.trim()
   if (!name) return
-  await saveProfile({ username: name })
-  flashSaved()
+  if (await saveProfile({ username: name })) flashSaved()
 }
 
 const handleDelete = async () => {

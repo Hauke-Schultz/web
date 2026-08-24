@@ -360,17 +360,17 @@ const BUILDINGS = [
   // every planet, not the good one. Recipe ORDER is load-bearing (recipe_index
   // is stored on running batches) — append, never rearrange.
   'salvage_smelter' => ['tileType'=>'salvage','conversions'=>[
-    ['input'=>['scrap'=>30],'output'=>['metal'=>50],'durationBase'=>1200],
-    ['input'=>['scrap'=>40],'output'=>['crystal'=>30],'durationBase'=>1200],
+    ['input'=>['scrap'=>30],'output'=>['metal'=>50],'durationBase'=>120],
+    ['input'=>['scrap'=>40],'output'=>['crystal'=>30],'durationBase'=>120],
     ['input'=>['scrap'=>60],'output'=>['alloy'=>20],'durationBase'=>1800,'planetTypes'=>['terrestrial']],
     ['input'=>['scrap'=>60],'output'=>['obsidian'=>20],'durationBase'=>1800,'planetTypes'=>['volcanic']],
     ['input'=>['scrap'=>60],'output'=>['cryo'=>20],'durationBase'=>1800,'planetTypes'=>['frozen']],
     ['input'=>['scrap'=>60],'output'=>['biomass'=>20],'durationBase'=>1800,'planetTypes'=>['ocean']],
-    ['input'=>['scrap'=>140],'output'=>['power_cell'=>1],'durationBase'=>3600],
-    ['input'=>['scrap'=>250],'output'=>['duraplate'=>1],'durationBase'=>5400],
-    ['input'=>['scrap'=>250],'output'=>['plasma_core'=>1],'durationBase'=>5400],
-    ['input'=>['scrap'=>250],'output'=>['superconductor'=>1],'durationBase'=>5400],
-    ['input'=>['scrap'=>250],'output'=>['vital_gel'=>1],'durationBase'=>5400],
+    ['input'=>['scrap'=>140],'output'=>['power_cell'=>1],'durationBase'=>7200],
+    ['input'=>['scrap'=>250],'output'=>['duraplate'=>1],'durationBase'=>7200],
+    ['input'=>['scrap'=>250],'output'=>['plasma_core'=>1],'durationBase'=>7200],
+    ['input'=>['scrap'=>250],'output'=>['superconductor'=>1],'durationBase'=>7200],
+    ['input'=>['scrap'=>250],'output'=>['vital_gel'=>1],'durationBase'=>7200],
   ],'levels'=>[
     ['level'=>1,'cost'=>['metal'=>150,'crystal'=>80],'buildTime'=>900,'production'=>[],'energyDrain'=>4,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
   ]],

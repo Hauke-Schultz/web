@@ -1438,8 +1438,8 @@ export const BUILDINGS = {
     // Order matters and must never be rearranged: `recipeIndex` is stored in
     // hs_conversion_queues, so a running batch would deliver the wrong goods.
     conversions: [
-      { input: { scrap: 30 },  output: { metal: 50 },          durationBase: 1200 },
-      { input: { scrap: 40 },  output: { crystal: 30 },        durationBase: 1200 },
+      { input: { scrap: 30 },  output: { metal: 50 },          durationBase: 120 },
+      { input: { scrap: 40 },  output: { crystal: 30 },        durationBase: 120 },
       { input: { scrap: 60 },  output: { alloy: 20 },          durationBase: 1800, planetTypes: ['terrestrial'] },
       { input: { scrap: 60 },  output: { obsidian: 20 },       durationBase: 1800, planetTypes: ['volcanic'] },
       { input: { scrap: 60 },  output: { cryo: 20 },           durationBase: 1800, planetTypes: ['frozen'] },
@@ -1447,11 +1447,11 @@ export const BUILDINGS = {
       // The finished goods, straight out of scrap. Costlier and far slower than
       // any refinery, which is the point: this is the path that exists on every
       // planet, not the good one.
-      { input: { scrap: 140 }, output: { power_cell: 1 },      durationBase: 3600 },
-      { input: { scrap: 250 }, output: { duraplate: 1 },       durationBase: 5400 },
-      { input: { scrap: 250 }, output: { plasma_core: 1 },     durationBase: 5400 },
-      { input: { scrap: 250 }, output: { superconductor: 1 },  durationBase: 5400 },
-      { input: { scrap: 250 }, output: { vital_gel: 1 },       durationBase: 5400 },
+      { input: { scrap: 140 }, output: { power_cell: 1 },      durationBase: 7200 },
+      { input: { scrap: 250 }, output: { duraplate: 1 },       durationBase: 7200 },
+      { input: { scrap: 250 }, output: { plasma_core: 1 },     durationBase: 7200 },
+      { input: { scrap: 250 }, output: { superconductor: 1 },  durationBase: 7200 },
+      { input: { scrap: 250 }, output: { vital_gel: 1 },       durationBase: 7200 },
     ],
   },
 

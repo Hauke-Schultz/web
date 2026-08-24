@@ -22,8 +22,10 @@ const HIT_MS     = 200   // ± window that counts as a catch at all
 const PERFECT_MS = 100   // ± core inside it — a tighter hit fishes a better table
 const OVERSHOOT_MS = 350 // the ring keeps shrinking past the target, so "too late"
                          // is something you can see rather than only feel
-const ATTEMPTS = 3       // bites per cast — only the last miss lets it get away
-const RING_GAP = 450     // beat between one miss and the next bite
+// One bite per cast. Three made a miss cost nothing and turned the cast into a
+// three-round mini-game with its own bookkeeping — pips, a gap timer, a counter
+// on screen. A single bite is the same toy with the padding removed: the click
+// is the cast, and casting again is free.
 const WAIT_MIN = 4000
 const WAIT_MAX = 12000
 const SHOW_RESULT_MS = 1800
@@ -71,9 +73,8 @@ const ringStyle = {
   animationDuration: `${RING_TRAVEL_MS}ms`,
 }
 
-// idle → waiting → bite → (waiting → bite …) → result → idle
+// idle → waiting → bite → result → idle
 const phase        = ref('idle')
-const attempt      = ref(0)
 const ringStarted  = ref(0)
 // True exactly while a click would count. It drives the "Jetzt!" label, the
 // glow and nothing else — the same timer, so the word and the light can never
@@ -102,7 +103,6 @@ const scheduleReset = () => {
 }
 
 const startRing = () => {
-  attempt.value  += 1
   ringKey.value  += 1
   ringStarted.value = Date.now()
   phase.value = 'bite'
@@ -117,20 +117,12 @@ const cast = () => {
   // The last outcome deliberately survives the next cast: the line is the only
   // place a catch is ever named, and wiping it on cast meant the answer to
   // "what did I just pull up" vanished the moment you reached for the button.
-  attempt.value = 0
   phase.value   = 'waiting'
   waitTimer = setTimeout(startRing, WAIT_MIN + Math.random() * (WAIT_MAX - WAIT_MIN))
 }
 
-const missed = () => {
-  clearTimers()
-  if (attempt.value < ATTEMPTS) {
-    phase.value = 'waiting'
-    waitTimer = setTimeout(startRing, RING_GAP)
-    return
-  }
-  finish(false)
-}
+// The only bite there is: a miss ends the cast.
+const missed = () => finish(false)
 
 // Two zones, not one. A hit anywhere in the band lands a catch; a hit in the
 // gold core fishes a better table. That is the answer to "when is it worth
@@ -281,41 +273,39 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
         <span class="hs-sal-circle-label">{{ circleLabel }}</span>
       </button>
 
-      <!-- Which bite this is. Three per cast, so a near miss is not the end. -->
-      <div class="hs-sal-attempts" :class="{ 'hs-sal-attempts--on': phase === 'bite' || phase === 'waiting' }">
-        <span
-          v-for="n in ATTEMPTS"
-          :key="n"
-          class="hs-sal-pip"
-          :class="{ 'hs-sal-pip--used': n < attempt || (n === attempt && phase === 'result' && !result?.hit) }"
-        />
+      <!-- Everything one cast produced, in one column beside the circle: the
+           eye is already on the ring, and the empty space next to it was the
+           one piece of room the panel had going spare. Keeping the catch line
+           and the artefact together also stops the reward arriving in two
+           places — the rare half used to appear below the fold while the
+           ordinary half sat up here. -->
+      <div class="hs-sal-outcome">
+        <!-- What happened, in one line. It stays put — no fade, and not cleared
+             by the next cast, so the haul is still readable while you fish. -->
+        <div class="hs-sal-result">
+          <template v-if="result?.hit && result?.pending">…</template>
+          <template v-else-if="result?.failed">{{ t('hawkStar.salvage.failed') }}</template>
+          <template v-else-if="result?.hit && result?.catch">
+            <span class="hs-sal-catch-icon">{{ result.catch.icon }}</span>
+            <span class="hs-sal-catch-name">{{ catchName(result.catch.key) }}</span>
+            <span v-if="result.thrownBack" class="hs-sal-thrown">{{ t('hawkStar.salvage.thrownBack') }}</span>
+            <span v-else class="hs-sal-gain">+{{ result.gained }} 🔩</span>
+          </template>
+          <template v-else-if="result && !result.hit">{{ t('hawkStar.salvage.fledLong') }}</template>
+          <template v-else>&nbsp;</template>
+        </div>
+
+        <!-- Artefacts are not charged to the hold, so this can fire on a full
+             hold too — which is exactly what keeps the tile worth opening later
+             on. The second line is what the artefact actually paid, not what the
+             catalogue promises: a full store can cut a delivery short. -->
+        <div v-if="result?.find" class="hs-sal-find">
+          <span class="hs-sal-find-line">
+            ✨ {{ t('hawkStar.salvage.findFound', { name: findName(result.find.key) }) }}
+          </span>
+          <span class="hs-sal-find-effect">{{ result.find.icon }} {{ effectText(result.find.grant) }}</span>
+        </div>
       </div>
-    </div>
-
-    <!-- What happened, in one line. It stays put — no fade, and not cleared by
-         the next cast, so the haul is still readable while you fish again. -->
-    <div class="hs-sal-result">
-      <template v-if="result?.hit && result?.pending">…</template>
-      <template v-else-if="result?.failed">{{ t('hawkStar.salvage.failed') }}</template>
-      <template v-else-if="result?.hit && result?.catch">
-        <span class="hs-sal-catch-icon">{{ result.catch.icon }}</span>
-        <span class="hs-sal-catch-name">{{ catchName(result.catch.key) }}</span>
-        <span v-if="result.thrownBack" class="hs-sal-thrown">{{ t('hawkStar.salvage.thrownBack') }}</span>
-        <span v-else class="hs-sal-gain">+{{ result.gained }} 🔩</span>
-      </template>
-      <template v-else-if="result && !result.hit">{{ t('hawkStar.salvage.fledLong') }}</template>
-      <template v-else>&nbsp;</template>
-    </div>
-
-    <!-- Artefacts are not charged to the hold, so this can fire on a full hold
-         too — which is exactly what keeps the tile worth opening later on. The
-         second line is what the artefact actually paid, not what the catalogue
-         promises: a full store can cut a delivery short. -->
-    <div v-if="result?.find" class="hs-sal-find">
-      <span class="hs-sal-find-line">
-        ✨ {{ t('hawkStar.salvage.findFound', { name: findName(result.find.key) }) }}
-      </span>
-      <span class="hs-sal-find-effect">{{ result.find.icon }} {{ effectText(result.find.grant) }}</span>
     </div>
 
     <!-- The cabinet. Every slot is drawn from the first cast on: the locked ones
@@ -432,11 +422,15 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
 }
 
 // ── The stage ────────────────────────────────────────────────────────────────
+// Circle left, outcome right. The circle keeps its fixed size, the outcome
+// column takes what is left and wraps under it when that is too narrow — the
+// panel lives inside a tile column, so it cannot assume any width.
 .hs-sal-stage {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.6rem;
+  justify-content: center;
+  gap: 0.6rem 0.9rem;
   padding: 0.75rem 0 0.25rem;
 }
 
@@ -535,30 +529,26 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   to   { transform: scale(1.75); opacity: 0; }
 }
 
-.hs-sal-attempts {
+// The right-hand column: the catch line, plus the artefact card on the rare
+// cast that turns one up. It takes whatever the circle leaves and wraps under
+// it once that is narrower than a line of text.
+.hs-sal-outcome {
+  flex: 1 1 9rem;
+  min-width: 0;
   display: flex;
-  gap: 0.3rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-
-  &--on { opacity: 1; }
-}
-.hs-sal-pip {
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 50%;
-  background: rgba(253, 230, 138, 0.75);
-
-  &--used { background: rgba(255, 255, 255, 0.15); }
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
 }
 
 // Always on. The reserved min-height is what stops the panel jumping before the
 // first catch, so nothing here needs to fade.
 .hs-sal-result {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.15rem 0.35rem;
   min-height: 1.2rem;
   font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.5);
@@ -611,15 +601,16 @@ const toggleFind   = (f) => { selectedKey.value = selectedKey.value === f.key ? 
   font-variant-numeric: tabular-nums;
 }
 
-// Four across on every width, so the sixteen slots always read as a 4×4 board
-// rather than one long row on a desktop and three ragged ones on a phone. The
-// max-width is what stops the tiles ballooning when the tile column is wide —
-// ~3 rem a slot is a comfortable tap target and no bigger than it needs to be.
 .hs-sal-cab-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  max-width: 13rem;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  max-width: 24rem;
   gap: 0.3rem;
+
+	@media (min-width: 640px) {
+		grid-template-columns: repeat(8, minmax(0, 1fr));
+		max-width: 30rem;
+	}
 }
 .hs-sal-slot {
   aspect-ratio: 1;

@@ -13,11 +13,30 @@ $disposition = array_key_exists('disposition', $b) ? $b['disposition']          
 $allowed_portraits   = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️'];
 $allowed_dispositions = ['friendly','neutral','hostile'];
 
+$db = getDB();
+
+// Salvage artefacts unlock extra avatars, and the picker offers them the moment
+// the find is in the cabinet — so the whitelist has to know about them as well.
+// Without this the choice looked saved, survived until the next reload and then
+// quietly reverted to the old portrait, which is the worst of both.
+// Only consulted when the pick is not one of the fixed twenty: an ordinary
+// portrait change must not cost a query.
+function salvage_portraits(PDO $db, int $playerId): array {
+    $out = [];
+    ensure_salvage($db, $playerId);
+    foreach (salvage_owned_finds($db, $playerId) as $key) {
+        $effect = SALVAGE_FINDS[$key]['effect'] ?? null;
+        if (($effect['type'] ?? null) === 'portrait') $out[] = $effect['portrait'];
+    }
+    return $out;
+}
+
 $fields = [];
 $params = [];
 
 if ($portrait !== null) {
-    if (!in_array($portrait, $allowed_portraits, true)) fail('Invalid portrait');
+    if (!in_array($portrait, $allowed_portraits, true)
+        && !in_array($portrait, salvage_portraits($db, $playerId), true)) fail('Invalid portrait');
     $fields[] = 'portrait = ?';
     $params[] = $portrait;
 }
@@ -35,7 +54,6 @@ if ($disposition !== null) {
 if (empty($fields)) fail('Nothing to update');
 
 $params[] = $playerId;
-$db = getDB();
 $db->prepare('UPDATE hs_players SET ' . implode(', ', $fields) . ' WHERE id = ?')->execute($params);
 
 $row = $db->prepare('SELECT id, username, email, portrait, disposition FROM hs_players WHERE id = ?');
