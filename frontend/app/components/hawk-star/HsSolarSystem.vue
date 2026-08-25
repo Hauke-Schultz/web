@@ -499,46 +499,53 @@ watch(ownPlanetIds, loadOwnPlanetStates)
               { 'hs-plist__item--open': planet.id === selectedPlanetId },
             ]"
           >
-            <button class="hs-plist__row" @click="toggleSelect(planet)">
-              <span class="hs-plist__glyph">{{ planetIcon(planet) }}</span>
-              <span class="hs-plist__id">
-                <span class="hs-plist__name">{{ planet.name }}</span>
-                <span
-                  class="hs-plist__state"
-                  :style="{ color: stateColor(effectivePlanetState(planet)) }"
-                >{{ stateLabel(effectivePlanetState(planet)) }}</span>
-              </span>
-              <span v-if="isHomePlanet(planet)" class="hs-plist__flag" :title="t('hawkStar.solar.home')">🏠</span>
-              <span
-                v-else-if="planet.id === activePlanetId"
-                class="hs-plist__flag"
-                :title="t('hawkStar.solar.currentLocation')"
-              >📍</span>
-              <span
-                v-if="missionOn(planet.id)"
-                class="hs-plist__mission"
-                :class="`hs-plist__mission--${missionOn(planet.id).key}`"
-              >{{ missionOn(planet.id).icon }} {{ formatTime(missionOn(planet.id).time) }}</span>
-              <span class="hs-plist__chevron" aria-hidden="true">▾</span>
-            </button>
-
-            <div
-              v-if="dispatchByPlanet[planet.id]"
-              class="hs-plist__send"
-              :class="[
-                `hs-plist__send--${armedUnit}`,
-                { 'hs-plist__send--blocked': dispatchByPlanet[planet.id].state === 'blocked' },
-              ]"
-            >
-              <template v-if="dispatchByPlanet[planet.id].state === 'ready'">
-                <button class="hs-plist__send-btn" @click.stop="dispatchByPlanet[planet.id].send()">
-                  {{ dispatchByPlanet[planet.id].icon }} {{ dispatchByPlanet[planet.id].action }}
+            <div class="hs-plist__head">
+              <!-- Arming a unit slides this column open on every row at once, so the
+                   send buttons line up as one column to run your eye down. A planet
+                   the unit cannot reach keeps the space and stays empty — that is
+                   what holds the rows aligned. -->
+              <div class="hs-plist__send" :class="{ 'hs-plist__send--on': !!armedUnit }">
+                <button
+                  v-if="dispatchByPlanet[planet.id]?.state === 'ready'"
+                  class="hs-plist__send-btn"
+                  :class="`hs-plist__send-btn--${armedUnit}`"
+                  :title="dispatchByPlanet[planet.id].action"
+                  @click.stop="dispatchByPlanet[planet.id].send()"
+                >
+                  <span class="hs-plist__send-icon">{{ dispatchByPlanet[planet.id].icon }}</span>
+                  <span class="hs-plist__send-time">{{ formatTime(dispatchByPlanet[planet.id].flight) }}</span>
                 </button>
-                <span class="hs-plist__send-time">⏱ {{ formatTime(dispatchByPlanet[planet.id].flight) }}</span>
-              </template>
-              <span v-else class="hs-plist__send-hint">
-                {{ dispatchByPlanet[planet.id].icon }} {{ dispatchByPlanet[planet.id].hint }}
-              </span>
+                <!-- Reachable, but the dock has nothing to put in it. No button, so the
+                     column still reads as "not now" at a glance; the reason is on hover. -->
+                <span
+                  v-else-if="dispatchByPlanet[planet.id]?.state === 'blocked'"
+                  class="hs-plist__send-blocked"
+                  :title="dispatchByPlanet[planet.id].hint"
+                >–</span>
+              </div>
+
+              <button class="hs-plist__row" @click="toggleSelect(planet)">
+                <span class="hs-plist__glyph">{{ planetIcon(planet) }}</span>
+                <span class="hs-plist__id">
+                  <span class="hs-plist__name">{{ planet.name }}</span>
+                  <span
+                    class="hs-plist__state"
+                    :style="{ color: stateColor(effectivePlanetState(planet)) }"
+                  >{{ stateLabel(effectivePlanetState(planet)) }}</span>
+                </span>
+                <span v-if="isHomePlanet(planet)" class="hs-plist__flag" :title="t('hawkStar.solar.home')">🏠</span>
+                <span
+                  v-else-if="planet.id === activePlanetId"
+                  class="hs-plist__flag"
+                  :title="t('hawkStar.solar.currentLocation')"
+                >📍</span>
+                <span
+                  v-if="missionOn(planet.id)"
+                  class="hs-plist__mission"
+                  :class="`hs-plist__mission--${missionOn(planet.id).key}`"
+                >{{ missionOn(planet.id).icon }} {{ formatTime(missionOn(planet.id).time) }}</span>
+                <span class="hs-plist__chevron" aria-hidden="true">▾</span>
+              </button>
             </div>
 
             <div v-if="planet.id === selectedPlanetId" class="hs-plist__body">
@@ -1119,7 +1126,8 @@ watch(ownPlanetIds, loadOwnPlanetStates)
 }
 
 .hs-plist__row {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -1181,69 +1189,81 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   .hs-plist__item--open & { transform: rotate(180deg); opacity: 0.7; }
 }
 
-// Dispatch bar — shown on every row the armed unit can reach, so picking a
-// target is one glance down the list instead of opening each planet in turn.
+// ── Dispatch column ─────────────────────────────────────────────────────────
+// Arming a unit slides a column open on the left of every row at once. Width
+// animates from 0, so the element is always in the DOM — a `v-if` would pop in
+// with no transition and the rows would jump instead of making room.
+.hs-plist__head {
+  display: flex;
+  align-items: stretch;
+}
+
 .hs-plist__send {
+  flex: 0 0 auto;
+  width: 0;
+  overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.3rem 0.5rem;
-  border-top: 1px solid var(--hs-line-sm);
+  justify-content: center;
+  transition: width 0.22s ease;
 
-  &--drone  { background: rgba(251,191,36,0.07); }
-  &--colony { background: rgba(96,165,250,0.07); }
-  &--cargo  { background: rgba(251,191,36,0.09); }
+  &--on {
+    width: 5.25rem;
+    border-right: 1px solid var(--hs-line-sm);
 
-  // Reachable, but the dock has nothing to put in it — keep the row calm.
-  &--blocked { background: transparent; }
+    @media (min-width: 400px) { width: 6rem; }
+  }
 }
 
 .hs-plist__send-btn {
-  flex: 1;
-  min-width: 0;
-  padding: 0.3rem 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: calc(100% - 0.5rem);
+  margin: 0.25rem;
+  padding: 0.3rem 0.2rem;
   border-radius: var(--hs-r-sm);
-  font-size: 0.64rem;
-  font-weight: 700;
+  border: 1px solid;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border: 1px solid;
   transition: background 0.15s, border-color 0.15s;
 
-  .hs-plist__send--drone & {
+  &--drone {
     border-color: rgba(251,191,36,0.45);
     background: rgba(251,191,36,0.14);
     color: rgba(253,230,138,0.95);
-    &:hover { background: rgba(251,191,36,0.26); border-color: rgba(251,191,36,0.7); }
+    &:hover { background: rgba(251,191,36,0.28); border-color: rgba(251,191,36,0.7); }
   }
-  .hs-plist__send--colony & {
+  &--colony {
     border-color: rgba(96,165,250,0.45);
     background: rgba(96,165,250,0.14);
     color: rgba(191,219,254,0.95);
-    &:hover { background: rgba(96,165,250,0.26); border-color: rgba(96,165,250,0.7); }
+    &:hover { background: rgba(96,165,250,0.28); border-color: rgba(96,165,250,0.7); }
   }
-  .hs-plist__send--cargo & {
+  &--cargo {
     border-color: rgba(251,191,36,0.5);
     background: rgba(251,191,36,0.16);
     color: rgba(253,230,138,0.95);
-    &:hover { background: rgba(251,191,36,0.28); border-color: rgba(251,191,36,0.75); }
+    &:hover { background: rgba(251,191,36,0.3); border-color: rgba(251,191,36,0.75); }
   }
 }
 
+.hs-plist__send-icon { font-size: 0.8rem; line-height: 1; }
+
 .hs-plist__send-time {
-  flex-shrink: 0;
   font-size: 0.62rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.55);
 }
 
-.hs-plist__send-hint {
-  font-size: 0.58rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.28);
+// No button, so the column reads as "not now" at a glance; the reason is on
+// hover, where it costs nothing and clutters nothing.
+.hs-plist__send-blocked {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.18);
+  cursor: default;
 }
 
 .hs-plist__body {
