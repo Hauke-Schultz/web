@@ -414,14 +414,35 @@ The planet type is assigned on colonization and restricts or enables certain bui
 
 ---
 
-## Power Battery  *(implemented)*
+## Power Battery  *(implemented · charging reworked 2026-08-25)*
 
-Every `power_plant` has a battery (0–100 %) that slowly drains over time, independent of energy production. Click **⚡ Charge +10 %** (free, unlimited) to top it up — the battery only fills by clicking, which is the return-to-play hook.
+Every `power_plant` has a battery (0–100 %) that slowly drains over time, independent of energy production. Charging is **free and unlimited** and worth **+10 % a go** — the battery only fills by hand, which is the return-to-play hook.
 
 - **At 0 % the whole planet grid goes offline** — nothing produces until recharged. This is separate from the existing energy balance (production ≥ drain); both must hold for a building to run.
 - Drain scales with `power_plant` level — higher level lasts longer (Lv1 ≈ 72 h full→empty … Lv6 ≈ 192 h).
 - A newly built power plant starts at **0 %** (blackout) so the player learns to charge it.
-- Backend: table `hs_power_battery` (charge + timestamp), resolved live from elapsed time; `POST /game/power/charge`. UI: bar + "holds ~Xh" countdown + charge button on the energy tile (`HsPowerBattery`). Dev cheat "🔋 Leeren" empties it for testing.
+- Backend: table `hs_power_battery` (charge + timestamp), resolved live from elapsed time; `POST /game/power/charge`. Dev cheat "🔋 Leeren" empties it for testing.
+
+### The charge is a gesture, not a click
+
+`HsPowerBattery` is a **block on the energy tile**, the same shape as the recruit deck and the salvage dial — not the slim button it was until 2026-08-25. The button was honest and did nothing: charging is the one piece of pure upkeep in the game, so it has to be the thing that is nice to *do*. **The server side is untouched** — one traverse asks for exactly the +10 % one click used to.
+
+- **Drag the contact across the cell, left to right.** The gesture must **start in the left third** (`CELL_START = 0.34`) and **reach the far terminal** (`CELL_END = 0.94`), or a tap near the right edge would be a click again. In between it is forgiving: progress only ever grows, so a wobble never costs ground. Let go early and the pending charge drains back — a traverse never half-counts.
+- **Sparks come off the contact as it travels**, and burst when the charge lands. They are decoration and are never read back, so a dropped frame costs a picture and never a percent.
+- **The cell is divided into `max / clickPercent` segments** — ten of them — so "how many more swipes" is something you can see rather than something the hint has to say. Derived from config: change `clickPercent` and the cell re-divides itself.
+- **The pending charge is drawn brighter and does not animate its width.** It *is* the finger. The charge behind it keeps its 0.35 s transition, because that one is a number arriving, not a hand moving.
+- **`touch-action: none` on the cell and the breaker track.** The gesture is horizontal and so is the phone's scroll; without it the browser eats the swipe.
+- **Enter/Space still charge in one press.** The game is the picture, and a picture must never be the only way to play — the keyboard path runs the same traverse on a rAF and lands the same charge.
+
+### The blackout breaker
+
+**At 0 % the cell cannot be swiped at all** — a dead grid does not come back by wiping a contact over it. A **main breaker** appears under the cell and has to be dragged from OFF to ON, and **slowly**: over `BREAKER_MAX_SPEED = 0.85` track widths per second it arcs and **trips straight back out**, and the whole travel may not take less than `BREAKER_MIN_MS = 900`. Under the limit the pull takes about a second and a half — long enough to feel like a decision, short enough not to be a chore.
+
+- **The lever warns before it trips.** Past 60 % of the speed limit the knob goes amber (`--strained`); over it, red plus a shake plus sparks, and the knob springs back to OFF. Letting go halfway is not a failure — the spring simply takes it back.
+- **It cannot be pushed back and re-run:** the knob keeps the furthest point it has reached (`Math.max`), because it is a lever, not a slider.
+- **Throwing it over calls the same `chargeBattery()`**, which lifts the blackout at +10 % — so the breaker *is* the first charge, not an extra step before one. The panel loses the breaker as soon as `gridDown` clears, and the cell takes over.
+
+Both mechanics use pointer events with pointer capture, so mouse and touch are one code path.
 
 ---
 

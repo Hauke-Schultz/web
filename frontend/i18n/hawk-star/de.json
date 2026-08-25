@@ -362,10 +362,18 @@
 
     "battery": {
       "title": "Reaktor-Batterie",
-      "charge": "+{n} % Ladung pro Klick",
+      "charge": "+{n} % Ladung pro Wisch",
       "timeLeft": "hält noch {time}",
       "blackout": "Blackout — Kolonie offline",
-      "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall."
+      "hint": "Entlädt sich mit der Zeit. Leer = kompletter Stromausfall.",
+      "swipe": "Kontakt von links nach rechts ziehen · +{n} %",
+      "full": "Voll geladen",
+      "breaker": "Hauptschalter",
+      "breakerHint": "Hebel langsam nach rechts ziehen",
+      "breakerFast": "Zu hastig — die Sicherung fällt wieder",
+      "breakerOn": "Netz ist wieder da",
+      "off": "AUS",
+      "on": "AN"
     },
 
     "resourceBar": {

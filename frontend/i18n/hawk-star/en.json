@@ -361,10 +361,18 @@
 
     "battery": {
       "title": "Reactor Battery",
-      "charge": "+{n}% charge per click",
+      "charge": "+{n}% charge per swipe",
       "timeLeft": "{time} left",
       "blackout": "Blackout — colony offline",
-      "hint": "Drains over time. Empty = total power loss."
+      "hint": "Drains over time. Empty = total power loss.",
+      "swipe": "Drag the contact left to right · +{n}%",
+      "full": "Fully charged",
+      "breaker": "Main breaker",
+      "breakerHint": "Pull the lever slowly to the right",
+      "breakerFast": "Too hasty — the breaker trips again",
+      "breakerOn": "Grid is back",
+      "off": "OFF",
+      "on": "ON"
     },
 
     "resourceBar": {
