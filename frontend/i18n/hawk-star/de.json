@@ -386,11 +386,15 @@
 
     "shield": {
       "title": "Schildstärke",
-      "charge": "+{n} % Schild pro Klick",
+      "charge": "+{n} % Schild pro Kristall",
       "timeLeft": "hält noch {time}",
       "down": "Schild unten",
       "full": "voll aufgeladen",
-      "hint": "Baut sich mit der Zeit ab. Nachladen kostet Kristall."
+      "hint": "Baut sich mit der Zeit ab. Nachladen kostet Kristall.",
+      "drag": "Kristall in den Emitter ziehen · +{n} %",
+      "carry": "Zum Emitter ziehen — daneben loslassen kostet nichts",
+      "release": "Loslassen — der Emitter nimmt ihn",
+      "noCrystal": "Zu wenig Kristall für eine Ladung"
     },
 
     "orbitDefense": {

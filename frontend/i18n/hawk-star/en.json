@@ -385,11 +385,15 @@
 
     "shield": {
       "title": "Shield strength",
-      "charge": "+{n}% shield per click",
+      "charge": "+{n}% shield per crystal",
       "timeLeft": "{time} left",
       "down": "Shield down",
       "full": "fully charged",
-      "hint": "Fades over time. Recharging costs crystal."
+      "hint": "Fades over time. Recharging costs crystal.",
+      "drag": "Drag a crystal into the emitter · +{n}%",
+      "carry": "Carry it to the emitter — dropping it short costs nothing",
+      "release": "Let go — the emitter takes it",
+      "noCrystal": "Not enough crystal for a charge"
     },
 
     "orbitDefense": {

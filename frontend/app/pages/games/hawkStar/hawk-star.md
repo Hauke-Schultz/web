@@ -446,11 +446,11 @@ Both mechanics use pointer events with pointer capture, so mouse and touch are o
 
 ---
 
-## Planetary Shield  *(reworked 2026-08-12)*
+## Planetary Shield  *(reworked 2026-08-12 · charging reworked 2026-08-25)*
 
-The `shield_generator` used to be a three-level building whose levels claimed "absorbs 20/40/60 % damage" — against nothing, since combat does not exist yet. It is now **a single level that is charged rather than upgraded**: strength is a 0–100 % value that fades over time and is topped up click by click, exactly like the reactor battery, with one deliberate difference — **charging costs crystal**.
+The `shield_generator` used to be a three-level building whose levels claimed "absorbs 20/40/60 % damage" — against nothing, since combat does not exist yet. It is now **a single level that is charged rather than upgraded**: strength is a 0–100 % value that fades over time and is topped up by hand, exactly like the reactor battery, with one deliberate difference — **charging costs crystal**.
 
-- **+10 % per click for 150 crystal**, drain **1.25 %/h** — **~30 % a day**, so a full shield stands for a good **three days** (80 h full → empty) and topping it up is a login-time chore, not an hourly one. One click buys 8 h at full strength; holding it there costs ~19 crystal per hour — a real expense on a young colony, small change on a developed one.
+- **+10 % per charge for 150 crystal**, drain **1.25 %/h** — **~30 % a day**, so a full shield stands for a good **three days** (80 h full → empty) and topping it up is a login-time chore, not an hourly one. One charge buys 8 h at full strength; holding it there costs ~19 crystal per hour — a real expense on a young colony, small change on a developed one.
 - **A newly built generator starts at 0 %**, same as a fresh power plant.
 - **An empty shield has no side effect on the planet.** This is the sharpest difference to the battery, where empty means the whole grid stops: a shield is protection, not infrastructure, so letting it fade costs nothing today. Its charge is the value future combat will read.
 - **The defense tile carries the charge on its top edge** — the same 3 px status bar the energy tile uses for the battery and the base tile for the recruit pool, in the panel's blue, **plus the number** (`45 %`) in the corner. It is the only one of the three that prints its value: the bar alone answers "roughly how full", and for a battery or a recruit pool that is enough, but a shield click costs 150 crystal, so the decision to spend needs the exact figure without opening the tile. Below 20 % the bar turns amber, at 0 % it goes red — but it never pulses, since an empty shield is not an emergency the way a blackout is.
@@ -458,8 +458,19 @@ The `shield_generator` used to be a three-level building whose levels claimed "a
 - **Only the blackout pulses.** An empty battery turns the bar red, flashes it and swaps 🔋 for ⚠️ — that planet has stopped producing. An empty shield goes red and stays still, because it costs nothing today. The same split holds on the planet grid.
 - **A missing building shows as a greyed-out icon, not as a gap.** `🛡️ –` in grey says "this colony has no shield" — the thing actually worth spotting on the map — where an empty space says nothing. An emoji ignores `color`, so the icon is greyed with `filter: grayscale(1)`. The chips only appear once the planet's state is loaded, so a failed fetch never fakes a "not built".
 - **The view loads every own planet on open** (`ownPlanetIds` + `loadOwnPlanetStates` in `HsSolarSystem`), instead of only the selected one. Meters on all tiles are the whole point, and `refreshPlanetState()` merely fills `allPlanetStates` — it does not touch the active planet. The galaxy typically arrives after mount, so the `watch` on `ownPlanetIds` is what fires on a cold open and `onMounted` covers re-entry; already-loaded planets are skipped, so switching views does not re-fetch.
-- The click is refused server-side when the shield is **already full** (the crystal would be burned for nothing) or when the crystal is missing. The button mirrors both, so a wasted click is not possible.
+- The charge is refused server-side when the shield is **already full** (the crystal would be burned for nothing) or when the crystal is missing. The holder mirrors both — it cannot be picked up at all — so a wasted charge is not possible.
 - Building cost went to **400 Metal · 200 Crystal · 5 Duraplate** and the drain to 12 energy — it is the only level now, so it sits where the old Lv2 roughly did.
+
+### The gesture is the payment  *(2026-08-25)*
+
+`HsShieldPanel` is a **block on the defense tile** in the same shape as the battery block, and the two mechanics are still relatives — they just no longer share a button. **You drag a crystal shard out of its holder and into the emitter at the foot of the dome.** The rule that decides the whole design: the server hands out exactly +10 % for exactly 150 crystal, so **a mini-game here may never fail after the money is gone**. Hence a carry rather than a swipe — the shard is yours until it touches the core, dropping it anywhere else costs nothing, and `chargeShield()` is called at exactly one moment.
+
+- **The dome is the meter.** An SVG arc over the planet's horizon with `pathLength="100"`, so the charge is a plain `stroke-dasharray="{pct} 100"` and no length ever has to be measured. `max / clickPercent` tick marks divide it into the ten shards a full shield costs.
+- **The core has a pull.** Inside twice the catch radius the shard is lerped toward the emitter (up to 45 %), so the drop feels like the emitter *taking* the crystal instead of like hitting a target. The radius is computed in real pixels (`max(26, 15 % of the stage width)`), so it feels the same on a phone as on a wide panel.
+- **While the shard is in the pull, the dome shows the stretch it would buy** as a pulsing ghost arc — the price tag drawn on the thing you are buying — and the core brightens. That preview is also the "let go now" signal, so the status line never has to be read.
+- **One coordinate space for everything.** The stage is locked to the viewBox's `aspect-ratio`, so the emitter, the holder and the flying shard are all positioned in plain percentages of the same box and nothing is converted twice.
+- **An empty shield still gets no ceremony.** The battery's blackout has a breaker to throw; the dome at 0 % just goes dark and waits — an empty shield costs the planet nothing today, and the UI must not claim otherwise.
+- **Enter/Space still charge in one press**, with the shard flying the route by itself on a rAF.
 
 ### Implementation
 
