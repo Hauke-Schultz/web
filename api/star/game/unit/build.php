@@ -22,12 +22,19 @@ $db = getDB();
 
 // Verify ownership
 $own = $db->prepare(
-    'SELECT p.type FROM hs_planet_ownership po JOIN hs_planets p ON p.id=po.planet_id
+    'SELECT p.type, po.is_home FROM hs_planet_ownership po JOIN hs_planets p ON p.id=po.planet_id
      WHERE po.planet_id=? AND po.player_id=?'
 );
 $own->execute([$planetId, $playerId]);
 $planet = $own->fetch();
 if (!$planet) fail('Planet not found or not owned', 404);
+
+// Everything that flies is built at the home planet — a colony is a resource
+// base, not a second shipyard. The cargo drone carries no 'homeOnly' flag and
+// is therefore the one unit a colony can produce.
+if (!empty($def['homeOnly']) && !$planet['is_home']) {
+    fail('This unit can only be built on your home planet');
+}
 
 // Resolve timers first so a dock building that just finished counts here.
 resolve_timers($db, $planetId, $playerId);

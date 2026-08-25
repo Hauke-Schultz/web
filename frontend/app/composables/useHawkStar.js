@@ -342,7 +342,11 @@ const buildingsForActiveSlot = computed(() => {
   if (!activeTileType.value) return []
   return Object.values(BUILDINGS).filter(b =>
     b.tileType === activeTileType.value.id &&
-    (!b.planetTypes || b.planetTypes.includes(planetType.value))
+    (!b.planetTypes || b.planetTypes.includes(planetType.value)) &&
+    // A homeOnly building is left out of a colony's list entirely rather than
+    // shown as locked — everything it produces is homeOnly too, so there is
+    // nothing a colony could ever unlock there.
+    (!b.homeOnly || isHomePlanet.value)
   )
 })
 
@@ -593,15 +597,18 @@ const spaceTechLevel = computed(() => {
   const state = homeBuilding('space_tech')
   return state ? effectiveLevel(state) : 0
 })
-// Facility levels — the hangar gates every drone, the shipyard every ship
-const reconDroneLevel = computed(() => {
-  const state = playerBuildings.value['drone_hangar']
-  return state?.level ?? 0
-})
-const colonyShipLevel = computed(() => {
-  const state = playerBuildings.value['shipyard']
-  return state?.level ?? 0
-})
+// Facility levels — the hangar gates every drone, the shipyard every ship.
+//
+// These read as "what can this planet produce", not "what is built here", so
+// the homeOnly rule lives in them: a colony's hangar exists (the cargo drone
+// needs it) but produces no recon drones, and one gate here reaches the build
+// UI, the send buttons and the mission targeting at once.
+const reconDroneLevel = computed(() =>
+  isHomePlanet.value ? (playerBuildings.value['drone_hangar']?.level ?? 0) : 0
+)
+const colonyShipLevel = computed(() =>
+  isHomePlanet.value ? (playerBuildings.value['shipyard']?.level ?? 0) : 0
+)
 const isBuildingLocked = (id) => {
   const bReq = BUILDINGS[id]?.requiresBuilding
   if (bReq && getLevel(bReq) < (BUILDINGS[id]?.requiresLevel ?? 1)) return true
@@ -1318,7 +1325,10 @@ const spiedPlanets = ref([])
 // back when one expires. The onboarding checklist reads it.
 const satelliteDeployments = ref(0)
 
-const spyDroneLevel     = computed(() => playerBuildings.value['drone_hangar']?.level ?? 0)
+// Home only, like every other drone — see `reconDroneLevel`.
+const spyDroneLevel     = computed(() =>
+  isHomePlanet.value ? (playerBuildings.value['drone_hangar']?.level ?? 0) : 0
+)
 const spyDroneInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.spyDroneInventory ?? 0)
 const spyDroneBuild     = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.spyDroneBuild ?? null)
 const spySatelliteInventory = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.spySatelliteInventory ?? 0)
@@ -1432,7 +1442,9 @@ const maxCorvetteBatch = computed(() => {
   return Math.max(0, Math.min(fleetFree.value, byCrew, ...byCost))
 })
 
-const canBuildCorvette = computed(() => !corvetteBuild.value && maxCorvetteBatch.value > 0)
+const canBuildCorvette = computed(() =>
+  isHomePlanet.value && !corvetteBuild.value && maxCorvetteBatch.value > 0
+)
 
 // ── Raids ──────────────────────────────────────────────────
 // Battle reports arrive through state.php exactly once — the server clears the
@@ -1688,6 +1700,13 @@ const getPlanetResources = (planetId) => allPlanetStates.value[planetId]?.resour
 
 const planetHasDock = (planetId) =>
   (allPlanetStates.value[planetId]?.slots ?? []).some(s => s.tileType === 'dock' && s.unlocked)
+
+// The dock is a *tile* (slot 10) and says nothing about production: `space_building`
+// unlocks it together with the spacebase tile, long before anything stands on
+// either. What gates a drone is the hangar *building*, so anything that offers
+// a drone asks this instead.
+const planetHasHangar = (planetId) =>
+  ((allPlanetStates.value[planetId]?.buildings?.drone_hangar?.level) ?? 0) > 0
 
 
 // ── Communication ─────────────────────────────────────────
@@ -3210,6 +3229,7 @@ export function useHawkStar() {
     getPlanetName,
     getPlanetResources,
     planetHasDock,
+    planetHasHangar,
     // grid
     unlockRequirement,
     slotsOnSlot,

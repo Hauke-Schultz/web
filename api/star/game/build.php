@@ -19,12 +19,19 @@ $db = getDB();
 
 // Verify ownership
 $own = $db->prepare(
-    'SELECT p.type FROM hs_planet_ownership po JOIN hs_planets p ON p.id=po.planet_id
+    'SELECT p.type, po.is_home FROM hs_planet_ownership po JOIN hs_planets p ON p.id=po.planet_id
      WHERE po.planet_id=? AND po.player_id=?'
 );
 $own->execute([$planetId, $playerId]);
 $planet = $own->fetch();
 if (!$planet) fail('Planet not found or not owned', 404);
+
+// Home-planet restriction — a building whose entire output is homeOnly (the
+// shipyard) is not offered on a colony at all, so this is the server side of a
+// list the client never shows.
+if (!empty($def['homeOnly']) && !$planet['is_home']) {
+    fail('Building only available on your home planet');
+}
 
 // Planet type restriction
 if (!empty($def['planetTypes']) && !in_array($planet['type'], $def['planetTypes'], true)) {

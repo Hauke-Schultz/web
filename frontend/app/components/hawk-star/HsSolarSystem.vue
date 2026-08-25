@@ -25,13 +25,13 @@ const {
   activePlanetId, setActivePlanet,
   formatTime,
   playerResources,
-  planetHasDock,
+  planetHasDock, planetHasHangar,
   // build
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
   colonyShipCrew, hasColonyCrew,
   // cargo drone
-  cargoDroneLevel, cargoDroneInventory, cargoDroneBuild, cargoDroneReady, hasCargoDrone,
+  cargoDroneInventory, cargoDroneBuild, cargoDroneReady, hasCargoDrone,
   cargoManifest, cargoLoaded, cargoCapacity, cargoLoadable,
   cargoBuildTime, canBuildCargoDrone, buildCargoDrone, cargoBuildProgressStyle,
   canLoadMore, loadCargo, unloadCargo, unloadAllCargo,
@@ -44,12 +44,14 @@ const emit = defineEmits(['go-planet'])
 
 const { t } = useI18n()
 
-const expandedBuildRow = ref(null)
+// Picking a unit in the hangar does two things at once: it opens that unit's
+// build accordion, and it arms the unit for dispatch — every row in the list
+// that can receive it grows a send button with its flight time. One state, so
+// the two can never disagree about which unit you are working with.
+const armedUnit = ref(null)
 
-const toggleBuildRow = (row) => {
-  expandedBuildRow.value = expandedBuildRow.value === row ? null : row
-}
-const closeBuildRow = () => { expandedBuildRow.value = null }
+const armUnit   = (key) => { armedUnit.value = armedUnit.value === key ? null : key }
+const disarmUnit = () => { armedUnit.value = null }
 
 const planets = computed(() => homeSystem.value?.planets ?? [])
 
@@ -81,6 +83,9 @@ const selectedPlanetId = ref(activePlanetId.value)
 // null here — without this no row would be open until the first tap.
 watch(activePlanetId, (id) => {
   if (id && !selectedPlanetId.value) selectedPlanetId.value = id
+  // The hangar moved to a different planet, so whatever was armed is no longer
+  // standing where the send buttons said it was.
+  disarmUnit()
 })
 
 // A tap on the map has to bring the row it just opened into view — on a phone
@@ -98,12 +103,16 @@ const toggleSelect = async (planet, { reveal = false } = {}) => {
       ?.querySelector(`[data-planet="${planet.id}"]`)
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }
+  // While a unit is armed the list is a target picker. Tapping a colony's row
+  // would otherwise make it the active planet and move the hangar out from
+  // under the unit you were about to send — the one gesture most likely to
+  // happen mid-dispatch, since a cargo run targets your own planets.
+  if (armedUnit.value) return
   if (effectivePlanetState(planet) !== 'own') return
   // setActivePlanet bails out when the planet's state was never loaded (a colony
   // we have not visited this session) — pull it in first, like goToPlanet does.
   if (!allPlanetStates.value[planet.id]) await refreshPlanetState(planet.id)
   setActivePlanet(planet.id)
-  closeBuildRow()
 }
 
 const selectedPlanet = computed(() => planets.value.find(p => p.id === selectedPlanetId.value) ?? null)
@@ -136,8 +145,10 @@ const orbitVars = (index) => {
   const step = n > 1 ? (ORBIT_OUTER - ORBIT_INNER) / (n - 1) : 0
   const r    = ORBIT_INNER + index * step
   // Outer planets travel slower (Kepler, roughly) and no two share a period, so
-  // the constellation never repeats and the map keeps looking alive.
-  const period = 34 + index * 16
+  // the constellation never repeats and the map keeps looking alive. The pace
+  // is deliberately slow — a planet should drift while you read the list, not
+  // pull your eye off it; the inner ring takes a minute and a half per lap.
+  const period = 90 + index * 45
   // Golden-ratio phase spread: the planets start scattered instead of lined up
   // on one ray, and neighbouring rings drift apart instead of moving in lockstep.
   const phase  = (index * 0.618033) % 1
@@ -290,7 +301,7 @@ const targetOps = computed(() => {
       ops.push({ ...base, state: 'blocked', hint: t('hawkStar.solar.colonizeNeedsShip') })
   }
 
-  if (cargoDroneLevel.value > 0) {
+  if (planetHasHangar(src)) {
     const base = { key: 'cargo', icon: '📦', label: t('hawkStar.dock.cargoDrone') }
     if (isCargoEnRoute(id))
       ops.push({ ...base, state: 'enroute', progress: cargoProgressStyle(id), remaining: remainingCargoSec(id) })
@@ -303,6 +314,60 @@ const targetOps = computed(() => {
   }
 
   return ops
+})
+
+// ── Dispatch ──────────────────────────────────────────────
+// What the armed unit can do about one planet. The three classes differ only in
+// which composable functions answer the same four questions, so they are a
+// table rather than three branches.
+//
+// A mission already in flight needs no case here: every `isXTarget` goes false
+// while one is running (one flight per class at a time), so arming a unit
+// mid-flight simply offers no targets — which is the truth.
+const DISPATCH = {
+  drone: {
+    icon:    '🛸',
+    action:  () => t('hawkStar.solar.sendDrone'),
+    target:  (id) => isDroneTarget(id),
+    ready:   (id) => canSendDrone(id),
+    flight:  (id) => droneFlightTimeBetween(activePlanetId.value, id),
+    missing: () => t('hawkStar.solar.noDroneReady'),
+    send:    (id) => sendReconDrone(id, activePlanetId.value),
+  },
+  colony: {
+    icon:    '🚀',
+    action:  () => t('hawkStar.solar.colonize'),
+    target:  (id) => isColonyTarget(id),
+    ready:   (id) => canSendColonyShip(id),
+    flight:  (id) => colonyFlightTimeBetween(activePlanetId.value, id),
+    missing: () => t('hawkStar.solar.colonizeNeedsShip'),
+    send:    (id) => sendColonyShip(id, activePlanetId.value),
+  },
+  cargo: {
+    icon:    '📦',
+    action:  () => t('hawkStar.solar.sendCargo'),
+    target:  (id) => isCargoTarget(id),
+    ready:   (id) => canSendCargo(id),
+    flight:  (id) => cargoFlightTimeBetween(activePlanetId.value, id),
+    missing: () => hasCargoDrone.value ? t('hawkStar.solar.cargoEmpty') : t('hawkStar.solar.noCargoDrone'),
+    send:    (id) => sendCargoDrone(id, activePlanetId.value),
+  },
+}
+
+// Built once per tick instead of per row: the template would otherwise call the
+// whole table three times for every planet on every re-render.
+const dispatchByPlanet = computed(() => {
+  const out = {}
+  const d = DISPATCH[armedUnit.value]
+  if (!d) return out
+  for (const planet of planets.value) {
+    const id = planet.id
+    // The unit is standing on this planet — it cannot be its own destination.
+    if (id === activePlanetId.value) continue
+    if (d.ready(id))       out[id] = { state: 'ready', icon: d.icon, action: d.action(), flight: d.flight(id), send: () => d.send(id) }
+    else if (d.target(id)) out[id] = { state: 'blocked', icon: d.icon, hint: d.missing() }
+  }
+  return out
 })
 
 // ── Hangar of the active planet ───────────────────────────
@@ -320,7 +385,7 @@ const hangarUnits = computed(() => {
   if (colonyShipLevel.value > 0)
     out.push({ key: 'colony', icon: '🚀', name: t('hawkStar.dock.colonyShip'),
                count: String(colonyShipInventory.value), building: !!colonyShipBuild.value })
-  if (cargoDroneLevel.value > 0)
+  if (planetHasHangar(activePlanetId.value))
     out.push({ key: 'cargo', icon: '📦', name: t('hawkStar.dock.cargoDrone'),
                count: cargoDroneReady.value ? `${cargoLoaded.value}/${cargoCapacity.value}`
                                             : String(cargoDroneInventory.value),
@@ -328,9 +393,13 @@ const hangarUnits = computed(() => {
   return out
 })
 
-const hangarVisible = computed(() =>
-  planetHasDock(activePlanetId.value) && hangarUnits.value.length > 0
-)
+// The dock tile was the wrong gate: it unlocks with `space_building`, long
+// before a hangar stands on the planet. Every entry in the strip already
+// carries its own facility requirement — the drones need the hangar, the colony
+// ship the shipyard — so an empty list means "nothing here can build anything"
+// and the block disappears on its own. On a colony that is exactly "has a drone
+// hangar", since the shipyard is homeOnly.
+const hangarVisible = computed(() => hangarUnits.value.length > 0)
 
 // Every own planet draws its meters, so the map needs all their states on open —
 // not just the one that happens to be selected. `loadOwnPlanetStates` lives in
@@ -415,141 +484,6 @@ watch(ownPlanetIds, loadOwnPlanetStates)
             </div>
           </div>
         </div>
-
-        <!-- ── Hangar of the active planet ─────────────────────────────────── -->
-        <div v-if="hangarVisible" class="hs-hangar">
-          <div class="hs-hangar__head">
-            <span class="hs-hangar__title">🛠 {{ t('hawkStar.solar.hangarTitle') }}</span>
-            <span class="hs-hangar__where">{{ activePlanetName }}</span>
-            <span v-if="returningCargoMission" class="hs-hangar__return">
-              📦 {{ t('hawkStar.solar.cargoReturning') }} {{ formatTime(remainingCargoReturnSec) }}
-            </span>
-          </div>
-
-          <div class="hs-hangar__strip">
-            <button
-              v-for="u in hangarUnits"
-              :key="u.key"
-              class="hs-hu"
-              :class="[`hs-hu--${u.key}`, { 'hs-hu--open': expandedBuildRow === u.key }]"
-              @click.stop="toggleBuildRow(u.key)"
-            >
-              <span class="hs-hu__icon">{{ u.icon }}</span>
-              <span class="hs-hu__count">{{ u.count }}</span>
-              <span class="hs-hu__name">{{ u.name }}</span>
-              <span v-if="u.building" class="hs-hu__building">⏱</span>
-            </button>
-          </div>
-
-          <!-- Recon drone -->
-          <div v-if="expandedBuildRow === 'drone'" class="hs-hangar__build">
-            <div class="hs-dock-row">
-              <div class="hs-dock-icon-wrap">
-                <span class="hs-dock-icon">🛸</span>
-                <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
-              </div>
-              <div class="hs-dock-info">
-                <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
-                <div class="hs-dock-cost-row">
-                  <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                  <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
-                </div>
-                <div v-if="reconDroneBuild" class="hs-progress-row">
-                  <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
-                  <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
-                </div>
-              </div>
-              <div class="hs-dock-action">
-                <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-                <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Colony ship -->
-          <div v-else-if="expandedBuildRow === 'colony'" class="hs-hangar__build">
-            <div class="hs-dock-row">
-              <div class="hs-dock-icon-wrap">
-                <span class="hs-dock-icon">🚀</span>
-                <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
-              </div>
-              <div class="hs-dock-info">
-                <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
-                <div class="hs-dock-cost-row">
-                  <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                  <span class="hs-cost-tag" :class="hasColonyCrew ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'" :title="t('hawkStar.dock.crewHint', { crew: colonyShipCrew })">👥 {{ colonyShipCrew }}</span>
-                  <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
-                </div>
-                <div v-if="colonyShipBuild" class="hs-progress-row">
-                  <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
-                  <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
-                </div>
-              </div>
-              <div class="hs-dock-action">
-                <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-                <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Cargo drone: build it, or load its hold -->
-          <div v-else-if="expandedBuildRow === 'cargo'" class="hs-hangar__build">
-            <div v-if="!cargoDroneReady" class="hs-dock-row">
-              <div class="hs-dock-icon-wrap">
-                <span class="hs-dock-icon">📦</span>
-              </div>
-              <div class="hs-dock-info">
-                <div class="hs-dock-name">{{ t('hawkStar.dock.cargoDrone') }}</div>
-                <div class="hs-dock-cost-row">
-                  <span v-for="(amt, resId) in UNIT_COSTS.cargo_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-                  <span class="hs-unit-time-tag">⏱ {{ formatTime(cargoBuildTime) }}</span>
-                </div>
-                <div v-if="cargoDroneBuild" class="hs-progress-row">
-                  <div class="hs-progress-track"><div :key="cargoDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--cargo" :style="cargoBuildProgressStyle" /></div>
-                  <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((cargoDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
-                </div>
-                <div v-else-if="hasCargoDrone" class="hs-cargo-hint">{{ t('hawkStar.solar.cargoOnePerPlanet') }}</div>
-              </div>
-              <div class="hs-dock-action">
-                <span v-if="cargoDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
-                <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildCargoDrone }" :disabled="!canBuildCargoDrone" @click.stop="buildCargoDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
-              </div>
-            </div>
-
-            <!-- Drone in the dock → load the hold: four items total, freely mixed -->
-            <div v-else class="hs-cargo-picker">
-              <div v-for="resId in cargoLoadable" :key="resId" class="hs-cargo-picker__row">
-                <span class="hs-cargo-picker__icon">{{ RESOURCES[resId]?.icon }}</span>
-                <span class="hs-cargo-picker__name">{{ t(`hawkStar.res.${resId}`, RESOURCES[resId]?.name ?? resId) }}</span>
-                <span class="hs-cargo-picker__stock">{{ Math.floor(playerResources[resId] ?? 0) }}</span>
-                <div class="hs-cargo-picker__stepper">
-                  <button
-                    class="hs-cargo-picker__btn"
-                    :disabled="(cargoManifest[resId] ?? 0) < 1"
-                    @click.stop="unloadCargo(resId)"
-                  >−</button>
-                  <span class="hs-cargo-picker__count">{{ cargoManifest[resId] ?? 0 }}</span>
-                  <button
-                    class="hs-cargo-picker__btn"
-                    :disabled="!canLoadMore(resId)"
-                    @click.stop="loadCargo(resId)"
-                  >+</button>
-                </div>
-              </div>
-              <div class="hs-cargo-picker__foot">
-                <span class="hs-cargo-picker__total" :class="{ 'hs-cargo-picker__total--full': cargoLoaded >= cargoCapacity }">
-                  {{ t('hawkStar.solar.cargoHold') }} {{ cargoLoaded }} / {{ cargoCapacity }}
-                </span>
-                <button
-                  class="hs-cargo-picker__unload"
-                  :disabled="cargoLoaded < 1"
-                  @click.stop="unloadAllCargo()"
-                >{{ t('hawkStar.solar.cargoUnloadAll') }}</button>
-              </div>
-              <div class="hs-cargo-hint">{{ t('hawkStar.solar.cargoSendHint') }}</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ── Planet list ───────────────────────────────────────────────────── -->
@@ -587,6 +521,25 @@ watch(ownPlanetIds, loadOwnPlanetStates)
               >{{ missionOn(planet.id).icon }} {{ formatTime(missionOn(planet.id).time) }}</span>
               <span class="hs-plist__chevron" aria-hidden="true">▾</span>
             </button>
+
+            <div
+              v-if="dispatchByPlanet[planet.id]"
+              class="hs-plist__send"
+              :class="[
+                `hs-plist__send--${armedUnit}`,
+                { 'hs-plist__send--blocked': dispatchByPlanet[planet.id].state === 'blocked' },
+              ]"
+            >
+              <template v-if="dispatchByPlanet[planet.id].state === 'ready'">
+                <button class="hs-plist__send-btn" @click.stop="dispatchByPlanet[planet.id].send()">
+                  {{ dispatchByPlanet[planet.id].icon }} {{ dispatchByPlanet[planet.id].action }}
+                </button>
+                <span class="hs-plist__send-time">⏱ {{ formatTime(dispatchByPlanet[planet.id].flight) }}</span>
+              </template>
+              <span v-else class="hs-plist__send-hint">
+                {{ dispatchByPlanet[planet.id].icon }} {{ dispatchByPlanet[planet.id].hint }}
+              </span>
+            </div>
 
             <div v-if="planet.id === selectedPlanetId" class="hs-plist__body">
               <div class="hs-plist__chips">
@@ -628,7 +581,7 @@ watch(ownPlanetIds, loadOwnPlanetStates)
               >{{ t('hawkStar.solar.colonizeHint') }}</div>
 
               <!-- One row per unit class that has something to say about this planet -->
-              <div v-if="targetOps.length" class="hs-plist__ops">
+              <div v-if="targetOps.length && !armedUnit" class="hs-plist__ops">
                 <div class="hs-plist__from">{{ t('hawkStar.solar.fromPlanet', { planet: activePlanetName }) }}</div>
                 <div
                   v-for="op in targetOps"
@@ -650,8 +603,148 @@ watch(ownPlanetIds, loadOwnPlanetStates)
                 </div>
               </div>
 
+              <!-- The active planet's own row is where its hangar belongs: sitting
+                   under the map it read as a property of the system, not of a planet -->
+              <div v-if="planet.id === activePlanetId && hangarVisible" class="hs-hangar">
+                <div class="hs-hangar__head">
+                  <span class="hs-hangar__title">🛠 {{ t('hawkStar.solar.hangarTitle') }}</span>
+                  <span v-if="returningCargoMission" class="hs-hangar__return">
+                    📦 {{ t('hawkStar.solar.cargoReturning') }} {{ formatTime(remainingCargoReturnSec) }}
+                  </span>
+                </div>
+
+                <div v-if="armedUnit" class="hs-hangar__armed">
+                  {{ DISPATCH[armedUnit].icon }} {{ t('hawkStar.solar.pickTarget') }}
+                </div>
+
+                <div class="hs-hangar__strip">
+                  <button
+                    v-for="u in hangarUnits"
+                    :key="u.key"
+                    class="hs-hu"
+                    :class="[`hs-hu--${u.key}`, { 'hs-hu--open': armedUnit === u.key }]"
+                    :title="u.name"
+                    @click.stop="armUnit(u.key)"
+                  >
+                    <span class="hs-hu__icon">{{ u.icon }}</span>
+                    <span class="hs-hu__count">{{ u.count }}</span>
+                    <span class="hs-hu__name">{{ u.name }}</span>
+                    <span v-if="u.building" class="hs-hu__building">⏱</span>
+                  </button>
+                </div>
+
+                <!-- Recon drone -->
+                <div v-if="armedUnit === 'drone'" class="hs-hangar__build">
+                  <div class="hs-dock-row">
+                    <div class="hs-dock-icon-wrap">
+                      <span class="hs-dock-icon">🛸</span>
+                      <span v-if="reconDroneInventory > 0" class="hs-dock-badge">{{ reconDroneInventory }}</span>
+                    </div>
+                    <div class="hs-dock-info">
+                      <div class="hs-dock-name">{{ t('hawkStar.dock.reconDrone') }}</div>
+                      <div class="hs-dock-cost-row">
+                        <span v-for="(amt, resId) in UNIT_COSTS.recon_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+                        <span class="hs-unit-time-tag">⏱ {{ formatTime(droneBuildTime) }}</span>
+                      </div>
+                      <div v-if="reconDroneBuild" class="hs-progress-row">
+                        <div class="hs-progress-track"><div :key="reconDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--unit" :style="droneBuildProgressStyle" /></div>
+                        <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((reconDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
+                      </div>
+                    </div>
+                    <div class="hs-dock-action">
+                      <span v-if="reconDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+                      <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildDrone }" :disabled="!canBuildDrone" @click.stop="buildReconDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Colony ship -->
+                <div v-else-if="armedUnit === 'colony'" class="hs-hangar__build">
+                  <div class="hs-dock-row">
+                    <div class="hs-dock-icon-wrap">
+                      <span class="hs-dock-icon">🚀</span>
+                      <span v-if="colonyShipInventory > 0" class="hs-dock-badge hs-dock-badge--colony">{{ colonyShipInventory }}</span>
+                    </div>
+                    <div class="hs-dock-info">
+                      <div class="hs-dock-name">{{ t('hawkStar.dock.colonyShip') }}</div>
+                      <div class="hs-dock-cost-row">
+                        <span v-for="(amt, resId) in UNIT_COSTS.colony_ship.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+                        <span class="hs-cost-tag" :class="hasColonyCrew ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'" :title="t('hawkStar.dock.crewHint', { crew: colonyShipCrew })">👥 {{ colonyShipCrew }}</span>
+                        <span class="hs-unit-time-tag">⏱ {{ formatTime(colonyShipBuildTime) }}</span>
+                      </div>
+                      <div v-if="colonyShipBuild" class="hs-progress-row">
+                        <div class="hs-progress-track"><div :key="colonyShipBuild.endsAt" class="hs-progress-fill hs-progress-fill--colony" :style="colonyShipBuildProgressStyle" /></div>
+                        <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((colonyShipBuild.endsAt - Date.now()) / 1000))) }}</span>
+                      </div>
+                    </div>
+                    <div class="hs-dock-action">
+                      <span v-if="colonyShipBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+                      <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildColonyShip }" :disabled="!canBuildColonyShip" @click.stop="buildColonyShip()">{{ t('hawkStar.dock.btnBuild') }}</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cargo drone: build it, or load its hold -->
+                <div v-else-if="armedUnit === 'cargo'" class="hs-hangar__build">
+                  <div v-if="!cargoDroneReady" class="hs-dock-row">
+                    <div class="hs-dock-icon-wrap">
+                      <span class="hs-dock-icon">📦</span>
+                    </div>
+                    <div class="hs-dock-info">
+                      <div class="hs-dock-name">{{ t('hawkStar.dock.cargoDrone') }}</div>
+                      <div class="hs-dock-cost-row">
+                        <span v-for="(amt, resId) in UNIT_COSTS.cargo_drone.cost" :key="resId" class="hs-cost-tag" :class="(playerResources[resId] ?? 0) >= amt ? 'hs-cost-tag--ok' : 'hs-cost-tag--no'">{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
+                        <span class="hs-unit-time-tag">⏱ {{ formatTime(cargoBuildTime) }}</span>
+                      </div>
+                      <div v-if="cargoDroneBuild" class="hs-progress-row">
+                        <div class="hs-progress-track"><div :key="cargoDroneBuild.endsAt" class="hs-progress-fill hs-progress-fill--cargo" :style="cargoBuildProgressStyle" /></div>
+                        <span class="hs-progress-time">{{ formatTime(Math.max(0, Math.ceil((cargoDroneBuild.endsAt - Date.now()) / 1000))) }}</span>
+                      </div>
+                      <div v-else-if="hasCargoDrone" class="hs-cargo-hint">{{ t('hawkStar.solar.cargoOnePerPlanet') }}</div>
+                    </div>
+                    <div class="hs-dock-action">
+                      <span v-if="cargoDroneBuild" class="hs-status-building">{{ t('hawkStar.dock.statusBuilding') }}</span>
+                      <button v-else class="hs-btn-build" :class="{ 'hs-btn-build--disabled': !canBuildCargoDrone }" :disabled="!canBuildCargoDrone" @click.stop="buildCargoDrone()">{{ t('hawkStar.dock.btnBuild') }}</button>
+                    </div>
+                  </div>
+
+                  <!-- Drone in the dock → load the hold: four items total, freely mixed -->
+                  <div v-else class="hs-cargo-picker">
+                    <div v-for="resId in cargoLoadable" :key="resId" class="hs-cargo-picker__row">
+                      <span class="hs-cargo-picker__icon">{{ RESOURCES[resId]?.icon }}</span>
+                      <span class="hs-cargo-picker__name">{{ t(`hawkStar.res.${resId}`, RESOURCES[resId]?.name ?? resId) }}</span>
+                      <span class="hs-cargo-picker__stock">{{ Math.floor(playerResources[resId] ?? 0) }}</span>
+                      <div class="hs-cargo-picker__stepper">
+                        <button
+                          class="hs-cargo-picker__btn"
+                          :disabled="(cargoManifest[resId] ?? 0) < 1"
+                          @click.stop="unloadCargo(resId)"
+                        >−</button>
+                        <span class="hs-cargo-picker__count">{{ cargoManifest[resId] ?? 0 }}</span>
+                        <button
+                          class="hs-cargo-picker__btn"
+                          :disabled="!canLoadMore(resId)"
+                          @click.stop="loadCargo(resId)"
+                        >+</button>
+                      </div>
+                    </div>
+                    <div class="hs-cargo-picker__foot">
+                      <span class="hs-cargo-picker__total" :class="{ 'hs-cargo-picker__total--full': cargoLoaded >= cargoCapacity }">
+                        {{ t('hawkStar.solar.cargoHold') }} {{ cargoLoaded }} / {{ cargoCapacity }}
+                      </span>
+                      <button
+                        class="hs-cargo-picker__unload"
+                        :disabled="cargoLoaded < 1"
+                        @click.stop="unloadAllCargo()"
+                      >{{ t('hawkStar.solar.cargoUnloadAll') }}</button>
+                    </div>
+                    <div class="hs-cargo-hint">{{ t('hawkStar.solar.cargoSendHint') }}</div>
+                  </div>
+                </div>
+              </div>
+
               <div
-                v-else-if="planet.id === activePlanetId"
+                v-if="planet.id === activePlanetId && !hangarVisible"
                 class="hs-plist__hint hs-plist__hint--here"
               >📍 {{ t('hawkStar.solar.currentLocation') }}</div>
 
@@ -1088,6 +1181,71 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   .hs-plist__item--open & { transform: rotate(180deg); opacity: 0.7; }
 }
 
+// Dispatch bar — shown on every row the armed unit can reach, so picking a
+// target is one glance down the list instead of opening each planet in turn.
+.hs-plist__send {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.5rem;
+  border-top: 1px solid var(--hs-line-sm);
+
+  &--drone  { background: rgba(251,191,36,0.07); }
+  &--colony { background: rgba(96,165,250,0.07); }
+  &--cargo  { background: rgba(251,191,36,0.09); }
+
+  // Reachable, but the dock has nothing to put in it — keep the row calm.
+  &--blocked { background: transparent; }
+}
+
+.hs-plist__send-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--hs-r-sm);
+  font-size: 0.64rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid;
+  transition: background 0.15s, border-color 0.15s;
+
+  .hs-plist__send--drone & {
+    border-color: rgba(251,191,36,0.45);
+    background: rgba(251,191,36,0.14);
+    color: rgba(253,230,138,0.95);
+    &:hover { background: rgba(251,191,36,0.26); border-color: rgba(251,191,36,0.7); }
+  }
+  .hs-plist__send--colony & {
+    border-color: rgba(96,165,250,0.45);
+    background: rgba(96,165,250,0.14);
+    color: rgba(191,219,254,0.95);
+    &:hover { background: rgba(96,165,250,0.26); border-color: rgba(96,165,250,0.7); }
+  }
+  .hs-plist__send--cargo & {
+    border-color: rgba(251,191,36,0.5);
+    background: rgba(251,191,36,0.16);
+    color: rgba(253,230,138,0.95);
+    &:hover { background: rgba(251,191,36,0.28); border-color: rgba(251,191,36,0.75); }
+  }
+}
+
+.hs-plist__send-time {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.55);
+}
+
+.hs-plist__send-hint {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.28);
+}
+
 .hs-plist__body {
   display: flex;
   flex-direction: column;
@@ -1270,14 +1428,14 @@ watch(ownPlanetIds, loadOwnPlanetStates)
 }
 
 // ── Hangar of the active planet ──────────────────────────────────────────────
+// Lives inside the open planet's row: a card in a card would only add a second
+// border around the same content, so it is a plain section with a hairline.
 .hs-hangar {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 0.45rem 0.55rem 0.55rem;
-  background: var(--hs-glass-sm);
-  border: 1px solid var(--hs-line-lg);
-  border-radius: var(--hs-r-md);
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--hs-line-sm);
 }
 
 .hs-hangar__head {
@@ -1294,15 +1452,6 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   color: rgba(255,255,255,0.3);
 }
 
-.hs-hangar__where {
-  font-size: 0.58rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.5);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .hs-hangar__return {
   margin-left: auto;
   font-size: 0.55rem;
@@ -1312,13 +1461,22 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   white-space: nowrap;
 }
 
+// The armed state has to be legible from the hangar too, or a strip button
+// lighting up is the only clue that the list just changed.
+.hs-hangar__armed {
+  font-size: 0.56rem;
+  font-weight: 600;
+  color: rgba(196,181,253,0.85);
+}
+
 .hs-hangar__strip {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
 }
 
 .hs-hu {
-  flex: 1;
+  flex: 1 1 6rem;
   min-width: 0;
   display: flex;
   align-items: center;

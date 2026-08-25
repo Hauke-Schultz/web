@@ -7,6 +7,7 @@ import { useHawkStar } from '~/composables/useHawkStar.js'
 const {
   playerResources,
   formatTime,
+  isHomePlanet,
   reconDroneLevel,
   colonyShipLevel,
   getPlanetName,
@@ -149,8 +150,9 @@ const raidProgress = (m, total) => {
     <!-- Unit status list -->
     <div class="hs-building-list">
 
-      <!-- Recon Drone -->
-      <div class="hs-building-row">
+      <!-- Recon Drone — like every unit but the cargo drone, home planet only,
+           so on a colony the row is absent rather than locked -->
+      <div v-if="isHomePlanet" class="hs-building-row">
         <div class="hs-building-ident">
           <div class="hs-building-icon-wrap">
             <span class="hs-building-icon">🛸</span>
@@ -249,7 +251,7 @@ const raidProgress = (m, total) => {
 
       <!-- Spy Drone — third resident of the drone hangar. Unlike the other two it
            leaves the home system and does not come back. -->
-      <div class="hs-building-row">
+      <div v-if="isHomePlanet" class="hs-building-row">
         <div class="hs-building-ident">
           <div class="hs-building-icon-wrap">
             <span class="hs-building-icon">🕵️</span>
@@ -294,7 +296,7 @@ const raidProgress = (m, total) => {
       </div>
 
       <!-- Spy Satellite — the drone's report ages, this one keeps transmitting -->
-      <div class="hs-building-row">
+      <div v-if="isHomePlanet" class="hs-building-row">
         <div class="hs-building-ident">
           <div class="hs-building-icon-wrap">
             <span class="hs-building-icon">📡</span>
@@ -339,7 +341,7 @@ const raidProgress = (m, total) => {
       </div>
 
       <!-- Colony Ship -->
-      <div class="hs-building-row">
+      <div v-if="isHomePlanet" class="hs-building-row">
         <div class="hs-building-ident">
           <div class="hs-building-icon-wrap">
             <span class="hs-building-icon">🚀</span>
@@ -390,7 +392,7 @@ const raidProgress = (m, total) => {
 
       <!-- Korvette — the warship. Ordered as a batch, limited by the berths the
            weapons_building provides: no building, no fleet. -->
-      <div class="hs-building-row">
+      <div v-if="isHomePlanet" class="hs-building-row">
         <div class="hs-building-ident">
           <div class="hs-building-icon-wrap">
             <span class="hs-building-icon">⚔️</span>
@@ -470,6 +472,8 @@ const raidProgress = (m, total) => {
       </div>
 
     </div>
+
+    <p v-if="!isHomePlanet" class="hs-dock-hint">{{ t('hawkStar.dock.colonyCargoOnly') }}</p>
 
     <!-- Active missions -->
     <div v-if="hasMissions" class="hs-dock-missions">

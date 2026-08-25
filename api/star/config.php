@@ -8,29 +8,36 @@
 // 'facility' names the spacebase building that has to stand on the planet before
 // this unit can be produced. Several units share one facility — the drone hangar
 // builds every drone, the shipyard every ship.
+//
+// 'homeOnly' restricts production to the player's home planet. A colony is a
+// resource base, not a second shipyard: everything that flies is built at home,
+// and the cargo drone is the single exception, because hauling those resources
+// home is the entire reason a colony has a dock.
 const UNIT_COSTS = [
-    'recon_drone' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 5400,  'flightTimeBase' => 3600],
+    'recon_drone' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 60,  'crystal' => 25],  'buildTimeBase' => 5400,  'flightTimeBase' => 3600, 'homeOnly' => true],
     // 'crew' is taken out of the planet's free workers when the ship is built —
     // the settlers board it and leave with the ship.
     // The power_cell gates expansion behind the laboratory → power_cell_lab branch.
-    'colony_ship' => ['facility' => 'shipyard', 'cost' => ['metal' => 300, 'crystal' => 150, 'power_cell' => 1], 'crew' => 6, 'buildTimeBase' => 21600, 'flightTimeBase' => 7200],
+    'colony_ship' => ['facility' => 'shipyard', 'cost' => ['metal' => 300, 'crystal' => 150, 'power_cell' => 1], 'crew' => 6, 'buildTimeBase' => 21600, 'flightTimeBase' => 7200, 'homeOnly' => true],
     // One per planet (see CARGO_* below) — the only way to move goods between
-    // planets. flightTimeBase applies to each leg, so a neighbour is 1 h out, 1 h back.
+    // planets, and the only unit without 'homeOnly': a colony that cannot ship
+    // its output home is a colony that does nothing. flightTimeBase applies to
+    // each leg, so a neighbour is 1 h out, 1 h back.
     'cargo_drone' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 120, 'crystal' => 60, 'power_cell' => 2], 'buildTimeBase' => 5400, 'flightTimeBase' => 3600],
     // The only unit that leaves the home system. It reveals who owns ONE planet
     // in a scanned foreign system and is consumed doing it — the superconductor
     // in the cost is the sensor package, which puts espionage behind a frozen
     // planet's refinery or a cargo run.
-    'spy_drone'   => ['facility' => 'drone_hangar', 'cost' => ['metal' => 150, 'crystal' => 80, 'superconductor' => 1], 'buildTimeBase' => 7200],
+    'spy_drone'   => ['facility' => 'drone_hangar', 'cost' => ['metal' => 150, 'crystal' => 80, 'superconductor' => 1], 'buildTimeBase' => 7200, 'homeOnly' => true],
     // Stays in orbit and keeps transmitting: the same target as the drone, but
     // the finding stays live instead of ageing. Structure + Control, per the
     // house rule that a build cost demands two domains the recipe does not.
-    'spy_satellite' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 300, 'crystal' => 150, 'superconductor' => 1, 'duraplate' => 1], 'buildTimeBase' => 14400],
+    'spy_satellite' => ['facility' => 'drone_hangar', 'cost' => ['metal' => 300, 'crystal' => 150, 'superconductor' => 1, 'duraplate' => 1], 'buildTimeBase' => 14400, 'homeOnly' => true],
     // The warship. Ordered as a batch (see UNIT_BATCH_KEYS) and the only unit
     // with a `firepower` stat — 20 points against a defender's shield, then the
     // battery. Two crew per hull is the real brake: a full fleet is 24 people
     // off a planet whose recruit pool caps at 18.
-    'corvette'    => ['facility' => 'shipyard', 'cost' => ['metal' => 250, 'crystal' => 120, 'duraplate' => 1], 'crew' => 2, 'buildTimeBase' => 10800, 'firepower' => 20],
+    'corvette'    => ['facility' => 'shipyard', 'cost' => ['metal' => 250, 'crystal' => 120, 'duraplate' => 1], 'crew' => 2, 'buildTimeBase' => 10800, 'firepower' => 20, 'homeOnly' => true],
 ];
 
 // ── Fleet ─────────────────────────────────────────────────────────────────────
@@ -278,7 +285,9 @@ const BUILDINGS = [
     ['level'=>1,'cost'=>['metal'=>250,'crystal'=>100],'buildTime'=>600,'production'=>[],'energyDrain'=>5,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'shipyard' => ['tileType'=>'spacebase','levels'=>[
+  // Every ship it builds is homeOnly, so the building is too — a colony never
+  // sees it in its spacebase tile.
+  'shipyard' => ['tileType'=>'spacebase','homeOnly'=>true,'levels'=>[
     ['level'=>1,'cost'=>['metal'=>400,'crystal'=>200],'buildTime'=>2400,'production'=>[],'energyDrain'=>8,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
   ]],
 

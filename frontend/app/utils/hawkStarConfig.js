@@ -21,24 +21,31 @@
 export const UNIT_COSTS = {
   // facility: the spacebase building required to produce this unit. One facility
   // serves a whole class — the hangar every drone, the shipyard every ship.
-  recon_drone:  { facility: 'drone_hangar', cost: { metal: 60,  crystal: 25  }, buildTimeBase: 5400  },
+  //
+  // homeOnly: this unit is produced at the home planet only. A colony is a
+  // resource base, not a second shipyard — everything that flies is built at
+  // home, and the cargo drone is the single exception, because hauling those
+  // resources home is the entire reason a colony has a dock.
+  recon_drone:  { facility: 'drone_hangar', cost: { metal: 60,  crystal: 25  }, buildTimeBase: 5400, homeOnly: true },
   // crew: free workers that board the ship when it is built (gone from the planet)
   // power_cell gates expansion behind the laboratory → power_cell_lab branch
-  colony_ship:  { facility: 'shipyard', cost: { metal: 300, crystal: 150, power_cell: 1 }, crew: 6, buildTimeBase: 21600 },
-  // One per planet — the only way to move goods between planets. Each leg takes
-  // flightTimeBase × distance, so a neighbour is 1 h out and 1 h back.
+  colony_ship:  { facility: 'shipyard', cost: { metal: 300, crystal: 150, power_cell: 1 }, crew: 6, buildTimeBase: 21600, homeOnly: true },
+  // One per planet — the only way to move goods between planets, and the only
+  // unit without `homeOnly`: a colony that cannot ship its output home is a
+  // colony that does nothing. Each leg takes flightTimeBase × distance, so a
+  // neighbour is 1 h out and 1 h back.
   cargo_drone:  { facility: 'drone_hangar', cost: { metal: 120, crystal: 60, power_cell: 2 }, buildTimeBase: 5400 },
   // The only unit that leaves the home system. Reveals the owner of ONE planet in
   // a scanned foreign system and is consumed doing it. The superconductor is its
   // sensor package — espionage sits behind the Control domain.
-  spy_drone:    { facility: 'drone_hangar', cost: { metal: 150, crystal: 80, superconductor: 1 }, buildTimeBase: 7200 },
+  spy_drone:    { facility: 'drone_hangar', cost: { metal: 150, crystal: 80, superconductor: 1 }, buildTimeBase: 7200, homeOnly: true },
   // Stays in orbit and keeps transmitting — the drone's finding ages, this one
   // does not. Structure + Control, per the two-domains-per-build-cost rule.
-  spy_satellite:{ facility: 'drone_hangar', cost: { metal: 300, crystal: 150, superconductor: 1, duraplate: 1 }, buildTimeBase: 14400 },
+  spy_satellite:{ facility: 'drone_hangar', cost: { metal: 300, crystal: 150, superconductor: 1, duraplate: 1 }, buildTimeBase: 14400, homeOnly: true },
   // The warship. Ordered as a batch and the only unit with a firepower stat:
   // 20 points against a defender's shield, then their battery. 2 crew per hull
   // is the brake — a full fleet is 24 people off the planet's workforce.
-  corvette:     { facility: 'shipyard', cost: { metal: 250, crystal: 120, duraplate: 1 }, crew: 2, buildTimeBase: 10800, firepower: 20 },
+  corvette:     { facility: 'shipyard', cost: { metal: 250, crystal: 120, duraplate: 1 }, crew: 2, buildTimeBase: 10800, firepower: 20, homeOnly: true },
 }
 
 // ── Fleet ─────────────────────────────────────────────────────────────────────
@@ -1188,6 +1195,10 @@ export const BUILDINGS = {
     id:          'shipyard',
     name:        'Shipyard',
     tileType:    'spacebase',
+    // Every ship it builds is homeOnly, so the building itself is too — it is
+    // filtered out of a colony's spacebase tile rather than shown as locked,
+    // because there is nothing a colony could ever do with it.
+    homeOnly:    true,
     icon:        '🚀',
     description: 'Production facility for all starships. Builds colony ships today, further ships later.',
     levels: [

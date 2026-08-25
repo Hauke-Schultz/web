@@ -965,7 +965,7 @@ Everything is a percentage of a square `aspect-ratio: 1/1` box, so the whole sys
 
 An orbiter is a circle the size of its ring, rotating with `animation: hs-orbit var(--period) linear infinite`. The marker sits on its **top edge** and counter-rotates with the same duration, the same negative delay and `reverse` — so glyph, label and mission badge stay upright while the planet travels. No JavaScript ticks, no per-frame reactivity: 14 transform animations the compositor handles alone.
 
-- **Outer planets are slower** (`34 + i·16` seconds) and no two share a period, so the constellation never repeats.
+- **Outer planets are slower** (`90 + i·45` seconds) and no two share a period, so the constellation never repeats. The pace is deliberately slow — the inner ring takes a minute and a half per lap. A planet should drift while you read the list beside it, not pull your eye off it.
 - **Phases are spread by the golden ratio** (`-(period · (i·0.618 mod 1))` as the delay), so the planets start scattered instead of lined up on one ray, and neighbouring rings drift apart instead of moving in lockstep.
 - **Reduced motion pauses rather than disables.** A paused animation still honours its negative delay, so the planets keep their scattered positions — `animation: none` would collapse them all onto the top ray.
 - Markers on neighbouring rings **do** cross each other. That is what a solar system looks like; `z-index` rises with the orbit index and the selected planet floats above everything, so the one you are looking at stays readable when it happens.
@@ -994,7 +994,27 @@ A tap on the map also **scrolls the row into view** (`block: 'nearest'`), since 
 
 The three parallel unit rows collapsed into `targetOps` — every researched unit class contributes at most one row, and only inside the open planet's row. Everything still flies **from the active planet**; the rule is stated once, in the `Start: <planet>` line, instead of once per column.
 
-The **hangar strip** is deliberately *not* part of the list. Building happens at the active planet whatever you are looking at, and the moment you open a target is exactly when you notice the dock is empty — so it stays under the map, with the build accordions (`toggleBuildRow` / `expandedBuildRow`) unchanged underneath it.
+### Arming a unit turns the list into a target picker  *(2026-08-25)*
+
+`targetOps` answers *"what can I do about this planet"*, which is the wrong question when you already know what you want to send. Comparing two destinations meant opening two rows, and the flight time — the only number that decides it — was two clicks deep.
+
+Picking a unit in the **hangar strip** now arms it. `armedUnit` (which also drives that unit's build accordion, so the two can never disagree) puts the list into dispatch mode: **every row the unit can reach grows a send button with its flight time**, collapsed rows included, so the whole system is one glance.
+
+- **The bar sits outside `hs-plist__row`**, which is itself a `<button>` — a send button nested in it would be invalid HTML and unclickable.
+- **The three classes are a table, not three branches.** `DISPATCH` maps each key to the composable functions that answer the same four questions (`target` / `ready` / `flight` / `send`), and `dispatchByPlanet` builds the whole row set once per tick rather than calling that table three times per planet per re-render.
+- **A flight in progress needs no case.** Every `isXTarget` goes false while one is running — one flight per class at a time — so arming a unit mid-flight simply offers no targets, which is the truth. The countdown is already on the target's row as a mission pill.
+- **`targetOps` steps aside while a unit is armed.** The bars say the same thing on every row; printing it again inside the open one would be the duplication the rebuild set out to remove.
+- **Selecting a row does not move the active planet while armed.** It otherwise would: tapping a colony makes it active, which moves the hangar out from under the unit you were about to send — and that is the single most likely gesture in dispatch mode, since a cargo run targets your own planets. Anything that *does* move the active planet (the empire board, a *Zum Planeten* jump) disarms through the `activePlanetId` watch, because the armed unit is no longer standing where the buttons said it was.
+
+### The hangar sits in the planet's own row  *(2026-08-25)*
+
+The **hangar strip** first went under the map, on the argument that building happens at the active planet whatever you are looking at. In practice it read as a property of the *system* — a panel below the star chart, next to nothing it belonged to — and the eye had to travel from a planet's row on the right to a build button on the left to answer one question about one planet.
+
+It now lives in the **open row of the active planet**, below that row's chips, where a row shows either what you can *send to* this planet (`targetOps`) or what you can *build at* it (the hangar) — never both, because `targetOps` is empty by construction for the active planet. A planet that is neither keeps the plain `📍 Aktueller Standort` line. The build accordions (`toggleBuildRow` / `expandedBuildRow`) come along unchanged and open underneath the strip.
+
+Two things follow from the move: the head no longer repeats the planet name (the row already carries it), and the strip gained `flex-wrap` plus a `6rem` basis per button, because the list column is roughly a third of the width the map column had.
+
+Its gate is the **hangar building, not the dock tile**. The dock (slot 10) unlocks with `space_building`, together with the spacebase tile and long before anything stands on either, so it never answered "can this planet build a drone". Every entry in the strip carries its own facility requirement instead — the drones need `drone_hangar`, the colony ship the `shipyard` — so an empty list hides the block by itself, and on a colony that is exactly "has a drone hangar", since the shipyard is `homeOnly`. The cargo op row asks the same question through `planetHasHangar(activePlanetId)`, so the two can no longer disagree.
 
 ### What was dropped
 
@@ -1014,6 +1034,25 @@ Units are built at the Space Base tile and consumed on missions. Each unit type 
 
 > The cargo drone is the one exception to "only one active mission per unit type": it is limited to **one drone per planet in existence**, which is stricter. See the Cargo Drone section below.
 
+### Everything that flies is built at home  *(2026-08-25)*
+
+A colony is a **resource base, not a second shipyard**. Every unit carries `homeOnly: true` except the **cargo drone**, which is exactly the exception that makes a colony worth having: a colony that cannot ship its output home does nothing.
+
+The consequence that gives the rule its teeth is not the build button, it is the **fleet logistics**. One home planet means one place where drones and ships accumulate, one place a recon sweep or a colonisation wave starts from, and a real reason to keep hauling goods inward — instead of four self-sufficient planets that each quietly run their own little navy.
+
+**Where the rule lives:**
+
+| | |
+|---|---|
+| Data | `homeOnly` on the unit in `UNIT_COSTS` — `hawkStarConfig.js` **and** `config.php` |
+| Server | `unit/build.php` reads `po.is_home` in the ownership query and refuses a `homeOnly` unit off the home planet. This is the authority; everything below is presentation. |
+| Client | `reconDroneLevel` / `colonyShipLevel` / `spyDroneLevel` return **0 off the home planet**. They read as *"what can this planet produce"*, not *"what is built here"* — one gate reaches the build UI, the send buttons and the mission targeting at once. `canBuildCorvette` states it directly, since the fleet has no level computed of its own. |
+
+- **The colony's hangar still exists**, and should: the cargo drone needs it. Only what it *produces* is narrowed.
+- **The shipyard does not.** Every ship it builds is `homeOnly`, so the building carries the flag too and is **filtered out of a colony's Space Base tile** rather than shown as locked — there is nothing a colony could ever unlock there. `buildingsForActiveSlot` drops it client-side, `build.php` refuses it server-side.
+- **The dock panel drops the rows instead of locking them** (`v-if="isHomePlanet"`), and says why once: *"Drohnen und Schiffe werden nur am Heimatplaneten gebaut"* (`hawkStar.dock.colonyCargoOnly`). A colony dock with one row and no explanation reads as broken.
+- **Sending follows building.** Because the capability computeds are the gate, a colony offers no recon or colonisation launches either — those flights start at home. A unit parked at a colony from before this change has no send button; there is no migration for it.
+
 ### Colony ship crew & the new colony
 
 A colony ship only leaves with settlers aboard: building it requires **6 free workers** (`UNIT_COSTS.colony_ship.crew`, `freeWorkers = population − Σ staffDrain`) and takes them off the planet's population right at build time — server-side check in `unit/build.php` via `free_workers()`.
@@ -1024,10 +1063,10 @@ On landing, the new colony is deliberately small: `init_planet()` gives it **6 p
 
 Units are produced by a **facility** on the Space Base tile, and one facility serves a whole class of units:
 
-| Facility | Builds | Key |
-|----------|--------|-----|
-| 🛸 Drone Hangar | every drone type (`recon_drone`, `cargo_drone`, `spy_drone`, `spy_satellite`) | `drone_hangar` |
-| 🚀 Shipyard | every starship type (currently `colony_ship`) | `shipyard` |
+| Facility | Builds | Key | Where |
+|----------|--------|-----|-------|
+| 🛸 Drone Hangar | every drone type (`recon_drone`, `cargo_drone`, `spy_drone`, `spy_satellite`) | `drone_hangar` | any planet — but only the **cargo drone** off the home planet |
+| 🚀 Shipyard | every starship type (`colony_ship`, `corvette`) | `shipyard` | home planet only — `homeOnly`, not shown elsewhere |
 
 Each unit names its facility explicitly via `UNIT_COSTS[unit].facility`; `unit/build.php` reads that field to check the requirement. Before 2026-08-08 the facility was derived from the unit key itself (building key == unit key), which only worked while each facility built exactly one unit. Adding a second drone or ship type now needs no backend change — just a `UNIT_COSTS` entry pointing at the existing facility.
 
