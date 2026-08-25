@@ -50,9 +50,14 @@ const FACES = ['🧑‍🚀', '👩‍🚀', '👨‍🚀', '🧑', '👩', '�
 
 // What they call across the deck. It is the only thing that says *click this
 // one* without a label pointing at it — a person walking past is scenery until
-// they ask you for something. Eight lines, rolled with the candidate, and
-// deliberately silly: nothing else in the panel gets to be.
-const LINES = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8']
+// they ask you for something. Rolled with the candidate, and deliberately silly:
+// nothing else in the panel gets to be.
+//
+// One number, because the lines themselves live in `hawkStar.recruit.bubbles.*`
+// and this side only needs to know how many there are — bump it when the i18n
+// block grows, and nothing else here changes.
+const LINE_COUNT = 14
+const LINES = Array.from({ length: LINE_COUNT }, (_, i) => `b${i + 1}`)
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
 const rollName = () =>

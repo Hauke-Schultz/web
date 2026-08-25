@@ -519,14 +519,20 @@
       "full": "Queue full — nobody else is coming",
       "hint": "Grows ~{rate}/day up to {max}. Click the person, not a button — missing costs nothing.",
       "bubbles": {
-        "b1": "I sleep in the engine room. By choice.",
-        "b2": "I don't ask questions.",
-        "b3": "Vacuum-rated. Fully certified.",
-        "b4": "Just give me a lab. And quiet.",
+        "b1": "I choose to sleep in the engine room.",
+        "b2": "I don't ask any questions.",
+        "b3": "I've shot down a satellite before.",
+        "b4": "Radiation hasn't bothered me for ages.",
         "b5": "I work for oxygen.",
-        "b6": "I'll take night shifts too.",
-        "b7": "I stitch anything. Aliens included.",
-        "b8": "Cheaper than a repair bot."
+        "b6": "I do night shifts too.",
+        "b7": "I've still got all my fingers. Almost.",
+        "b8": "Cheaper than a repair bot.",
+        "b9": "I can weld overhead too.",
+        "b10": "Three colonies. All still standing.",
+        "b11": "I dig deeper than the rest.",
+        "b12": "I can smell cryo through three metres of rock.",
+        "b13": "Last crew? Let's not talk about it.",
+        "b14": "I've been in a mine before. Twice."
       }
     },
 
