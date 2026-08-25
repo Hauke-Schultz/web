@@ -10,22 +10,22 @@ const {
   allPlanetStates,
   playerScannedPlanets, playerColonizedPlanets,
   reconDroneInventory, colonyShipInventory,
-  allActiveDroneMissions,
+  allActiveDroneMissions, activeDroneMissions,
   isDroneTarget, canSendDrone, sendReconDrone,
-  remainingDroneSec, droneProgressStyle,
+  remainingDroneSec,
   droneFlightTimeBetween,
-  allActiveColonyMissions,
+  allActiveColonyMissions, activeColonyMissions,
   isColonyTarget, canSendColonyShip, sendColonyShip,
-  remainingColonySec, colonyProgressStyle,
+  remainingColonySec,
   colonyFlightTimeBetween,
-  allActiveCargoMissions,
+  allActiveCargoMissions, activeCargoMissions,
   homeSystem, homePlanetId,
   shieldChargeOf, batteryChargeOf, gridDownOn,
   ownPlanetIds, loadOwnPlanetStates,
   activePlanetId, setActivePlanet,
   formatTime,
   playerResources,
-  planetHasDock, planetHasHangar,
+  planetHasDock, planetHasHangar, getPlanetName,
   // build
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
@@ -36,7 +36,7 @@ const {
   cargoBuildTime, canBuildCargoDrone, buildCargoDrone, cargoBuildProgressStyle,
   canLoadMore, loadCargo, unloadCargo, unloadAllCargo,
   isCargoTarget, canSendCargo, sendCargoDrone,
-  remainingCargoSec, remainingCargoReturnSec, cargoProgressStyle,
+  remainingCargoSec, remainingCargoReturnSec,
   returningCargoMission, cargoFlightTimeBetween,
 } = useHawkStar()
 
@@ -267,6 +267,13 @@ const markerClass = (planet) => [
 const hasCommandCenter = (planetId) =>
   (allPlanetStates.value[planetId]?.buildings?.command_center?.level ?? 0) >= 1
 
+// Where a flight started. Worth saying in the op row because a cargo run can
+// leave from any colony, so "1h 58m" alone does not identify the flight.
+const originOf = (missions, targetId) => {
+  const m = missions.find(x => x.planetId === targetId)
+  return m?.fromPlanetId ? getPlanetName(m.fromPlanetId) : null
+}
+
 // ── Actions toward the selected planet ────────────────────
 // The three parallel unit rows collapsed into one list: every researched unit
 // class contributes at most one row, and only for the planet currently
@@ -282,7 +289,8 @@ const targetOps = computed(() => {
   if (reconDroneLevel.value > 0) {
     const base = { key: 'drone', icon: '🛸', label: t('hawkStar.dock.reconDrone') }
     if (isDroneEnRoute(id))
-      ops.push({ ...base, state: 'enroute', progress: droneProgressStyle(id), remaining: remainingDroneSec(id) })
+      ops.push({ ...base, state: 'enroute', remaining: remainingDroneSec(id),
+                 from: originOf(allActiveDroneMissions.value, id) })
     else if (canSendDrone(id))
       ops.push({ ...base, state: 'ready', flight: droneFlightTimeBetween(src, id),
                  action: t('hawkStar.solar.sendDrone'), send: () => sendReconDrone(id, src) })
@@ -293,7 +301,8 @@ const targetOps = computed(() => {
   if (colonyShipLevel.value > 0) {
     const base = { key: 'colony', icon: '🚀', label: t('hawkStar.dock.colonyShip') }
     if (isColonizing(id))
-      ops.push({ ...base, state: 'enroute', progress: colonyProgressStyle(id), remaining: remainingColonySec(id) })
+      ops.push({ ...base, state: 'enroute', remaining: remainingColonySec(id),
+                 from: originOf(allActiveColonyMissions.value, id) })
     else if (canSendColonyShip(id))
       ops.push({ ...base, state: 'ready', flight: colonyFlightTimeBetween(src, id),
                  action: t('hawkStar.solar.colonize'), send: () => sendColonyShip(id, src) })
@@ -304,7 +313,8 @@ const targetOps = computed(() => {
   if (planetHasHangar(src)) {
     const base = { key: 'cargo', icon: '📦', label: t('hawkStar.dock.cargoDrone') }
     if (isCargoEnRoute(id))
-      ops.push({ ...base, state: 'enroute', progress: cargoProgressStyle(id), remaining: remainingCargoSec(id) })
+      ops.push({ ...base, state: 'enroute', remaining: remainingCargoSec(id),
+                 from: originOf(allActiveCargoMissions.value, id) })
     else if (canSendCargo(id))
       ops.push({ ...base, state: 'ready', flight: cargoFlightTimeBetween(src, id),
                  action: t('hawkStar.solar.sendCargo'), send: () => sendCargoDrone(id, src) })
@@ -321,36 +331,43 @@ const targetOps = computed(() => {
 // which composable functions answer the same four questions, so they are a
 // table rather than three branches.
 //
-// A mission already in flight needs no case here: every `isXTarget` goes false
-// while one is running (one flight per class at a time), so arming a unit
-// mid-flight simply offers no targets — which is the truth.
+// A flight in progress is a fourth state rather than an absence. Every
+// `isXTarget` goes false while one is running (one flight per class at a time),
+// so without `enRoute` the column would go blank at exactly the moment there is
+// something to report — and the countdown is the whole reason to look.
 const DISPATCH = {
   drone: {
-    icon:    '🛸',
-    action:  () => t('hawkStar.solar.sendDrone'),
-    target:  (id) => isDroneTarget(id),
-    ready:   (id) => canSendDrone(id),
-    flight:  (id) => droneFlightTimeBetween(activePlanetId.value, id),
-    missing: () => t('hawkStar.solar.noDroneReady'),
-    send:    (id) => sendReconDrone(id, activePlanetId.value),
+    icon:      '🛸',
+    action:    () => t('hawkStar.solar.sendDrone'),
+    enRoute:   (id) => isDroneEnRoute(id),
+    remaining: (id) => remainingDroneSec(id),
+    target:    (id) => isDroneTarget(id),
+    ready:     (id) => canSendDrone(id),
+    flight:    (id) => droneFlightTimeBetween(activePlanetId.value, id),
+    missing:   () => t('hawkStar.solar.noDroneReady'),
+    send:      (id) => sendReconDrone(id, activePlanetId.value),
   },
   colony: {
-    icon:    '🚀',
-    action:  () => t('hawkStar.solar.colonize'),
-    target:  (id) => isColonyTarget(id),
-    ready:   (id) => canSendColonyShip(id),
-    flight:  (id) => colonyFlightTimeBetween(activePlanetId.value, id),
-    missing: () => t('hawkStar.solar.colonizeNeedsShip'),
-    send:    (id) => sendColonyShip(id, activePlanetId.value),
+    icon:      '🚀',
+    action:    () => t('hawkStar.solar.colonize'),
+    enRoute:   (id) => isColonizing(id),
+    remaining: (id) => remainingColonySec(id),
+    target:    (id) => isColonyTarget(id),
+    ready:     (id) => canSendColonyShip(id),
+    flight:    (id) => colonyFlightTimeBetween(activePlanetId.value, id),
+    missing:   () => t('hawkStar.solar.colonizeNeedsShip'),
+    send:      (id) => sendColonyShip(id, activePlanetId.value),
   },
   cargo: {
-    icon:    '📦',
-    action:  () => t('hawkStar.solar.sendCargo'),
-    target:  (id) => isCargoTarget(id),
-    ready:   (id) => canSendCargo(id),
-    flight:  (id) => cargoFlightTimeBetween(activePlanetId.value, id),
-    missing: () => hasCargoDrone.value ? t('hawkStar.solar.cargoEmpty') : t('hawkStar.solar.noCargoDrone'),
-    send:    (id) => sendCargoDrone(id, activePlanetId.value),
+    icon:      '📦',
+    action:    () => t('hawkStar.solar.sendCargo'),
+    enRoute:   (id) => isCargoEnRoute(id),
+    remaining: (id) => remainingCargoSec(id),
+    target:    (id) => isCargoTarget(id),
+    ready:     (id) => canSendCargo(id),
+    flight:    (id) => cargoFlightTimeBetween(activePlanetId.value, id),
+    missing:   () => hasCargoDrone.value ? t('hawkStar.solar.cargoEmpty') : t('hawkStar.solar.noCargoDrone'),
+    send:      (id) => sendCargoDrone(id, activePlanetId.value),
   },
 }
 
@@ -364,32 +381,50 @@ const dispatchByPlanet = computed(() => {
     const id = planet.id
     // The unit is standing on this planet — it cannot be its own destination.
     if (id === activePlanetId.value) continue
-    if (d.ready(id))       out[id] = { state: 'ready', icon: d.icon, action: d.action(), flight: d.flight(id), send: () => d.send(id) }
+    // In flight first: a target that is already being flown to is not a target.
+    if (d.enRoute(id))     out[id] = { state: 'enroute', icon: d.icon, remaining: d.remaining(id) }
+    else if (d.ready(id))  out[id] = { state: 'ready', icon: d.icon, action: d.action(), flight: d.flight(id), send: () => d.send(id) }
     else if (d.target(id)) out[id] = { state: 'blocked', icon: d.icon, hint: d.missing() }
   }
   return out
 })
 
 // ── Hangar of the active planet ───────────────────────────
-// Stays visible whichever planet is selected: building happens at home, and the
-// moment you look at a target is exactly when you notice the dock is empty.
-const activePlanetName = computed(() =>
-  planets.value.find(p => p.id === activePlanetId.value)?.name ?? ''
-)
+// A unit out on a mission leaves `0` in the dock. That is true and useless: it
+// looks exactly like never having built one. So the strip stops counting and
+// says where the unit is instead — outbound `→`, homebound `←`, with the leg's
+// remaining time. Only the cargo drone comes back, which is why it is the only
+// one with two directions.
+const unitAway = (key) => {
+  if (key === 'drone') {
+    const m = activeDroneMissions.value[0]
+    return m ? { dir: '→', sec: remainingDroneSec(m.planetId) } : null
+  }
+  if (key === 'colony') {
+    const m = activeColonyMissions.value[0]
+    return m ? { dir: '→', sec: remainingColonySec(m.planetId) } : null
+  }
+  if (returningCargoMission.value) return { dir: '←', sec: remainingCargoReturnSec.value }
+  const m = activeCargoMissions.value[0]
+  return m ? { dir: '→', sec: remainingCargoSec(m.planetId) } : null
+}
 
 const hangarUnits = computed(() => {
   const out = []
   if (reconDroneLevel.value > 0)
     out.push({ key: 'drone', icon: '🛸', name: t('hawkStar.dock.reconDrone'),
-               count: String(reconDroneInventory.value), building: !!reconDroneBuild.value })
+               count: String(reconDroneInventory.value), building: !!reconDroneBuild.value,
+               away: unitAway('drone') })
   if (colonyShipLevel.value > 0)
     out.push({ key: 'colony', icon: '🚀', name: t('hawkStar.dock.colonyShip'),
-               count: String(colonyShipInventory.value), building: !!colonyShipBuild.value })
+               count: String(colonyShipInventory.value), building: !!colonyShipBuild.value,
+               away: unitAway('colony') })
   if (planetHasHangar(activePlanetId.value))
     out.push({ key: 'cargo', icon: '📦', name: t('hawkStar.dock.cargoDrone'),
-               count: cargoDroneReady.value ? `${cargoLoaded.value}/${cargoCapacity.value}`
+               count: cargoDroneReady.value ? `${cargoLoaded.value}/${cargoCapacity}`
                                             : String(cargoDroneInventory.value),
-               building: !!cargoDroneBuild.value })
+               building: !!cargoDroneBuild.value,
+               away: unitAway('cargo') })
   return out
 })
 
@@ -515,6 +550,16 @@ watch(ownPlanetIds, loadOwnPlanetStates)
                   <span class="hs-plist__send-icon">{{ dispatchByPlanet[planet.id].icon }}</span>
                   <span class="hs-plist__send-time">{{ formatTime(dispatchByPlanet[planet.id].flight) }}</span>
                 </button>
+                <!-- Under way. No button — the only thing left to do about this
+                     planet is wait, so the cell counts down instead. -->
+                <span
+                  v-else-if="dispatchByPlanet[planet.id]?.state === 'enroute'"
+                  class="hs-plist__send-enroute"
+                  :class="`hs-plist__send-enroute--${armedUnit}`"
+                >
+                  <span class="hs-plist__send-icon">{{ dispatchByPlanet[planet.id].icon }}</span>
+                  <span class="hs-plist__send-eta">{{ formatTime(dispatchByPlanet[planet.id].remaining) }}</span>
+                </span>
                 <!-- Reachable, but the dock has nothing to put in it. No button, so the
                      column still reads as "not now" at a glance; the reason is on hover. -->
                 <span
@@ -522,6 +567,18 @@ watch(ownPlanetIds, loadOwnPlanetStates)
                   class="hs-plist__send-blocked"
                   :title="dispatchByPlanet[planet.id].hint"
                 >–</span>
+                <!-- The origin. Every flight time in this column is measured from
+                     here, so the column should say so rather than leave the one row
+                     that explains the others blank. -->
+                <span
+                  v-else-if="armedUnit && planet.id === activePlanetId"
+                  class="hs-plist__send-origin"
+                  :class="`hs-plist__send-origin--${armedUnit}`"
+                  :title="t('hawkStar.solar.departsHere')"
+                >
+                  <span class="hs-plist__send-icon">{{ DISPATCH[armedUnit].icon }}</span>
+                  <span class="hs-plist__send-arrow" aria-hidden="true">→</span>
+                </span>
               </div>
 
               <button class="hs-plist__row" @click="toggleSelect(planet)">
@@ -589,7 +646,6 @@ watch(ownPlanetIds, loadOwnPlanetStates)
 
               <!-- One row per unit class that has something to say about this planet -->
               <div v-if="targetOps.length && !armedUnit" class="hs-plist__ops">
-                <div class="hs-plist__from">{{ t('hawkStar.solar.fromPlanet', { planet: activePlanetName }) }}</div>
                 <div
                   v-for="op in targetOps"
                   :key="op.key"
@@ -599,7 +655,7 @@ watch(ownPlanetIds, loadOwnPlanetStates)
                   <span class="hs-op__icon">{{ op.icon }}</span>
                   <span class="hs-op__label">{{ op.label }}</span>
                   <template v-if="op.state === 'enroute'">
-                    <div class="hs-op__track"><div class="hs-op__fill" :style="op.progress" /></div>
+                    <span v-if="op.from" class="hs-op__from">{{ t('hawkStar.notif.missionFrom', { planet: op.from }) }}</span>
                     <span class="hs-op__time">{{ formatTime(op.remaining) }}</span>
                   </template>
                   <template v-else-if="op.state === 'ready'">
@@ -615,9 +671,6 @@ watch(ownPlanetIds, loadOwnPlanetStates)
               <div v-if="planet.id === activePlanetId && hangarVisible" class="hs-hangar">
                 <div class="hs-hangar__head">
                   <span class="hs-hangar__title">🛠 {{ t('hawkStar.solar.hangarTitle') }}</span>
-                  <span v-if="returningCargoMission" class="hs-hangar__return">
-                    📦 {{ t('hawkStar.solar.cargoReturning') }} {{ formatTime(remainingCargoReturnSec) }}
-                  </span>
                 </div>
 
                 <div v-if="armedUnit" class="hs-hangar__armed">
@@ -629,13 +682,21 @@ watch(ownPlanetIds, loadOwnPlanetStates)
                     v-for="u in hangarUnits"
                     :key="u.key"
                     class="hs-hu"
-                    :class="[`hs-hu--${u.key}`, { 'hs-hu--open': armedUnit === u.key }]"
+                    :class="[
+                      `hs-hu--${u.key}`,
+                      { 'hs-hu--open': armedUnit === u.key, 'hs-hu--away': !!u.away },
+                    ]"
                     :title="u.name"
                     @click.stop="armUnit(u.key)"
                   >
                     <span class="hs-hu__icon">{{ u.icon }}</span>
-                    <span class="hs-hu__count">{{ u.count }}</span>
-                    <span class="hs-hu__name">{{ u.name }}</span>
+                    <!-- Away: the leg and its clock replace the dock count, and the
+                         name steps aside to make room for them. -->
+                    <span v-if="u.away" class="hs-hu__away">{{ u.away.dir }} {{ formatTime(u.away.sec) }}</span>
+                    <template v-else>
+                      <span class="hs-hu__count">{{ u.count }}</span>
+                      <span class="hs-hu__name">{{ u.name }}</span>
+                    </template>
                     <span v-if="u.building" class="hs-hu__building">⏱</span>
                   </button>
                 </div>
@@ -1257,6 +1318,62 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   font-variant-numeric: tabular-nums;
 }
 
+// A flight under way. Same footprint as the send button so the column does not
+// twitch when one becomes the other, but flat and uninteractive — there is
+// nothing to press, only something to wait for.
+.hs-plist__send-enroute {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: calc(100% - 0.5rem);
+  margin: 0.25rem;
+  padding: 0.3rem 0.15rem;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid;
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+
+  &--drone,
+  &--cargo  { border-color: rgba(251,191,36,0.3);  background: rgba(251,191,36,0.06);  color: rgba(253,230,138,0.9); }
+  &--colony { border-color: rgba(96,165,250,0.3);  background: rgba(96,165,250,0.06);  color: rgba(191,219,254,0.9); }
+}
+
+// The remaining time is a running clock ("1h 58m"), not the fixed one-word
+// flight time on the button, so it gets its own size to stay inside the column.
+.hs-plist__send-eta {
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+// The origin marker. Dashed, so it never reads as a button you failed to press:
+// this row is where the unit stands, not somewhere it can go.
+.hs-plist__send-origin {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px dashed;
+  border-radius: 999px;
+  cursor: default;
+
+  &--drone,
+  &--cargo  { border-color: rgba(251,191,36,0.5); background: rgba(251,191,36,0.07); }
+  &--colony { border-color: rgba(96,165,250,0.5); background: rgba(96,165,250,0.07); }
+}
+
+.hs-plist__send-arrow {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+
+  .hs-plist__send-origin--drone &,
+  .hs-plist__send-origin--cargo  & { color: rgba(253,230,138,0.9); }
+  .hs-plist__send-origin--colony & { color: rgba(191,219,254,0.9); }
+}
+
 // No button, so the column reads as "not now" at a glance; the reason is on
 // hover, where it costs nothing and clutters nothing.
 .hs-plist__send-blocked {
@@ -1334,14 +1451,6 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   gap: 0.3rem;
 }
 
-.hs-plist__from {
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.25);
-}
-
 .hs-op {
   display: flex;
   align-items: center;
@@ -1369,25 +1478,15 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   text-overflow: ellipsis;
 }
 
-.hs-op__track {
-  flex: 1 1 3rem;
-  min-width: 2rem;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--hs-glass-3xl);
+.hs-op__from {
+  flex-shrink: 1;
+  min-width: 0;
+  font-size: 0.56rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
   overflow: hidden;
-}
-
-.hs-op__fill {
-  height: 100%;
-  width: 100%;
-  transform-origin: left;
-  animation: hs-bar-fill linear forwards;
-  background: rgba(255,255,255,0.5);
-
-  .hs-op--drone  & { background: #f59e0b; }
-  .hs-op--colony & { background: #60a5fa; }
-  .hs-op--cargo  & { background: #fbbf24; }
+  text-overflow: ellipsis;
 }
 
 @keyframes hs-bar-fill {
@@ -1472,15 +1571,6 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   color: rgba(255,255,255,0.3);
 }
 
-.hs-hangar__return {
-  margin-left: auto;
-  font-size: 0.55rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: rgba(251,191,36,0.8);
-  white-space: nowrap;
-}
-
 // The armed state has to be legible from the hangar too, or a strip button
 // lighting up is the only clue that the list just changed.
 .hs-hangar__armed {
@@ -1517,6 +1607,31 @@ watch(ownPlanetIds, loadOwnPlanetStates)
 }
 
 .hs-hu__icon  { font-size: 0.85rem; line-height: 1; flex-shrink: 0; }
+
+// Out on a mission — dashed, matching the origin marker in the list: the unit
+// belongs to this planet, it is just not standing here right now.
+.hs-hu--away {
+  border-style: dashed;
+
+  &.hs-hu--drone,
+  &.hs-hu--cargo  { border-color: rgba(251,191,36,0.5); }
+  &.hs-hu--colony { border-color: rgba(96,165,250,0.5); }
+}
+
+.hs-hu__away {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  .hs-hu--drone &,
+  .hs-hu--cargo  & { color: rgba(253,230,138,0.95); }
+  .hs-hu--colony & { color: rgba(191,219,254,0.95); }
+}
 
 .hs-hu__count {
   font-size: 0.68rem;

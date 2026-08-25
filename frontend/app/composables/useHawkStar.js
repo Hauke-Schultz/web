@@ -1006,11 +1006,26 @@ const remainingDroneSec = (planetId) => {
   return m ? Math.max(0, Math.ceil((m.endsAt - now.value) / 1000)) : 0
 }
 
+// A flight's progress is a width driven by `now`, not a CSS animation.
+//
+// These used to hand out `animationDuration` alone, which only ever worked on a
+// bar mounted at the exact moment of launch: the keyframes start at scaleX(0),
+// so after a reload a flight two hours in still drew an empty bar. Worse, where
+// the receiving CSS carried no keyframes at all (the dock panel's mission rows)
+// the duration was ignored and the bar sat permanently full.
+//
+// Elapsed time is derivable — total flight time minus what is left — so the
+// honest form is the one the build bars have always used: compute the
+// percentage and set a width.
+const flightProgressStyle = (endsAt, totalSec) => {
+  if (!endsAt || !totalSec) return {}
+  const remaining = Math.max(0, (endsAt - now.value) / 1000)
+  return { width: `${Math.min(100, Math.max(0, (1 - remaining / totalSec) * 100))}%` }
+}
+
 const droneProgressStyle = (planetId) => {
   const m = allActiveDroneMissions.value.find(m => m.planetId === planetId)
-  if (!m) return {}
-  const ft = droneFlightTime(planetId)
-  return { animationDuration: `${ft}s` }
+  return m ? flightProgressStyle(m.endsAt, droneFlightTime(planetId)) : {}
 }
 
 const droneBuildProgressStyle = computed(() => {
@@ -1125,9 +1140,7 @@ const remainingColonySec = (planetId) => {
 
 const colonyProgressStyle = (planetId) => {
   const m = allActiveColonyMissions.value.find(m => m.planetId === planetId)
-  if (!m) return {}
-  const ft      = colonyFlightTime(planetId)
-  return { animationDuration: `${ft}s` }
+  return m ? flightProgressStyle(m.endsAt, colonyFlightTime(planetId)) : {}
 }
 
 const colonyShipBuildProgressStyle = computed(() => {
@@ -1158,6 +1171,7 @@ const cargoState = computed(() => allPlanetStates.value[activePlanetId.value]?.c
 
 const cargoManifest = computed(() => cargoState.value?.cargo ?? {})
 const cargoLoaded   = computed(() => Object.values(cargoManifest.value).reduce((a, b) => a + b, 0))
+// A constant, not a ref — read it without `.value` in script code.
 const cargoCapacity = CARGO.capacity
 const cargoLoadable = CARGO.loadable
 
@@ -1303,16 +1317,14 @@ const remainingCargoReturnSec = computed(() => {
 
 const cargoProgressStyle = (planetId) => {
   const m = allActiveCargoMissions.value.find(m => m.planetId === planetId)
-  if (!m) return {}
-  return { animationDuration: `${cargoFlightTimeBetween(activePlanetId.value, planetId)}s` }
+  return m ? flightProgressStyle(m.endsAt, cargoFlightTimeBetween(activePlanetId.value, planetId)) : {}
 }
 
 // The return leg flies the same distance back — its mission entry carries the
 // planet it is coming FROM, so the duration is measured against that.
 const cargoReturnProgressStyle = computed(() => {
   const m = returningCargoMission.value
-  if (!m) return {}
-  return { animationDuration: `${cargoFlightTimeBetween(activePlanetId.value, m.planetId)}s` }
+  return m ? flightProgressStyle(m.endsAt, cargoFlightTimeBetween(activePlanetId.value, m.planetId)) : {}
 })
 
 // ── Espionage: spy drone + spy satellite ───────────────────
@@ -2252,9 +2264,9 @@ const applyGameState = (planetId, state) => {
   const warship = unitState('corvette')
 
   const droneMissions  = (state.missions ?? []).filter(m => m.type === 'recon_drone')
-    .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, endsAt: m.endsAt }))
   const colonyMissions = (state.missions ?? []).filter(m => m.type === 'colony_ship')
-    .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, endsAt: m.endsAt }))
   // The target sits in another system, so the mission carries the system id for
   // the countdown — planetSystemId() resolves it from the galaxy. Both espionage
   // units share the list; `unit` is what the icon and the arrival handler read.
@@ -2266,7 +2278,7 @@ const applyGameState = (planetId, state) => {
   // leg created on arrival. Only the outbound one points at a destination.
   const cargoOut = (state.missions ?? [])
     .filter(m => m.type === 'cargo_drone' && m.leg !== 'back' && m.fromPlanetId === planetId)
-    .map(m => ({ planetId: m.toPlanetId, endsAt: m.endsAt }))
+    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, endsAt: m.endsAt }))
   const cargoBack = (state.missions ?? [])
     .filter(m => m.type === 'cargo_drone' && m.leg === 'back' && m.toPlanetId === planetId)
     .map(m => ({ planetId: m.fromPlanetId, endsAt: m.endsAt }))
