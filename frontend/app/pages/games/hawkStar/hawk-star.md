@@ -454,9 +454,9 @@ The `shield_generator` used to be a three-level building whose levels claimed "a
 - **A newly built generator starts at 0 %**, same as a fresh power plant.
 - **An empty shield has no side effect on the planet.** This is the sharpest difference to the battery, where empty means the whole grid stops: a shield is protection, not infrastructure, so letting it fade costs nothing today. Its charge is the value future combat will read.
 - **The defense tile carries the charge on its top edge** — the same 3 px status bar the energy tile uses for the battery and the base tile for the recruit pool, in the panel's blue, **plus the number** (`45 %`) in the corner. It is the only one of the three that prints its value: the bar alone answers "roughly how full", and for a battery or a recruit pool that is enough, but a shield click costs 150 crystal, so the decision to spend needs the exact figure without opening the tile. Below 20 % the bar turns amber, at 0 % it goes red — but it never pulses, since an empty shield is not an emergency the way a blackout is.
-- **The solar map repeats it per planet**, together with the reactor battery, so "which colony is running and which one is protected" is answered without visiting each one. `shieldChargeOf(planetId)` / `batteryChargeOf(planetId)` / `gridDownOn(planetId)` in `useHawkStar.js` are the per-planet forms of the active-planet computeds (same anchor-and-decay, any planet — the computeds now call them with `activePlanetId`), and `HsSolarSystem` draws **two stacked hairlines on the top edge** (battery above, shield below) plus a `🔋 60 % 🛡️ 45 %` line on every own tile. They read `allPlanetStates`, so a colony never opened this session shows nothing rather than a stale zero, and a planet without a power plant shows no battery at all (`battery_state()` returns null there). The bars sit on the **top** edge because the bottom one belongs to the flight progress bars.
+- **The solar map repeats it per planet**, together with the reactor battery, so "which colony is running and which one is protected" is answered without visiting each one. `shieldChargeOf(planetId)` / `batteryChargeOf(planetId)` / `gridDownOn(planetId)` in `useHawkStar.js` are the per-planet forms of the active-planet computeds (same anchor-and-decay, any planet — the computeds now call them with `activePlanetId`). Since the orbit map *(2026-08-25)* the two are no longer hairlines on a tile edge but **the things they physically are**: the battery is a **charge ring around the planet** (a conic gradient masked down to a 3 px band, filling clockwise from the top), the shield is **the bubble around it** (a radial glow whose opacity and border alpha are the charge). They read `allPlanetStates`, so a colony never opened this session shows nothing rather than a stale zero, and a planet without a power plant shows no ring at all (`battery_state()` returns null there). The exact numbers moved into the planet list beside the map, as `🔋 60 %` / `🛡️ 45 %` chips in the open row.
 - **Only the blackout pulses.** An empty battery turns the bar red, flashes it and swaps 🔋 for ⚠️ — that planet has stopped producing. An empty shield goes red and stays still, because it costs nothing today. The same split holds on the planet grid.
-- **A missing building shows as a greyed-out icon, not as a gap.** `🛡️ –` in grey says "this colony has no shield" — the thing actually worth spotting on the map — where an empty space says nothing. An emoji ignores `color`, so the icon is greyed with `filter: grayscale(1)`. The chips only appear once the planet's state is loaded, so a failed fetch never fakes a "not built".
+- **On the map a shield at 0 % draws nothing at all.** An unshielded planet should look bare, not like it is wearing an empty bubble — the aura *is* the charge, so there is nothing to grey out. The "not built" case still needs saying, so the list row keeps the chips: they only appear once the planet's state is loaded, and a failed fetch never fakes a "not built".
 - **The view loads every own planet on open** (`ownPlanetIds` + `loadOwnPlanetStates` in `HsSolarSystem`), instead of only the selected one. Meters on all tiles are the whole point, and `refreshPlanetState()` merely fills `allPlanetStates` — it does not touch the active planet. The galaxy typically arrives after mount, so the `watch` on `ownPlanetIds` is what fires on a cold open and `onMounted` covers re-entry; already-loaded planets are skipped, so switching views does not re-fetch.
 - The charge is refused server-side when the shield is **already full** (the crystal would be burned for nothing) or when the crystal is missing. The holder mirrors both — it cannot be picked up at all — so a wasted charge is not possible.
 - Building cost went to **400 Metal · 200 Crystal · 5 Duraplate** and the drain to 12 energy — it is the only level now, so it sits where the old Lv2 roughly did.
@@ -943,6 +943,63 @@ Salvage scrap closes the High-Tech stock row: 🔩 plus its count, in its own go
 
 ---
 
+## The orbit map  *(2026-08-25 — replaced the tile row)*
+
+The solar view used to be a row of tiles with three action rows stacked under it, one per unit class, aligned column-wise so every planet had a drone cell, a colony cell and a cargo cell. It worked, and it read like a spreadsheet. What it never conveyed is that these are **planets in a system**, at different distances, which is the one thing the flight times are actually made of.
+
+It is now a square **orbit map**: the star in the middle, one ring per planet, the planets slowly circling on them.
+
+### Why the rings are honest
+
+Distance in this game is `|index difference|` (see `droneFlightTimeBetween`) — a neighbour is one hop, the far end of the system is five. Ordering the rings by planet index is therefore not decoration: **the picture and the flight times agree**, and "that one is far" is now something you see before you read the timer.
+
+### Geometry: percentages, not pixels
+
+Everything is a percentage of a square `aspect-ratio: 1/1` box, so the whole system scales from a 360 px phone to a wide desktop with **no media query and no measurement**:
+
+- `--r` (16 % → 41 % across the planets) positions and sizes both the ring and the orbiter: `left: calc(50% - var(--r))`, `width: calc(var(--r) * 2)`. The box is square, so one value serves left/top and width/height.
+- The outer bound is 41 %, not 45 %: the marker's own radius, the shield bubble (`inset: -9px`) and the label under it all have to stay inside a box that clips.
+- `--marker` is the single pixel-ish value, and it grows exactly once (1.85 rem → 2.3 rem at 640 px).
+
+### The motion is pure CSS
+
+An orbiter is a circle the size of its ring, rotating with `animation: hs-orbit var(--period) linear infinite`. The marker sits on its **top edge** and counter-rotates with the same duration, the same negative delay and `reverse` — so glyph, label and mission badge stay upright while the planet travels. No JavaScript ticks, no per-frame reactivity: 14 transform animations the compositor handles alone.
+
+- **Outer planets are slower** (`34 + i·16` seconds) and no two share a period, so the constellation never repeats.
+- **Phases are spread by the golden ratio** (`-(period · (i·0.618 mod 1))` as the delay), so the planets start scattered instead of lined up on one ray, and neighbouring rings drift apart instead of moving in lockstep.
+- **Reduced motion pauses rather than disables.** A paused animation still honours its negative delay, so the planets keep their scattered positions — `animation: none` would collapse them all onto the top ray.
+- Markers on neighbouring rings **do** cross each other. That is what a solar system looks like; `z-index` rises with the orbit index and the selected planet floats above everything, so the one you are looking at stays readable when it happens.
+
+### The marker carries state, the list carries names and numbers
+
+The tile used to print everything. A 30 px disc cannot, so each thing moved to the form that suits a disc:
+
+| | On the marker | In the list |
+|---|---|---|
+| Identity | the type glyph + the roman numeral (`shortLabel` = last word of the name) | full name |
+| State | border colour per `effectivePlanetState` | the coloured state label, and the row's border |
+| Battery | a charge ring around the planet, red and pulsing on a blackout | `🔋 60 %` chip in the open row |
+| Shield | the bubble around it, opacity = charge | `🛡️ 45 %` chip in the open row |
+| Inbound mission | a badge above the marker: unit icon + countdown | the same pill on the row, so a closed row still shows it |
+
+### The list, not a panel for one planet  *(2026-08-25)*
+
+The first cut of this rebuild put a panel for the **selected** planet under the map. It answered "what is this one" but not "what is there" — and the map alone cannot answer the second question either, because a marker has no room for a name.
+
+So the panel became a **list of every planet**, one row each, with the selected one unfolded — desktop to the right of the map, stacked below it under 768 px. One row is open at a time because the map has exactly one selection; `selectedPlanetId` drives both, so tapping a marker opens its row and tapping a row highlights its marker.
+
+A tap on the map also **scrolls the row into view** (`block: 'nearest'`), since on a phone the list starts a whole map-height below the marker and opening a row off-screen would look like nothing happened. That uses one ref on the `<ul>` plus a `data-planet` attribute, not a function ref per row: the component re-renders every tick, and a per-row ref callback would churn once per planet per second for nothing.
+
+### One op list instead of three rows
+
+The three parallel unit rows collapsed into `targetOps` — every researched unit class contributes at most one row, and only inside the open planet's row. Everything still flies **from the active planet**; the rule is stated once, in the `Start: <planet>` line, instead of once per column.
+
+The **hangar strip** is deliberately *not* part of the list. Building happens at the active planet whatever you are looking at, and the moment you open a target is exactly when you notice the dock is empty — so it stays under the map, with the build accordions (`toggleBuildRow` / `expandedBuildRow`) unchanged underneath it.
+
+### What was dropped
+
+`hs-solar-planet-panel` — the big info block with the `HsAllResourcePanel` accordion — is gone, and so is the short-lived `hs-sp` panel that replaced it. The list says what both said, and the resource breakdown belongs to the planet view, one tap away.
+
 ## Units
 
 Units are built at the Space Base tile and consumed on missions. Each unit type has exactly **one level** — no upgrades. Only **one active mission** per unit type at a time.
@@ -1023,7 +1080,7 @@ The Power Cell cost puts the drone behind `power_cell_lab`, which sits on the **
 
 ### UI
 
-**Solar System view** — a third unit row below the drone and colony rows, same pattern (`hs-solar-cargo-row`, accent **amber** `#fbbf24` next to drone green and colony blue). The active planet's cell (`hs-solar-cargo-cell--active`) holds the drone: build trigger while there is none, **cargo picker** once one is docked. Every other cell shows the send button, disabled until the hold is non-empty and only for planets passing the scanned-or-owned check. The picker expands under the row via the existing accordion (`toggleBuildRow` / `expandedBuildRow`, key `'cargo'`) and lists all five goods with stock, a `−`/`+` stepper, an `n / 4` counter and *Unload all*. Row visibility follows the drone row: facility built + planet has a dock.
+**Solar System view** *(rebuilt on the orbit map, 2026-08-25)* — the cargo drone is one of the three units in the **hangar strip** under the map (accent **amber** `#fbbf24` next to drone amber and colony blue) and one of the rows in the **selected planet's op list**. The hangar button shows `n / 4` once a drone is docked and opens the **cargo picker** instead of a build row; the picker is unchanged (all five goods with stock, a `−`/`+` stepper, an `n / 4` counter and *Unload all*) and still expands through `toggleBuildRow` / `expandedBuildRow`, key `'cargo'`. The send button appears in the open planet row's op list only, disabled until the hold is non-empty and only for planets passing the scanned-or-owned check. Visibility follows the drone: facility built + the **active** planet has a dock.
 
 **Dock panel** — build only, listed after the Recon Drone (same hangar). Once a drone exists the build button becomes a **"Bereit"** status with `Laderaum n / 4` and a pointer to the system map; loading and dispatching stay exclusive to the solar view. Both legs appear in the active-missions list (`Cargo → target`, `Cargo ← origin`).
 
@@ -1594,7 +1651,7 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsSalvagePanel` | Salvage fishing on slot 12 — cast loop, radar contact closing on a two-ring target, scrap balance, hold ring around the button, artefact cabinet. See *Salvage Fishing*. |
 | `HsRecruitPanel` | The muster deck on the base tile — the recruit pool drawn as a queue, a named candidate pacing towards the airlock, click them to sign them on. See *The muster deck*. |
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
-| `HsSolarSystem` | Home system view — all planets + one action row per unit class (drone / colony / cargo). Clicking a planet tile selects it (`hs-solar-tile--selected`); if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** is marked three ways (`hs-solar-tile--home`): brighter border, lit background and a 🏠 corner badge — blue alone only says "mine", and every colony is blue too. The badge is absolute-positioned on purpose: the collapsed mobile tile hides every text line, including the *Heimat* chip, so the badge is the only marker left there. |
+| `HsSolarSystem` | Home system view — the **orbit map** and the active planet's hangar on the left, the **planet list** on the right (stacked below 768 px). See *The orbit map*. Tapping a planet on either side selects it (`hs-pl--selected` / `hs-plist__item--open`) and opens its row; if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** gets the brighter ring plus a 🏠 corner badge (`hs-pl--home`) — blue alone only says "mine", and every colony is blue too. |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
 | `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |
