@@ -1,4 +1,4 @@
-const VERSION = '1787695500603'
+const VERSION = '1787741810625'
 const CACHE = `hawk-games-v${VERSION}`
 
 const PRECACHE = [

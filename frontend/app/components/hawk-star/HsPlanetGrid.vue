@@ -12,6 +12,7 @@ const emit = defineEmits(['update:activePanel'])
 const { t } = useI18n()
 
 const {
+  planetType,
   playerSlots,
   activeSlot,
   activePlanetId,
@@ -46,6 +47,17 @@ const conversionsOnSlot = (slot) => {
 // The base tile of the home planet is labelled "Home Base"; a colony's base
 // tile stays a plain "Base". Purely a label — the tile itself is the same.
 const isHomePlanet = computed(() => activePlanetId.value === homePlanetId.value)
+
+// A parcel counts as developed once something stands on it. The dock and the
+// anomaly tile hold no buildings of their own, so they are developed the moment
+// they open — there is nothing further to put there. The placeholder tiles
+// (warship bay, orbit) never are, which is honest: nothing can be built on them
+// yet, and the grid should say so rather than flatter them.
+const isBuilt = (slot) => {
+  if (!slot.unlocked) return false
+  if (slot.tileType === 'dock' || slot.tileType === 'anomaly') return true
+  return slotsOnSlot(slot.slot).length > 0
+}
 
 // A tile that is locked because you are standing on the wrong planet, not
 // because something still has to be built. The two look the same on the grid
@@ -138,27 +150,24 @@ const onSelectSlot = (slot) => {
 
 <template>
   <div class="hs-planet-wrap">
-    <div class="hs-grid">
 
-      <!-- Profile tile — the whole of row 1 now that the planet-info and
-           activity tiles are gone. The twelve slots below have to keep their
-           3 × 4 block, so row 1 is spanned rather than left with two holes for
-           auto-placement to shuffle the grid into. -->
-      <div
-        class="hs-tile hs-tile--profile"
-        :class="{ 'hs-tile--active': activePanel === 'profile', 'hs-tile--unlocked': activePanel !== 'profile' }"
-        @click="togglePanel('profile')"
-      >
-        <div class="hs-tile-main hs-tile-main--profile">
-          <span class="hs-tile-icon">{{ playerPortrait }}</span>
-          <div class="hs-tile-profile-info">
-            <span class="hs-tile-label">{{ playerName || '—' }}</span>
-          </div>
+    <!-- The player is not a parcel of land — the crest sits above the surface
+         rather than inside it, which also leaves the grid a clean 3 × 4. -->
+    <div
+      class="hs-tile hs-tile--profile"
+      :class="{ 'hs-tile--active': activePanel === 'profile', 'hs-tile--unlocked': activePanel !== 'profile' }"
+      @click="togglePanel('profile')"
+    >
+      <div class="hs-tile-main hs-tile-main--profile">
+        <span class="hs-tile-icon">{{ playerPortrait }}</span>
+        <div class="hs-tile-profile-info">
+          <span class="hs-tile-label">{{ playerName || '—' }}</span>
         </div>
-        <div class="hs-tile-dots" />
       </div>
+    </div>
 
-      <!-- Planet slots (rows 2–4) -->
+    <!-- The planet's surface: one piece of ground, twelve parcels on it -->
+    <div class="hs-grid" :class="`hs-grid--${planetType}`">
       <div
         v-for="slot in playerSlots"
         :key="slot.slot"
@@ -167,6 +176,7 @@ const onSelectSlot = (slot) => {
           'hs-tile--locked':   !slot.unlocked,
           'hs-tile--active':   slot.unlocked && activeSlot === slot.slot,
           'hs-tile--unlocked': slot.unlocked && activeSlot !== slot.slot,
+          'hs-tile--built':    isBuilt(slot) && activeSlot !== slot.slot,
         }"
         @click="onSelectSlot(slot)"
       >
@@ -259,24 +269,100 @@ const onSelectSlot = (slot) => {
   }
 }
 
+// ── The planet's surface ─────────────────────────────────────────────────────
+// One piece of ground with twelve parcels on it, rather than twelve separate
+// controls. The gap between tiles is the whole trick: it is where the ground
+// shows through, and it is what makes the grid read as land instead of as a
+// button panel. The type sets the palette; `--accent` is an rgb triplet so
+// every use downstream can pick its own alpha.
 .hs-grid {
+  --ground: #16202a;
+  --accent: 148, 163, 184;
+
+  &--terrestrial   { --ground: #16241a; --accent:  74, 222, 128; }
+  &--volcanic      { --ground: #251310; --accent: 251, 146,  60; }
+  &--frozen        { --ground: #17242e; --accent: 125, 211, 252; }
+  &--ocean         { --ground: #0f1f2e; --accent:  56, 189, 248; }
+  &--uninhabitable { --ground: #1b1b1d; --accent: 148, 163, 184; }
+
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  gap: 0.4rem;
+  padding: 0.45rem;
   width: 100%;
+  border-radius: var(--hs-r-lg);
+  border: 1px solid rgba(var(--accent), 0.14);
+  background:
+    // Survey lines — the ground needs a scale, or the gradient reads as fog
+    repeating-linear-gradient(0deg,  rgba(255,255,255,0.022) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.022) 0 1px, transparent 1px 26px),
+    // The star is up and to the left, so the ground is lit from there and falls
+    // away towards the far edge
+    radial-gradient(ellipse 130% 90% at 30% -15%, rgba(var(--accent), 0.16), transparent 62%),
+    linear-gradient(170deg, var(--ground), #0a0d13 92%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.45);
 
   @media (min-width: 640px) {
-    width: 320px;
+    width: 336px;
+    gap: 0.45rem;
+    padding: 0.5rem;
+  }
+}
+
+// ── The parcels ──────────────────────────────────────────────────────────────
+// Scoped under .hs-grid so the crest above keeps the plain glass look — it is a
+// player badge, not a piece of the planet.
+.hs-grid .hs-tile {
+  // A raster wants equal cells — without a floor, a row whose tiles carry no
+  // dots collapses shorter than its neighbours and the ground stops looking
+  // surveyed.
+  min-height: 3.3rem;
+  border-radius: var(--hs-r-sm);
+
+  // Raw ground: no frame at all, the surface reads straight through. Land you
+  // have not opened up yet — not a control that failed to light up.
+  &--locked {
+    background: rgba(0,0,0,0.3);
+    border-color: rgba(255,255,255,0.035);
+    opacity: 0.5;
+  }
+
+  // Surveyed and cleared, nothing standing on it. Dashed, the way a plot is
+  // pegged out before anything is poured.
+  &--unlocked {
+    background: rgba(255,255,255,0.035);
+    border: 1px dashed rgba(var(--accent), 0.3);
+
+    &:hover {
+      background: rgba(var(--accent), 0.1);
+      border-color: rgba(var(--accent), 0.55);
+    }
+  }
+
+  // Developed — something stands here. Solid frame and a lit face, so a glance
+  // down the grid counts how far the colony has actually got.
+  &--built {
+    background: linear-gradient(180deg, rgba(var(--accent), 0.17), rgba(var(--accent), 0.05));
+    border: 1px solid rgba(var(--accent), 0.42);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.09);
+
+    &:hover {
+      background: linear-gradient(180deg, rgba(var(--accent), 0.26), rgba(var(--accent), 0.09));
+      border-color: rgba(var(--accent), 0.65);
+    }
+  }
+
+  // Last, so the selection outranks every ground state above it.
+  &--active {
+    background: var(--hs-active-bg);
+    border: 1px solid var(--hs-active-border);
+    box-shadow: 0 0 20px var(--hs-active-glow);
   }
 }
 
 // Row 1 belongs to the profile alone. Without the span, auto-placement would
 // push the first two building slots up into the empty cells and shear the whole
 // 3 × 4 block sideways.
-.hs-tile--profile {
-  grid-column: 1 / -1;
-}
-
 .hs-tile {
   position: relative;
   overflow: hidden;
@@ -294,13 +380,6 @@ const onSelectSlot = (slot) => {
     background: var(--hs-glass-xs);
     border-color: var(--hs-line-xs);
     cursor: not-allowed;
-  }
-
-  &--empty {
-    background: transparent;
-    border-color: transparent;
-    cursor: default;
-    pointer-events: none;
   }
 
   &--unlocked {
@@ -362,6 +441,20 @@ const onSelectSlot = (slot) => {
 .hs-tile-bar--shield       .hs-tile-bar__pct { color: rgba(186, 230, 253, 0.75); }
 .hs-tile-bar--shield-low   .hs-tile-bar__pct { color: rgba(253, 230, 138, 0.85); }
 .hs-tile-bar--shield-empty .hs-tile-bar__pct { color: rgba(252, 165, 165, 0.9); }
+
+// The crest — a player badge above the ground, not a parcel in it, so it reads
+// as a bar rather than a square cell.
+.hs-tile--profile {
+  justify-content: flex-start;
+  padding: 0.4rem 0.6rem;
+}
+
+.hs-tile-main--profile {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
 
 .hs-tile-main {
   display: flex;

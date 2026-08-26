@@ -167,7 +167,28 @@ Two steps are deliberately counted rather than measured, so an achievement canno
 
 `HsPlanetGrid` renders a 5×3 tile grid. Row 1 is the **profile tile**, spanning the full width; rows 2–5 contain the twelve **planet building slots**.
 
-**The planet-info and activity tiles came out** *(2026-08-26)*, the first step of reworking this view into something that reads like settling a planet. The span on row 1 is what keeps the removal from shearing the grid: three columns with one item would let auto-placement pull the first two building slots up into the empty cells. With them went `inProgressCount`, `doneCount` and the `hs-notif-badge` styles.
+**The planet-info and activity tiles came out** *(2026-08-26)*, and with them `inProgressCount`, `doneCount` and the `hs-notif-badge` styles. The profile tile left the grid at the same time and now sits above it as a **crest**: the player is not a parcel of land, and moving it out leaves the grid a clean 3 × 4 instead of a row that has to be spanned around.
+
+### The grid is the planet's surface  *(2026-08-26)*
+
+Twelve tiles that each paint their own background read as a control panel. The change that turns it into terrain is not the tile colours — it is giving **the grid** the ground and letting the tiles sit on it as parcels. The `gap` between tiles is the whole trick: it is where the surface shows through, and it is what stops the eye grouping the tiles as buttons.
+
+`.hs-grid` carries a palette per planet type (`hs-grid--volcanic` and friends) as two custom properties — `--ground` for the base and `--accent` as an **rgb triplet**, so every use downstream picks its own alpha without a second variable per shade. Over that: survey lines at a 26 px repeat to give the ground a scale (a bare gradient reads as fog), and a radial highlight at 30 % / −15 % so the light falls from the star's side and the ground drops away towards the far edge.
+
+The three parcel states are the settlement itself:
+
+| State | Reads as | How |
+|---|---|---|
+| `--locked` | raw ground | no frame, surface straight through, half opacity — land you have not opened up, not a control that failed to light |
+| `--unlocked` | a surveyed plot | **dashed** accent border, the way a plot is pegged out before anything is poured |
+| `--built` | developed | solid accent frame, lit face — so a glance down the grid counts how far the colony actually got |
+
+`--active` is written last and keeps the indigo selection, so it outranks every ground state.
+
+- **`isBuilt()` is not just "has a building".** The dock and the anomaly tile hold no buildings of their own, so they are developed the moment they open; the placeholders (warship bay, orbit) never are, which is honest — nothing can go there yet, and the grid should say so rather than flatter them.
+- **The parcels have a `min-height`.** Without a floor, a row whose tiles carry no dots collapses shorter than its neighbours and the ground stops looking surveyed.
+- **The terrain styles are scoped under `.hs-grid`**, so the crest above keeps the plain glass look. It is a player badge, not a piece of the planet.
+- The grid is `width: 100%` on a phone and a fixed 336 px from 640 px up (320 px of tiles plus the surface's own padding). Tighter gaps than before (0.4 rem) pay for that padding, so the parcels stay within about 4 px of their old width on a 360 px screen.
 
 > **This leaves `HsAllResourcePanel` and `HsNotificationPanel` — and with the latter `HsSettingsPanel`, the dev controls — with no entry point at all.** The `activePanel` branches for `resources` and `notifications` still stand in `HsTilePanel`, so restoring access is a matter of adding a trigger somewhere, not rebuilding the panels.
 
