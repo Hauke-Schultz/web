@@ -12,9 +12,6 @@ const emit = defineEmits(['update:activePanel'])
 const { t } = useI18n()
 
 const {
-  planetName,
-  planetType,
-  PLANET_TYPES,
   playerSlots,
   activeSlot,
   activePlanetId,
@@ -24,7 +21,6 @@ const {
   unlockRequirement,
   getLevel,
   allPlanetStates,
-  notifications,
   playerPortrait,
   playerName,
   batteryCharge,
@@ -46,8 +42,6 @@ const conversionsOnSlot = (slot) => {
   if (!tileType) return 0
   return conversionQueues.value.filter(q => BUILDINGS[q.buildingId]?.tileType === tileType).length
 }
-
-const currentPlanetType = computed(() => PLANET_TYPES[planetType.value])
 
 // The base tile of the home planet is labelled "Home Base"; a colony's base
 // tile stays a plain "Base". Purely a label — the tile itself is the same.
@@ -95,32 +89,6 @@ const tileStatus = (slot) => {
   }
   return null
 }
-
-// ── Panel tile counts ─────────────────────────────────────────────────────────
-const inProgressCount = computed(() => {
-  let count = 0
-  for (const [_pid, pstate] of Object.entries(allPlanetStates.value)) {
-    for (const bstate of Object.values(pstate.buildings ?? {})) {
-      if (bstate.buildEndsAt) count++
-    }
-    const dock = pstate.dock
-    if (dock) {
-      // Every unit type, not just the two the dock started with — a spy drone
-      // under construction is an operation in progress like any other.
-      const shipKeys = ['reconDroneBuild','colonyShipBuild','cargoDroneBuild','spyDroneBuild','spySatelliteBuild','corvetteBuild']
-      for (const key of shipKeys) { if (dock[key]) count++ }
-      count += (dock.activeDroneMissions?.length      ?? 0)
-      count += (dock.activeColonyMissions?.length     ?? 0)
-      count += (dock.activeCargoMissions?.length      ?? 0)
-      count += (dock.returningCargoMissions?.length   ?? 0)
-      count += (dock.activeSpyMissions?.length        ?? 0)
-    }
-    count += (pstate.conversionQueues?.length ?? 0)
-  }
-  return count
-})
-
-const doneCount = computed(() => notifications.value.length)
 
 const dockInfo = computed(() => {
   const dock = allPlanetStates.value[activePlanetId.value]?.dock
@@ -172,40 +140,10 @@ const onSelectSlot = (slot) => {
   <div class="hs-planet-wrap">
     <div class="hs-grid">
 
-      <!-- Panel tiles (row 1) -->
-	    <!-- Planet info tile -->
-	    <div
-		    class="hs-tile"
-		    :class="{
-					'hs-tile--active': activePanel === 'resources',
-					'hs-tile--unlocked': activePanel !== 'resources',
-					[`hs-tile-type--${planetType}`]: true
-				}"
-		    @click="togglePanel('resources')"
-	    >
-		    <div class="hs-tile-main">
-			    <span class="hs-tile-icon">{{ currentPlanetType?.icon ?? '🪐' }}</span>
-			    <span class="hs-tile-label">{{ planetName }}</span>
-		    </div>
-		    <div class="hs-tile-dots" />
-	    </div>
-
-      <div
-        class="hs-tile"
-        :class="{ 'hs-tile--active': activePanel === 'notifications', 'hs-tile--unlocked': activePanel !== 'notifications' }"
-        @click="togglePanel('notifications')"
-      >
-        <div class="hs-tile-main">
-          <span class="hs-tile-icon">🔔</span>
-          <span class="hs-tile-label">{{ t('hawkStar.panel.tabActivity') }}</span>
-        </div>
-        <div class="hs-tile-dots">
-          <span v-if="inProgressCount > 0" class="hs-notif-badge hs-notif-badge--active">{{ inProgressCount }}</span>
-          <span v-if="doneCount > 0" class="hs-notif-badge hs-notif-badge--done">{{ doneCount }}</span>
-        </div>
-      </div>
-
-      <!-- Profile tile -->
+      <!-- Profile tile — the whole of row 1 now that the planet-info and
+           activity tiles are gone. The twelve slots below have to keep their
+           3 × 4 block, so row 1 is spanned rather than left with two holes for
+           auto-placement to shuffle the grid into. -->
       <div
         class="hs-tile hs-tile--profile"
         :class="{ 'hs-tile--active': activePanel === 'profile', 'hs-tile--unlocked': activePanel !== 'profile' }"
@@ -330,6 +268,13 @@ const onSelectSlot = (slot) => {
   @media (min-width: 640px) {
     width: 320px;
   }
+}
+
+// Row 1 belongs to the profile alone. Without the span, auto-placement would
+// push the first two building slots up into the empty cells and shear the whole
+// 3 × 4 block sideways.
+.hs-tile--profile {
+  grid-column: 1 / -1;
 }
 
 .hs-tile {
@@ -526,26 +471,6 @@ const onSelectSlot = (slot) => {
   &--building {
     color: var(--hs-warn);
     animation: pulse 1.2s ease-in-out infinite;
-  }
-}
-
-.hs-notif-badge {
-  font-size: 0.6rem;
-  font-weight: 700;
-  padding: 0.1rem 0.3rem;
-  border-radius: 999px;
-  letter-spacing: 0;
-
-  &--active {
-    background: rgba(80, 140, 255, 0.15);
-    color: rgba(120, 180, 255, 0.9);
-    border: 1px solid rgba(80, 140, 255, 0.25);
-  }
-
-  &--done {
-    background: rgba(80, 220, 120, 0.15);
-    color: rgba(80, 220, 120, 0.9);
-    border: 1px solid rgba(80, 220, 120, 0.25);
   }
 }
 

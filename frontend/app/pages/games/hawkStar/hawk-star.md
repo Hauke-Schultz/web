@@ -165,7 +165,11 @@ Two steps are deliberately counted rather than measured, so an achievement canno
 
 ## Planet Grid
 
-`HsPlanetGrid` renders a 5×3 tile grid (15 tiles total). The first row contains two **panel tiles** and one empty cell; rows 2–5 contain the twelve **planet building slots**.
+`HsPlanetGrid` renders a 5×3 tile grid. Row 1 is the **profile tile**, spanning the full width; rows 2–5 contain the twelve **planet building slots**.
+
+**The planet-info and activity tiles came out** *(2026-08-26)*, the first step of reworking this view into something that reads like settling a planet. The span on row 1 is what keeps the removal from shearing the grid: three columns with one item would let auto-placement pull the first two building slots up into the empty cells. With them went `inProgressCount`, `doneCount` and the `hs-notif-badge` styles.
+
+> **This leaves `HsAllResourcePanel` and `HsNotificationPanel` — and with the latter `HsSettingsPanel`, the dev controls — with no entry point at all.** The `activePanel` branches for `resources` and `notifications` still stand in `HsTilePanel`, so restoring access is a matter of adding a trigger somewhere, not rebuilding the panels.
 
 ```
 [ Planet Info ][ Activity  ][            ]   ← panel tiles (row 1, 3rd cell empty)
