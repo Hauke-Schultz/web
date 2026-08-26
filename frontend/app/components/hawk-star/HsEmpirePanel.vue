@@ -181,10 +181,10 @@ const alertCount = computed(() => empireAlertCount.value)
 
       <!-- Every planet in the system, and nothing else on the line — the count
            it used to carry on the right is already in the summary above, and the
-           system's name went up there too. The charge ring is off on purpose: a
-           blackout is already an alarm row and therefore already inside the
-           badge, and drawing it twice on one disc would be two alarms for one
-           fact. -->
+           system's name went up there too. Both meters are off: a blackout is
+           already an alarm row and therefore already inside the badge, and the
+           shield has its own meter on the card the disc scrolls to. One number
+           per disc is what makes the band scannable. -->
       <div v-if="planets.length" class="hs-empire-fleet">
         <div v-for="planet in planets" :key="planet.id" class="hs-empire-fleet__slot">
           <HsPlanetMarker
@@ -194,6 +194,7 @@ const alertCount = computed(() => empireAlertCount.value)
             :badge="statusOf(planet)?.alerts || null"
             :badge-tone="badgeTone(planet)"
             :battery="false"
+            :shield="false"
             @select="scrollToCard(planet)"
           />
         </div>
