@@ -288,6 +288,7 @@ const onSelectSlot = (slot) => {
               :selected="planet.id === activePlanetId"
               :disabled="!canSwitchTo(planet) || planet.id === activePlanetId"
               :battery="false"
+              :shield="false"
               @select="goToPlanet(planet)"
             />
           </div>

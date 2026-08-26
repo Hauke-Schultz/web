@@ -19,10 +19,21 @@ const props = defineProps({
   // planets you hold are somewhere to switch *to* — the rest are there to be
   // looked at, and a disc that lifts under the cursor promises otherwise.
   disabled: { type: Boolean, default: false },
-  // The charge ring is the orbit map's alone. In the strip four markers sit
-  // shoulder to shoulder above a chip row that already prints the charge as a
-  // number, where a 3 px ring is only a smaller, less legible second copy of it.
+  // The two meters, each switchable. Both are the orbit map's by right: there a
+  // marker is alone with its planet and the ring and the bubble are the only
+  // place its charge is written down. In the planet-grid strip they are not —
+  // the chip line under the discs prints `🔋 84%` and `🛡️ 60%` in figures, and
+  // a 3 px ring and a soft aura beside that are only smaller, less legible
+  // second copies of the same two numbers.
   battery: { type: Boolean, default: true },
+  shield:  { type: Boolean, default: true },
+  // A count in the corner — the Empire board's notices. Null draws nothing, so
+  // a quiet planet is a bare disc rather than a zero. It reuses the corner the
+  // 🏠 badge vacated, which is the right place for it: a number pinned to the
+  // planet it belongs to, readable at a glance, which is the whole thing the
+  // 🏠 failed at.
+  badge:     { type: [Number, String], default: null },
+  badgeTone: { type: String, default: 'alarm' },
 })
 
 const emit = defineEmits(['select'])
@@ -78,7 +89,7 @@ const batteryStyle = computed(() => {
 // A shield at 0 % draws nothing at all — an unshielded planet should look bare,
 // not like it is wearing an empty bubble.
 const shieldStyle = computed(() => {
-  if (!known.value || shieldPct.value === null || shieldPct.value <= 0) return null
+  if (!props.shield || !known.value || shieldPct.value === null || shieldPct.value <= 0) return null
   const f = shieldPct.value / 100
   return {
     background:  `radial-gradient(circle, rgba(56,189,248,0) 54%, rgba(56,189,248,${(0.06 + f * 0.30).toFixed(3)}) 100%)`,
@@ -103,6 +114,7 @@ const shieldStyle = computed(() => {
       :style="batteryStyle"
     />
     <span class="hs-pl__glyph">{{ glyph }}</span>
+    <span v-if="badge" class="hs-pl__badge" :class="`hs-pl__badge--${badgeTone}`">{{ badge }}</span>
   </button>
 </template>
 
@@ -176,6 +188,28 @@ const shieldStyle = computed(() => {
   line-height: 1;
 
   @media (min-width: 640px) { font-size: 1.2rem; }
+}
+
+// Sits half off the disc, which the marker's `overflow: visible` allows. Tabular
+// figures so a row of them does not jitter between 1 and 2 digits.
+.hs-pl__badge {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  z-index: 2;
+  min-width: 0.85rem;
+  padding: 0 3px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 0.45rem;
+  font-weight: 700;
+  line-height: 0.85rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+
+  &--alarm { color: #fff;     background: rgba(239, 68, 68, 0.95);  border-color: rgba(252, 165, 165, 0.6); }
+  &--warn  { color: #1c1917;  background: rgba(251, 191, 36, 0.95); border-color: rgba(253, 230, 138, 0.6); }
 }
 
 // The battery is drawn as what it is — a charge ring around the planet. The

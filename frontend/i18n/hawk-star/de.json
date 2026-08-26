@@ -218,7 +218,6 @@
     },
 
     "solar": {
-      "home": "Heimat",
       "stateOwn": "Kolonie",
       "stateFree": "Frei",
       "stateEnemy": "Feind",

@@ -334,28 +334,28 @@ const BUILDINGS = [
     ['level'=>2,'cost'=>['metal'=>600,'crystal'=>800],'buildTime'=>21600,'production'=>[],'energyDrain'=>0,'staffDrain'=>0,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'alloy_refinery' => ['tileType'=>'hightech','conversions'=>[
+  'alloy_refinery' => ['tileType'=>'hightech','planetTypes'=>['terrestrial'],'conversions'=>[
     ['input'=>['metal'=>150,'alloy'=>60],'output'=>['duraplate'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'alloy'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'obsidian_foundry' => ['tileType'=>'hightech','conversions'=>[
+  'obsidian_foundry' => ['tileType'=>'hightech','planetTypes'=>['volcanic'],'conversions'=>[
     ['input'=>['crystal'=>80,'obsidian'=>80],'output'=>['plasma_core'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'obsidian'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'cryo_refinery' => ['tileType'=>'hightech','conversions'=>[
+  'cryo_refinery' => ['tileType'=>'hightech','planetTypes'=>['frozen'],'conversions'=>[
     ['input'=>['crystal'=>100,'cryo'=>50],'output'=>['superconductor'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.
     ['level'=>1,'cost'=>['metal'=>300,'crystal'=>150,'cryo'=>80],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
-  'bio_lab' => ['tileType'=>'hightech','conversions'=>[
+  'bio_lab' => ['tileType'=>'hightech','planetTypes'=>['ocean'],'conversions'=>[
     ['input'=>['metal'=>120,'biomass'=>40],'output'=>['vital_gel'=>1],'durationBase'=>1800],
   ],'levels'=>[
     // Single level on purpose — keeps the early game simple.

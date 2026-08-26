@@ -1,9 +1,10 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RESOURCES } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsOnboardingPanel from '~/components/hawk-star/HsOnboardingPanel.vue'
+import HsPlanetMarker from '~/components/hawk-star/HsPlanetMarker.vue'
 
 const emit = defineEmits(['go-planet'])
 
@@ -14,6 +15,8 @@ const {
   empireResearch,
   focusPlanetTile,
   homePlanetId,
+  homeSystem,
+  activePlanetId,
   PLANET_TYPES,
   now,
   formatTime,
@@ -104,22 +107,97 @@ const jumpTo = (planetId, slot) => {
   emit('go-planet')
 }
 
+// ── The system band in the header ─────────────────────────────────────────────
+// The board answers "where do I look", and the answer used to be spread over
+// four cards you had to read down. The band states it in one line, framed the
+// way the Solar System view frames its own header — star, name, class, then the
+// planets, then the count — because it is the same system and should introduce
+// itself the same way on both screens.
+//
+// It shows **every** planet, not only the ones you hold. An empire of two in a
+// system of seven is a fact about the empire, and a board that only ever drew
+// your own planets could never say it. The ones you do not hold render in the
+// state the map would give them (free, unscanned, uninhabitable) and do not
+// respond — there is no card under them to go to.
+const planets = computed(() => homeSystem.value?.planets ?? [])
+
+const starClassLabel = (cls) => t(`hawkStar.starClass.${cls}`, cls ?? '')
+
+// The board's status for a planet, or null when it is not ours. One lookup
+// behind the badge, the tone and whether the disc does anything at all, so the
+// three can never disagree about which planets are on the board.
+const statusOf = (planet) => empireStatus.value.find(s => s.planetId === planet.id) ?? null
+
+// A notice with no severity behind it is still a notice, so the badge falls back
+// to amber rather than disappearing into the disc. Takes the planet so the
+// template does not have to call statusOf() twice on one line.
+const badgeTone = (planet) => {
+  const s = statusOf(planet)
+  return s && cardTone(s) === 'alarm' ? 'alarm' : 'warn'
+}
+
+// A disc is a jump to that planet's card. Same trick the Solar System's list
+// uses: one ref on the container and a data attribute, rather than a function
+// ref per card — this component re-renders every tick and that would churn a
+// ref callback per planet per second for nothing.
+const cardsEl = ref(null)
+
+const scrollToCard = async (planet) => {
+  if (!statusOf(planet)) return
+  await nextTick()
+  cardsEl.value
+    ?.querySelector(`[data-planet="${planet.id}"]`)
+    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+}
+
 const alertCount = computed(() => empireAlertCount.value)
 </script>
 
 <template>
   <div class="hs-empire">
     <div class="hs-empire-head">
-      <span class="hs-empire-icon">🏛️</span>
-      <h2 class="hs-empire-title">{{ t('hawkStar.empire.title') }}</h2>
-      <!-- Pipe-form messages need the count as the third argument; passing it
-           only as a named param always picks the singular branch. -->
-      <span class="hs-empire-summary">
-        {{ t('hawkStar.empire.summaryPlanets', { n: empireStatus.length }, empireStatus.length) }}
-        <template v-if="alertCount > 0">
-          · <span class="hs-empire-summary-alert">{{ t('hawkStar.empire.summaryAlerts', { n: alertCount }, alertCount) }}</span>
-        </template>
-      </span>
+      <div class="hs-empire-head__top">
+        <span class="hs-empire-icon">🏛️</span>
+        <h2 class="hs-empire-title">{{ t('hawkStar.empire.title') }}</h2>
+
+        <!-- Which system this empire is in. Text belongs with text: down in the
+             band it shared a line with seven discs and was the first thing to be
+             squeezed on a phone. Kept as one span so star, name and class wrap
+             together instead of breaking apart mid-phrase. -->
+        <span v-if="homeSystem" class="hs-empire-sys">
+          <span class="hs-empire-sys__star">☀️</span>
+          <span class="hs-empire-sys__name">{{ homeSystem.name }}</span>
+          <span class="hs-empire-sys__class">{{ starClassLabel(homeSystem.starClass) }}</span>
+        </span>
+        <!-- Pipe-form messages need the count as the third argument; passing it
+             only as a named param always picks the singular branch. -->
+        <span class="hs-empire-summary">
+          {{ t('hawkStar.empire.summaryPlanets', { n: empireStatus.length }, empireStatus.length) }}
+          <template v-if="alertCount > 0">
+            · <span class="hs-empire-summary-alert">{{ t('hawkStar.empire.summaryAlerts', { n: alertCount }, alertCount) }}</span>
+          </template>
+        </span>
+      </div>
+
+      <!-- Every planet in the system, and nothing else on the line — the count
+           it used to carry on the right is already in the summary above, and the
+           system's name went up there too. The charge ring is off on purpose: a
+           blackout is already an alarm row and therefore already inside the
+           badge, and drawing it twice on one disc would be two alarms for one
+           fact. -->
+      <div v-if="planets.length" class="hs-empire-fleet">
+        <div v-for="planet in planets" :key="planet.id" class="hs-empire-fleet__slot">
+          <HsPlanetMarker
+            :planet="planet"
+            :selected="planet.id === activePlanetId"
+            :disabled="!statusOf(planet)"
+            :badge="statusOf(planet)?.alerts || null"
+            :badge-tone="badgeTone(planet)"
+            :battery="false"
+            @select="scrollToCard(planet)"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Global research applies to every planet, so it sits above the cards
@@ -147,10 +225,11 @@ const alertCount = computed(() => empireAlertCount.value)
       </button>
     </div>
 
-    <div class="hs-empire-cards">
+    <div ref="cardsEl" class="hs-empire-cards">
       <div
         v-for="p in empireStatus"
         :key="p.planetId"
+        :data-planet="p.planetId"
         class="hs-empire-card"
         :class="`hs-empire-card--${cardTone(p)}`"
       >
@@ -158,7 +237,10 @@ const alertCount = computed(() => empireAlertCount.value)
         <button class="hs-empire-cardhead" @click="jumpTo(p.planetId, 5)">
           <span class="hs-empire-planeticon">{{ planetIcon(p.type) }}</span>
           <span class="hs-empire-planetname">{{ p.name }}</span>
-          <span v-if="p.isHome" class="hs-empire-home" :title="t('hawkStar.solar.home')">🏠</span>
+          <!-- A word, not a 🏠 with the meaning hidden in a title. Same chip the
+               planet list and the grid strip use, so "this is home" looks the
+               same wherever you meet it. -->
+          <span v-if="p.isHome" class="hs-chip hs-chip--home hs-empire-home">{{ t('hawkStar.solar.homeBase') }}</span>
           <span class="hs-empire-state" :class="`hs-empire-state--${stateBadge(p).cls}`">
             {{ t('hawkStar.empire.' + stateBadge(p).key) }}
           </span>
@@ -284,9 +366,62 @@ const alertCount = computed(() => empireAlertCount.value)
 
 .hs-empire-head {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
   padding: 0.5rem 0.15rem;
+}
+// Wraps on purpose. Title, system and summary on one 360 px line is more than
+// fits, and the summary's `margin-left: auto` keeps it at the right edge of
+// whichever line it lands on.
+.hs-empire-head__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+}
+
+// Star, name and class travel together — a line break between "Solux" and
+// "Orangener Zwerg" reads as two unrelated labels.
+.hs-empire-sys {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.hs-empire-sys__star  { font-size: 0.8rem; align-self: center; }
+.hs-empire-sys__name  { font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.75); }
+.hs-empire-sys__class {
+  font-size: 0.54rem;
+  color: rgba(253,230,138,0.55);
+  white-space: nowrap;
+}
+
+// Discs and nothing else, so the line has one job and a seven-planet system
+// still fits on a phone. It wraps rather than scrolling — a header you have to
+// drag sideways is a header you stop reading.
+.hs-empire-fleet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--hs-r-md);
+  background: var(--hs-glass-sm);
+  border: 1px solid var(--hs-line-lg);
+}
+
+// Content width, not equal shares: the planet-grid strip is the whole system on
+// a fixed rhythm under a chip line, this one is however many planets the system
+// happens to hold and centres what it has.
+.hs-empire-fleet__slot {
+  --hs-pl-size: 1.75rem;
+
+  flex: none;
+  display: flex;
+  justify-content: center;
+
+  @media (min-width: 640px) { --hs-pl-size: 2rem; }
 }
 .hs-empire-icon  { font-size: 1.25rem; }
 .hs-empire-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin: 0; }
@@ -383,7 +518,9 @@ const alertCount = computed(() => empireAlertCount.value)
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hs-empire-home { font-size: 0.65rem; opacity: 0.75; flex: none; }
+// The chip carries its own look; the head only decides it must not be the thing
+// that gives way when the planet name is long.
+.hs-empire-home { flex: none; }
 .hs-empire-state {
   margin-left: auto;
   flex: none;

@@ -355,7 +355,14 @@ const buildingsForActiveSlot = computed(() => {
   if (!activeTileType.value) return []
   return Object.values(BUILDINGS).filter(b =>
     b.tileType === activeTileType.value.id &&
-    (!b.planetTypes || b.planetTypes.includes(planetType.value)) &&
+    // `planetTypes` decides what you may BUILD here, not what already stands.
+    // A building the planet has is kept in the list whatever the gate says —
+    // the four refineries were ungated for a while, and a bio lab put up on a
+    // terrestrial world in that window would otherwise vanish from this panel
+    // while going on drawing its 6 energy and 3 workers: a ghost you can feel
+    // but not find. Its recipe section, its level and its batch all hang off
+    // this list.
+    (!b.planetTypes || b.planetTypes.includes(planetType.value) || getLevel(b.id) > 0) &&
     // A homeOnly building is left out of a colony's list entirely rather than
     // shown as locked — everything it produces is homeOnly too, so there is
     // nothing a colony could ever unlock there.

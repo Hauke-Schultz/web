@@ -107,6 +107,32 @@ Under the rows, every raided planet carries the attack it last took: portrait, a
 - **An empty haul on a plunder is a finding**, printed as such (*Plünderung — Lager war leer*): it means the silo was bare or the planet was still inside the 12 h plunder cooldown.
 - **Only incoming attacks.** Our own raids target foreign planets, which have no card here — that story belongs to the galaxy map, which is where the targets live.
 
+### The system band in the header  *(2026-08-26)*
+
+`hs-empire-head` is a column now: a title line that names the empire *and* the system it sits in, and under it a band of every planet in that system.
+
+```
+🏛️ Imperium  ☀️ Solux System  Orangener Zwerg    4 Planeten · 3 Meldungen
+┌────────────────────────────────────────────────┐
+│           🌋²  🧊¹  🌍  🌊  ❓  🌑  🌑          │
+└────────────────────────────────────────────────┘
+```
+
+**Text belongs with text** *(2026-08-26)*. The first cut ran `hs-solar-head`'s whole line inside the band — ☀️, name, class, the discs, and a *"7 Planeten"* count on the right. On a phone that is four things competing for one line, and the words lost. The name and class moved up beside the title (as `.hs-empire-sys`, one span so star, name and class wrap as a phrase rather than breaking apart mid-label), the count came out because `hs-empire-summary` was already stating a count two centimetres away, and the band was left with one job.
+
+The board's job is *where do I look*, and the answer used to be spread over four cards you had to read down. The band states it in one line. Details worth keeping:
+
+- **Every planet, not only yours.** An empire of two in a system of seven is a fact about the empire, and a board that only ever drew your own planets could never say it. The rest render in the state the orbit map would give them — free, unscanned, uninhabitable — and are `disabled`, because there is no card under them to go to.
+- **A disc scrolls to that planet's card.** Same trick the Solar System's list uses: one `ref` on `.hs-empire-cards` plus a `data-planet` attribute, rather than a function ref per card — this component re-renders every tick and a per-row ref callback would churn once per planet per second for nothing. It scrolls rather than jumping to the planet view: the board is where you triage, and the card is the answer.
+- **The badge count is `alerts`** — everything that is not merely a timer, the same number the nav tab's badge sums. `null` when it is zero, so a quiet planet is a bare disc rather than a zero, and the tone falls back to amber when `cardTone()` says `ok`: a notice with no severity behind it is still a notice.
+- **The charge ring is off** (`:battery="false"`). A blackout is already an alarm row and therefore already inside the badge; drawing it again as a pulsing ring would be two alarms for one fact.
+- **It wraps, it does not scroll**, and so does the title line above it — a header you have to drag sideways is a header you stop reading. The summary keeps `margin-left: auto`, so it stays at the right edge of whichever line it lands on.
+- **`statusOf(planet)` is the one lookup** behind the badge, the tone and whether the disc responds at all, so the three cannot disagree about which planets are on the board.
+
+The badge lives on `HsPlanetMarker` as `badge` / `badgeTone`, in the corner the 🏠 vacated — which is the right tenant for it: a number pinned to the planet it belongs to, legible at a glance, which is exactly what the 🏠 failed at.
+
+There is deliberately **one** planet count on the screen: `hs-empire-summary`'s *"4 Planeten"*, which is your empire (`empireStatus.length`). The band briefly carried the system's seven as well, two lines below it — two counts that close together read as a contradiction rather than as two scopes.
+
 ### Research sits above the cards
 
 Global research is the one build the Activity feed misses entirely — that walks `allPlanetStates`, and research lives in `globalResearch`. It gets a violet strip **above** the planet cards, because it belongs to no planet: the server does not record which planet ordered it and the result applies everywhere. The jump goes to the **home** comm center (slot 6), the one planet guaranteed to have the tile.
@@ -192,9 +218,10 @@ The first cut printed a three-letter name under each marker and drew the orbit m
 |---|---|
 | 🏠 at 0.5 rem, in the corner | `HOME` chip |
 | battery as a 3 px charge ring | `🔋 84%`, coloured by band |
+| shield as a soft aura | `🛡️ 60%`, coloured by band |
 | name clipped to ~4 characters | the full name at 0.72 rem |
 
-So the strip passes `:battery="false"` and the markers are clean discs. The chip row is built as `activePlanetChips` — a list, not markup — so the order of the facts (*who it is to you · what kind of world · how much room · then the two meters*) lives in one place.
+So the strip passes `:battery="false" :shield="false"` and the markers are clean discs. The chip row is built as `activePlanetChips` — a list, not markup — so the order of the facts (*who it is to you · what kind of world · how much room · then the two meters*) lives in one place.
 
 **The 🏠 badge is gone from the orbit map too** *(2026-08-26)*. Once the strip stopped drawing it, the only thing left holding it up was `hs-solar-slot`, where it sat in the marker's corner at 0.5 rem — half the size of the glyph it was pinned to, and unreadable at exactly the moment it was supposed to help. Both screens now name the home planet in words (the `HOME` chip in the planet list and in the strip), so the marker keeps only `hs-pl--home`: **the brighter blue ring is the whole distinction on the disc itself.** With no caller left wanting one, the `homeBadge` prop, the `<span class="hs-pl__home">` and its rule came out rather than staying as a switch nobody flips.
 
@@ -202,7 +229,7 @@ So the strip passes `:battery="false"` and the markers are clean discs. The chip
 
 **`--selected` is deliberately restrained.** A 2 px halo plus a 22 px glow on a disc scaled to 1.16 is fine on the orbit map, where a marker has a whole orbit to itself; in the strip four of them sit a few pixels apart and the selected one pushed its neighbours around. It is a 1 px ring, a 10 px glow and `scale(1.06)` now — against the unselected border that is enough contrast to find it, and the lift only has to say *this one is in front*.
 
-**One thing this gives up:** the charge ring was the at-a-glance "which colony is dark" signal for planets you are *not* on, and the strip no longer shows it. The shield bubble stayed (it is a soft aura, not a competing readout), and the Empire board is still the screen that answers that question for every planet at once.
+**One thing this gives up:** the ring and the bubble were the at-a-glance meters for planets you are *not* standing on, and the strip shows neither. That is the cost of having the chip line say both properly for the one planet that matters — and the Empire board is still the screen that answers the question for every planet at once, where its own band keeps the shield aura (there is no chip line under those discs to replace it).
 
 Three things worth keeping:
 
@@ -214,7 +241,15 @@ Three things worth keeping:
 
 It moved out of `HsSolarSystem`'s scoped block into **`hawk-star.scss`**, which the page `@use`s unscoped — the planet list and the strip label the same planets, and a chip that read differently on the two screens would make them look like two different facts.
 
-Two modifiers came with the move: `--home` (blue) and `--here` (indigo). **`hs-plist__flag` used to be a bare 🏠 / 📍 at 0.7 rem** — too small to read and too vague to guess at, with the meaning hidden in a `title`. Both are chips now, `HOME BASE` and `STANDORT`, and `.hs-plist__flag` is down to `flex-shrink: 0`: the chip carries its own look, the row only decides it must not be what gives way when the name is long.
+Two modifiers came with the move: `--home` (blue) and `--here` (indigo). **Three places used to pin a bare 🏠 to a planet** — `hs-plist__flag` on the Solar System list, `hs-empire-home` on the Empire card head, and `hs-pl__home` in the marker's corner — each at 0.5–0.7 rem with the meaning hidden in a `title`. All three are gone:
+
+| Was | Now |
+|---|---|
+| `hs-plist__flag` 🏠 / 📍 | `HOME` / `STANDORT` chips, class down to `flex-shrink: 0` |
+| `hs-empire-home` 🏠 | `HOME` chip, class down to `flex: none` |
+| `hs-pl__home` 🏠 | deleted — `hs-pl--home`'s brighter ring is the disc's whole tell |
+
+In each case the class kept only the one thing the *surrounding layout* has to say — that this element must not be what gives way when the planet name is long — and handed the look to the chip. `hawkStar.solar.home` was the tooltip behind all three and now has no reader, so it came out of both locales.
 
 `hawkStar.solar.currentLocation` stayed prose — it also ends the hint line *"📍 Aktueller Standort"* under an open row, where an all-caps badge label would read as shouting. The chip got its own key, `youAreHere`.
 
@@ -225,7 +260,7 @@ The strip needed the orbit map's marker, and the marker was 130 lines of markup 
 - **It reads its own state from the composable** rather than taking a dozen props. Two callers passing eight props each is how the map ends up showing a charge the strip does not. The parent supplies only `planet`, `selected` and `disabled` — the facts the parent alone knows.
 - **`effectivePlanetState()` and `planetIcon()` moved into `useHawkStar.js`.** They answer "own, or free, or a question mark", which is a property of what *we know*, not of the planet — and three views ask it now (marker, planet list, strip). Two copies of that is how a colony ends up owned on one screen and unknown on the other.
 - **Size comes from `--hs-pl-size`, inherited**, defaulting to `100%` so the orbit map keeps sizing it through the box it hangs on. The strip sets the property on the slot and can therefore change it in a media query instead of threading a length through as a prop.
-- **`battery` can be switched off.** Defaults true; only the strip turns it off, because on the orbit map a marker is alone with its planet and has room for a charge ring. It is the last such flag — the `homeBadge` twin went when the 🏠 did.
+- **`battery` and `shield` can each be switched off.** Both default true, because on the orbit map a marker is alone with its planet and the ring and the aura are the only place its charge is written down. The planet-grid strip turns both off (its chip line prints the figures); the Empire band turns off only the battery, since a blackout is already inside its notice badge.
 - **`meterLevel()` and `batteryLevelOf()` live in `useHawkStar.js`.** Four places colour something by the same three bands (`empty` / `low` / `ok`, plus `down` for a battery in blackout); written once, a battery at 19 % is "low" everywhere or nowhere.
 - **The meter *numbers* stayed in `HsSolarSystem`.** The list states them as plain chips; only the painting moved.
 
@@ -989,6 +1024,8 @@ Before this, the planet type was a **hard gate** on three of the four refined go
 ### What changed
 
 1. **`planetTypes` came off the four refineries.** Four deleted lines, in `hawkStarConfig.js` and `config.php` both. Any planet can now build any refinery.
+
+   > **Reverted 2026-08-26 — see *The refineries are gated again* below.** The lines are back; the smelter is what now carries the "every good on every planet" promise on its own.
 2. **A single-level `salvage_smelter` on slot 12** with two kinds of recipe:
    - **raw** — metal, crystal and **this planet's own** exclusive raw. Cheap, quick.
    - **refined** — all five finished goods, straight out of scrap. Costly, slow, and the actual answer for a commander who owns one planet.
@@ -1019,6 +1056,31 @@ The finished goods went the other way: **2 h each, Power Cells included**. They 
 **`planetTypes` on a *recipe*** is new — the same idiom the buildings already use, one level down. It is what keeps the raw recipes to the planet's own exclusive material.
 
 **Recipe order is load-bearing.** `recipe_index` is stored on running batches in `hs_conversion_queues`, so appending is safe and rearranging would make a batch in flight deliver a different recipe's goods. The panel filters *after* mapping the index for exactly that reason, and `convert.php` re-checks the restriction because the client is not the authority on it.
+
+### The refineries are gated again  *(2026-08-26)*
+
+`planetTypes` is back on all four, in both configs: **a refinery stands where its raw comes out of the ground.**
+
+| Refinery | Planet type | Because its recipe eats |
+|---|---|---|
+| `alloy_refinery` | terrestrial | alloy 🧱 |
+| `obsidian_foundry` | volcanic | obsidian 🪨 |
+| `cryo_refinery` | frozen | cryo ❄️ |
+| `bio_lab` | ocean | biomass 🌿 |
+
+Each gate is the `planetTypes` of the exclusive raw its conversion consumes — not a fifth list to keep in step, but the same table `RESOURCES` already holds for the extractors. `power_cell_lab` stays ungated: it eats no exclusive raw.
+
+**What ungating was solving is now solved by the smelter, not by the gate.** When the gate first came off, `salvage_smelter` did not exist and a one-planet commander really was cut off from three of the four refined goods. The smelter arrived in the same change and melts all five finished goods out of scrap on any planet at all — costlier and far slower than a refinery, which is exactly the trade. That path is untouched, so re-gating no longer strands anybody; what it removes is the ability to pay 3600 s for an obsidian foundry on an ice world that then stands over a seam it does not have. **Importing still works** — freight a raw in from a colony and refine it at home, as long as home is that refinery's type.
+
+**A gate decides what you may *build*, not what already stands.** `buildingsForActiveSlot` keeps any building the planet actually has, whatever `planetTypes` says:
+
+```js
+(!b.planetTypes || b.planetTypes.includes(planetType.value) || getLevel(b.id) > 0)
+```
+
+Without that clause a bio lab put up on a terrestrial world during the ungated window would drop out of the tile panel — its level, its recipe section and its running batch all hang off this list — while going on drawing its 6 energy and 3 workers. A ghost you can feel but not find. The server agrees by construction: `build.php` checks `planetTypes` on the way in, `convert.php` only ever checked the *recipe's*, and these recipes carry none.
+
+`producerTypes()` in `HsResourceBar` needed no change. It reads the raw a recipe eats rather than the building's own `planetTypes`, and the two now agree — asking the raw is the half that cannot drift.
 
 ### Why it is deliberately poor
 

@@ -1289,15 +1289,28 @@ export const BUILDINGS = {
   },
 
   // ── High-Tech tile ─────────────────────────────────────────────────────────
-  // One refinery per planet type. Each produces exactly one refined resource.
-  // Players must trade or freight to obtain the other three.
+  // One refinery per planet type, and it only stands on that type: a refinery is
+  // built at the seam it feeds on, so `planetTypes` here mirrors the planetTypes
+  // of the raw its recipe eats — RESOURCES.alloy is terrestrial, so the alloy
+  // refinery is too. Ungated for a while, which let you pay 3600 s for an
+  // obsidian foundry on an ice world that would then stand over a seam it does
+  // not have.
+  //
+  // The one-planet commander is not stranded by this: `salvage_smelter` still
+  // melts all five finished goods straight out of scrap on any planet at all,
+  // costlier and slower than a refinery — which is exactly the trade. A raw
+  // freighted in from a colony still refines at home, as long as home is the
+  // type that refinery belongs to.
+  //
+  // `power_cell_lab` below stays ungated on purpose: it eats no exclusive raw.
 
   alloy_refinery: {
     id:          'alloy_refinery',
     name:        'Alloy Refinery',
     tileType:    'hightech',
+    planetTypes: ['terrestrial'],
     icon:        '🧱',
-    description: 'Fuses metal and alloy into Duraplate. Buildable anywhere — the alloy is the hard part.',
+    description: 'Fuses metal and alloy into Duraplate. Terrestrial only — it is built at the seam it feeds on.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
@@ -1319,8 +1332,9 @@ export const BUILDINGS = {
     id:          'obsidian_foundry',
     name:        'Obsidian Foundry',
     tileType:    'hightech',
+    planetTypes: ['volcanic'],
     icon:        '🌋',
-    description: 'Superheats obsidian and crystal into Plasma Cores. Buildable anywhere — the obsidian is the hard part.',
+    description: 'Superheats obsidian and crystal into Plasma Cores. Volcanic only — it is built at the seam it feeds on.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
@@ -1342,8 +1356,9 @@ export const BUILDINGS = {
     id:          'cryo_refinery',
     name:        'Cryo Refinery',
     tileType:    'hightech',
+    planetTypes: ['frozen'],
     icon:        '🧬',
-    description: 'Purifies crystal using cryonite into Superconductor. Buildable anywhere — the cryonite is the hard part.',
+    description: 'Purifies crystal using cryonite into Superconductor. Frozen only — it is built at the seam it feeds on.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {
@@ -1365,8 +1380,9 @@ export const BUILDINGS = {
     id:          'bio_lab',
     name:        'Bio Lab',
     tileType:    'hightech',
+    planetTypes: ['ocean'],
     icon:        '🧫',
-    description: 'Synthesizes biomass and metal into Vital Gel. Buildable anywhere — the biomass is the hard part.',
+    description: 'Synthesizes biomass and metal into Vital Gel. Ocean only — it is built at the seam it feeds on.',
     // Single level on purpose — keeps the early game simple.
     levels: [
       {

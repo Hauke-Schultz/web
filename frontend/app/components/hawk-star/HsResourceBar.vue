@@ -44,11 +44,11 @@ const refinedResources = computed(() =>
 // by whichever building lists it as a conversion output, and that building's
 // `planetTypes` is the answer. An unrestricted producer (power_cell_lab) means
 // the good is universal, so one `null` beats any list.
-// A good's home used to be read off its building's `planetTypes`. That stopped
-// working when the four refineries were ungated: every one of them now answers
-// "buildable anywhere", which would border every card and leave the row saying
-// nothing. What still separates them is the raw they EAT — duraplate needs
-// alloy, and alloy is terrestrial.
+// It reads the raw the recipe EATS rather than the building's own
+// `planetTypes`, and keeps doing so now that the refineries are gated again.
+// The two agree — a refinery's gate is derived from exactly this raw — and
+// asking the raw is the half that cannot drift: duraplate needs alloy, and
+// alloy is terrestrial, whoever ends up allowed to build the refinery.
 const producerTypes = (resId) => {
   const types = new Set()
   for (const b of Object.values(BUILDINGS)) {
