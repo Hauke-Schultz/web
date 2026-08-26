@@ -216,6 +216,7 @@ const BREAKER_MIN_MS    = 900    // and the travel may not be quicker than this
 const BREAKER_END       = 0.97
 
 const trackEl  = ref(null)
+const knobEl   = ref(null)
 const knob     = ref(0)        // 0…1 along the track
 const pulling  = ref(false)
 const strained = ref(false)    // near the speed limit — the lever complains first
@@ -226,10 +227,16 @@ let pullStart = 0
 let lastT     = 0
 let lastF     = 0
 
+// 0…1 measured over the *handle's* travel, not the rail's width: the lever is
+// wide enough now that its own body is a visible share of the track, and mapping
+// the raw rail width would leave the grip trailing the thumb by half a handle at
+// each end. Same inset the CSS uses to place it, so finger and lever agree.
 const knobFrac = (e) => {
   const r = trackEl.value?.getBoundingClientRect()
   if (!r || !r.width) return 0
-  return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
+  const w    = knobEl.value?.offsetWidth ?? 0
+  const span = Math.max(1, r.width - w)
+  return Math.min(1, Math.max(0, (e.clientX - r.left - w / 2) / span))
 }
 
 const trip = () => {
@@ -396,17 +403,17 @@ const status = computed(() => {
     >
       <span class="hs-bat-breaker-label">🔌 {{ t('hawkStar.battery.breaker') }}</span>
 
-      <div ref="trackEl" class="hs-bat-track">
-        <span class="hs-bat-track-fill" :style="{ width: knob * 100 + '%' }" />
+      <div ref="trackEl" class="hs-bat-track" :style="{ '--hs-knob': knob }">
+        <span class="hs-bat-track-fill" />
         <span class="hs-bat-track-off">{{ t('hawkStar.battery.off') }}</span>
         <span class="hs-bat-track-on">{{ t('hawkStar.battery.on') }}</span>
 
         <span
+          ref="knobEl"
           class="hs-bat-knob"
           role="button"
           tabindex="0"
           :aria-label="t('hawkStar.battery.breakerHint')"
-          :style="{ left: knob * 100 + '%' }"
           @pointerdown="onKnobDown"
           @pointermove="onKnobMove"
           @pointerup="onKnobUp"
@@ -628,15 +635,31 @@ const status = computed(() => {
 }
 
 // ── The breaker ──────────────────────────────────────────────────────────────
+// The lever is sized from one place: the rail's height and the travel inset in
+// `left` both derive from --hs-bat-lever, so the handle can grow without any of
+// the three going out of step.
+//
+// It is deliberately large. This is the one control in the game that is meant to
+// feel like *machinery* — you walk to the switchboard and throw the main lever —
+// and a 24px dot read as a slider nub instead. At 2.75rem the grip clears the
+// 44px minimum a thumb can reliably find, which is what made it a fiddle on a
+// phone, and on a desktop it reads as a switch rather than a scrollbar.
 .hs-bat-breaker {
+  --hs-bat-lever: 2.75rem;
+
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.45rem;
+  flex-direction: column;   // the label captions the lever instead of crowding it
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.5rem 0.55rem 0.6rem;
   border-radius: var(--hs-r-sm);
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(239, 68, 68, 0.35);
   transition: border-color 0.2s, background 0.2s;
+
+  // A wider rail is a longer throw, and the throw is time-limited (BREAKER_MIN_MS)
+  // rather than distance-limited — so more room only makes the gesture calmer.
+  @media (min-width: 640px) { --hs-bat-lever: 3rem; }
 
   &--strained { border-color: rgba(251, 191, 36, 0.7); }
   &--tripped  { border-color: rgba(248, 113, 113, 0.9); animation: hs-bat-shake 0.35s ease; }
@@ -658,17 +681,19 @@ const status = computed(() => {
 
 .hs-bat-track {
   position: relative;
-  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
-  height: 1.5rem;
+  height: calc(var(--hs-bat-lever) + 0.5rem);
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55);
   touch-action: none;
 }
 .hs-bat-track-fill {
   position: absolute;
   inset: 0 auto 0 0;
+  width: calc(var(--hs-bat-lever) * 0.5 + var(--hs-knob, 0) * (100% - var(--hs-bat-lever)));
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(251, 191, 36, 0.25), rgba(74, 222, 128, 0.45));
   transition: width 0.18s ease;
@@ -682,36 +707,65 @@ const status = computed(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 0.55rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.45);
   pointer-events: none;
 }
-.hs-bat-track-off { left: 0.5rem; }
-.hs-bat-track-on  { right: 0.5rem; }
+// OFF starts where the parked handle ends — it labels the position the lever is
+// in, so the handle must not be sitting on top of it.
+.hs-bat-track-off { left: calc(var(--hs-bat-lever) + 0.55rem); }
+.hs-bat-track-on  { right: 0.9rem; }
 .hs-bat-breaker--thrown .hs-bat-track-on { color: var(--hs-ok); }
 
 .hs-bat-knob {
   position: absolute;
   top: 50%;
-  width: 1.5rem;
-  height: 1.5rem;
-  margin: -0.75rem 0 0 -0.75rem;
+  width: var(--hs-bat-lever);
+  height: var(--hs-bat-lever);
+  // Centre travels half a handle in from each end, which is the same mapping
+  // knobFrac() uses — the grip stays exactly under the thumb across the throw.
+  left: calc(var(--hs-bat-lever) * 0.5 + var(--hs-knob, 0) * (100% - var(--hs-bat-lever)));
+  margin: calc(var(--hs-bat-lever) * -0.5) 0 0 calc(var(--hs-bat-lever) * -0.5);
   border-radius: 50%;
   background: linear-gradient(180deg, #f8fafc, #94a3b8);
   border: 1px solid rgba(0, 0, 0, 0.35);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  // A rim light on top and a seated shadow below: at this size a flat disc looks
+  // painted on, a lit one looks like something you can take hold of.
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.25),
+    0 3px 6px rgba(0, 0, 0, 0.55);
   cursor: grab;
   touch-action: none;
-  transition: left 0.22s cubic-bezier(0.3, 1.4, 0.5, 1), background 0.2s, box-shadow 0.2s;
+  transition: left 0.22s cubic-bezier(0.3, 1.4, 0.5, 1), background 0.2s, box-shadow 0.2s, transform 0.12s;
 
-  &:focus-visible { outline: 2px solid var(--hs-ok); outline-offset: 2px; }
+  // Knurling: fine vertical grip lines across the handle. The detail that says
+  // "hold this" rather than "drag this", and it only reads now that it has room.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 28%;
+    border-radius: 2px;
+    background: repeating-linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.55) 0 2px,
+      transparent 2px 5px
+    );
+    pointer-events: none;
+  }
 
-  .hs-bat-breaker--pulling &  { cursor: grabbing; transition: background 0.2s, box-shadow 0.2s; }
-  .hs-bat-breaker--strained & { background: linear-gradient(180deg, #fef3c7, #f59e0b); box-shadow: 0 0 10px rgba(251, 191, 36, 0.8); }
+  &:focus-visible { outline: 2px solid var(--hs-ok); outline-offset: 3px; }
+
+  .hs-bat-breaker--pulling & {
+    cursor: grabbing;
+    transform: scale(1.06);   // it gives under the thumb
+    transition: background 0.2s, box-shadow 0.2s, transform 0.12s;
+  }
+  .hs-bat-breaker--strained & { background: linear-gradient(180deg, #fef3c7, #f59e0b); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 0 14px rgba(251, 191, 36, 0.85); }
   .hs-bat-breaker--tripped &  { background: linear-gradient(180deg, #fecaca, #ef4444); }
-  .hs-bat-breaker--thrown &   { background: linear-gradient(180deg, #dcfce7, #22c55e); box-shadow: 0 0 12px rgba(74, 222, 128, 0.8); }
+  .hs-bat-breaker--thrown &   { background: linear-gradient(180deg, #dcfce7, #22c55e); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 0 18px rgba(74, 222, 128, 0.85); }
 }
 
 // ── Caption ──────────────────────────────────────────────────────────────────

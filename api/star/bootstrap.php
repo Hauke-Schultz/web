@@ -240,15 +240,21 @@ function resolve_timers(PDO $db, int $planetId, int $playerId): void {
 }
 
 function resolve_buildings(PDO $db, int $planetId, int $playerId): void {
+    // Oldest first, and each one's production is booked up to the moment it
+    // finished before its level changes — a building pays out at the level it
+    // actually had at the time, on both sides of the upgrade.
     $done = $db->prepare(
-        'SELECT building_key, level FROM hs_buildings
-         WHERE planet_id=? AND player_id=? AND build_ends_at IS NOT NULL AND build_ends_at <= NOW()'
+        'SELECT building_key, level, UNIX_TIMESTAMP(build_ends_at) AS ends_ts FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND build_ends_at IS NOT NULL AND build_ends_at <= NOW()
+         ORDER BY build_ends_at ASC'
     );
     $done->execute([$planetId, $playerId]);
 
     foreach ($done->fetchAll() as $b) {
         $key      = $b['building_key'];
         $newLevel = (int)$b['level'] + 1;
+
+        accrue_resources($db, $planetId, $playerId, (int)$b['ends_ts']);
 
         $db->prepare(
             'UPDATE hs_buildings SET level=?, build_ends_at=NULL
@@ -298,15 +304,13 @@ function free_workers(PDO $db, int $planetId, int $playerId): float {
     $popRow->execute([$planetId, $playerId]);
     $population = (float)($popRow->fetchColumn() ?: 0);
 
-    $bRows = $db->prepare(
-        'SELECT building_key, level FROM hs_buildings
-         WHERE planet_id=? AND player_id=? AND level>0 AND build_ends_at IS NULL'
-    );
-    $bRows->execute([$planetId, $playerId]);
-
+    // Effective levels: a crew is assigned the moment the build starts, and at the
+    // headcount of the level being built — same rule as totalStaffDrain() on the
+    // client. Skipping in-progress rows freed their whole crew for the duration,
+    // so the server let through a colony ship the client had already greyed out.
     $drain = 0.0;
-    foreach ($bRows->fetchAll() as $b) {
-        $def = level_def($b['building_key'], (int)$b['level']);
+    foreach (effective_building_levels($db, $planetId, $playerId) as $key => $lvl) {
+        $def = level_def($key, $lvl);
         $drain += (float)($def['staffDrain'] ?? 0);
     }
     return $population - $drain;
@@ -1983,7 +1987,7 @@ function storage_caps_from_levels(array $levels): array {
 }
 
 function planet_storage_caps(PDO $db, int $planetId, int $playerId): array {
-    return storage_caps_from_levels(completed_building_levels($db, $planetId, $playerId));
+    return storage_caps_from_levels(standing_building_levels($db, $planetId, $playerId));
 }
 
 // Adds resources without ever pushing a stock past its storage cap. Doing the
@@ -2010,15 +2014,43 @@ function credit_resources(PDO $db, int $planetId, int $playerId, array $gain, ar
     }
 }
 
-// building_key => level for everything standing (build finished) on the planet.
-function completed_building_levels(PDO $db, int $planetId, int $playerId): array {
+// building_key => level for everything standing on the planet, at the level it
+// *currently* operates at. A building being upgraded keeps its old level here:
+// a Lv3 metal mine upgrading to Lv4 is still a working Lv3 mine, it does not
+// shut down for the duration. This used to filter on `build_ends_at IS NULL`,
+// which dropped the row entirely and stopped the mine's production, its storage
+// cap and its energy output for the whole upgrade — while the client kept
+// previewing the old rate, so every stock snapped back to its pre-upgrade
+// value on the next sync.
+// Level 0 is still excluded: a *first* build is a construction site, not a
+// building, and produces nothing until it finishes.
+// For what a building *reserves* (energy, workers), see effective_building_levels().
+function standing_building_levels(PDO $db, int $planetId, int $playerId): array {
     $rows = $db->prepare(
         'SELECT building_key, level FROM hs_buildings
-         WHERE planet_id=? AND player_id=? AND level>0 AND build_ends_at IS NULL'
+         WHERE planet_id=? AND player_id=? AND level>0'
     );
     $rows->execute([$planetId, $playerId]);
     $levels = [];
     foreach ($rows->fetchAll() as $b) $levels[$b['building_key']] = (int)$b['level'];
+    return $levels;
+}
+
+// building_key => level a building's *upkeep* is charged at. A running build
+// already draws the energy and the workers of the level it is heading for —
+// mirrors effectiveLevel() in useHawkStar.js, which is what the build buttons
+// check against, so client and server reserve the same amount. Includes a
+// first build (level 0 + running timer = level 1 reserved).
+function effective_building_levels(PDO $db, int $planetId, int $playerId): array {
+    $rows = $db->prepare(
+        'SELECT building_key, level, build_ends_at FROM hs_buildings
+         WHERE planet_id=? AND player_id=? AND (level>0 OR build_ends_at IS NOT NULL)'
+    );
+    $rows->execute([$planetId, $playerId]);
+    $levels = [];
+    foreach ($rows->fetchAll() as $b) {
+        $levels[$b['building_key']] = (int)$b['level'] + ($b['build_ends_at'] !== null ? 1 : 0);
+    }
     return $levels;
 }
 
@@ -2093,7 +2125,7 @@ function materialize_anomaly_choice(string $key, array $tpl, array $caps, string
 // $forceType skips the weighted roll — dev-only, so a specific event can be
 // tested without waiting for it to come up on its own.
 function create_anomaly(PDO $db, int $planetId, int $playerId, string $planetType, ?string $forceType = null): array|null {
-    $levels = completed_building_levels($db, $planetId, $playerId);
+    $levels = standing_building_levels($db, $planetId, $playerId);
     $type   = ($forceType && anomaly_def($forceType)) ? $forceType : pick_anomaly_type($planetType, $levels);
     if (!$type) return null;
 
@@ -2265,26 +2297,61 @@ function migrate_refined_resources(PDO $db): void {
 }
 
 function compute_resources(PDO $db, int $planetId, int $playerId, string $planetType): void {
+    accrue_resources($db, $planetId, $playerId);
+}
+
+// Credits everything the planet made between its last accrual and $untilTs
+// (default: now), at the rates that hold *for that stretch*. The cutoff is what
+// resolve_buildings() uses to close the books at the second an upgrade lands:
+// without it the whole offline stretch was paid out at the new level, so a 24h
+// mine upgrade collected 24h of Lv4 output for 24h of Lv3 work.
+function accrue_resources(PDO $db, int $planetId, int $playerId, ?int $untilTs = null): void {
     migrate_refined_resources($db);
 
     $row = $db->prepare(
-        'SELECT *, TIMESTAMPDIFF(SECOND, resources_computed_at, NOW()) AS elapsed
+        'SELECT *, UNIX_TIMESTAMP(resources_computed_at) AS computed_ts, UNIX_TIMESTAMP(NOW()) AS now_ts
          FROM hs_planet_resources WHERE planet_id=? AND player_id=?'
     );
     $row->execute([$planetId, $playerId]);
     $r = $row->fetch();
-    if (!$r || $r['elapsed'] < 1) return;
+    if (!$r) return;
 
-    $elapsed = min((int)$r['elapsed'], 86400);
+    $nowTs = $untilTs ?? (int)$r['now_ts'];
 
-    $levels = completed_building_levels($db, $planetId, $playerId);
+    // A row that has never been stamped (NULL / zero date) has nothing to accrue
+    // *from* — start its clock here rather than reading the gap as "since 1970"
+    // and paying out the full 24h cap.
+    $computedTs = (int)$r['computed_ts'];
+    if ($computedTs <= 0) {
+        $db->prepare(
+            'UPDATE hs_planet_resources SET resources_computed_at = FROM_UNIXTIME(?)
+             WHERE planet_id=? AND player_id=?'
+        )->execute([$nowTs, $planetId, $playerId]);
+        return;
+    }
 
+    $elapsed = $nowTs - $computedTs;
+    if ($elapsed < 1) return;
+
+    $elapsed = min($elapsed, 86400);
+
+    $levels = standing_building_levels($db, $planetId, $playerId);
+
+    // Two different questions, two different level sets: what a building *makes*
+    // it makes at the level standing today, what it *costs* it costs at the level
+    // it is being upgraded to. canBuild() in useHawkStar.js refuses any build that
+    // would push the balance negative, so charging the new drain up front cannot
+    // brown out a planet on its own.
     $energyProd  = 0;
-    $energyDrain = 0;
     foreach ($levels as $key => $lvl) {
         $def = level_def($key, $lvl);
         if (!$def) continue;
-        $energyProd  += $def['production']['energy'] ?? 0;
+        $energyProd += $def['production']['energy'] ?? 0;
+    }
+    $energyDrain = 0;
+    foreach (effective_building_levels($db, $planetId, $playerId) as $key => $lvl) {
+        $def = level_def($key, $lvl);
+        if (!$def) continue;
         $energyDrain += $def['energyDrain'] ?? 0;
     }
     $energyOk = ($energyProd - $energyDrain) >= 0;
@@ -2306,7 +2373,6 @@ function compute_resources(PDO $db, int $planetId, int $playerId, string $planet
             $drainPerHour = battery_drain_per_hour($ppLevel);
             $secToDead    = $drainPerHour > 0 ? ((float)$bb['charge'] / $drainPerHour) * 3600.0 : PHP_INT_MAX;
             $deadAt       = (int)$bb['t0'] + (int)$secToDead;   // epoch when battery hits 0
-            $nowTs        = time();
             $startTs      = $nowTs - $elapsed;                  // = resources_computed_at (capped)
             $gridElapsed  = max(0, min($nowTs, $deadAt) - $startTs);
             $gridElapsed  = min($gridElapsed, $elapsed);
@@ -2337,8 +2403,8 @@ function compute_resources(PDO $db, int $planetId, int $playerId, string $planet
     $updates['population'] = (float)$r['population'];
 
     $sets   = array_map(fn($k) => "$k = ?", array_keys($updates));
-    $sets[] = 'resources_computed_at = NOW()';
-    $vals   = [...array_values($updates), $planetId, $playerId];
+    $sets[] = 'resources_computed_at = FROM_UNIXTIME(?)';
+    $vals   = [...array_values($updates), $nowTs, $planetId, $playerId];
 
     $db->prepare(
         'UPDATE hs_planet_resources SET ' . implode(', ', $sets) . ' WHERE planet_id=? AND player_id=?'

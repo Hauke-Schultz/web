@@ -56,3 +56,48 @@
   --hs-r-md: 0.75rem;
   --hs-r-lg: 1rem;
 }
+
+// ── Chip ─────────────────────────────────────────────────────────────────────
+// A fact about a planet, stated in one word. Unscoped on purpose: the Solar
+// System's planet list and the strip over the planet grid both label the same
+// planets, and a chip that reads differently on the two screens would make them
+// look like two different facts. Loaded through the page's unscoped @use, like
+// the tokens above.
+.hs-chip {
+  font-size: 0.55rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--hs-glass-lg);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+
+  &--meter { font-variant-numeric: tabular-nums; }
+
+  &--battery-ok    { color: rgba(167, 243, 208, 0.85); }
+  &--battery-low,
+  &--battery-empty { color: rgba(253, 230, 138, 0.9); }
+  &--battery-down  { color: rgba(252, 165, 165, 0.95); border-color: rgba(248, 113, 113, 0.3); }
+  &--shield-ok     { color: rgba(186, 230, 253, 0.85); }
+  &--shield-low    { color: rgba(253, 230, 138, 0.9); }
+  &--shield-empty  { color: rgba(255, 255, 255, 0.3); }
+
+  // Where you live. It replaced a 🏠 the size of a full stop — the badge has to
+  // survive being glanced at, and a word does that where a 0.7 rem glyph does not.
+  &--home {
+    color: rgba(147, 197, 253, 0.95);
+    border-color: rgba(96, 165, 250, 0.35);
+    background: rgba(96, 165, 250, 0.12);
+    letter-spacing: 0.05em;
+  }
+
+  // Where you are standing right now, which is only worth saying on a planet
+  // that is not home.
+  &--here {
+    color: rgba(196, 181, 253, 0.95);
+    border-color: rgba(167, 139, 250, 0.35);
+    background: rgba(167, 139, 250, 0.12);
+    letter-spacing: 0.05em;
+  }
+}

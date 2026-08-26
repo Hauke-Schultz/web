@@ -258,6 +258,19 @@ const shieldChargeOf = (planetId) => {
   return Math.max(0, s.charge - s.drainPerHour * hours)
 }
 
+// ── Meter bands ───────────────────────────────────────────
+// Every meter in the game is coloured by the same three bands, and four places
+// now ask for them: the orbit marker's ring, the planet list's chips, the strip
+// over the planet grid, and the tile status bars. Written once so a battery at
+// 19 % is "low" everywhere or nowhere.
+const meterLevel = (pct) => (pct <= 0 ? 'empty' : pct < 20 ? 'low' : 'ok')
+
+// The blackout is the one state worth shouting about: an empty battery stops the
+// whole planet, while an empty shield costs nothing today. So the battery gets a
+// fourth band the shield has no use for.
+const batteryLevelOf = (planetId) =>
+  gridDownOn(planetId) ? 'down' : meterLevel(Math.round(batteryChargeOf(planetId) ?? 0))
+
 const shieldCharge = computed(() => shieldChargeOf(activePlanetId.value))
 
 const shieldDown = computed(() => !!shield.value && (shieldCharge.value ?? 0) <= 0)
@@ -1707,6 +1720,33 @@ const maxStorageForPlanet = (planetId) => {
   return caps
 }
 
+// ── What a planet looks like from here ────────────────────────────────────────
+// "Own, or free, or a question mark" is not a property of the planet — it is a
+// property of what *we* know about it, and three views ask it: the orbit map's
+// marker, the planet list beside it, and the switcher strip over the grid. It
+// lived in HsSolarSystem while only that screen drew planets; the strip made it
+// the second caller, and two copies of this is how a colony ends up owned on one
+// screen and unknown on the other.
+const effectivePlanetState = (planet) => {
+  if (!planet) return 'unknown'
+  if (planet.id === homePlanetId.value || playerColonizedPlanets.value.includes(planet.id)) return 'own'
+  if (allActiveColonyMissions.value.some(m => m.planetId === planet.id)) return 'colonizing'
+  if (playerScannedPlanets.value.includes(planet.id)) return planet.state
+  if (allActiveDroneMissions.value.some(m => m.planetId === planet.id)) return 'scanning'
+  return 'unknown'
+}
+
+// The glyph follows the same rule: a planet in the middle of being reached shows
+// what is on its way there rather than what it is, because that is the fact that
+// changes next.
+const planetIcon = (planet) => {
+  const state = effectivePlanetState(planet)
+  if (state === 'colonizing') return '🚀'
+  if (state === 'scanning')   return '🛸'
+  if (state === 'unknown')    return '❓'
+  return PLANET_TYPES[planet?.type]?.icon ?? '🪐'
+}
+
 const getPlanetName      = (planetId) => allPlanetStates.value[planetId]?.planetName ?? '?'
 const getPlanetResources = (planetId) => allPlanetStates.value[planetId]?.resources ?? {}
 
@@ -3068,6 +3108,10 @@ export function useHawkStar() {
     empireAlertCount,
     empireResearch,
     focusPlanetTile,
+    effectivePlanetState,
+    planetIcon,
+    meterLevel,
+    batteryLevelOf,
 
     // salvage fishing
     salvageScrap,

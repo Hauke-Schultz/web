@@ -3,6 +3,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PLANET_TYPES, RESOURCES, UNIT_COSTS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar, refreshPlanetState } from '~/composables/useHawkStar.js'
+import HsPlanetMarker from '~/components/hawk-star/HsPlanetMarker.vue'
 
 const {
 	playerName,
@@ -26,6 +27,8 @@ const {
   formatTime,
   playerResources,
   planetHasDock, planetHasHangar, getPlanetName,
+  effectivePlanetState, planetIcon,
+  meterLevel, batteryLevelOf,
   // build
   reconDroneBuild, droneBuildTime, canBuildDrone, buildReconDrone, droneBuildProgressStyle,
   colonyShipBuild, colonyShipBuildTime, canBuildColonyShip, buildColonyShip, colonyShipBuildProgressStyle,
@@ -64,17 +67,8 @@ const goToPlanet = async (planetId) => {
 const isCargoEnRoute = (id) => !!allActiveCargoMissions.value.find(m => m.planetId === id)
 
 const isScanned      = (id) => playerScannedPlanets.value.includes(id)
-const isColonized    = (id) => playerColonizedPlanets.value.includes(id)
 const isDroneEnRoute = (id) => !!allActiveDroneMissions.value.find(m => m.planetId === id)
 const isColonizing   = (id) => !!allActiveColonyMissions.value.find(m => m.planetId === id)
-
-const effectivePlanetState = (planet) => {
-  if (planet.id === homePlanetId.value || isColonized(planet.id)) return 'own'
-  if (isColonizing(planet.id)) return 'colonizing'
-  if (isScanned(planet.id)) return planet.state
-  if (isDroneEnRoute(planet.id)) return 'scanning'
-  return 'unknown'
-}
 
 // ── Selection ─────────────────────────────────────────────
 const selectedPlanetId = ref(activePlanetId.value)
@@ -175,11 +169,10 @@ const shortLabel = (planet) => {
   return parts.length > 1 ? parts[parts.length - 1] : (parts[0] ?? '').slice(0, 4)
 }
 
-// ── Meters on the marker ──────────────────────────────────
-// Battery and shield of a planet, null when it has no power plant / no shield
-// generator, and likewise while its state was never loaded. On the orbit map
-// they are drawn as what they physically are: the battery as a charge ring
-// around the planet, the shield as the bubble surrounding it.
+// ── Meters in the list ────────────────────────────────────
+// The marker draws the battery as a ring and the shield as a bubble, and owns
+// that arithmetic. The list states the same two numbers as plain chips, which
+// needs the percentages and nothing about how they are painted.
 const shieldPct = (planetId) => {
   const c = shieldChargeOf(planetId)
   return c == null ? null : Math.round(c)
@@ -188,37 +181,6 @@ const shieldPct = (planetId) => {
 const batteryPct = (planetId) => {
   const c = batteryChargeOf(planetId)
   return c == null ? null : Math.round(c)
-}
-
-const meterLevel = (pct) => (pct <= 0 ? 'empty' : pct < 20 ? 'low' : 'ok')
-
-// The blackout is the one state worth shouting about: an empty battery stops the
-// whole planet, while an empty shield costs nothing today.
-const batteryLevel = (planetId) =>
-  gridDownOn(planetId) ? 'down' : meterLevel(batteryPct(planetId) ?? 0)
-
-const BATTERY_COLOR = { ok: '#10b981', low: '#f59e0b', empty: '#f59e0b', down: '#ef4444' }
-
-const batteryRingStyle = (planetId) => {
-  const pct = batteryPct(planetId)
-  if (pct === null) return null
-  const deg = Math.max(0, Math.min(100, pct)) * 3.6
-  const col = BATTERY_COLOR[batteryLevel(planetId)]
-  return {
-    background: `conic-gradient(from -90deg, ${col} 0deg ${deg}deg, rgba(255,255,255,0.10) ${deg}deg 360deg)`,
-  }
-}
-
-// A shield at 0 % draws nothing at all — an unshielded planet should look bare,
-// not like it is wearing an empty bubble.
-const shieldAuraStyle = (planetId) => {
-  const pct = shieldPct(planetId)
-  if (pct === null || pct <= 0) return null
-  const f = pct / 100
-  return {
-    background:  `radial-gradient(circle, rgba(56,189,248,0) 54%, rgba(56,189,248,${(0.06 + f * 0.30).toFixed(3)}) 100%)`,
-    borderColor: `rgba(56,189,248,${(0.12 + f * 0.48).toFixed(3)})`,
-  }
 }
 
 const hasPlanetState = (planetId) => !!allPlanetStates.value[planetId]
@@ -235,7 +197,6 @@ const missionOn = (planetId) => {
   return null
 }
 
-const planetTypeIcon = (type) => PLANET_TYPES[type]?.icon ?? '🪐'
 const starClassLabel = (cls) => t(`hawkStar.starClass.${cls}`, cls)
 
 const stateLabel = (state) => ({
@@ -248,21 +209,6 @@ const stateLabel = (state) => ({
   unknown:      t('hawkStar.solar.unknown'),
   uninhabitable:t('hawkStar.solar.uninhabitable'),
 })[state] ?? state
-
-const planetIcon = (planet) => {
-  const state = effectivePlanetState(planet)
-  if (state === 'colonizing') return '🚀'
-  if (state === 'scanning')   return '🛸'
-  if (state === 'unknown')    return '❓'
-  return planetTypeIcon(planet.type)
-}
-
-const markerClass = (planet) => [
-  `hs-pl--${effectivePlanetState(planet)}`,
-  isHomePlanet(planet) ? 'hs-pl--home' : '',
-  selectedPlanetId.value === planet.id ? 'hs-pl--selected' : '',
-  planet.id === activePlanetId.value ? 'hs-pl--active' : '',
-]
 
 const hasCommandCenter = (planetId) =>
   (allPlanetStates.value[planetId]?.buildings?.command_center?.level ?? 0) >= 1
@@ -484,26 +430,11 @@ watch(ownPlanetIds, loadOwnPlanetStates)
           >
             <div class="hs-solar-slot">
               <div class="hs-solar-counter">
-                <button
-                  class="hs-pl"
-                  :class="markerClass(planet)"
-                  :aria-label="planet.name"
-                  @click="toggleSelect(planet, { reveal: true })"
-                >
-                  <span
-                    v-if="hasPlanetState(planet.id) && shieldAuraStyle(planet.id)"
-                    class="hs-pl__shield"
-                    :style="shieldAuraStyle(planet.id)"
-                  />
-                  <span
-                    v-if="hasPlanetState(planet.id) && batteryRingStyle(planet.id)"
-                    class="hs-pl__battery"
-                    :class="{ 'hs-pl__battery--down': gridDownOn(planet.id) }"
-                    :style="batteryRingStyle(planet.id)"
-                  />
-                  <span class="hs-pl__glyph">{{ planetIcon(planet) }}</span>
-                  <span v-if="isHomePlanet(planet)" class="hs-pl__home">🏠</span>
-                </button>
+                <HsPlanetMarker
+                  :planet="planet"
+                  :selected="planet.id === selectedPlanetId"
+                  @select="toggleSelect(planet, { reveal: true })"
+                />
 
                 <span
                   class="hs-pl__label"
@@ -590,12 +521,16 @@ watch(ownPlanetIds, loadOwnPlanetStates)
                     :style="{ color: stateColor(effectivePlanetState(planet)) }"
                   >{{ stateLabel(effectivePlanetState(planet)) }}</span>
                 </span>
-                <span v-if="isHomePlanet(planet)" class="hs-plist__flag" :title="t('hawkStar.solar.home')">🏠</span>
+                <!-- Both were a single emoji at 0.7 rem: too small to read and
+                     too vague to guess. They say what they mean now. -->
+                <span
+                  v-if="isHomePlanet(planet)"
+                  class="hs-chip hs-chip--home hs-plist__flag"
+                >{{ t('hawkStar.solar.homeBase') }}</span>
                 <span
                   v-else-if="planet.id === activePlanetId"
-                  class="hs-plist__flag"
-                  :title="t('hawkStar.solar.currentLocation')"
-                >📍</span>
+                  class="hs-chip hs-chip--here hs-plist__flag"
+                >{{ t('hawkStar.solar.youAreHere') }}</span>
                 <span
                   v-if="missionOn(planet.id)"
                   class="hs-plist__mission"
@@ -625,7 +560,7 @@ watch(ownPlanetIds, loadOwnPlanetStates)
                   <span
                     v-if="batteryPct(planet.id) !== null"
                     class="hs-chip hs-chip--meter"
-                    :class="`hs-chip--battery-${batteryLevel(planet.id)}`"
+                    :class="`hs-chip--battery-${batteryLevelOf(planet.id)}`"
                   >{{ gridDownOn(planet.id) ? '⚠️' : '🔋' }} {{ batteryPct(planet.id) }}%</span>
                   <span
                     v-if="shieldPct(planet.id) !== null"
@@ -1021,96 +956,10 @@ watch(ownPlanetIds, loadOwnPlanetStates)
 }
 
 // ── Planet marker ────────────────────────────────────────────────────────────
-.hs-pl {
-  position: absolute;
-  inset: 0;
-  overflow: visible;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(10,12,24,0.92);
-  cursor: pointer;
-  pointer-events: auto;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-
-  &:hover { transform: scale(1.14); }
-
-  &--own          { border-color: rgba(96,165,250,0.65);  box-shadow: 0 0 10px rgba(96,165,250,0.18); }
-  &--enemy        { border-color: rgba(248,113,113,0.65); box-shadow: 0 0 10px rgba(248,113,113,0.15); }
-  &--ally         { border-color: rgba(52,211,153,0.6); }
-  &--uncolonized  { border-color: rgba(255,255,255,0.28); }
-  &--unknown      { border-color: rgba(255,255,255,0.1);  background: rgba(10,12,24,0.7); }
-  &--scanning     { border-color: rgba(251,191,36,0.7);   box-shadow: 0 0 10px rgba(251,191,36,0.2); }
-  &--colonizing   { border-color: rgba(96,165,250,0.6); }
-  &--uninhabitable{ border-color: rgba(75,75,75,0.5);     opacity: 0.55; }
-
-  // The home base is an "own" planet like every colony, so blue alone cannot
-  // tell them apart — it gets the brighter ring plus the 🏠 corner badge.
-  &--home {
-    border-color: rgba(147,197,253,0.95);
-    box-shadow: 0 0 16px rgba(96,165,250,0.35);
-  }
-
-  &--selected {
-    transform: scale(1.16);
-    border-color: var(--hs-active-border);
-    box-shadow: 0 0 0 2px var(--hs-active-border), 0 0 22px var(--hs-active-glow);
-
-    &:hover { transform: scale(1.2); }
-  }
-}
-
-.hs-pl__glyph {
-  position: relative;
-  z-index: 1;
-  font-size: 0.95rem;
-  line-height: 1;
-
-  @media (min-width: 640px) { font-size: 1.2rem; }
-}
-
-.hs-pl__home {
-  position: absolute;
-  top: -3px;
-  right: -5px;
-  z-index: 2;
-  font-size: 0.5rem;
-  line-height: 1;
-  pointer-events: none;
-}
-
-// The battery is drawn as what it is — a charge ring around the planet. The
-// mask cuts the conic gradient down to a 3 px band at the outer edge.
-.hs-pl__battery {
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  pointer-events: none;
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-          mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-
-  // A blackout stops the whole planet — the one meter worth shouting about.
-  &--down { animation: hs-meter-pulse 1.5s ease-in-out infinite; }
-}
-
-@keyframes hs-meter-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.3; }
-}
-
-// The shield is the bubble around the planet; its opacity is the charge, so a
-// planet without one simply looks bare instead of wearing an empty ring.
-.hs-pl__shield {
-  position: absolute;
-  inset: -9px;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  pointer-events: none;
-  transition: background 0.4s ease, border-color 0.4s ease;
-}
+// The disc itself lives in HsPlanetMarker.vue — it is drawn identically here and
+// in the switcher strip over the planet grid. What stays here is what only the
+// orbit map has: the label and the inbound-mission badge, both positioned
+// against the counter-rotating box rather than against the planet.
 
 // Roman numeral only — the full name is in the list beside the map, and
 // anything longer would collide with the neighbouring orbit.
@@ -1224,7 +1073,9 @@ watch(ownPlanetIds, loadOwnPlanetStates)
 
 .hs-plist__state { font-size: 0.55rem; font-weight: 600; }
 
-.hs-plist__flag { font-size: 0.7rem; line-height: 1; flex-shrink: 0; }
+// The chip carries its own look; the row only decides that it must not be the
+// thing that gives way when the name is long.
+.hs-plist__flag { flex-shrink: 0; }
 
 .hs-plist__mission {
   flex-shrink: 0;
@@ -1399,26 +1250,8 @@ watch(ownPlanetIds, loadOwnPlanetStates)
   gap: 0.28rem;
 }
 
-.hs-chip {
-  font-size: 0.55rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--hs-glass-lg);
-  border: 1px solid rgba(255,255,255,0.07);
-  color: rgba(255,255,255,0.45);
-  white-space: nowrap;
-
-  &--meter { font-variant-numeric: tabular-nums; }
-
-  &--battery-ok    { color: rgba(167,243,208,0.85); }
-  &--battery-low,
-  &--battery-empty { color: rgba(253,230,138,0.9); }
-  &--battery-down  { color: rgba(252,165,165,0.95); border-color: rgba(248,113,113,0.3); }
-  &--shield-ok     { color: rgba(186,230,253,0.85); }
-  &--shield-low    { color: rgba(253,230,138,0.9); }
-  &--shield-empty  { color: rgba(255,255,255,0.3); }
-}
+// .hs-chip lives in hawk-star.scss — the strip over the planet grid labels the
+// same planets with the same chips, so it cannot be scoped to this screen.
 
 .hs-plist__hint {
   font-size: 0.58rem;

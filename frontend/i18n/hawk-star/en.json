@@ -228,6 +228,8 @@
       "uninhabitable": "Uninhabitable",
       "planetCount": "{num} planets",
       "currentLocation": "Current location",
+      "homeBase": "HOME",
+      "youAreHere": "YOU ARE HERE",
       "hangarTitle": "Hangar",
       "pickTarget": "Pick a target in the list",
       "departsHere": "Departs from here",

@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TILE_TYPES, BUILDINGS } from '~/utils/hawkStarConfig.js'
-import { useHawkStar } from '~/composables/useHawkStar.js'
+import { useHawkStar, refreshPlanetState } from '~/composables/useHawkStar.js'
+import HsPlanetMarker from '~/components/hawk-star/HsPlanetMarker.vue'
 
 const props = defineProps({
   activePanel: { type: String, default: null },
@@ -31,6 +32,14 @@ const {
   shieldCharge,
   hasAnomaly,
   conversionQueues,
+  homeSystem,
+  starMapLevel,
+  setActivePlanet,
+  effectivePlanetState,
+  getPlanetName,
+  meterLevel,
+  batteryLevelOf,
+  PLANET_TYPES,
 } = useHawkStar()
 
 // A 30-minute conversion was invisible from the grid: the tile holding the
@@ -136,6 +145,100 @@ const dockInfo = computed(() => {
   return { inventory, dots }
 })
 
+// ── The planet strip ──────────────────────────────────────────────────────────
+// A row of the system's planets over the grid, so switching colonies costs one
+// tap instead of a trip through the Solar System view and back. It is the same
+// marker the orbit map draws — same disc, same battery ring, same shield bubble
+// — because a colony in blackout has to look the same wherever you meet it.
+//
+// Gated on Star Map Lv1, the same research that opens the Solar System view:
+// before that you have not surveyed the system and the other planets are not
+// yours to know about, so the strip is just a nameplate for where you are.
+// After it, the strip is the system, and the empire is at most four planets —
+// which is why this can be a row and not a menu.
+const stripPlanets = computed(() => {
+  const all = homeSystem.value?.planets ?? []
+  if (starMapLevel.value >= 1) return all
+  const here = all.find(p => p.id === activePlanetId.value)
+  return here ? [here] : []
+})
+
+// Only a planet you hold is somewhere to *go*. The rest still show — a free
+// world you have scanned is worth seeing from here — but they are pictures.
+const canSwitchTo = (planet) => effectivePlanetState(planet) === 'own'
+
+// ── What the strip is pointing at ─────────────────────────────────────────────
+// The row is discs and nothing else — four names side by side in this width
+// would each be three letters and tell you nothing. The planet you are standing
+// on gets a line of its own underneath instead, with room for a readable name
+// and the same chips the Solar System's planet list prints under an open row.
+//
+// This is also where the marker's own decorations went. HOME BASE is a word
+// here rather than a 🏠 the size of a full stop, and the battery is a number
+// rather than a ring — both were unreadable at strip size, and drawing them in
+// two places at once made the smaller copy the one you had to squint at.
+const activePlanet = computed(() =>
+  (homeSystem.value?.planets ?? []).find(p => p.id === activePlanetId.value) ?? null
+)
+
+const activePlanetName = computed(() =>
+  allPlanetStates.value[activePlanetId.value]
+    ? getPlanetName(activePlanetId.value)
+    : (activePlanet.value?.name ?? '—')
+)
+
+// Facts about where you are standing, in the order you would ask for them: who
+// it is to you, what kind of world, how much room, and then the two meters that
+// decide whether it is working at all. Built as a list rather than as markup so
+// the row can stay one v-for and the order lives in one place — and kept short,
+// because it has to fit beside the name on one line at the grid's width.
+const activePlanetChips = computed(() => {
+  const chips = []
+  const planet = activePlanet.value
+
+  if (isHomePlanet.value) chips.push({ key: 'home', cls: 'hs-chip--home', text: t('hawkStar.solar.homeBase') })
+
+  if (planetType.value) {
+    chips.push({ key: 'type', text: `${PLANET_TYPES[planetType.value]?.icon ?? '🪐'} ${planetType.value}` })
+  }
+  if (planet?.slots != null) {
+    chips.push({ key: 'slots', text: `${planet.slots} ${t('hawkStar.solar.slots')}` })
+  }
+  // No 🛠 Dock chip here, unlike the Solar System's list. This row has one line
+  // to work with, and the dock is the least urgent thing on it — the dock tile
+  // is right there on the grid underneath, three rows down.
+
+  // A planet with no power plant has no battery to report — that is not the
+  // same as a flat one, so it gets no chip rather than a 0 %.
+  const bat = batteryCharge.value
+  if (bat != null) {
+    chips.push({
+      key:  'battery',
+      cls:  `hs-chip--meter hs-chip--battery-${batteryLevelOf(activePlanetId.value)}`,
+      text: `${gridDown.value ? '⚠️' : '🔋'} ${Math.round(bat)}%`,
+    })
+  }
+  const shd = shieldCharge.value
+  if (shd != null) {
+    chips.push({
+      key:  'shield',
+      cls:  `hs-chip--meter hs-chip--shield-${meterLevel(Math.round(shd))}`,
+      text: `🛡️ ${Math.round(shd)}%`,
+    })
+  }
+  return chips
+})
+
+// A colony the game has not loaded yet has no slots, no resources and no grid
+// to draw — pull it in first, exactly as the Solar System view does, or the
+// switch lands on an empty planet.
+const goToPlanet = async (planet) => {
+  if (!canSwitchTo(planet) || planet.id === activePlanetId.value) return
+  if (!allPlanetStates.value[planet.id]) await refreshPlanetState(planet.id)
+  setActivePlanet(planet.id)
+  emit('update:activePanel', null)
+}
+
 // ── Unified selection ─────────────────────────────────────────────────────────
 const togglePanel = (panel) => {
   activeSlot.value = null
@@ -151,17 +254,56 @@ const onSelectSlot = (slot) => {
 <template>
   <div class="hs-planet-wrap">
 
-    <!-- The player is not a parcel of land — the crest sits above the surface
-         rather than inside it, which also leaves the grid a clean 3 × 4. -->
-    <div
-      class="hs-tile hs-tile--profile"
-      :class="{ 'hs-tile--active': activePanel === 'profile', 'hs-tile--unlocked': activePanel !== 'profile' }"
-      @click="togglePanel('profile')"
-    >
-      <div class="hs-tile-main hs-tile-main--profile">
+    <!-- The header band: who you are, and where in the system you are standing.
+         Neither is a parcel of land, so both sit above the surface rather than
+         inside it — which also leaves the grid a clean 3 × 4. -->
+    <div class="hs-planet-head">
+      <!-- The crest: portrait over name. The name used to set this tile's width
+           and pushed the planets out of the row — it is under the avatar now, in
+           whatever the tile has left, clipped with an ellipsis. Enough to
+           recognise your own name by, never enough to steal the row. The full
+           string stays on the tooltip and in the profile panel. -->
+      <div
+        class="hs-tile hs-tile--profile"
+        :class="{ 'hs-tile--active': activePanel === 'profile', 'hs-tile--unlocked': activePanel !== 'profile' }"
+        :title="playerName || '—'"
+        :aria-label="playerName || '—'"
+        @click="togglePanel('profile')"
+      >
         <span class="hs-tile-icon">{{ playerPortrait }}</span>
-        <div class="hs-tile-profile-info">
-          <span class="hs-tile-label">{{ playerName || '—' }}</span>
+        <span class="hs-tile-user">{{ playerName || '—' }}</span>
+      </div>
+
+      <div v-if="stripPlanets.length" class="hs-strip">
+        <!-- Discs only. The badge and the charge ring the orbit map draws on
+             them are switched off here — the line underneath says both, in
+             words and in numbers. -->
+        <div class="hs-strip__row">
+          <!-- The slot takes the equal share, the disc keeps its own size inside
+               it. Sizing the marker itself with `flex: 1 1 0` would let the flex
+               algorithm override its width and stretch a circle into an ellipse. -->
+          <div v-for="planet in stripPlanets" :key="planet.id" class="hs-strip__slot">
+            <HsPlanetMarker
+              :planet="planet"
+              :selected="planet.id === activePlanetId"
+              :disabled="!canSwitchTo(planet) || planet.id === activePlanetId"
+              :battery="false"
+              @select="goToPlanet(planet)"
+            />
+          </div>
+        </div>
+
+        <!-- Where you are standing, named and tagged. -->
+        <div class="hs-strip__detail">
+          <span class="hs-strip__name">{{ activePlanetName }}</span>
+          <div class="hs-strip__chips">
+            <span
+              v-for="chip in activePlanetChips"
+              :key="chip.key"
+              class="hs-chip"
+              :class="chip.cls"
+            >{{ chip.text }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -260,11 +402,20 @@ const onSelectSlot = (slot) => {
 
 <style lang="scss" scoped>
 .hs-planet-wrap {
+  // The ground's width, declared once. The header band and the grid are one
+  // column and have to end on the same line — hard-coding 336 px in two places
+  // is how they drift apart the next time the tile raster is retuned.
+  --hs-ground-w: 100%;
+
+  // Left alone at `stretch`: an item with an explicit cross-size is not stretched
+  // and lands at the start anyway, and `flex-start` here would make the column
+  // shrink-to-fit — which the children's `width: 100%` on a phone resolves against.
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 
   @media (min-width: 640px) {
+    --hs-ground-w: 336px;
     flex-shrink: 0;
   }
 }
@@ -289,7 +440,7 @@ const onSelectSlot = (slot) => {
   grid-template-columns: repeat(3, 1fr);
   gap: 0.4rem;
   padding: 0.45rem;
-  width: 100%;
+  width: var(--hs-ground-w);
   border-radius: var(--hs-r-lg);
   border: 1px solid rgba(var(--accent), 0.14);
   background:
@@ -303,7 +454,6 @@ const onSelectSlot = (slot) => {
   box-shadow: inset 0 0 40px rgba(0,0,0,0.45);
 
   @media (min-width: 640px) {
-    width: 336px;
     gap: 0.45rem;
     padding: 0.5rem;
   }
@@ -442,18 +592,135 @@ const onSelectSlot = (slot) => {
 .hs-tile-bar--shield-low   .hs-tile-bar__pct { color: rgba(253, 230, 138, 0.85); }
 .hs-tile-bar--shield-empty .hs-tile-bar__pct { color: rgba(252, 165, 165, 0.9); }
 
-// The crest — a player badge above the ground, not a parcel in it, so it reads
-// as a bar rather than a square cell.
-.hs-tile--profile {
-  justify-content: flex-start;
-  padding: 0.4rem 0.6rem;
+// ── Header band ──────────────────────────────────────────────────────────────
+// Crest on the left, the system's planets filling the rest. Two things that are
+// about the player and the position rather than about the ground, so they share
+// one bar above it.
+.hs-planet-head {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: var(--hs-ground-w);
+  min-width: 0;
 }
 
-.hs-tile-main--profile {
+// The crest — a player badge above the ground, not a parcel in it. Narrow and
+// square now: it is an icon that opens a panel, and the strip beside it needs
+// every pixel this row can give it.
+.hs-tile--profile {
+  flex: none;
+  width: 2.6rem;
+  // Overrides .hs-tile's row: portrait on top, name under it.
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0.3rem 0.2rem;
+
+  @media (min-width: 640px) { width: 2.9rem; }
+}
+
+// Deliberately tiny and deliberately clipped. The tile is fixed at the width
+// that keeps the planet strip beside it usable, so the name gets whatever is
+// left and an ellipsis for the rest — `min-width: 0` is what lets it shrink
+// inside the flex column at all, without which it would push the tile wider.
+.hs-tile-user {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.42rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.55);
+
+  @media (min-width: 640px) { font-size: 0.46rem; }
+}
+
+// ── The planet strip ─────────────────────────────────────────────────────────
+// Same frame as the Solar System's header band, because it says the same kind of
+// thing: this is the system you are in. Two stacked parts — the discs you can
+// travel between, and a line naming the one you are on.
+.hs-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: var(--hs-r-md);
+  background: var(--hs-glass-sm);
+  border: 1px solid var(--hs-line-lg);
+}
+
+// Equal shares rather than content width, so the discs sit on a fixed rhythm and
+// the row never reflows as planets are revealed.
+.hs-strip__row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.hs-strip__slot {
+  --hs-pl-size: 1.85rem;
+
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+
+  @media (min-width: 640px) { --hs-pl-size: 2.1rem; }
+}
+
+// ── Where you are standing ───────────────────────────────────────────────────
+.hs-strip__detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+  min-width: 0;
+}
+
+.hs-strip__name {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(196,181,253,0.95);
+}
+
+// Same shape as .hs-plist__chips on the Solar System screen — it is the same
+// row of facts about the same planet, so it wraps the same way rather than
+// scrolling or clipping.
+.hs-strip__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+// One planet is a nameplate, not a choice: before Star Map Lv1 the lone disc
+// sits next to its name instead of centred over a row it does not fill.
+.hs-strip:has(.hs-strip__slot:only-child) {
   flex-direction: row;
   align-items: center;
-  justify-content: flex-start;
   gap: 0.5rem;
+}
+.hs-strip:has(.hs-strip__slot:only-child) .hs-strip__slot {
+  flex: none;
+}
+.hs-strip:has(.hs-strip__slot:only-child) .hs-strip__detail {
+  flex: 1 1 auto;
 }
 
 .hs-tile-main {
@@ -462,24 +729,6 @@ const onSelectSlot = (slot) => {
   align-items: center;
   gap: 2px;
   flex: 1;
-}
-
-.hs-tile-profile-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.hs-tile-profile-disp {
-  font-size: 0.52rem;
-  font-weight: 600;
-  white-space: nowrap;
-  text-transform: capitalize;
-
-  &--friendly { color: #34d399; }
-  &--neutral  { color: #94a3b8; }
-  &--hostile  { color: #f87171; }
 }
 
 .hs-tile-icon  { font-size: 1.25rem; line-height: 1; }

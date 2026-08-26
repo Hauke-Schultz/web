@@ -165,9 +165,71 @@ Two steps are deliberately counted rather than measured, so an achievement canno
 
 ## Planet Grid
 
-`HsPlanetGrid` renders a 5×3 tile grid. Row 1 is the **profile tile**, spanning the full width; rows 2–5 contain the twelve **planet building slots**.
+`HsPlanetGrid` renders a header band over a 4×3 tile grid. The band carries the **crest** and the **planet strip**; the grid below it holds the twelve **planet building slots**.
 
 **The planet-info and activity tiles came out** *(2026-08-26)*, and with them `inProgressCount`, `doneCount` and the `hs-notif-badge` styles. The profile tile left the grid at the same time and now sits above it as a **crest**: the player is not a parcel of land, and moving it out leaves the grid a clean 3 × 4 instead of a row that has to be spanned around.
+
+### The header band: crest + planet strip  *(2026-08-26)*
+
+The crest used to be a full-width bar carrying the portrait and the player's name. The name was the widest thing in the row and the least useful — you know who you are. The bar is now split:
+
+```
+[👤 ][  🌍   🌋   🧊   🌊                       ]
+[Hau…][ Prime [HOME][🌍 terrestrial][12 Felder][🔋 84%] ]
+ └───────────── same width as .hs-grid ────────────┘
+```
+
+- **Left: the crest — portrait over name.** `hs-tile--profile` is a narrow fixed-width column (2.6 rem, 2.9 rem from 640 px up) that still opens the profile panel. The name used to *set* this tile's width and pushed the planets out of the row; it now sits under the avatar at 0.42 rem in whatever width is left, **clipped with an ellipsis** — enough to recognise your own name by, never enough to steal the row. The full string stays on the `title`/`aria-label` and in the profile panel. `min-width: 0` on `.hs-tile-user` is what lets it shrink inside the flex column at all; `max-width: 100%` is what caps it against `align-items: center`, which would otherwise size it to its content and let it overflow instead of ellipsing.
+- **Right: `.hs-strip`**, two stacked parts. `__row` is every planet of the home system as markers in orbit order, framed like the Solar System's own header band because it says the same kind of thing: *this is the system you are in*. `__detail` names the planet you are standing on and tags it with the same chips `hs-plist__chips` prints under an open row on the Solar System screen.
+
+**Gated on Star Map Lv1** — the same research that opens the Solar System view. Before it you have not surveyed the system, so the strip holds only the planet you are standing on and turns itself sideways into a nameplate (`:has(.hs-strip__slot:only-child)`) rather than centring a lone disc over a row it does not fill.
+
+### The row is discs, the line underneath is words  *(2026-08-26)*
+
+The first cut printed a three-letter name under each marker and drew the orbit map's 🏠 badge and battery ring on all of them. Every one of those is a *smaller, less legible copy* of something the detail line can say properly:
+
+| On the marker | In the detail line |
+|---|---|
+| 🏠 at 0.5 rem, in the corner | `HOME` chip |
+| battery as a 3 px charge ring | `🔋 84%`, coloured by band |
+| name clipped to ~4 characters | the full name at 0.72 rem |
+
+So the strip passes `:battery="false"` and the markers are clean discs. The chip row is built as `activePlanetChips` — a list, not markup — so the order of the facts (*who it is to you · what kind of world · how much room · then the two meters*) lives in one place.
+
+**The 🏠 badge is gone from the orbit map too** *(2026-08-26)*. Once the strip stopped drawing it, the only thing left holding it up was `hs-solar-slot`, where it sat in the marker's corner at 0.5 rem — half the size of the glyph it was pinned to, and unreadable at exactly the moment it was supposed to help. Both screens now name the home planet in words (the `HOME` chip in the planet list and in the strip), so the marker keeps only `hs-pl--home`: **the brighter blue ring is the whole distinction on the disc itself.** With no caller left wanting one, the `homeBadge` prop, the `<span class="hs-pl__home">` and its rule came out rather than staying as a switch nobody flips.
+
+**The line has a width budget, and it is the grid's.** `--hs-ground-w` is declared once on `.hs-planet-wrap` (100 % on a phone, 336 px from 640 px up) and used by both `.hs-planet-head` and `.hs-grid`, so the band ends exactly where the ground does instead of running past it on a wide screen. That budget is why the chip row is shorter than the planet list's: **no `🛠 Dock` chip** — it is the least urgent fact on the line, and the dock tile is on the grid three rows below. It is also why the badge reads `HOME` and not `HOME BASE`.
+
+**`--selected` is deliberately restrained.** A 2 px halo plus a 22 px glow on a disc scaled to 1.16 is fine on the orbit map, where a marker has a whole orbit to itself; in the strip four of them sit a few pixels apart and the selected one pushed its neighbours around. It is a 1 px ring, a 10 px glow and `scale(1.06)` now — against the unselected border that is enough contrast to find it, and the lift only has to say *this one is in front*.
+
+**One thing this gives up:** the charge ring was the at-a-glance "which colony is dark" signal for planets you are *not* on, and the strip no longer shows it. The shield bubble stayed (it is a soft aura, not a competing readout), and the Empire board is still the screen that answers that question for every planet at once.
+
+Three things worth keeping:
+
+- **The slot wrapper is not decoration.** `flex: 1 1 0` belongs on `.hs-strip__slot`, never on the marker: the flex algorithm overrides `width` on a flex item, so sizing the disc that way stretches a `border-radius: 50%` circle into an ellipse.
+- **Planets you do not own render but do not respond.** A scanned free world is worth seeing from here; a disc that lifts under the cursor would promise a switch that cannot happen, so `canSwitchTo()` passes `disabled` to the marker.
+- **Switching loads the planet first.** `goToPlanet()` awaits `refreshPlanetState()` for a colony the game has not fetched yet, exactly as the Solar System view does — otherwise the switch lands on a planet with no slots and no resources.
+
+### `.hs-chip` is shared vocabulary now  *(2026-08-26)*
+
+It moved out of `HsSolarSystem`'s scoped block into **`hawk-star.scss`**, which the page `@use`s unscoped — the planet list and the strip label the same planets, and a chip that read differently on the two screens would make them look like two different facts.
+
+Two modifiers came with the move: `--home` (blue) and `--here` (indigo). **`hs-plist__flag` used to be a bare 🏠 / 📍 at 0.7 rem** — too small to read and too vague to guess at, with the meaning hidden in a `title`. Both are chips now, `HOME BASE` and `STANDORT`, and `.hs-plist__flag` is down to `flex-shrink: 0`: the chip carries its own look, the row only decides it must not be what gives way when the name is long.
+
+`hawkStar.solar.currentLocation` stayed prose — it also ends the hint line *"📍 Aktueller Standort"* under an open row, where an all-caps badge label would read as shouting. The chip got its own key, `youAreHere`.
+
+#### `HsPlanetMarker` — one planet, drawn once  *(2026-08-26)*
+
+The strip needed the orbit map's marker, and the marker was 130 lines of markup and CSS inside `HsSolarSystem`. It is now its own component: the disc, the type glyph, the 🏠 badge, the **battery charge ring** and the **shield bubble** — everything true of the body itself, nothing about where it is drawn. The orbit map hangs it on a rotating box; the strip lines four of them up in a row.
+
+- **It reads its own state from the composable** rather than taking a dozen props. Two callers passing eight props each is how the map ends up showing a charge the strip does not. The parent supplies only `planet`, `selected` and `disabled` — the facts the parent alone knows.
+- **`effectivePlanetState()` and `planetIcon()` moved into `useHawkStar.js`.** They answer "own, or free, or a question mark", which is a property of what *we know*, not of the planet — and three views ask it now (marker, planet list, strip). Two copies of that is how a colony ends up owned on one screen and unknown on the other.
+- **Size comes from `--hs-pl-size`, inherited**, defaulting to `100%` so the orbit map keeps sizing it through the box it hangs on. The strip sets the property on the slot and can therefore change it in a media query instead of threading a length through as a prop.
+- **`battery` can be switched off.** Defaults true; only the strip turns it off, because on the orbit map a marker is alone with its planet and has room for a charge ring. It is the last such flag — the `homeBadge` twin went when the 🏠 did.
+- **`meterLevel()` and `batteryLevelOf()` live in `useHawkStar.js`.** Four places colour something by the same three bands (`empty` / `low` / `ok`, plus `down` for a battery in blackout); written once, a battery at 19 % is "low" everywhere or nowhere.
+- **The meter *numbers* stayed in `HsSolarSystem`.** The list states them as plain chips; only the painting moved.
+
+One trap this hit: a disabled marker must not lose the state it is showing. `:disabled { &:hover { transform: none } }` outranks `--selected`'s own `scale(1.16)`, so the planet you are standing on shrank under the cursor. The hover growth is written `&:hover:not(:disabled)` instead.
 
 ### The grid is the planet's surface  *(2026-08-26)*
 
@@ -337,6 +399,21 @@ Resources are defined in `RESOURCES` (`hawkStarConfig.js`).
 | **Population** | Workforce — workers are assigned to buildings via `staffDrain` |
 | **Energy** | Utility — not stockpiled, must balance production vs. drain |
 
+### A building under upgrade keeps working  *(fixed 2026-08-26)*
+
+Upgrading a mine used to stop it. `completed_building_levels()` selected `level>0 AND build_ends_at IS NULL`, so for the whole duration of an upgrade the row simply vanished from the server's view of the planet — no production, no energy output, no storage cap. The client never agreed: `grossProduction` and `maxStorage` in `useHawkStar.js` read `state.level` and do not care whether a timer is running, so `resourceDisplay()` kept counting up. Then `tick()` pulls fresh resources on every wall-clock minute boundary and `Object.assign`s them over the local ones — and the number dropped back to where it had been a minute earlier. Every minute, for the length of the upgrade. It looked like the tick was broken; it was the server paying out zero.
+
+The rule now, on both sides:
+
+| Question | Level used | Server |
+|---|---|---|
+| What does it **produce** (resources, energy, storage cap)? | the level standing **today** | `standing_building_levels()` |
+| What does it **cost** (energy drain, workers)? | the level being **built** | `effective_building_levels()` |
+
+A Lv3 mine upgrading to Lv4 is a working Lv3 mine that already draws Lv4's power and crew — the same split `effectiveLevel()` has always made on the client, so the two now reserve the same amount. `canBuild()` refuses any build that would push the energy balance negative, so charging the new drain up front can never brown out a planet on its own. A **first** build (level 0) still produces nothing: a construction site is not a building.
+
+**The books are closed at the moment the upgrade lands.** `resolve_timers()` runs before `compute_resources()`, so a finished build used to have its new level applied to the *entire* elapsed stretch — start a 24 h mine upgrade, come back when it is done, and 24 h of Lv3 work paid out at Lv4. `resolve_buildings()` now walks the finished builds oldest-first and calls `accrue_resources($db, $planetId, $playerId, $endsTs)` before each level bump, so each stretch is paid at the rate that actually held for it. `compute_resources()` is now a thin wrapper around `accrue_resources()` with no cutoff.
+
 ### Planet-Specific (raw)
 
 Each planet type produces one exclusive raw resource from its High-Tech tile:
@@ -466,6 +543,13 @@ Every `power_plant` has a battery (0–100 %) that slowly drains over time, inde
 - **The lever warns before it trips.** Past 60 % of the speed limit the knob goes amber (`--strained`); over it, red plus a shake plus sparks, and the knob springs back to OFF. Letting go halfway is not a failure — the spring simply takes it back.
 - **It cannot be pushed back and re-run:** the knob keeps the furthest point it has reached (`Math.max`), because it is a lever, not a slider.
 - **Throwing it over calls the same `chargeBattery()`**, which lifts the blackout at +10 % — so the breaker *is* the first charge, not an extra step before one. The panel loses the breaker as soon as `gridDown` clears, and the cell takes over.
+
+**The lever is sized to be grabbed  *(2026-08-26)*.** It was a 24 px disc on a 24 px rail — under the ~44 px a thumb can reliably hit, so on a phone it was a pinch rather than a pull, and on a desktop it read as a scrollbar nub. The handle is now `--hs-bat-lever`: **2.75 rem** (44 px), 3 rem from 640 px up, with the rail half a rem taller than the handle. One custom property drives all three of the handle's size, the rail's height and the travel inset, so it can be retuned in one place. The label moved above the rail (the breaker is a column now) — that hands the whole panel width to the throw, which matters because a longer rail makes the speed limit *easier* to stay under, not harder.
+
+Two details the size forced:
+
+- **The travel is inset by half a handle at each end**, in `left: calc(...)` and in `knobFrac()` alike. Mapping the raw rail width was invisible at 24 px; at 44 px the grip would trail the thumb by 22 px at each end, and half of it would hang off the rail.
+- **The handle got a face** — rim light, seated shadow, knurling — because a flat disc that big reads as painted on rather than as something to take hold of. It also scales to 1.06 while held, so it gives under the thumb.
 
 Both mechanics use pointer events with pointer capture, so mouse and touch are one code path.
 
