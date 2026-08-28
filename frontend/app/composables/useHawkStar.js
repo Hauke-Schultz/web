@@ -2061,6 +2061,10 @@ const tick = () => {
         const m = dock.activeDroneMissions[i]
         if (m.endsAt <= now.value) {
           if (!playerScannedPlanets.value.includes(m.planetId)) playerScannedPlanets.value.push(m.planetId)
+          // The type and the occupancy of a home-system world are the server's to
+          // hand out, and it only does so once the flight is over — so the galaxy
+          // has to be pulled again, exactly like a landed spy drone below.
+          reloadGalaxy().catch(() => {})
           const tgt = homeSystem.value?.planets.find(p => p.id === m.planetId)?.name ?? m.planetId
           notifications.value.push({ id: `notif_${Date.now()}_msn_${pid}_drone_${m.planetId}`, type: 'mission_done', icon: '🛸', planetId: pid, planetName: pstate.planetName, labelKey: 'hawkStar.notifications.droneReturned', details: `→ ${tgt}`, timestamp: Date.now() })
           dock.activeDroneMissions.splice(i, 1)

@@ -298,7 +298,7 @@
       "raidLogLootLost": "Lost:",
       "raidLogNoLoot": "nothing taken",
       "satelliteHint": "Place a satellite in orbit — keeps the finding current and measures the shield until it is shot down (surveyed planets only)",
-      "typeUnknown": "Planet type unknown — a spy drone finds it out",
+      "typeUnknown": "Planet type unknown — a drone has to fly out there first",
       "shieldNone": "No shield generator",
       "shieldUp": "Shield up — {n} %",
       "shieldDown": "Shield generator present, but empty",
@@ -357,7 +357,8 @@
       "name":       "Name",
       "friendly":   "Friendly",
       "neutral":    "Neutral",
-      "hostile":    "Hostile"
+      "hostile":    "Hostile",
+      "language":   "Interface language — saved to your profile"
     },
 
     "panel": {

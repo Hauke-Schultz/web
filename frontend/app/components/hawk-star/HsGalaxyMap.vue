@@ -198,10 +198,11 @@ const intelLabel = (planet) => {
 }
 
 // ── What a survey reports ─────────────────────────────────────────────────────
-// The planet type comes with the drone's finding — `type` is null until then.
-// A greyed generic world marks that gap, the same way a missing shield does on
-// the solar map: a hole in the row would say nothing at all.
-const typeIcon  = (planet) => planet.type ? (PLANET_TYPES[planet.type]?.icon ?? '🪐') : '🪐'
+// The planet type comes with the drone's finding — `type` is null until then,
+// in your own system just as much as in a foreign one. An unsurveyed world is a
+// ❓, the same glyph the solar map draws for it: a generic 🪐 read as a type of
+// its own and made every list look fully surveyed at a glance.
+const typeIcon  = (planet) => planet.type ? (PLANET_TYPES[planet.type]?.icon ?? '🪐') : '❓'
 const typeTitle = (planet) => planet.type
   ? t(`hawkStar.planetTypes.${planet.type}.name`)
   : t('hawkStar.galaxy.typeUnknown')
@@ -1002,8 +1003,8 @@ const tileClass = (sys) => {
   color: rgba(255,255,255,0.75);
 }
 
-// An emoji ignores `color`, so an unsurveyed world is greyed with a filter —
-// same trick as the missing shield icon on the solar map.
+// The ❓ is a statement, not a placeholder, so it stays readable — the greyed-out
+// treatment of a missing shield would push it under the row it belongs to.
 .hs-planet-type {
   font-size: 0.7rem;
   line-height: 1;
@@ -1011,7 +1012,7 @@ const tileClass = (sys) => {
 
   &--unknown {
     filter: grayscale(1);
-    opacity: 0.35;
+    opacity: 0.6;
   }
 }
 

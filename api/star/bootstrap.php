@@ -316,6 +316,25 @@ function free_workers(PDO $db, int $planetId, int $playerId): float {
     return $population - $drain;
 }
 
+// ── Player profile: UI language ──────────────────────────────────────────────
+// `hs_players` predates the setting, so the column is added at runtime like
+// every other late arrival. Probed on its own, per the ensure_spy_intel_table()
+// note: one column, one probe, one ALTER.
+function ensure_player_locale(PDO $db): void {
+    static $ready = false;
+    if ($ready) return;
+    $ready = true;
+    try {
+        if (!$db->query("SHOW COLUMNS FROM hs_players LIKE 'locale'")->fetch()) {
+            $db->exec("ALTER TABLE hs_players ADD COLUMN locale ENUM('en','de') NOT NULL DEFAULT 'en'");
+        }
+    } catch (PDOException $e) { /* a read-only DB must not break login */ }
+}
+
+// Every locale the client can be switched to. Kept next to the migration so the
+// ENUM and the whitelist can never drift apart.
+const PLAYER_LOCALES = ['en', 'de'];
+
 // ── Dock units (recon drone / colony ship inventory) ─────────────────────────
 
 function ensure_units_table(PDO $db): void {

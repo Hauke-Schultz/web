@@ -5,7 +5,10 @@ import { useHawkStar } from '~/composables/useHawkStar.js'
 import { useHawkStarAuth } from '~/composables/useHawkStarAuth.js'
 import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
-const { t } = useI18n()
+// `locales` is the list from nuxt.config, so the dropdown can never offer a
+// language the app has no messages for. `setLocale` navigates as well as it
+// switches — the strategy is `prefix_except_default`, so DE lives under /de.
+const { t, locale, locales, setLocale } = useI18n()
 const { playerName, playerPortrait, playerDisposition, salvagePortraits } = useHawkStar()
 const { logout, deleteAccount, saveProfile } = useHawkStarAuth()
 
@@ -47,6 +50,16 @@ const selectDisposition = async (d) => {
   playerDisposition.value = d
   if (await saveProfile({ disposition: d })) flashSaved()
   else playerDisposition.value = prev
+}
+
+// Saved before switched, and only switched if the save went through: the
+// switch is a route change that remounts this panel, so a rejected save would
+// otherwise leave the app speaking a language the profile does not know about.
+const selectLocale = async (code) => {
+  if (!code || code === locale.value) return
+  if (!await saveProfile({ locale: code })) return
+  flashSaved()
+  await setLocale(code)
 }
 
 const saveName = async () => {
@@ -117,6 +130,18 @@ const handleDelete = async () => {
 
     <!-- Account actions -->
     <div class="hs-profile-actions">
+      <!-- The language belongs to the account, so it sits with the account -->
+      <select
+        class="hs-profile-lang"
+        :value="locale"
+        :title="t('hawkStar.profile.language')"
+        :aria-label="t('hawkStar.profile.language')"
+        @change="selectLocale($event.target.value)"
+      >
+        <option v-for="l in locales" :key="l.code" :value="l.code">
+          🌐 {{ l.code.toUpperCase() }}
+        </option>
+      </select>
       <button class="hs-profile-btn hs-profile-btn--logout" @click="logout">
         ↩ Logout
       </button>
@@ -302,6 +327,28 @@ const handleDelete = async () => {
   gap: 0.5rem;
   padding: 0.5rem 0.75rem 0.6rem;
   border-top: 1px solid var(--hs-line-sm);
+}
+
+// Not `flex: 1` like the buttons beside it — a two-letter code needs no room
+// to grow, and letting it stretch would make the language look like the main
+// thing on a row whose other half deletes the account.
+.hs-profile-lang {
+  flex: none;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+  &:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.8); }
+
+  // The dropdown itself is drawn by the OS and inherits nothing from the page,
+  // so light-on-light is the default without this.
+  option { background: #0f172a; color: rgba(255,255,255,0.8); }
 }
 
 .hs-profile-btn {

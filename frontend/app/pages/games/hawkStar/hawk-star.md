@@ -1408,8 +1408,8 @@ Dev cheat **🛰️ Bespitzeln** (`spy_on_me`) plants a satellite from any other
 
 | Field | Sent when |
 |---|---|
-| `planet.owner` | own planet · any planet in your home system · **live satellite** → current owner · otherwise the **stored observation** |
-| `planet.type` | own space · any planet you have surveyed once. `null` before that — the type is bought with the flight, not with the star chart |
+| `planet.owner` | own planet · a **surveyed** planet in your home system · **live satellite** → current owner · otherwise the **stored observation** |
+| `planet.type` | own colony · any planet you have surveyed once, **home system included**. `null` before that — the type is bought with the flight, not with the star chart |
 | `planet.known` | `false` means "not looked at yet", **not** "free" |
 | `planet.intel` | `{ observedAt, live, satelliteSince, shield }` — only for foreign planets you have looked at; null for your own space. `satelliteSince` is when the satellite was **placed**, not when it expires — it does not |
 | `planet.intel.shield` | only once a **satellite** has been there: `{ charge, observedAt, live }`. `charge: null` = no generator · `live: true` = read from the running satellite, so `observedAt` is null |
@@ -1417,6 +1417,10 @@ Dev cheat **🛰️ Bespitzeln** (`spy_on_me`) plants a satellite from any other
 | `system.inhabitants` | only for a **scanned** system: portrait and name of each resident — **no planet count**, and never which planets |
 
 **`known` is a property of the planet, never of whether it is occupied.** An earlier version returned `known: true` for empty foreign planets, which made the hidden ones exactly the occupied ones — the secret would have been readable straight off the list. Unspied means unknown either way, which is also what gives the drone a second use: finding empty planets in someone else's system.
+
+**Your home system is not a free pass either.** `/galaxy` used to mark every planet of the home system as visible, so the galaxy card's planet list printed all six types the moment the game loaded — while the Solar System screen two clicks away still drew the unvisited ones as ❓, because it goes by `playerScannedPlanets`. The endpoint now asks the same question the solar view does: a home-system planet is visible if you own it **or** a recon drone has landed on it (`$surveyed`, built from `hs_missions`). Living in a system buys the *freshness* of a finding, not the finding itself.
+
+Two details that fall out of it: `/galaxy` counts a drone as landed at `ends_at <= NOW()` rather than `status='done'`, because it never runs `resolve_timers()` and the reveal must not wait for the next `state.php`; and the client pulls the galaxy again when a recon mission lands, the same way it does for a spy drone — until then it only knows the planet is scanned, not what is on it.
 
 **The planet count went the same way.** A scan reports *who* lives in a system and nothing else: on a six-planet system "owns 4" is nearly the whole answer, and the point is that every planet costs a flight.
 
@@ -1880,7 +1884,7 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
 | `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |
-| `HsProfilePanel` | Commander profile editor — portrait picker (twenty fixed emoji plus any unlocked by salvage artefacts), editable name (max 12 chars), disposition selector (friendly / neutral / hostile). Shown at the top of the Activity panel. |
+| `HsProfilePanel` | Commander profile editor — portrait picker (twenty fixed emoji plus any unlocked by salvage artefacts), editable name (max 12 chars), disposition selector (friendly / neutral / hostile), language dropdown. Shown at the top of the Activity panel. |
 | `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
 | `HsSettingsPanel` | Dev tuning controls (tick rate, build factor, game reset). Shown below `HsNotificationPanel` in the Activity view. |
 
@@ -1895,11 +1899,23 @@ The game requires an account. On first open an **auth modal** appears (replaced 
 | **Login** | Email · Password · "Remember me" checkbox |
 | **Register** | Commander name (username, 2–64 chars) · Email · Password (min. 6 chars) |
 
-- Portrait and disposition are **not** asked at register — they belong in the in-game profile (`HsProfilePanel`).
+- Portrait, disposition and language are **not** asked at register — they belong in the in-game profile (`HsProfilePanel`).
 - **Remember me** (default: on): token stored in `localStorage['hawk-star-token']` (survives tabs/restarts). Off: token only in `sessionStorage` (gone when the tab closes).
 - On load: token from localStorage or sessionStorage → verify token → straight into the game; invalid/missing → auth modal.
 - Token expiry (7 days): the next API call returns 401 → show the modal again.
 - Errors appear inline in the modal (username already taken, wrong password, etc.).
+
+### Language
+
+A 🌐 dropdown in `hs-profile-actions`, beside Logout and Delete, switches the interface between **EN** and **DE**. It is a profile field (`hs_players.locale`, `ENUM('en','de') NOT NULL DEFAULT 'en'`), not a browser setting: `saveProfile({ locale })` writes it, `/auth/me` and `/auth/login` hand it back, and the Hawk-Star page applies it on every load. Log in on a borrowed machine and the game still reads in your language; a brand-new commander always gets **English**, whatever the browser asks for.
+
+Three things worth knowing before touching it:
+
+- **Save first, switch second.** `setLocale()` is a route change — the strategy is `prefix_except_default`, so DE lives under `/de/games/hawkStar` — and the whole page including this panel is remounted on the other side of it. Switching before the write means a rejected save leaves the app speaking a language the profile has never heard of, with nothing left mounted to put it back.
+- **`applyProfileLocale()` returns whether it navigated**, and `onMounted` / `submitAuth` stop when it did. The two locales are separate route records with different paths, so Nuxt's page key differs and the component really is remounted — running `initFromApi()` here as well would just do the whole init twice.
+- **The dropdown is fed from `useI18n().locales`**, i.e. from `nuxt.config`, so it can never offer a language with no messages behind it. The server's whitelist is `PLAYER_LOCALES` in `bootstrap.php`, deliberately next to the runtime `ALTER` that creates the ENUM so the two cannot drift.
+
+Note that the site-wide browser-language detection of `@nuxtjs/i18n` is untouched: a German browser may still *land* on `/de` before anyone logs in. The profile takes over the moment there is a player.
 
 **Composables:**
 - `useHawkStarAuth.js` — auth singleton: token, player, rememberMe, register/login/logout/verifyToken

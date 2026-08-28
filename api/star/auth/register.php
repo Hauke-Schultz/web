@@ -16,6 +16,7 @@ if (strlen($password) < 6)                             fail('Password must be at
 if (!in_array($disposition, ['friendly','neutral','hostile'], true)) $disposition = 'neutral';
 
 $db = getDB();
+ensure_player_locale($db);
 check_rate_limit($db, 'register', 5, 3600); // 5 attempts per hour
 
 // Check uniqueness
@@ -55,7 +56,7 @@ $db->prepare(
      VALUES (?, ?, FROM_UNIXTIME(?))'
 )->execute([$playerId, hash('sha256', $token), $exp]);
 
-$player = $db->prepare('SELECT id, username, email, portrait, disposition FROM hs_players WHERE id=?');
+$player = $db->prepare('SELECT id, username, email, portrait, disposition, locale FROM hs_players WHERE id=?');
 $player->execute([$playerId]);
 
 ok(['token' => $token, 'player' => $player->fetch(), 'homePlanetId' => $homePlanet['planet_id']], 201);

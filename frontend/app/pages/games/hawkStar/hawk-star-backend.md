@@ -18,7 +18,7 @@ api/star/
     login.php            ← POST   /api/star/auth/login
     logout.php           ← POST   /api/star/auth/logout
     me.php               ← GET    /api/star/auth/me
-    profile.php          ← POST   /api/star/auth/profile  (portrait, username, disposition)
+    profile.php          ← POST   /api/star/auth/profile  (portrait, username, disposition, locale)
     delete.php           ← DELETE /api/star/auth/delete   (löscht den eigenen Account + alle Spielerdaten)
   galaxy/
     index.php            ← GET  /api/star/galaxy
@@ -202,7 +202,8 @@ POST   /api/star/auth/register  { username, email, password, portrait?, disposit
 POST   /api/star/auth/login     { email, password }
 POST   /api/star/auth/logout
 GET    /api/star/auth/me
-POST   /api/star/auth/profile   { portrait?, username?, disposition? }  → { player }
+POST   /api/star/auth/profile   { portrait?, username?, disposition?, locale? }  → { player }
+                                locale ∈ PLAYER_LOCALES ('en' | 'de'), Default 'en'
 DELETE /api/star/auth/delete    — löscht Account + alle Spielerdaten
 
 -- Game State (Seitenaufruf + nach jeder Aktion)

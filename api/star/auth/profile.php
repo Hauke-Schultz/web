@@ -9,11 +9,13 @@ $b        = body();
 $portrait    = array_key_exists('portrait',    $b) ? $b['portrait']                  : null;
 $username    = array_key_exists('username',    $b) ? trim((string)$b['username'])     : null;
 $disposition = array_key_exists('disposition', $b) ? $b['disposition']               : null;
+$locale      = array_key_exists('locale',      $b) ? $b['locale']                    : null;
 
 $allowed_portraits   = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️'];
 $allowed_dispositions = ['friendly','neutral','hostile'];
 
 $db = getDB();
+ensure_player_locale($db);
 
 // Salvage artefacts unlock extra avatars, and the picker offers them the moment
 // the find is in the cabinet — so the whitelist has to know about them as well.
@@ -50,13 +52,21 @@ if ($disposition !== null) {
     $fields[] = 'disposition = ?';
     $params[] = $disposition;
 }
+// The language belongs to the account, not to the browser: the client applies
+// whatever comes back here on every load, so a device that has never seen this
+// player still reads in their language.
+if ($locale !== null) {
+    if (!in_array($locale, PLAYER_LOCALES, true)) fail('Invalid locale');
+    $fields[] = 'locale = ?';
+    $params[] = $locale;
+}
 
 if (empty($fields)) fail('Nothing to update');
 
 $params[] = $playerId;
 $db->prepare('UPDATE hs_players SET ' . implode(', ', $fields) . ' WHERE id = ?')->execute($params);
 
-$row = $db->prepare('SELECT id, username, email, portrait, disposition FROM hs_players WHERE id = ?');
+$row = $db->prepare('SELECT id, username, email, portrait, disposition, locale FROM hs_players WHERE id = ?');
 $row->execute([$playerId]);
 
 ok(['player' => $row->fetch()]);

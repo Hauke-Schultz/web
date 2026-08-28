@@ -299,7 +299,7 @@
       "raidLogLootLost": "Verlust:",
       "raidLogNoLoot": "keine Beute",
       "satelliteHint": "Satellit in den Orbit setzen — hält den Befund aktuell und misst den Schild, bis er abgeschossen wird (nur auf ausgespähten Planeten)",
-      "typeUnknown": "Planetentyp unbekannt — eine Spionagedrohne stellt ihn fest",
+      "typeUnknown": "Planetentyp unbekannt — erst eine Drohne vor Ort stellt ihn fest",
       "shieldNone": "Kein Schildgenerator",
       "shieldUp": "Schild aktiv — {n} %",
       "shieldDown": "Schildgenerator vorhanden, aber leer",
@@ -358,7 +358,8 @@
       "name":       "Name",
       "friendly":   "Freundlich",
       "neutral":    "Neutral",
-      "hostile":    "Feindselig"
+      "hostile":    "Feindselig",
+      "language":   "Sprache der Oberfläche — am Profil gespeichert"
     },
 
     "panel": {

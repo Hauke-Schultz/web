@@ -4,8 +4,9 @@ method('GET');
 
 $jwt    = auth();
 $db     = getDB();
+ensure_player_locale($db);
 $stmt   = $db->prepare(
-    'SELECT id, username, email, portrait, disposition FROM hs_players WHERE id=?'
+    'SELECT id, username, email, portrait, disposition, locale FROM hs_players WHERE id=?'
 );
 $stmt->execute([$jwt['sub']]);
 $player = $stmt->fetch();

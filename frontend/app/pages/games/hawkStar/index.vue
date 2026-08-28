@@ -12,6 +12,7 @@ import HsEmpirePanel from '~/components/hawk-star/HsEmpirePanel.vue'
 
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
+const { locale, setLocale } = useI18n()
 const { starMapLevel, gameLoaded, initError, initErrorDetail } = useHawkStar()
 const { player, authError, authLoading, isAuthenticated, rememberMe, register, login, verifyToken, logout } = useHawkStarAuth()
 
@@ -55,6 +56,19 @@ const currentView = ref(LANDING_VIEW)
 const activePanel = ref('')
 const panelRef    = ref(null)
 
+// ── Language ───────────────────────────────────────────────────────────────────
+// The account decides, not the browser and not the URL: a commander who set DE
+// on one device reads DE on the next, and a fresh profile reads EN whatever the
+// browser asks for. Returns true when it actually switched — that is a route
+// change (`prefix_except_default`), so this component is remounted on the other
+// side of it and the caller must stop rather than init the game twice.
+async function applyProfileLocale() {
+  const wanted = player.value?.locale
+  if (!wanted || wanted === locale.value) return false
+  await setLocale(wanted)
+  return true
+}
+
 // ── Auth modal state ───────────────────────────────────────────────────────────
 const authMode    = ref('login')  // 'register' | 'login'
 const authName    = ref('')
@@ -74,6 +88,7 @@ async function submitAuth() {
     data = await login(authEmail.value.trim(), authPass.value)
   }
   if (data) {
+    if (await applyProfileLocale()) return
     await initFromApi()
     activePanel.value = ''
     currentView.value = LANDING_VIEW
@@ -85,6 +100,7 @@ onMounted(async () => {
   if (isAuthenticated.value) {
     const ok = await verifyToken()
     if (ok) {
+      if (await applyProfileLocale()) return
       await initFromApi()
       activePanel.value = ''
       currentView.value = LANDING_VIEW

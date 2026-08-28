@@ -80,8 +80,11 @@ foreach ($db->query('SELECT id, username, portrait, disposition FROM hs_players'
     ];
 }
 
-// Your home system is always fully visible — you live there, and colony ships
-// cannot leave their own system, so nobody else can turn up in it unannounced.
+// Where you live. Your own system is not a free pass to its contents: a world
+// three orbits out is a dot on the chart until a recon drone has flown past it,
+// exactly as the solar view has always drawn it. What the home system does buy
+// is that the finding never ages — you are there, so a surveyed neighbour is
+// reported live rather than as a dated snapshot.
 $homeSysRow = $db->prepare(
     'SELECT p.system_id FROM hs_planet_ownership po
      JOIN hs_planets p ON p.id = po.planet_id
@@ -89,6 +92,16 @@ $homeSysRow = $db->prepare(
 );
 $homeSysRow->execute([$playerId]);
 $homeSystemId = (int)($homeSysRow->fetchColumn() ?: 0);
+
+// Every planet a recon drone has reached. Landed, not resolved: /galaxy does not
+// run resolve_timers(), so a flight that is over but whose row is still pending
+// must count too — otherwise the reveal waits for the next state.php load.
+$reconRow = $db->prepare(
+    "SELECT DISTINCT to_planet_id FROM hs_missions
+     WHERE player_id=? AND type='recon_drone' AND (status='done' OR ends_at <= NOW())"
+);
+$reconRow->execute([$playerId]);
+$surveyed = array_flip(array_map('intval', $reconRow->fetchAll(PDO::FETCH_COLUMN)));
 
 // Planets per system
 $planets = $db->query('SELECT * FROM hs_planets ORDER BY id')->fetchAll();
@@ -114,7 +127,12 @@ foreach ($planets as $p) {
     // occupied: if empty planets came back as "known" and occupied ones did not,
     // the hidden ones would be exactly the interesting ones and the secret would
     // be readable straight off the list. Unspied means unknown either way.
-    $mine = ($owner['playerId'] ?? null) === $playerId || $sid === $homeSystemId;
+    //
+    // `$mine` is current knowledge that needs no report: a colony of yours, or a
+    // home-system world a drone has surveyed. Everything else in the home system
+    // is as blank as deep space — the recon drone is what buys it.
+    $mine = ($owner['playerId'] ?? null) === $playerId
+         || ($sid === $homeSystemId && isset($surveyed[$pid]));
     $seen = $intel[$pid] ?? null;
 
     // Three ways to know something, and only the first two are current:

@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS hs_players (
   password_hash VARCHAR(255) NOT NULL,
   portrait      VARCHAR(16) DEFAULT '👨‍🚀',
   disposition   ENUM('friendly','neutral','hostile') DEFAULT 'neutral',
+  -- UI language. English is the default for everyone, browser included: the
+  -- profile is the only thing that decides it, so the same account reads the
+  -- same on every device.
+  locale        ENUM('en','de') NOT NULL DEFAULT 'en',
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen_at  DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

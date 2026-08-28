@@ -9,6 +9,7 @@ $password = $b['password'] ?? '';
 if (!$email || !$password) fail('Email and password required');
 
 $db = getDB();
+ensure_player_locale($db);
 check_rate_limit($db, 'login', 10, 900); // 10 attempts per 15 min
 $stmt = $db->prepare('SELECT * FROM hs_players WHERE email=?');
 $stmt->execute([$email]);
@@ -44,6 +45,7 @@ ok([
         'email'       => $player['email'],
         'portrait'    => $player['portrait'],
         'disposition' => $player['disposition'],
+        'locale'      => $player['locale'] ?? 'en',
     ],
     'homePlanetId' => $homePlanetId,
 ]);
