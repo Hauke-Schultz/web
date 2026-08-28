@@ -789,34 +789,47 @@ const canIntercept = computed(() =>
   canAfford(SPY.interceptCost)
 )
 
-const interceptSatellite = async (targetPlayerId) => {
+// ONE round from the battery, hit or miss. The fire-control game decides which
+// — this only reports it and spends the cell either way. Returns the server's
+// verdict so the game can draw the damage it just did, or null if the shot
+// never left (no ammunition, nothing in orbit, firing too fast).
+//
+// The kill notification is raised only when `destroyed` comes back filled in:
+// a dent is not news, and the satellite goes down on the last hit, not the
+// first. Everything else about this is the old outright-kill call.
+const fireIntercept = async (targetPlayerId, hit) => {
   const planetId = activePlanetId.value
-  if (!canIntercept.value) return
+  if (!canIntercept.value) return null
   interceptError.value = null
 
   try {
     const { interceptSatellite: interceptApi } = useHawkStarApi()
-    const result = await interceptApi(planetId, targetPlayerId)
+    const result = await interceptApi(planetId, targetPlayerId, hit)
     const pstate = allPlanetStates.value[planetId]
     if (pstate) {
       pstate.foreignSatellites = result.satellites ?? []
       if (result.resources) pstate.resources = result.resources
     }
-    lastIntercepted.value = result.destroyed ?? null
     // The shot was paid for at this instant — restart the tick preview here so
     // it does not replay production over the new stock.
     lastResourceSyncMs.value = Date.now()
-    notifications.value.push({
-      id: `notif_${Date.now()}_intercept_${planetId}_${targetPlayerId}`,
-      type: 'satellite_destroyed', icon: '🎯',
-      planetId, planetName: allPlanetStates.value[planetId]?.planetName,
-      labelKey: 'hawkStar.notifications.satelliteDestroyed',
-      details: result.destroyed?.username ?? '',
-      timestamp: Date.now(),
-    })
+
+    if (result.destroyed) {
+      lastIntercepted.value = result.destroyed
+      notifications.value.push({
+        id: `notif_${Date.now()}_intercept_${planetId}_${targetPlayerId}`,
+        type: 'satellite_destroyed', icon: '🎯',
+        planetId, planetName: allPlanetStates.value[planetId]?.planetName,
+        labelKey: 'hawkStar.notifications.satelliteDestroyed',
+        details: result.destroyed?.username ?? '',
+        timestamp: Date.now(),
+      })
+    }
+    return result
   } catch (e) {
     interceptError.value = e.message
     await refreshPlanetState(planetId)   // reconcile with server on failure
+    return null
   }
 }
 
@@ -3094,7 +3107,7 @@ export function useHawkStar() {
     hasOrbitalDefense,
     foreignSatellites,
     canIntercept,
-    interceptSatellite,
+    fireIntercept,
     interceptError,
     lastIntercepted,
     // population recruitment

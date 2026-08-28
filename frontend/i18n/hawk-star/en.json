@@ -159,6 +159,7 @@
       "convTitle": "⚗️ Conversions",
       "btnConvert": "Convert",
       "convRunning": "Conversion running",
+      "bogey": "{n} foreign satellite(s) in orbit — shoot them down on the defense tile",
       "convCountHint": "How many units this order makes — all delivered together at the end of the full run time",
       "convCountLocked": "Order running — the facility is locked until it delivers",
       "convOrder": "Order {n} units · all costs up front · delivered in {time}",
@@ -409,10 +410,19 @@
       "clear": "Orbit clear — no foreign satellites detected.",
       "watching": "watching for {age}",
       "fire": "Shoot down",
-      "fireHint": "Destroy the satellite — its report freezes at the moment of the kill",
+      "fireHint": "Open fire control — the satellite takes several hits, and its report freezes at the moment of the kill",
       "noAmmo": "Not enough power cells",
-      "destroyed": "Satellite of {name} destroyed",
-      "hint": "Without this building foreign satellites stay invisible. A satellite transmits until it is shot down."
+      "destroyed": "Satellite of {name} destroyed"
+    },
+
+    "intercept": {
+      "back": "Back to the panel",
+      "hint": "Tap the spot in the sky you want to hit — that is aiming and firing in one. The bolt takes a moment to get there, so aim where the satellite is going to be, not where it is. It always runs wall to wall, but every hit makes it faster. Every round costs one power cell, hit or miss. Damage stays on the target: break off and finish it later.",
+      "stageSteady": "Steady pass — read the lead",
+      "stageFast": "Hit. It has gone to full drive — your lead is short now",
+      "stageEvading": "Hit again. Full drive — same course, longer lead",
+      "outcomeDestroyed": "💥 Satellite destroyed",
+      "outcomeDry": "Out of power cells. The satellite keeps the damage — come back with ammunition."
     },
 
     "anomaly": {

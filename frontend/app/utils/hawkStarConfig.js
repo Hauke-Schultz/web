@@ -77,7 +77,11 @@ export const SPY = {
   staleHours:     48,     // after this a drone report is drawn as stale
   // A satellite has no lifetime: it transmits until the planet it watches shoots
   // it down. What limits espionage is the target's orbital_defense, not a timer.
-  interceptCost:  { power_cell: 1 },   // mirrors INTERCEPT_COST in config.php
+  interceptCost:  { power_cell: 1 },   // one SHOT, not one kill — see satelliteArmor
+  // Hits to destroy one. Mirrors SATELLITE_ARMOR in api/star/config.php, which
+  // is the side that actually counts them: the fire-control game reads this only
+  // to draw the damage bar, and the server's number is the one that kills.
+  satelliteArmor: 3,
 }
 
 // Largest batch the ×N picker offers. Every recipe runs 30 min per unit, so a

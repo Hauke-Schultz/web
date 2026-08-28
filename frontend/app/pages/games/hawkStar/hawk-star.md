@@ -255,7 +255,7 @@ In each case the class kept only the one thing the *surrounding layout* has to s
 
 #### `HsPlanetMarker` — one planet, drawn once  *(2026-08-26)*
 
-The strip needed the orbit map's marker, and the marker was 130 lines of markup and CSS inside `HsSolarSystem`. It is now its own component: the disc, the type glyph, the 🏠 badge, the **battery charge ring** and the **shield bubble** — everything true of the body itself, nothing about where it is drawn. The orbit map hangs it on a rotating box; the strip lines four of them up in a row.
+The strip needed the orbit map's marker, and the marker was 130 lines of markup and CSS inside `HsSolarSystem`. It is now its own component: the disc, the type glyph, the 🏠 badge and the **gauge ring** — everything true of the body itself, nothing about where it is drawn. The orbit map hangs it on a rotating box; the strip lines four of them up in a row.
 
 - **It reads its own state from the composable** rather than taking a dozen props. Two callers passing eight props each is how the map ends up showing a charge the strip does not. The parent supplies only `planet`, `selected` and `disabled` — the facts the parent alone knows.
 - **`effectivePlanetState()` and `planetIcon()` moved into `useHawkStar.js`.** They answer "own, or free, or a question mark", which is a property of what *we know*, not of the planet — and three views ask it now (marker, planet list, strip). Two copies of that is how a colony ends up owned on one screen and unknown on the other.
@@ -598,7 +598,21 @@ The `shield_generator` used to be a three-level building whose levels claimed "a
 - **A newly built generator starts at 0 %**, same as a fresh power plant.
 - **An empty shield has no side effect on the planet.** This is the sharpest difference to the battery, where empty means the whole grid stops: a shield is protection, not infrastructure, so letting it fade costs nothing today. Its charge is the value future combat will read.
 - **The defense tile carries the charge on its top edge** — the same 3 px status bar the energy tile uses for the battery and the base tile for the recruit pool, in the panel's blue, **plus the number** (`45 %`) in the corner. It is the only one of the three that prints its value: the bar alone answers "roughly how full", and for a battery or a recruit pool that is enough, but a shield click costs 150 crystal, so the decision to spend needs the exact figure without opening the tile. Below 20 % the bar turns amber, at 0 % it goes red — but it never pulses, since an empty shield is not an emergency the way a blackout is.
-- **The solar map repeats it per planet**, together with the reactor battery, so "which colony is running and which one is protected" is answered without visiting each one. `shieldChargeOf(planetId)` / `batteryChargeOf(planetId)` / `gridDownOn(planetId)` in `useHawkStar.js` are the per-planet forms of the active-planet computeds (same anchor-and-decay, any planet — the computeds now call them with `activePlanetId`). Since the orbit map *(2026-08-25)* the two are no longer hairlines on a tile edge but **the things they physically are**: the battery is a **charge ring around the planet** (a conic gradient masked down to a 3 px band, filling clockwise from the top), the shield is **the bubble around it** (a radial glow whose opacity and border alpha are the charge). They read `allPlanetStates`, so a colony never opened this session shows nothing rather than a stale zero, and a planet without a power plant shows no ring at all (`battery_state()` returns null there). The exact numbers moved into the planet list beside the map, as `🔋 60 %` / `🛡️ 45 %` chips in the open row.
+- **The solar map repeats it per planet**, together with the reactor battery, so "which colony is running and which one is protected" is answered without visiting each one. `shieldChargeOf(planetId)` / `batteryChargeOf(planetId)` / `gridDownOn(planetId)` in `useHawkStar.js` are the per-planet forms of the active-planet computeds (same anchor-and-decay, any planet — the computeds now call them with `activePlanetId`). They read `allPlanetStates`, so a colony never opened this session shows nothing rather than a stale zero, and a planet without a power plant shows no arc at all (`battery_state()` returns null there). The exact numbers moved into the planet list beside the map, as `🔋 60 %` / `🛡️ 45 %` chips in the open row. How the two are drawn is below.
+
+#### The gauge ring — two half-circle bars  *(2026-08-28)*
+
+The marker in a `hs-solar-slot` wears **one ring cut in half**: 🛡️ the shield is the **upper** semicircle, 🔋 the battery the **lower** one. Both fill **left to right** — 9 o'clock to 3 o'clock, over the top for the shield and under the belly for the battery — so the two are mirror images and either end of the ring means the same thing on both. Same `inset: -4px`, same 3 px mask band, so they meet at the sides and the planet reads as wearing one gauge rather than two unrelated rings at two radii.
+
+It replaces a full-circle battery ring plus a shield drawn as a soft bubble whose *opacity* was the charge. The bubble was the weaker half by far: a glow has no scale on it, so it could say "some shield" but never "40 %", and at small sizes two alpha values are indistinguishable. Half a ring each buys both meters a real 0–100 % readout and costs neither of them anything.
+
+Three things to know before touching the gradients:
+
+- **`conic-gradient` only sweeps clockwise from its `from` angle.** Which half you get, and which way it fills, is decided by where that angle sits and whether the colour is at the **head** or the **tail** of the sweep. The shield is `from -90deg` (sweep starts at 9 o'clock, runs over the top) with the colour at the head. The battery is `from 90deg` (starts at 3 o'clock, runs under the belly — the wrong way round) with the colour at the **tail**, which is what turns it back so it too leaves the left edge travelling right.
+- **A percent is 1.8°, not 3.6°.** Half a circle is 180° of gauge. Getting this wrong is silent: the arc simply runs off its own half and into the other meter's.
+- **The far half of each sweep is `transparent`, not the track colour.** Each element covers the whole ring and paints only its own half; the other half is left to the other element. Painting a track there would double the ring up twice over.
+
+**An emitter at 0 % now draws its bare track rather than nothing at all.** On a gauge the empty end is a reading, and *"shielded but flat"* is the single most useful thing this marker can say about a planet — it is the raid precondition. Drawing nothing still means what it always meant: no generator down there (`shieldChargeOf` returns `null`). The old rule conflated the two.
 - **Only the blackout pulses.** An empty battery turns the bar red, flashes it and swaps 🔋 for ⚠️ — that planet has stopped producing. An empty shield goes red and stays still, because it costs nothing today. The same split holds on the planet grid.
 - **On the map a shield at 0 % draws nothing at all.** An unshielded planet should look bare, not like it is wearing an empty bubble — the aura *is* the charge, so there is nothing to grey out. The "not built" case still needs saying, so the list row keeps the chips: they only appear once the planet's state is loaded, and a failed fetch never fakes a "not built".
 - **The view loads every own planet on open** (`ownPlanetIds` + `loadOwnPlanetStates` in `HsSolarSystem`), instead of only the selected one. Meters on all tiles are the whole point, and `refreshPlanetState()` merely fills `allPlanetStates` — it does not touch the active planet. The galaxy typically arrives after mount, so the `watch` on `ownPlanetIds` is what fires on a cold open and `onMounted` covers re-entry; already-loaded planets are skipped, so switching views does not re-fetch.
@@ -1129,7 +1143,7 @@ Distance in this game is `|index difference|` (see `droneFlightTimeBetween`) —
 Everything is a percentage of a square `aspect-ratio: 1/1` box, so the whole system scales from a 360 px phone to a wide desktop with **no media query and no measurement**:
 
 - `--r` (16 % → 41 % across the planets) positions and sizes both the ring and the orbiter: `left: calc(50% - var(--r))`, `width: calc(var(--r) * 2)`. The box is square, so one value serves left/top and width/height.
-- The outer bound is 41 %, not 45 %: the marker's own radius, the shield bubble (`inset: -9px`) and the label under it all have to stay inside a box that clips.
+- The outer bound is 41 %, not 45 %: the marker's own radius, the gauge ring around it (`inset: -4px`) and the label under it all have to stay inside a box that clips. The bound predates the ring rework, when the shield bubble reached `-9px`; it has margin to spare now and is left alone rather than retuned for the sake of 4 px.
 - `--marker` is the single pixel-ish value, and it grows exactly once (1.85 rem → 2.3 rem at 640 px).
 
 ### The motion is pure CSS
@@ -1149,8 +1163,8 @@ The tile used to print everything. A 30 px disc cannot, so each thing moved to t
 |---|---|---|
 | Identity | the type glyph + the roman numeral (`shortLabel` = last word of the name) | full name |
 | State | border colour per `effectivePlanetState` | the coloured state label, and the row's border |
-| Battery | a charge ring around the planet, red and pulsing on a blackout | `🔋 60 %` chip in the open row |
-| Shield | the bubble around it, opacity = charge | `🛡️ 45 %` chip in the open row |
+| Battery | the **lower** half of the gauge ring, red and pulsing on a blackout | `🔋 60 %` chip in the open row |
+| Shield | the **upper** half of the same ring | `🛡️ 45 %` chip in the open row |
 | Inbound mission | a badge above the marker: unit icon + countdown | the same pill on the row, so a closed row still shows it |
 
 ### The list, not a panel for one planet  *(2026-08-25)*
@@ -1400,7 +1414,175 @@ Three consequences that are the point of the design:
 - **The spy is told.** `satellite_lost_at` doubles as an outbox: set when the satellite dies, cleared the moment `state.php` hands the loss over, so the message is delivered exactly once without a notification table. Losing a satellite has to be an event — the alternative is noticing weeks later that a chip quietly went missing from a list.
 - **The report freezes at the moment of the kill.** The satellite transmitted right up to the end, so its last frame — owner *and* shield charge — is written into `hs_spy_intel` before the flag drops. The entry then ages like any drone finding. Espionage does not lose what it had; it loses the live feed.
 
-The panel sits on the defense tile under the shield (`HsOrbitDefensePanel`): a red-tinted box with the bogey count, one row per satellite (portrait, name, *beobachtet seit …*) and a 🎯 button carrying its power-cell cost, exactly like the shield's crystal tag. With an empty orbit it says so — *"Orbit frei — keine fremden Satelliten geortet"* — because with this building an empty orbit is a finding, not a blank.
+The panel sits on the defense tile above the shield (`HsOrbitDefensePanel`): a red-tinted box with the bogey count, one row per satellite (portrait, name, *beobachtet seit …*) and a 🎯 button carrying its power-cell cost, exactly like the shield's crystal tag. With an empty orbit it says so — *"Orbit frei — keine fremden Satelliten geortet"* — because with this building an empty orbit is a finding, not a blank.
+
+**The tile itself carries the sighting** *(2026-08-28)*, as a red `hs-dot--bogey` in its `hs-tile-dots` column — one per satellite, the same one-dot-per-thing rule the rest of the grid follows. The panel is behind a click, and "somebody is watching this planet" is not a fact that should wait for one: the grid is the screen a player actually sits on. It reads `foreignSatellites` straight from the composable, so it inherits the sensor rule for free — no `orbital_defense`, no list, no dot, and an undefended colony still never learns it is watched.
+
+The dot is red like an offline building, because both are alarms — but the two can land on the *same* tile, so at 6 px it needs to be told apart: it gets a halo and the fastest blink on the grid (0.8 s against the offline dot's 1.5 s). It is also the only dot in the grid that is somebody else's doing rather than the planet's own, and it should read that way.
+
+### Fire control — shooting one down is a game  *(2026-08-28)*
+
+🎯 **Abschießen** no longer kills anything. It opens `HsInterceptGame`, a full-screen overlay with one satellite crossing the sky, one laser battery **bolted to the bottom centre**, and **one rule: the bolt takes time to get there.** You do not shoot at the satellite, you shoot at where it is going to be. That single fact is the whole game — it teaches itself the first time a bolt arrives behind the target, and it gets harder without any second rule being introduced, because the target's speed is what the lead is measured against.
+
+**One tap is the whole input** *(2026-08-28)*. You tap the spot in the sky you want to hit; the battery swings to that bearing and fires at it. Aiming and firing are not two steps. The first version had the launcher track the pointer and fire on click — fine with a mouse, unusable with a thumb, because a touch screen has no hover and so no way to aim before committing.
+
+Two decisions make that work:
+
+- **Only the tap's horizontal position is read.** The bolt always terminates on the satellite's lane, so tapping high or low in the same column aims at the same place. That is the forgiveness a thumb needs, and it makes *"tap where you want to hit"* literally true instead of approximately true. The angle is a consequence, drawn because a battery tracking its target looks right — not because it is another thing to get correct.
+- **Flight time is constant, not scaled by the bolt's length.** The longest shot across this field is only ~18 % further than the shortest, and a lead that changed with how far out you aimed would be a second rule to learn for a difference nobody can see.
+
+**Percentages are not a coordinate system you can take an angle in.** The field is 3:2, so 10 % across and 10 % up are different lengths on screen, and a bearing computed from the raw numbers leans wrong. `angleTo()` converts the vertical into the horizontal's units (`FIELD_RATIO`) first. Getting this wrong points the muzzle somewhere the bolt does not go, which is the one thing on that screen a player would read as the game lying to them.
+
+**Where the rounds went is the feedback, so it stays on screen** *(2026-08-28)*. A hit leaves a **💥**, a miss a **☁️**, and both hang for **three seconds** on the same animation, blooming in and drifting up out of the lane as they fade. Where those marks sit relative to the satellite *is* the picture of how far off the lead is, and it is the only place that picture exists. The hit is drawn a size larger; beyond that and the glyph, the two behave identically. (The hit was briefly a 450 ms spark on the reasoning that the armour bar had already carried the news — but the bar says *that* a round landed, not *where*, so the short life threw away half the picture.)
+
+That is why `flashes` is a **list**. It was a single ref, which was fine while a mark lived 450 ms — but rounds land at least 700 ms apart, so a three-second mark means three or four share the sky, and a single ref would have had each new impact erase the one before it: exactly what a gunner is trying to read a pattern out of. Each mark schedules its own removal through `beat()`, rather than the list being capped — an element that outlives its CSS animation by even a frame pops back to full opacity before it goes.
+
+**The killing round leaves no mark of its own.** The wreck is already a 💥 at the same spot and the same instant, and two of them stacked reads as a rendering fault rather than as an explosion. The shell carries the `kills` flag it was fired with, and the frame loop skips the mark for it — a decision made at the trigger, like every other one in this file, rather than a guess at impact about whether the wreck has appeared yet.
+
+**There is no cap on a sortie.** You fire until the satellite comes apart or the magazine is empty, and the magazine is the planet's power cells — one limit, shown as a number in `hs-icept-ammo`, and it is the same number the rest of the game already spends. A per-sortie cap existed briefly (6, then 3) and was removed: it was a second budget layered on the first, and the readout then had to show the smaller of the two, which is the kind of quantity nobody can plan against.
+
+**Know what that trades away.** The cap was the only thing forcing more than one sitting. Measured against the shipped geometry:
+
+| cells in stock | sorties to kill (average gunner) | killed in one |
+|---|---|---|
+| plenty (≥ 13) | 1.0 | 100 % |
+| 6 | 1.6 | 51 % |
+| 3 | 2.7 | 7 % |
+
+The **cell cost never moves** — about 7 for an average gunner, 12 for a careless one, 3 for an excellent one — because a kill takes as many rounds as it takes. All the cap ever did was decide how those rounds were split into sittings. So *"man braucht mehrere Versuche"* is now purely a function of how well stocked the planet is, and a defender sitting on a full silo will finish in one go. That is the intended trade: the ammunition is the whole economy of this thing, and layering a second limit on top of it made the panel harder to read for a pacing effect that stocking cells already produces.
+
+**A satellite takes `SATELLITE_ARMOR` = 3 hits, and the damage lives in the database** (`hs_spy_intel.satellite_hits`), not in the tab that dealt it. A salvo broken off half way is therefore not wasted — it is a softer satellite the next time you sit down, and the panel row draws the bar you left behind. This is the same principle the raid design already settled on: *partial damage persists, softening over two waves is intended.*
+
+**Difficulty is not a knob, it is the target's behaviour**, and it escalates on damage the player has already done:
+
+| after | what changes | what it does to the gunner |
+|---|---|---|
+| hit 1 | speed ×1.3 | the lead just learned is now short |
+| hit 2 | speed ×1.65 | and short again |
+
+**The satellite always runs wall to wall.** It leaves one edge, crosses, turns at the other and comes back — nothing else, at any stage. Three is still the smallest armour that lets both speed steps show up.
+
+#### One cell per shot, not per kill
+
+`INTERCEPT_COST` is unchanged at one power cell — what changed is what it buys. It used to buy a whole satellite, and `config.php` called that *"deliberately cheap"*, which it was: there was nothing to be good at. A cell is now a **round**, spent whether or not it connects, so the bill for an intercept is a function of how well the gunner shoots.
+
+#### The numbers were measured, not guessed
+
+`scratchpad/intercept-difficulty.mjs` runs the shipped geometry against simulated gunners — each predicts the impact point and misses it by a normally-distributed error in % of field width — and reports what a kill costs:
+
+| gunner | sorties | cells | killed in one | hit 0→1 | 1→2 | 2→3 |
+|---|---|---|---|---|---|---|
+| careless ±14 % | 4.4 | 12.3 | 1 % | 26 % | 25 % | 23 % |
+| average ±8 % | 2.7 | 7.1 | 7 % | 44 % | 42 % | 40 % |
+| good ±4.5 % | 1.8 | 4.4 | 32 % | 71 % | 68 % | 65 % |
+| excellent ±2 % | 1.1 | 3.1 | 94 % | 99 % | 98 % | 98 % |
+
+**The per-stage columns are the ones that matter, and averaging them away is how this was got wrong — twice.** The simulated gunner is deliberately optimistic: it predicts the lead exactly and only its aim wanders, while a real one has to estimate the speed as well. Read the table as a floor on the difficulty, never a ceiling, and re-run the script rather than eyeballing it if any of the constants change.
+
+##### Two wrong cuts, and what each one taught  *(2026-08-28)*
+
+**Too easy.** The first attempt — a 5.2 % kill box, a 600 ms shell, a 26 %/s target — put an *average* gunner at 1.6 salvos and killed the satellite outright on the first salvo half the time. There was nothing to be good at.
+
+**Then unwinnable at the last hit**, which is what the player actually reported: *"ich schaffe den dritten Treffer nicht."* The overall figure looked reasonable — 2.8 salvos for an average gunner — but the three stages were **40 % / 40 % / 11 %**, and even an *excellent* gunner converted only **21 %** of rounds at the last one. That is not a hard third hit, it is a coin toss with a price on it. The average had hidden it completely, which is why `intercept-difficulty.mjs` reports **per stage** and why the per-stage columns lead the table above.
+
+The immediate cure was the **jink rate** (0.42–0.95 s → 0.8–1.6 s) plus a **bigger target**. Then the random reversals came out altogether, on the player's call: *"immer nur ganz links bis ganz rechts, nicht zufällig die Richtung wechseln."* Right call — an unpredictable-by-construction spoiler has no place in a game whose whole premise is that the lead can be read.
+
+**But be clear about what that costs, because it is the honest reading of the table: speed alone is a weak difficulty lever.** A gunner only pays for speed through their misjudgement of it, so the stages are now nearly flat (44 / 42 / 40 % for an average gunner) and the game is easier than any cut before it — 1.6 salvos and ~7 cells, with one salvo in two ending it outright. The speed multipliers are chosen to be **seen** rather than to bite: a satellite that visibly picks up after each hit tells the player their round landed, which is the job this escalation does well. If it ever has to be harder, the honest levers are the **kill box** (`HIT_HALF`) and the **flight time** (`SHELL_MS`, which lengthens the lead and so amplifies any error in reading the speed) — not the multipliers.
+
+**The sprite must always stay smaller than the kill box** — a round that visibly clips the dish and does not count is the one unfairness this game cannot afford. `HIT_HALF` is a percentage of the field, so the only size that can hold is a percentage of the same field: the dish is `8cqw` against a ±5 % box, inside the `container-type: inline-size` the field declares.
+
+**And it carries no rem fallback, deliberately.** A fallback sounds prudent and is the trap: 1.9 rem was right for the 30 rem lightbox this used to be and overflows the box *everywhere* from a 13 rem to a 30 rem column — three times too wide at the narrow end. Without container-query support the declaration is simply invalid and the glyph inherits the panel's font size, which is far smaller than the box. A shrunken dish is survivable; a dish wider than the box that counts the hit is not. `scratchpad/intercept-sprite-check.mjs` asserts both halves of that rule against the shipped numbers.
+
+#### In the tile, not over the page  *(2026-08-28)*
+
+The game opened as a fixed, blurred sheet over the whole viewport. It is now a panel **in the defense tile**, framed like the orbit list it stands in for — same border, same margin, so opening fire does not make the column jump. Running your own orbital battery is part of running the planet, not a mode you enter, and the field now opens exactly where the target list was rather than somewhere the eye has to be led back from.
+
+`HsOrbitDefensePanel` also moved **above** `HsShieldPanel` on that tile. A satellite overhead is something happening *to* you right now and it is what the game opens into; the shield below is a meter that only ever drifts. The one that can demand an answer goes first.
+
+**The 🎯 button prints `⚡ 1/7`** — what a round costs over what is in the magazine. The price alone was the shield's pattern and it is the wrong one here: the price never changes, while the stock is what decides the engagement. Since a sortie has no cap of its own, that second number *is* how many rounds are left, and it is the only figure there is to plan an attack around. Floored, so it never advertises a round the stock cannot pay for.
+
+**The panel's footnote came out.** *"Without this building foreign satellites stay invisible"* was being read exclusively by players who have the building — `HsTilePanel` renders the whole panel behind `hasOrbitalDefense`, so there was never an audience for it. The string and its style rule went with it.
+
+**The row's damage bar shows at 0/3 too.** It was hidden until the first hit landed, which meant the one moment the question *"how much of this thing is left"* is most likely to be asked — before firing a single round — was the one moment it went unanswered. An empty bar is an answer. It also stops the row changing height the instant a shot connects.
+
+**The game has no chrome of its own.** No title bar, no armour bar, no ✕. The row that opened it is still on screen directly above, carrying the bogey's name and the same damage in `hs-orbit-armor` — printing either again would be a second copy of a fact three centimetres away, and it would cost the field the height. The 🎯 button is a **toggle**: it opens the game and it closes it, which is the obvious thing to press once there is no ✕ to look for. Pressing it on a *different* bogey switches targets rather than closing, because a second satellite in the list is a new engagement and not a toggle of the first.
+
+The field then runs **edge to edge** inside the panel — the panel's own border frames it and its `overflow: hidden` rounds the corners. Every pixel of width is worth having: the whole geometry is a percentage of that box, so a wider field is a physically bigger target and a longer travel to read the lead against.
+
+Moving out of a fixed-width lightbox is what forced the sizing rule above: inside the sheet the field was always ~28 rem, so rem sizes happened to work. In a column whose width is not ours to choose, they stop working, quietly, at the narrow end.
+
+##### The simulator needed two error terms, not one
+
+Removing the reversals exposed a hole in `intercept-difficulty.mjs` itself. Its gunner made a single kind of mistake — a fixed positional wobble — and therefore predicted the impact point *perfectly however fast the target moved*. With the jink gone the script reported a ×1.0 and a ×1.8 satellite as **equally hard**: silently useless for precisely the question being asked of it. It now also models a **proportional misjudgement of the speed**, applied to the lead (`speed × SHELL_MS`), which is the only channel through which a faster target costs anything at all. It is still optimistic — it predicts a wall bounce mid-flight perfectly and a person does not — so the table stays a floor on the difficulty, never a ceiling.
+
+#### The satellite's position is a function of time, not a per-frame integration
+
+The path is a list of **legs** — each a straight run with a start time, a start position and a velocity — and `satXAt(t)` evaluates the current leg exactly, folding the bounces off the walls into a triangle wave. Two things fall out of that, and both are why it is written this way:
+
+- **A dropped frame cannot cost a hit.** The hit test never consults the animation. It asks where the satellite *will be* at `firedAt + SHELL_MS` and answers at the instant the round is fired; the travelling bolt is a re-telling of a verdict already reached.
+- **The picture cannot drift from the rule**, because the picture is the same function sampled at `now` instead of at impact.
+
+Same principle the salvage dial is built on: *the contact is CSS, the judgement is arithmetic on timestamps.*
+
+#### Every visible consequence runs on the bolt's clock  *(2026-08-28)*
+
+**The network gets no vote on when a round lands.** Everything the eye sees — the damage bar, the satellite picking up speed, the wreck, the card that ends the salvo — is scheduled from `firedAt` *before the request is even sent*, and the server's answer only reconciles the number afterwards. `scratchpad/intercept-timing-check.mjs` asserts the ordering against a fast, an on-time and a slow response.
+
+This was broken twice, in opposite directions, and both faults are invisible in a fast local dev loop — which is exactly why the check is a script and not a memory:
+
+- **Hanging the verdict card on the server's answer.** On a fast connection the card covered the field while the bolt was still in the air: *"ich seh gar nicht wie der Schuss trifft, oder daneben geht."* The shot that won the game was the one shot nobody ever saw.
+- **Then hanging the wreck on it.** Waiting for both the answer and the impact fixed the card but left the mirror-image fault on a slow connection: the flash appeared on time and the dish sailed calmly on for another second before exploding.
+
+The cure is that **the client does not need to be told any of it.** It decided `hit` itself and it knows the armour, so it already knows whether the round it just fired is the last one. `killed` (the impact — the dish becomes a 💥) and `done` (the card, `VERDICT_MS` later) are therefore two separate flags; driving both off one is what hid the last shot in the first place.
+
+##### …and the same rule has to hold for the counter  *(2026-08-28)*
+
+The reconciliation was exempted from it, and that was a bug. `hits` had **two writers racing**: a local `+1` at impact, and `hits = result.hits` assigned straight from the response. The server answers in ~200 ms against the bolt's 700, so it almost always won the race and one hit was counted twice — the answer set the bar to 1, then the impact handler added its own `+1` on top and made it 2.
+
+- **The visible half** is the bar reading 1 → 3 → back to 2, which is what was reported.
+- **The dangerous half** is `kills`, computed from `hits.value` at the trigger. With the count inflated, the *second* round satisfied `hits + 1 >= armor`, so the client blew the dish up and printed "destroyed" over a satellite the server still had alive at 2/3.
+
+Routing the correction through `atImpact()` too puts the two writes in a fixed order instead of a race — the local `+1` first, the correction immediately behind it, both on the bolt's clock — and since they agree, nothing moves twice. `scratchpad/intercept-count-check.mjs` reproduces both orderings and asserts the difference: the old one yields a bar of `[2, 3, 3]` and a client kill on round **2**, the new one `[1, 2, 3]` and a kill on round 3.
+
+The general rule, now with no exceptions: **anything that writes to state the player can see goes through `atImpact()`.** A write that skips it is a write racing the animation.
+
+#### A ReferenceError that walked past every gate  *(2026-08-28)*
+
+The refactor that put firing on the bolt's clock rewrote `fire()` wholesale and **deleted the definition of `atImpact` while leaving the call**. The result was a game that fired exactly one shot and then went dead to every further click. The reason it presented that way is the shape of every bug like it:
+
+    busy.value = true          // the gate closes
+    atImpact(firedAt, …)       // ReferenceError, thrown right here
+    await fireIntercept(…)     // never reached — no cell spent, no damage done
+
+The throw landed between closing the gate and reopening it, so `busy` stayed true for ever and `canFire` never came back. The bolt still animated, because it had already been pushed onto `shells` — so the first shot *looked* fine, which is why the report was "the second click does nothing" rather than "it is broken".
+
+**Neither of this project's usual gates can see this.** `@vue/compiler-sfc` checks syntax, and `nuxt build` bundles without resolving module-internal names — both pass a file that calls something it never defines, which was confirmed against a deliberately re-broken copy. It is now covered by `scratchpad/vue-undefined-check.mjs`: it compiles a SFC and reports any identifier referenced with no binding anywhere in the file and no match in its globals list. A scope check, not a type checker — false *negatives* are the only failure mode, and a false positive is silenced by adding the global. Worth running over the whole hawk-star folder after any refactor that moves code between functions.
+
+#### What the server enforces, and what it cannot
+
+`hit` is taken on trust — the server cannot see the gunner's screen, exactly as `salvage/catch.php` cannot see the dial. **The ammunition is what makes that acceptable here:** a client that reports nothing but hits still pays `SATELLITE_ARMOR` cells per kill, precisely what a perfect gunner pays. The worst a forged report buys is the skill, never the price. A 250 ms floor between rounds (`INTERCEPT_MIN_SHOT_MS`) exists for the *player's* sake, not the game's — a client stuck in a loop would otherwise empty the planet's power cells in a second.
+
+**Every guard lives in the claim's WHERE clause**, so rounds racing each other are resolved by the database rather than by the gap between a read and a write in PHP:
+
+```sql
+UPDATE hs_spy_intel SET satellite_hits = satellite_hits + 1, satellite_shot_at = NOW(3)
+ WHERE player_id=? AND planet_id=? AND satellite_active=1 AND satellite_hits < ?
+```
+
+The second condition was learned the hard way and is worth keeping: firing three rounds simultaneously at a 2/3 satellite, **all three passed the `satellite_active` test**, all three incremented, and it ended on five hits out of three with two cells spent on a wreck. `active` alone cannot catch that, because none of the three had claimed the *kill* yet. A refused claim now costs nothing — the charge is only ever reached by a round the database agreed was fired at a live target.
+
+#### A new hull carries no old damage  *(2026-08-28)*
+
+`hs_spy_intel` is keyed `(player, planet)` and **deliberately never deleted** — that row is the whole record of what this spy has ever learned about this planet, and the kill has to *leave* `satellite_hits` sitting at the armour, because that is what stops a later round landing on a wreck (the claim above). The consequence, and the bug: a spy who replaced a satellite that had been shot down landed straight back on the dead one's record at 3/3, and the replacement came apart on the defender's very first round.
+
+So the reset belongs at **placement**, not at the kill: `record_spy_intel()`'s satellite branch now writes `satellite_hits = 0, satellite_shot_at = NULL` in both the INSERT and the `ON DUPLICATE KEY UPDATE`. Putting it on the kill instead would have re-opened the over-kill race the claim exists to close.
+
+Both ways in go through that one function — a landed `spy_satellite` mission and the `spy_on_me` dev cheat — so there is exactly one place to get this right. `scratchpad/intercept-replace-check.mjs` drives the whole story against the live API: plant, shoot down, replace, and assert the replacement takes a first hit rather than dying.
+
+**Two frontend traps, both hit while building it:**
+
+- **The panel must hold a snapshot of the bogey, not a live lookup.** Deriving the engaged target from `foreignSatellites` looks like the careful choice and is the opposite: the winning shot removes the satellite from that list, so the overlay tore itself down at the exact moment the player had earned the 💥. Copying costs nothing — the game only *seeds* from it and then follows the server's answer to every round.
+- **The wreck has to remember where it died.** The clock keeps running after the kill (it drives the last shell's fade), so a 💥 drawn at the live position sails calmly on across the sky.
 
 Dev cheat **🛰️ Bespitzeln** (`spy_on_me`) plants a satellite from any other player over the active planet; testing this otherwise needs a second account and a four-hour flight.
 
@@ -1454,7 +1636,7 @@ The system card's planet list is the whole interface. Per planet, left to right:
 
 ### Files
 
-`spy_drone` / `spy_satellite` in `UNIT_COSTS` + `SPY_*` / `INTERCEPT_COST` / `orbital_defense` in `api/star/config.php` · `migrate_spy_missions`, `ensure_spy_intel_table`, `record_spy_intel`, `spy_intel_map`, `planet_shield_charge`, `spy_shield_report`, `orbital_defense_level`, `foreign_satellites`, `destroy_spy_satellite`, `lost_satellites`, `system_distance`, `spy_flight_seconds` in `bootstrap.php` · `api/star/game/mission/spy.php` · `api/star/game/defense/intercept.php` · `spy_on_me` in `api/star/dev/cheat.php` · table `hs_spy_intel` · report filter in `api/star/galaxy/index.php` · `foreignSatellites` / `satellitesLost` in `game/state.php` · `spy*` / `planetIntel` / `isIntelStale` / `interceptSatellite` in `useHawkStar.js` + `mapGalaxy`/`reloadGalaxy` · `HsGalaxyMap.vue` planet list (`typeIcon`, `shieldReport`, `shieldLabel`, `shieldTitle`) · `HsOrbitDefensePanel.vue` · `HsDockPanel.vue`
+`spy_drone` / `spy_satellite` in `UNIT_COSTS` + `SPY_*` / `INTERCEPT_COST` / `orbital_defense` in `api/star/config.php` · `migrate_spy_missions`, `ensure_spy_intel_table`, `record_spy_intel`, `spy_intel_map`, `planet_shield_charge`, `spy_shield_report`, `orbital_defense_level`, `foreign_satellites`, `destroy_spy_satellite`, `lost_satellites`, `system_distance`, `spy_flight_seconds` in `bootstrap.php` · `api/star/game/mission/spy.php` · `api/star/game/defense/intercept.php` (one ROUND, not one kill) · `SATELLITE_ARMOR` + `INTERCEPT_MIN_SHOT_MS` in `config.php` · `hs_spy_intel.satellite_hits` / `.satellite_shot_at` · `HsInterceptGame.vue` + `fireIntercept` in `useHawkStar.js` + `SPY.satelliteArmor` in `hawkStarConfig.js` + `scratchpad/intercept-difficulty.mjs` + `scratchpad/intercept-timing-check.mjs` + `scratchpad/intercept-replace-check.mjs` + `scratchpad/vue-undefined-check.mjs` + `scratchpad/intercept-count-check.mjs` + `scratchpad/intercept-sprite-check.mjs` · `spy_on_me` in `api/star/dev/cheat.php` · table `hs_spy_intel` · report filter in `api/star/galaxy/index.php` · `foreignSatellites` / `satellitesLost` in `game/state.php` · `spy*` / `planetIntel` / `isIntelStale` / `fireIntercept` in `useHawkStar.js` + `mapGalaxy`/`reloadGalaxy` · `HsGalaxyMap.vue` planet list (`typeIcon`, `shieldReport`, `shieldLabel`, `shieldTitle`) · `HsOrbitDefensePanel.vue` · `HsDockPanel.vue`
 
 ---
 

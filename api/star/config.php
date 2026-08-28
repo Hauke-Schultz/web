@@ -74,10 +74,25 @@ const SPY_INTEL_STALE_HOURS = 48;
 // also what makes placing one a wager rather than a purchase (see
 // INTERCEPT_COST). Until 2026-08-13 this was a flat 168 h lifetime.
 
-// One shot from the orbital battery. Deliberately cheap next to the satellite it
-// kills (300 M · 150 C · 1 SC · 1 DP): the expense was the battery itself, and a
-// defender who has built one should never hesitate to use it.
+// ONE SHOT from the orbital battery — not one kill. A satellite takes
+// SATELLITE_ARMOR hits, so a clean intercept costs three cells and a sloppy one
+// costs more: the bill is a function of how well the gunner shoots. Until
+// 2026-08-28 this bought the whole satellite outright and the comment here called
+// it "deliberately cheap", which it was — there was nothing to be good at.
 const INTERCEPT_COST = ['power_cell' => 1];
+
+// Hits to destroy. Three is the smallest number that can carry an escalation:
+// the client speeds the satellite up after the first and has it start jinking
+// after the second, so the lead the gunner just learned stops working twice.
+// Two would end before the second stage ever showed up.
+const SATELLITE_ARMOR = 3;
+
+// A floor on how fast shots may be reported. This protects the PLAYER, not the
+// game: the game is protected by the ammunition, since a client that reports
+// nothing but hits still pays SATELLITE_ARMOR cells per kill — exactly what a
+// perfect gunner pays. What a runaway client could do without this is empty the
+// planet's whole power-cell stock in a second.
+const INTERCEPT_MIN_SHOT_MS = 250;
 
 // ── Cargo drone ───────────────────────────────────────────────────────────────
 // Only high-tech goods can be shipped. Raw resources are deliberately excluded:

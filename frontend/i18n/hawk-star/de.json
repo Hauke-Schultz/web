@@ -161,6 +161,7 @@
       "convTitle": "⚗️ Umwandlungen",
       "btnConvert": "Umwandeln",
       "convRunning": "Umwandlung läuft",
+      "bogey": "{n} fremde(r) Satellit(en) im Orbit — auf dem Verteidigungsfeld abschießen",
       "convCountHint": "Wie viele Einheiten der Auftrag herstellt — alle zusammen am Ende der Gesamtlaufzeit",
       "convCountLocked": "Auftrag läuft — die Anlage ist bis zur Lieferung gesperrt",
       "convOrder": "{n} Einheiten bestellen · alle Kosten sofort · Lieferung in {time}",
@@ -410,10 +411,19 @@
       "clear": "Orbit frei — keine fremden Satelliten geortet.",
       "watching": "beobachtet seit {age}",
       "fire": "Abschießen",
-      "fireHint": "Satellit zerstören — sein Bericht friert im Moment des Abschusses ein",
+      "fireHint": "Feuerleitstand öffnen — der Satellit hält mehrere Treffer aus, sein Bericht friert im Moment des Abschusses ein",
       "noAmmo": "Nicht genug Power Cells",
-      "destroyed": "Satellit von {name} zerstört",
-      "hint": "Ohne dieses Gebäude bleiben fremde Satelliten unsichtbar. Ein Satellit funkt, bis er abgeschossen wird."
+      "destroyed": "Satellit von {name} zerstört"
+    },
+
+    "intercept": {
+      "back": "Zurück zur Übersicht",
+      "hint": "Tippe die Stelle am Himmel an, die du treffen willst — das ist Zielen und Schießen in einem. Der Strahl braucht einen Moment, feuere also dorthin, wo der Satellit sein wird, nicht wohin er ist. Er zieht immer von ganz links nach ganz rechts durch, wird aber mit jedem Treffer schneller. Jeder Schuss kostet eine Energiezelle, Treffer oder nicht. Der Schaden bleibt am Ziel: brich ab und mach später weiter.",
+      "stageSteady": "Ruhiger Überflug — lies den Vorhalt",
+      "stageFast": "Treffer. Er ist auf vollen Schub gegangen — dein Vorhalt ist jetzt zu kurz",
+      "stageEvading": "Wieder getroffen. Voller Schub — gleicher Kurs, größerer Vorhalt",
+      "outcomeDestroyed": "💥 Satellit zerstört",
+      "outcomeDry": "Keine Energiezellen mehr. Der Schaden bleibt am Satelliten — komm mit Munition wieder."
     },
 
     "anomaly": {

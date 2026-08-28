@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
-// One planet, drawn as a planet. The disc, its type glyph, the 🏠 badge, the
-// battery ring around it and the shield bubble over it — everything that is
-// true of the body itself and nothing about where it is drawn. The orbit map
+// One planet, drawn as a planet. The disc, its type glyph, the 🏠 badge and the
+// gauge ring around it — everything that is true of the body itself and nothing
+// about where it is drawn. The orbit map
 // hangs it on a rotating box, the strip over the planet grid lines four of them
 // up in a row, and neither has to know how a shield looks.
 //
@@ -67,33 +67,59 @@ const markerClass = computed(() => [
 ])
 
 // ── Meters ────────────────────────────────────────────────────────────────────
-// Drawn as what they physically are: the battery as a charge ring around the
-// planet, the shield as the bubble surrounding it. Both are null without the
-// building, so a planet with no power plant wears no ring at all.
+// One ring around the planet, split in half: 🛡️ the shield owns the top, 🔋 the
+// battery the bottom. Both fill LEFT TO RIGHT — from 9 o'clock to 3 o'clock, over
+// the top for the shield and under the belly for the battery — so the two gauges
+// mirror each other and either end of the ring means the same thing on both.
+//
+// Both are null without their building, so a planet with no power plant wears no
+// bottom arc at all: a missing meter and a flat one must never look the same.
 const round = (v) => (v == null ? null : Math.round(v))
 
 const batteryPct = computed(() => round(batteryChargeOf(id.value)))
 const shieldPct  = computed(() => round(shieldChargeOf(id.value)))
 
 const BATTERY_COLOR = { ok: '#10b981', low: '#f59e0b', empty: '#f59e0b', down: '#ef4444' }
+const SHIELD_COLOR  = '#38bdf8'
+const TRACK         = 'rgba(255,255,255,0.10)'
 
-const batteryStyle = computed(() => {
-  if (!props.battery || !known.value || batteryPct.value === null) return null
-  const deg = Math.max(0, Math.min(100, batteryPct.value)) * 3.6
-  const col = BATTERY_COLOR[batteryLevelOf(id.value)]
+// Half a circle is 180° of gauge, so a percent is worth 1.8° here and not the
+// full circle's 3.6. Printed to one decimal, which is all an integer percentage
+// can produce anyway — 66.60000000000001deg in a style attribute is noise in
+// every inspector this ends up being read in.
+const halfDeg = (pct) => Math.max(0, Math.min(100, pct)) * 1.8
+const deg1    = (v) => v.toFixed(1)
+
+// `conic-gradient` only ever sweeps clockwise from its `from` angle, so which
+// half you get and which way it fills is decided entirely by where that angle
+// sits and whether the colour is at the head or the tail of the sweep.
+//
+// Top arc: `from -90deg` starts the sweep at 9 o'clock and clockwise from there
+// runs over the top to 3 o'clock. Colour at the head, track behind it — the fill
+// leaves the left edge and travels right. The far half of the sweep is the
+// bottom of the ring and stays transparent; the battery draws that.
+const shieldStyle = computed(() => {
+  if (!props.shield || !known.value || shieldPct.value === null) return null
+  const fill = deg1(halfDeg(shieldPct.value))
   return {
-    background: `conic-gradient(from -90deg, ${col} 0deg ${deg}deg, rgba(255,255,255,0.10) ${deg}deg 360deg)`,
+    background: `conic-gradient(from -90deg, ${SHIELD_COLOR} 0deg ${fill}deg,`
+              + ` ${TRACK} ${fill}deg 180deg, transparent 180deg 360deg)`,
   }
 })
 
-// A shield at 0 % draws nothing at all — an unshielded planet should look bare,
-// not like it is wearing an empty bubble.
-const shieldStyle = computed(() => {
-  if (!props.shield || !known.value || shieldPct.value === null || shieldPct.value <= 0) return null
-  const f = shieldPct.value / 100
+// Bottom arc: `from 90deg` starts at 3 o'clock, so clockwise runs under the belly
+// to 9 o'clock — the wrong way round. Putting the colour at the *tail* of that
+// sweep turns it back, because the tail is the 9 o'clock end, and the fill leaves
+// the left edge travelling right just as the shield above it does.
+const batteryStyle = computed(() => {
+  if (!props.battery || !known.value || batteryPct.value === null) return null
+  const col = BATTERY_COLOR[batteryLevelOf(id.value)]
+  // The one angle this arc needs is where the fill STARTS, since it is the tail
+  // of the sweep that carries the colour.
+  const rest = deg1(180 - halfDeg(batteryPct.value))
   return {
-    background:  `radial-gradient(circle, rgba(56,189,248,0) 54%, rgba(56,189,248,${(0.06 + f * 0.30).toFixed(3)}) 100%)`,
-    borderColor: `rgba(56,189,248,${(0.12 + f * 0.48).toFixed(3)})`,
+    background: `conic-gradient(from 90deg, ${TRACK} 0deg ${rest}deg,`
+              + ` ${col} ${rest}deg 180deg, transparent 180deg 360deg)`,
   }
 })
 </script>
@@ -212,8 +238,10 @@ const shieldStyle = computed(() => {
   &--warn  { color: #1c1917;  background: rgba(251, 191, 36, 0.95); border-color: rgba(253, 230, 138, 0.6); }
 }
 
-// The battery is drawn as what it is — a charge ring around the planet. The
-// mask cuts the conic gradient down to a 3 px band at the outer edge.
+// The two meters are one ring cut in half, not two rings at two radii: same
+// inset, same 3 px band, so they meet at 9 and 3 o'clock and the planet wears a
+// single gauge. The mask is what turns each conic gradient into that band.
+.hs-pl__shield,
 .hs-pl__battery {
   position: absolute;
   inset: -4px;
@@ -221,7 +249,9 @@ const shieldStyle = computed(() => {
   pointer-events: none;
   -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
           mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+}
 
+.hs-pl__battery {
   // A blackout stops the whole planet — the one meter worth shouting about.
   &--down { animation: hs-meter-pulse 1.5s ease-in-out infinite; }
 }
@@ -231,14 +261,11 @@ const shieldStyle = computed(() => {
   50%      { opacity: 0.3; }
 }
 
-// The shield is the bubble around the planet; its opacity is the charge, so a
-// planet without one simply looks bare instead of wearing an empty ring.
+// An emitter at 0 % now draws its bare track rather than nothing at all: on a
+// gauge the empty end is a reading, and "shielded but flat" is the most useful
+// thing this marker can say about a planet. Drawing nothing still means what it
+// always meant — there is no generator down there.
 .hs-pl__shield {
-  position: absolute;
-  inset: -9px;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  pointer-events: none;
-  transition: background 0.4s ease, border-color 0.4s ease;
+  transition: background 0.4s ease;
 }
 </style>

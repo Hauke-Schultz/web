@@ -146,14 +146,19 @@ const canRaise = (recipe) =>
     <!-- Power battery — grid uptime, shown on the energy tile once a power plant exists -->
     <HsPowerBattery v-if="isEnergyTile && getLevel('power_plant') > 0" />
 
+    <!-- Orbital defense — what a foreign spy satellite dies of. Only visible
+         with the building, because the building is the sensor: without it the
+         planet cannot tell that anything is up there.
+
+         ABOVE the shield, and deliberately: a satellite overhead is something
+         happening TO you right now and it is what the fire-control game opens
+         into, while the shield below is a meter that only ever drifts. The one
+         that can demand an answer goes first. -->
+    <HsOrbitDefensePanel v-if="isDefenseTile && hasOrbitalDefense" />
+
     <!-- Planetary shield — defense tile, once a generator stands. Same meter as
          the battery, but each click is paid for in crystal. -->
     <HsShieldPanel v-if="isDefenseTile && getLevel('shield_generator') > 0" />
-
-    <!-- Orbital defense — what a foreign spy satellite dies of. Only visible
-         with the building, because the building is the sensor: without it the
-         planet cannot tell that anything is up there. -->
-    <HsOrbitDefensePanel v-if="isDefenseTile && hasOrbitalDefense" />
 
     <!-- Population recruitment — base tile -->
     <HsRecruitPanel v-if="isBaseTile" />

@@ -615,6 +615,8 @@ function ensure_spy_intel_table(PDO $db): void {
                satellite_until  DATETIME NULL,
                satellite_active TINYINT(1) NOT NULL DEFAULT 0,
                satellite_lost_at DATETIME NULL,
+               satellite_hits   TINYINT NOT NULL DEFAULT 0,
+               satellite_shot_at DATETIME(3) NULL,
                shield_seen_at   DATETIME NULL,
                shield_charge    FLOAT NULL,
                PRIMARY KEY (player_id, planet_id)
@@ -633,12 +635,17 @@ function ensure_spy_intel_table(PDO $db): void {
         //   satellite_active — a satellite no longer expires, so "is it still up
         //     there" became a flag instead of a date comparison.
         //   satellite_lost_at — the outbox for "your satellite was destroyed".
+        //   satellite_hits / satellite_shot_at — a satellite now takes several
+        //     hits, so the damage has to outlive the browser tab that dealt it,
+        //     and the shot rate needs a floor with sub-second resolution.
         if (!$fresh) {
             $columns = [
-                'shield_seen_at'    => 'DATETIME NULL',
-                'shield_charge'     => 'FLOAT NULL',
-                'satellite_active'  => 'TINYINT(1) NOT NULL DEFAULT 0',
-                'satellite_lost_at' => 'DATETIME NULL',
+                'shield_seen_at'     => 'DATETIME NULL',
+                'shield_charge'      => 'FLOAT NULL',
+                'satellite_active'   => 'TINYINT(1) NOT NULL DEFAULT 0',
+                'satellite_lost_at'  => 'DATETIME NULL',
+                'satellite_hits'     => 'TINYINT NOT NULL DEFAULT 0',
+                'satellite_shot_at'  => 'DATETIME(3) NULL',
             ];
             $added = [];
             foreach ($columns as $col => $ddl) {
@@ -735,17 +742,29 @@ function record_spy_intel(PDO $db, int $playerId, int $planetId, bool $satellite
 
         // `satellite_until` is no longer an expiry — it records when this one was
         // placed, which is what the defender's target list shows.
+        //
+        // THE HULL IS NEW, SO THE DAMAGE IS NOT ITS OWN. The row is keyed
+        // (player, planet) and deliberately never deleted, so a spy who replaces
+        // a satellite that was shot down lands on the dead one's record — and
+        // `satellite_hits` sitting at SATELLITE_ARMOR meant the replacement came
+        // apart on the defender's very first round. Resetting it here rather than
+        // on the kill is what makes it right: the kill has to LEAVE the count at
+        // the armour, because that is what stops a round landing on a wreck
+        // (see the claim in defense/intercept.php).
         $db->prepare(
             'INSERT INTO hs_spy_intel
                (player_id, planet_id, owner_player_id, owner_faction_id, observed_at,
-                satellite_until, satellite_active, shield_seen_at, shield_charge)
-             VALUES (?,?,?,?, NOW(), NOW(), 1, NOW(), ?)
+                satellite_until, satellite_active, satellite_hits, satellite_shot_at,
+                shield_seen_at, shield_charge)
+             VALUES (?,?,?,?, NOW(), NOW(), 1, 0, NULL, NOW(), ?)
              ON DUPLICATE KEY UPDATE
                owner_player_id=VALUES(owner_player_id),
                owner_faction_id=VALUES(owner_faction_id),
                observed_at=NOW(),
                satellite_until=NOW(),
                satellite_active=1,
+               satellite_hits=0,
+               satellite_shot_at=NULL,
                shield_seen_at=NOW(),
                shield_charge=VALUES(shield_charge)'
         )->execute([$playerId, $planetId, $ownerId, $factionId, $shieldCharge]);
@@ -829,7 +848,7 @@ function foreign_satellites(PDO $db, int $planetId, int $playerId): array {
     // survivable wrong answer; a white page is not.
     try {
         $rows = $db->prepare(
-            'SELECT si.player_id, pl.username, pl.portrait,
+            'SELECT si.player_id, pl.username, pl.portrait, si.satellite_hits,
                     UNIX_TIMESTAMP(si.satellite_until) AS placed_ts
              FROM hs_spy_intel si
              JOIN hs_players pl ON pl.id = si.player_id
@@ -843,6 +862,10 @@ function foreign_satellites(PDO $db, int $planetId, int $playerId): array {
             'username' => $r['username'],
             'portrait' => $r['portrait'],
             'placedAt' => $r['placed_ts'] ? (int)$r['placed_ts'] * 1000 : null,
+            // Damage survives the tab that dealt it: a salvo you broke off is
+            // not wasted, it is a softer satellite the next time you come back.
+            'hits'     => (int)($r['satellite_hits'] ?? 0),
+            'armor'    => SATELLITE_ARMOR,
         ], $rows->fetchAll());
     } catch (\Throwable $e) {
         return [];

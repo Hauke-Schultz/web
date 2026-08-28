@@ -1,26 +1,52 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { SPY, RESOURCES } from '~/utils/hawkStarConfig.js'
+import HsInterceptGame from '~/components/hawk-star/HsInterceptGame.vue'
 
 const { t } = useI18n()
 const {
   foreignSatellites,
   canIntercept,
-  interceptSatellite,
   interceptError,
   lastIntercepted,
   playerResources,
   now,
 } = useHawkStar()
 
-// One shot, one power cell. Shown on the button like the shield's crystal cost,
-// because the same rule applies: a click that spends something says what.
+// The 🎯 button no longer fires — it opens the fire-control overlay, and the
+// shooting happens in there.
+//
+// A SNAPSHOT of the bogey, deliberately, not a live lookup into
+// `foreignSatellites`: the winning shot removes the satellite from that list,
+// so anything derived from it tears the overlay down at the exact moment the
+// player has earned the 💥. Nothing is lost by copying — the game seeds its
+// counter from this and then follows the server's answer to every shot.
+const engaging = ref(null)
+const closeGame = () => { engaging.value = null }
+
+// 🎯 is a toggle, not a one-way door: the game has no title bar of its own to
+// hang a ✕ on any more, and the button that opened it is still right there, so
+// it is the obvious thing to press to put it away. Pressing it on a DIFFERENT
+// bogey switches targets rather than closing — a second satellite in the list
+// is a new engagement, not a toggle of the first.
+const toggleGame = (sat) => {
+  engaging.value = engaging.value?.playerId === sat.playerId ? null : { ...sat }
+}
+
+// One shot, one power cell — printed on the button as `1/7`: what a round costs
+// over what is in the magazine. The price alone was the shield's pattern, and it
+// is the wrong one here, because the price never changes while the stock is what
+// decides the engagement. The sortie has no cap of its own, so that second
+// number IS how many rounds are left, and it is the only figure there is to plan
+// an attack around.
 const cost = computed(() =>
   Object.entries(SPY.interceptCost).map(([res, amount]) => ({
     res,
     amount,
+    // Floored, so it never advertises a round the stock cannot actually pay for.
+    have: Math.floor(playerResources.value[res] ?? 0),
     icon: RESOURCES[res]?.icon ?? '•',
     ok: (playerResources.value[res] ?? 0) >= amount,
   }))
@@ -55,12 +81,26 @@ const watchingFor = (placedAt) => {
         <span class="hs-orbit-info">
           <span class="hs-orbit-name">{{ sat.username }}</span>
           <span class="hs-orbit-since">📡 {{ t('hawkStar.orbitDefense.watching', { age: watchingFor(sat.placedAt) }) }}</span>
+          <!-- Damage already done to this one. It survives the salvo that dealt
+               it, so an engagement broken off is a head start, not a loss.
+
+               Shown at 0/3 as well: an empty bar is the answer to "how much of
+               this is left", and hiding it until the first hit meant the one
+               moment the question is most likely to be asked — before firing a
+               single round — was the one moment it went unanswered. It also
+               stopped the row changing height as soon as a shot landed. -->
+          <span class="hs-orbit-armor">
+            <span class="hs-orbit-armor__bar">
+              <span class="hs-orbit-armor__fill" :style="{ width: (sat.hits / (sat.armor || 3)) * 100 + '%' }" />
+            </span>
+            {{ sat.hits }} / {{ sat.armor || 3 }}
+          </span>
         </span>
         <button
           class="hs-orbit-fire"
           :disabled="!canIntercept"
           :title="affordable ? t('hawkStar.orbitDefense.fireHint') : t('hawkStar.orbitDefense.noAmmo')"
-          @click="interceptSatellite(sat.playerId)"
+          @click="toggleGame(sat)"
         >
           🎯 {{ t('hawkStar.orbitDefense.fire') }}
           <span
@@ -68,7 +108,7 @@ const watchingFor = (placedAt) => {
             :key="c.res"
             class="hs-orbit-cost"
             :class="c.ok ? 'hs-orbit-cost--ok' : 'hs-orbit-cost--no'"
-          >{{ c.icon }} {{ c.amount }}</span>
+          >{{ c.icon }} {{ c.amount }}/{{ c.have }}</span>
         </button>
       </li>
     </ul>
@@ -81,11 +121,43 @@ const watchingFor = (placedAt) => {
     </div>
     <div v-if="interceptError" class="hs-orbit-error">{{ interceptError }}</div>
 
-    <div class="hs-orbit-hint">{{ t('hawkStar.orbitDefense.hint') }}</div>
+
+    <!-- In the tile, not over the screen. Firing at something in your own orbit
+         is part of running the planet, not a mode you enter — and the panel it
+         replaces is right here, so the field opens where the target list was
+         rather than somewhere the eye has to be led back from. -->
+    <HsInterceptGame v-if="engaging" :target="engaging" @close="closeGame" />
   </div>
 </template>
 
 <style lang="scss" scoped>
+// The row's damage bar. Deliberately the same two colours as the one inside the
+// game, because it is the same number — a player who softened a satellite last
+// night should recognise the bar they left behind.
+.hs-orbit-armor {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(252,165,165,0.85);
+}
+
+.hs-orbit-armor__bar {
+  width: 2.4rem;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  overflow: hidden;
+}
+
+.hs-orbit-armor__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+}
+
 .hs-orbit {
   margin-bottom: 0.5rem;
   padding: 0.4rem 0.6rem;
@@ -199,10 +271,4 @@ const watchingFor = (placedAt) => {
   color: var(--hs-danger);
 }
 
-.hs-orbit-hint {
-  margin-top: 0.35rem;
-  font-size: 0.58rem;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.35);
-}
 </style>

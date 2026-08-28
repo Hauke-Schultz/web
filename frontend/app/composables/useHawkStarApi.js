@@ -77,7 +77,10 @@ export function useHawkStarApi() {
     postDevCheat:          (action, planetId = null, extra = {})  => post('/dev/cheat', { action, ...(planetId != null ? { planetId } : {}), ...extra }),
     chargeBattery:         (planetId)                 => post('/game/power/charge', { planetId }),
     chargeShield:          (planetId)                 => post('/game/defense/charge', { planetId }),
-    interceptSatellite:    (planetId, targetPlayerId) => post('/game/defense/intercept', { planetId, targetPlayerId }),
+    // One shot, not one kill: `hit` says whether the round connected. The cell is
+    // spent either way, which is what the server is really enforcing.
+    interceptSatellite:    (planetId, targetPlayerId, hit) =>
+                             post('/game/defense/intercept', { planetId, targetPlayerId, hit: !!hit }),
     recruit:               (planetId)                 => post('/game/base/recruit', { planetId }),
     resolveAnomaly:        (planetId, choice)         => post('/game/anomaly/resolve', { planetId, choice }),
     // Only the OUTCOME of a cast — the cast itself never reaches the server, and

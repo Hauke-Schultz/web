@@ -31,6 +31,7 @@ const {
   recruitPoolMax,
   shieldCharge,
   hasAnomaly,
+  foreignSatellites,
   conversionQueues,
   homeSystem,
   starMapLevel,
@@ -380,6 +381,16 @@ const onSelectSlot = (slot) => {
             <span v-if="hasAnomaly" class="hs-dot hs-dot--anomaly" />
           </template>
           <template v-else>
+            <!-- Somebody else's satellite is parked over this planet. It reaches
+                 the grid from the same place the panel gets it, and it is empty
+                 unless an `orbital_defense` is standing: the building IS the
+                 sensor, so an undefended colony still shows nothing. -->
+            <span
+              v-for="n in (slot.tileType === 'defense' ? foreignSatellites.length : 0)"
+              :key="'bogey' + n"
+              class="hs-dot hs-dot--bogey"
+              :title="t('hawkStar.tile.bogey', { n: foreignSatellites.length })"
+            />
             <span
               v-for="b in slotsOnSlot(slot.slot)"
               :key="b.id"
@@ -791,6 +802,16 @@ const onSelectSlot = (slot) => {
   // slower than every other pulse — a 30-minute job should breathe, not blink
   // for attention the way an offline building does.
   &--conversion { background: #38bdf8; animation: pulse 2s ease-in-out infinite; }
+
+  // A foreign satellite overhead. Red like an offline building, because both are
+  // alarms — but it sits on the same tile as one, so it needs to be told apart
+  // at 6 px: the halo and the fastest blink on the grid do that. It is also the
+  // only dot here that is somebody else's doing, and it should read that way.
+  &--bogey {
+    background: #ef4444;
+    box-shadow: 0 0 5px rgba(239,68,68,0.9);
+    animation: pulse 0.8s ease-in-out infinite;
+  }
 }
 
 // The dots column is a vertical stack, which was fine for two ship types. With
