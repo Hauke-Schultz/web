@@ -1439,7 +1439,7 @@ That is why `flashes` is a **list**. It was a single ref, which was fine while a
 
 **The killing round leaves no mark of its own.** The wreck is already a 💥 at the same spot and the same instant, and two of them stacked reads as a rendering fault rather than as an explosion. The shell carries the `kills` flag it was fired with, and the frame loop skips the mark for it — a decision made at the trigger, like every other one in this file, rather than a guess at impact about whether the wreck has appeared yet.
 
-**There is no cap on a sortie.** You fire until the satellite comes apart or the magazine is empty, and the magazine is the planet's power cells — one limit, shown as a number in `hs-icept-ammo`, and it is the same number the rest of the game already spends. A per-sortie cap existed briefly (6, then 3) and was removed: it was a second budget layered on the first, and the readout then had to show the smaller of the two, which is the kind of quantity nobody can plan against.
+**There is no cap on a sortie.** You fire until the satellite comes apart or the magazine is empty, and the magazine is the planet's power cells — one limit, printed as the `⚡ 1/7` on the 🎯 button in the row above the field, and it is the same number the rest of the game already spends. A per-sortie cap existed briefly (6, then 3) and was removed: it was a second budget layered on the first, and the readout then had to show the smaller of the two, which is the kind of quantity nobody can plan against.
 
 **Know what that trades away.** The cap was the only thing forcing more than one sitting. Measured against the shipped geometry:
 
@@ -1507,6 +1507,18 @@ The game opened as a fixed, blurred sheet over the whole viewport. It is now a p
 
 **The game has no chrome of its own.** No title bar, no armour bar, no ✕. The row that opened it is still on screen directly above, carrying the bogey's name and the same damage in `hs-orbit-armor` — printing either again would be a second copy of a fact three centimetres away, and it would cost the field the height. The 🎯 button is a **toggle**: it opens the game and it closes it, which is the obvious thing to press once there is no ✕ to look for. Pressing it on a *different* bogey switches targets rather than closing, because a second satellite in the list is a new engagement and not a toggle of the first.
 
+**The foot and the instruction line came out** *(2026-08-29)*. Everything below the field is gone: `hs-icept-foot` with its stage line and ammo counter, and `hs-icept-hint` with the paragraph explaining the lead. Three separate reasons, one edit:
+
+- **The hint is read once, then never again.** The rule is *one tap, and the bolt takes time to get there*, and the sky teaches it on the very first bolt — a five-line paragraph was charging every later sortie permanent height to say what the first miss already said. `hawkStar.intercept.hint` is deleted in both languages.
+- **The ammo counter was a second copy.** The 🎯 button in the row directly above the field prints `⚡ 1/7` and counts down live off the same `playerResources`, and it is three centimetres away — the same argument that took the game's title bar and armour bar out. `stageKey`, `ammoIcon` and the `RESOURCES` import went with it, and `cellsLeft` stays because the firing logic needs it.
+- **The stage line was narrating the difficulty, not driving it.** *"Treffer. Er ist auf vollen Schub gegangen"* is visible in the sky the instant it happens; the three `stageSteady` / `stageFast` / `stageEvading` strings are deleted too.
+
+`hs-icept-error` is the only thing left under the field, and it is only there when a shot actually failed, so it carries its own padding instead of a foot row's.
+
+**The panel keeps its height when the last bogey dies** *(2026-08-29)*. A row is three stacked lines; the *"Orbit frei"* line that replaces it is one — so the tile, and everything below it in the column, shrank at the exact moment the player was watching the wreck, and shrank again later when the 💥 kill notice aged out. The list, the clear line and the kill notice now share one `.hs-orbit-body` box with `min-height: $slot`, and the row carries the same `min-height`, so the slot and its contents can never disagree. `$slot` is **2.75 rem**: the row's own natural height, which is only a number worth writing down because the three lines in `hs-orbit-info` are pinned to `line-height: 1.3` — left to the browser's default line box it would be a guess. The message text is vertically centred in the slot rather than sitting at its top, so it stands where the row stood instead of clinging to the top of an obviously empty box. Shooting one of *two* bogeys still changes the height, which is correct: a row genuinely left the list.
+
+**Opening the game scrolls it into view** *(2026-08-29)*. The field opens *inside* the tile, below the row that was tapped, and on a phone that is reliably below the fold — the defense tile sits under the resource bar and the bogey list, so pressing 🎯 highlighted a row and, as far as the player could see, did nothing. `toggleGame` now awaits `nextTick` and scrolls `.hs-icept` into view, so the tap after 🎯 can be the first shot. `block: 'nearest'` on purpose: it scrolls the minimum needed, which keeps the bogey's row and its damage bar on screen directly above the field — the one place the game deliberately does not repeat them. Only opening scrolls — the toggle's closing half moves nothing new into view. Pressing 🎯 on a *different* bogey counts as an open and scrolls again, which is right: the field has just been re-parented under another row.
+
 The field then runs **edge to edge** inside the panel — the panel's own border frames it and its `overflow: hidden` rounds the corners. Every pixel of width is worth having: the whole geometry is a percentage of that box, so a wider field is a physically bigger target and a longer travel to read the lead against.
 
 Moving out of a fixed-width lightbox is what forced the sizing rule above: inside the sheet the field was always ~28 rem, so rem sizes happened to work. In a column whose width is not ours to choose, they stop working, quietly, at the narrow end.
@@ -1542,9 +1554,45 @@ The reconciliation was exempted from it, and that was a bug. `hits` had **two wr
 - **The visible half** is the bar reading 1 → 3 → back to 2, which is what was reported.
 - **The dangerous half** is `kills`, computed from `hits.value` at the trigger. With the count inflated, the *second* round satisfied `hits + 1 >= armor`, so the client blew the dish up and printed "destroyed" over a satellite the server still had alive at 2/3.
 
-Routing the correction through `atImpact()` too puts the two writes in a fixed order instead of a race — the local `+1` first, the correction immediately behind it, both on the bolt's clock — and since they agree, nothing moves twice. `scratchpad/intercept-count-check.mjs` reproduces both orderings and asserts the difference: the old one yields a bar of `[2, 3, 3]` and a client kill on round **2**, the new one `[1, 2, 3]` and a kill on round 3.
+The first fix routed the correction through `atImpact()` as well, on the reasoning that two timeouts armed for the same deadline fire in the order they were armed. **That fix was wrong, and it took a second report to find out** — *"wenn ich den Satellit getroffen habe, zählt er manchmal zwei Treffer."*
 
-The general rule, now with no exceptions: **anything that writes to state the player can see goes through `atImpact()`.** A write that skips it is a write racing the animation.
+##### Two timers is not an ordering  *(2026-08-29)*
+
+**The deadlines were never the same.** Both are computed from `Date.now()`, which is truncated to whole milliseconds:
+
+    firedAt   = Date.now()                                   // truncates DOWN, losing up to 1 ms
+    impact    → setTimeout(…, SHELL_MS)                      // armed at the real time of the shot
+    reconcile → setTimeout(…, SHELL_MS - (Date.now() - firedAt))
+
+The reconcile's delay is computed from a *truncated* elapsed time, so it can be up to a millisecond too long — and armed at a real moment that makes its deadline land a fraction **before** the impact's own. When it does, the correction runs first and the local `+1` goes on top of it: one hit, two counted, exactly the original bug. Sub-millisecond, so it depends on where in the millisecond the shot happened to fall — hence *sometimes*, on maybe one round in several, with the same salvo and the same latency.
+
+**The fix is to stop using a clock for it at all.** The impact sets `landed`, the answer sets `serverHits`, and whichever arrives *second* runs the reconcile:
+
+    const reconcile = () => {
+      if (refused || !landed || serverHits === null) return
+      hits.value = serverHits
+    }
+
+Ordered by data instead of by two clocks, so latency is simply not an input any more. `scratchpad/intercept-count-check.mjs` now models all three versions and — the assertion that matters — sweeps the shipped one across answers from 1 ms to 5 s and requires the *same* salvo from every one of them. A version that only holds on a fast connection is the bug it replaced wearing a different hat.
+
+The general rule holds with a sharper edge: **anything that writes to state the player can see is sequenced against the bolt** — but *sequenced* means a happens-before, not two timers pointed at the same instant and hoped over.
+
+##### The verdict button was dead on every phone  *(2026-08-29)*
+
+The field carried `@touchstart.prevent`, which suppresses the compatibility click the browser would otherwise synthesise ~300 ms later — without it a single tap fires twice and costs two power cells. But the modifier is on the **container**, and the verdict card lives inside it, so the same `preventDefault` swallowed the click on *Zurück zum Panel* — the only way out of a finished sortie. On a mouse it worked; on a thumb the field could not be closed at all, on the one device this game is built for.
+
+`onFieldTouch` now calls `preventDefault()` itself, and only for a round actually being fired — never once the sortie is over, and never for a tap that landed on a button. A tap on the sky afterwards reaches `onFieldClick`, where `canFire` turns it away as it always did. **A blanket `.prevent` on a container is a claim about every descendant it will ever have**, and this one grew a button after the claim was made.
+
+(The German label said *"Zurück zur Übersicht"* while the English said *"Back to the panel"*. It goes back to the panel; the German now says so.)
+
+##### An empty magazine closes the field  *(2026-08-29)*
+
+The two endings are deliberately asymmetric, and `endSortie()` is the one place that knows it:
+
+- **A kill is a result and it waits to be dismissed.** The 💥 is what the salvo was for. Nothing takes it off the screen but the player.
+- **An empty magazine is not a result.** There is nothing left to do in the field, the panel behind is already saying so on a disabled 🎯 button, and a dead field parked in the tile column is furniture the player has to clear by hand every time. The card is shown long enough to read the reason and the overlay then closes itself (`DRY_EXIT_MS`, 2.4 s).
+
+`endSortie()` also makes the first verdict win, which the three scattered `done.value = …` assignments it replaced could not: a round that connects while the last cell is being spent is a **kill**, and it must not be overwritten by the dry verdict scheduled a beat earlier.
 
 #### A ReferenceError that walked past every gate  *(2026-08-28)*
 

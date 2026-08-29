@@ -417,11 +417,7 @@
     },
 
     "intercept": {
-      "back": "Zurück zur Übersicht",
-      "hint": "Tippe die Stelle am Himmel an, die du treffen willst — das ist Zielen und Schießen in einem. Der Strahl braucht einen Moment, feuere also dorthin, wo der Satellit sein wird, nicht wohin er ist. Er zieht immer von ganz links nach ganz rechts durch, wird aber mit jedem Treffer schneller. Jeder Schuss kostet eine Energiezelle, Treffer oder nicht. Der Schaden bleibt am Ziel: brich ab und mach später weiter.",
-      "stageSteady": "Ruhiger Überflug — lies den Vorhalt",
-      "stageFast": "Treffer. Er ist auf vollen Schub gegangen — dein Vorhalt ist jetzt zu kurz",
-      "stageEvading": "Wieder getroffen. Voller Schub — gleicher Kurs, größerer Vorhalt",
+      "back": "Zurück zum Panel",
       "outcomeDestroyed": "💥 Satellit zerstört",
       "outcomeDry": "Keine Energiezellen mehr. Der Schaden bleibt am Satelliten — komm mit Munition wieder."
     },

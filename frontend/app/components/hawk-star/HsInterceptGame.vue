@@ -48,7 +48,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
-import { SPY, RESOURCES } from '~/utils/hawkStarConfig.js'
+import { SPY } from '~/utils/hawkStarConfig.js'
 
 const props = defineProps({
   // The bogey being shot at: { playerId, username, portrait, hits, armor }
@@ -209,6 +209,32 @@ const busy    = ref(false)
 const killed  = ref(false)
 const done    = ref(null) // 'destroyed' | 'dry' — the only two ways a sortie ends
 const nowMs   = ref(Date.now())
+
+// How long the empty-magazine card is left up before the overlay closes itself.
+// A kill is NOT on a clock — see endSortie().
+const DRY_EXIT_MS = 2400
+
+// The two endings are not symmetrical, and that is deliberate.
+//
+// A KILL IS A RESULT AND IT WAITS TO BE DISMISSED. The 💥 is what the salvo was
+// for; taking it off the screen on a timer would take the reward away from the
+// one player who earned it, and the button is right there.
+//
+// AN EMPTY MAGAZINE IS NOT A RESULT. There is nothing left to do in the field,
+// the panel behind is already saying so on the 🎯 button, and a dead field
+// parked in the tile column is furniture the player has to clear by hand every
+// time. So the card is shown long enough to read the reason, and then the
+// overlay takes itself away.
+//
+// Whichever ending lands first wins: a round that connects while the last cell
+// is being spent is a kill, and it must not be overwritten by the dry verdict
+// that was scheduled a beat earlier.
+const endSortie = (kind) => {
+  if (done.value) return
+  done.value = kind
+  if (kind === 'dry') beat(() => emit('close'), DRY_EXIT_MS)
+}
+
 // Where it died. The clock keeps running after the kill — it drives the fade of
 // the last shell and the impact mark — so a wreck drawn at the live position
 // would sail calmly on across the sky.
@@ -217,7 +243,6 @@ const wreckX  = ref(50)
 const cellsLeft = computed(() =>
   Math.floor(playerResources.value[Object.keys(SPY.interceptCost)[0]] ?? 0)
 )
-const ammoIcon = RESOURCES.power_cell?.icon ?? '⚡'
 
 const canFire   = computed(() => !busy.value && !done.value && cellsLeft.value > 0)
 
@@ -334,17 +359,33 @@ const fire = async (x) => {
   // from one the server sent back — see the refusal branch at the bottom.
   let refused = false
 
+  // The two facts the reconcile below needs, each written by a different side:
+  // the server's count for THIS round once it answers, and whether the round has
+  // landed yet. Neither side knows which of them will happen first.
+  let serverHits = null
+  let landed     = false
+
+  // Put the authority's number on top of the local +1. Idempotent, and it does
+  // nothing until BOTH halves are in, so either side can call it without caring
+  // which order they arrived in.
+  const reconcile = () => {
+    if (refused || !landed || serverHits === null) return
+    hits.value = serverHits
+  }
+
   atImpact(firedAt, () => {
     if (refused) return
+    landed = true
     busy.value = false
     if (hit) hits.value = Math.min(armor.value, hits.value + 1)
+    reconcile()
 
     if (kills) {
       // The dish blows up where the round actually met it, and at the moment it
       // met it. The card waits a beat so the 💥 is read before it is covered.
       wreckX.value = impactX
       killed.value = true
-      beat(() => { done.value = 'destroyed' }, VERDICT_MS)
+      beat(() => endSortie('destroyed'), VERDICT_MS)
       return
     }
 
@@ -370,28 +411,37 @@ const fire = async (x) => {
     refused = true
     shells.value = shells.value.filter(s => s.id !== firedAt)
     busy.value = false
-    if (cellsLeft.value <= 0) done.value = 'dry'
+    if (cellsLeft.value <= 0) endSortie('dry')
     return
   }
 
-  // Reconcile with the authority — BUT NEVER BEFORE THE ROUND HAS LANDED. This
-  // used to assign straight from here, which is a second writer to `hits` racing
-  // the one at impact, and the server almost always won the race because it
-  // answers in ~200 ms against the bolt's 700. One hit was then counted twice:
-  // the answer set the bar to 1, and the impact handler afterwards added its own
-  // +1 on top and made it 2.
+  // Reconcile with the authority — BUT NEVER BEFORE THE ROUND HAS LANDED, and
+  // never on a timer of its own.
   //
-  // The visible half of that is the bar jumping 1 → 3 → back to 2, which is what
-  // was reported. The dangerous half is `kills`, which is computed from
-  // `hits.value` at the trigger: with the count inflated, the SECOND round
-  // satisfied `hits + 1 >= armor`, so the client blew the dish up and printed
+  // The local +1 at impact and this correction are two writers to `hits`, and the
+  // correction is only right if it runs SECOND: it is an absolute value, so
+  // applied before the +1 it becomes a base that the +1 is then added on top of,
+  // and one hit reads as two.
+  //
+  // An earlier fix put this on its own atImpact() timer, reasoning that two
+  // timeouts with the same deadline fire in the order they were armed. THE
+  // DEADLINES ARE NOT THE SAME. Both are derived from `Date.now()`, which is
+  // truncated to whole milliseconds, so the answer's timer can be armed a
+  // fraction of a millisecond EARLIER than the impact's own and land first. That
+  // is the "sometimes" in the report: same salvo, same latency, and the count
+  // jumps by two on maybe one round in several.
+  //
+  // There is no timer here now. The impact sets `landed`, the answer sets
+  // `serverHits`, and whichever arrives second runs the reconcile — the two
+  // writes are ordered by data instead of by two clocks racing.
+  //
+  // What the double count cost beyond the readout: `kills` is computed from
+  // `hits.value` at the trigger, so an inflated count let the SECOND round
+  // satisfy `hits + 1 >= armor` — the client blew the dish up and printed
   // "destroyed" over a satellite the server still had alive at 2/3.
-  //
-  // Routed through atImpact() the two writes are ordered rather than racing —
-  // the local +1 first, this correction immediately after it, both on the bolt's
-  // clock — and they agree, so nothing moves twice.
   if (typeof result.hits === 'number') {
-    atImpact(firedAt, () => { if (!refused) hits.value = result.hits })
+    serverHits = result.hits
+    reconcile()
   }
 
   // The magazine came up empty. Timed from the IMPACT rather than from now, so
@@ -400,15 +450,30 @@ const fire = async (x) => {
   // response carried the new stock with it.
   if (!kills && cellsLeft.value <= 0) {
     const wait = Math.max(0, firedAt + SHELL_MS + VERDICT_MS - Date.now())
-    beat(() => { done.value = 'dry' }, wait)
+    beat(() => endSortie('dry'), wait)
   }
 }
 
 // `touchstart` is handled on its own and prevented, which also suppresses the
 // synthetic click the browser would send ~300 ms later — otherwise a tap costs
 // two power cells.
+//
+// BUT ONLY WHEN THE TAP IS A ROUND. The verdict card sits inside the field, so a
+// blanket preventDefault on the container swallowed its button's click as well —
+// and that button is the entire way out of a finished sortie, so a player who
+// shot the satellite down on a phone was left with a dead field they could not
+// close. Every touch device, which is the one this game is built for.
+//
+// So: suppress the compatibility click only for a shot, and let the browser
+// generate it for anything the player can actually press. A tap on the sky once
+// the sortie is over then reaches `onFieldClick`, where `canFire` turns it away —
+// the guard that was always there.
 const onFieldClick = (e) => fire(columnAt(e.clientX))
-const onFieldTouch = (e) => { if (e.touches[0]) fire(columnAt(e.touches[0].clientX)) }
+const onFieldTouch = (e) => {
+  if (done.value || e.target?.closest?.('button')) return
+  e.preventDefault()
+  if (e.touches[0]) fire(columnAt(e.touches[0].clientX))
+}
 
 // ── Readout ───────────────────────────────────────────────────────────────────
 
@@ -446,12 +511,6 @@ const shellStyle = (shell) => ({
   '--rot': angleTo(shell.x).toFixed(1) + 'deg',
 })
 
-const stageKey = computed(() => {
-  if (hits.value >= 2) return 'hawkStar.intercept.stageEvading'
-  if (hits.value >= 1) return 'hawkStar.intercept.stageFast'
-  return 'hawkStar.intercept.stageSteady'
-})
-
 const doneKey = computed(() => ({
   destroyed: 'hawkStar.intercept.outcomeDestroyed',
   dry:       'hawkStar.intercept.outcomeDry',
@@ -463,7 +522,9 @@ const doneKey = computed(() => ({
        still on screen directly above, carrying the bogey's name and the same
        damage in `hs-orbit-armor` — printing either again would be a second copy
        of a fact three centimetres away, and it would cost the field the height.
-       Closing is the same 🎯 button that opened it. -->
+       Closing is the same 🎯 button that opened it — or, once the sortie is
+       over, the button on the verdict card, which is the only one left: a
+       destroyed satellite is off the list and takes its 🎯 with it. -->
   <div class="hs-icept">
     <!-- The field. One tap anywhere in the sky is the whole input: the battery
          swings to that column and fires at it. Only the horizontal position is
@@ -472,7 +533,7 @@ const doneKey = computed(() => ({
       ref="fieldEl"
       class="hs-icept-field"
       :class="{ 'hs-icept-field--over': !!done }"
-      @touchstart.prevent="onFieldTouch"
+      @touchstart="onFieldTouch"
       @click="onFieldClick"
     >
       <div class="hs-icept-stars" />
@@ -514,25 +575,27 @@ const doneKey = computed(() => ({
 
       <div v-if="done" class="hs-icept-over">
         <span class="hs-icept-over__line">{{ t(doneKey) }}</span>
-        <button v-if="done !== 'destroyed'" class="hs-icept-again" @click.stop="emit('close')">
-          {{ t('hawkStar.intercept.back') }}
-        </button>
-        <button v-else class="hs-icept-again hs-icept-again--win" @click.stop="emit('close')">
+        <!-- One button for both endings — they differed only in colour, and two
+             copies of the same handler is two places for it to rot. A dry sortie
+             closes itself a moment later anyway; this is the way out for a
+             player who does not want to wait for it. -->
+        <button
+          class="hs-icept-again"
+          :class="{ 'hs-icept-again--win': done === 'destroyed' }"
+          @click.stop="emit('close')"
+        >
           {{ t('hawkStar.intercept.back') }}
         </button>
       </div>
     </div>
 
-    <div class="hs-icept-foot">
-      <span class="hs-icept-stage">{{ t(stageKey) }}</span>
-      <!-- The magazine, and the only thing standing between you and the kill. -->
-      <span class="hs-icept-ammo" :class="{ 'hs-icept-ammo--out': cellsLeft <= 0 }">
-        {{ ammoIcon }} {{ cellsLeft }}
-      </span>
-    </div>
-
-  <div v-if="interceptError" class="hs-icept-error">{{ interceptError }}</div>
-  <div class="hs-icept-hint">{{ t('hawkStar.intercept.hint') }}</div>
+    <!-- Nothing under the field but a failed shot. The instruction text and the
+         stage line went: the rule is one tap and a lead, the sky teaches it on
+         the first bolt, and a paragraph nobody reads after their first sortie
+         was paying for that in permanent height. The magazine went with them —
+         the 🎯 button in the row directly above prints `⚡ 1/7` and counts
+         down live, so the field was printing a number already on screen. -->
+    <div v-if="interceptError" class="hs-icept-error">{{ interceptError }}</div>
   </div>
 </template>
 
@@ -728,35 +791,11 @@ const doneKey = computed(() => ({
   &--win  { border-color: rgba(52,211,153,0.5); color: #6ee7b7; }
 }
 
-// ── Foot ─────────────────────────────────────────────────────────────────────
-.hs-icept-foot {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.7rem 0.2rem;
-}
-
-.hs-icept-stage { flex: 1; font-size: 0.55rem; color: rgba(255,255,255,0.5); }
-
-.hs-icept-ammo {
-  font-size: 0.6rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: #fcd34d;
-
-  &--out { color: rgba(248,113,113,0.9); }
-}
-
+// The only thing left below the field, and it is only there when a shot
+// failed — hence its own padding rather than a foot row's.
 .hs-icept-error {
-  padding: 0 0.7rem 0.2rem;
+  padding: 0.4rem 0.7rem;
   font-size: 0.55rem;
   color: rgba(248,113,113,0.9);
-}
-
-.hs-icept-hint {
-  padding: 0 0.7rem 0.6rem;
-  font-size: 0.52rem;
-  line-height: 1.35;
-  color: rgba(255,255,255,0.38);
 }
 </style>

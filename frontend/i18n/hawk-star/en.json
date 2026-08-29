@@ -417,10 +417,6 @@
 
     "intercept": {
       "back": "Back to the panel",
-      "hint": "Tap the spot in the sky you want to hit — that is aiming and firing in one. The bolt takes a moment to get there, so aim where the satellite is going to be, not where it is. It always runs wall to wall, but every hit makes it faster. Every round costs one power cell, hit or miss. Damage stays on the target: break off and finish it later.",
-      "stageSteady": "Steady pass — read the lead",
-      "stageFast": "Hit. It has gone to full drive — your lead is short now",
-      "stageEvading": "Hit again. Full drive — same course, longer lead",
       "outcomeDestroyed": "💥 Satellite destroyed",
       "outcomeDry": "Out of power cells. The satellite keeps the damage — come back with ammunition."
     },
