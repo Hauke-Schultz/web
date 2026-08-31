@@ -340,7 +340,7 @@ const status = computed(() => {
 
     <!-- The cell. Terminal on the right, so "left to right" is the direction the
          current would actually flow. -->
-    <div class="hs-bat-stage">
+    <div v-if="!gridDown" class="hs-bat-stage">
       <div
         ref="cellEl"
         class="hs-bat-cell"
@@ -401,8 +401,6 @@ const status = computed(() => {
         'hs-bat-breaker--thrown': thrown,
       }"
     >
-      <span class="hs-bat-breaker-label">🔌 {{ t('hawkStar.battery.breaker') }}</span>
-
       <div ref="trackEl" class="hs-bat-track" :style="{ '--hs-knob': knob }">
         <span class="hs-bat-track-fill" />
         <span class="hs-bat-track-off">{{ t('hawkStar.battery.off') }}</span>
@@ -421,6 +419,17 @@ const status = computed(() => {
           @keydown.enter.prevent="autoThrow"
           @keydown.space.prevent="autoThrow"
         />
+
+        <!-- The cell is gone while the grid is down, so the lever hosts the
+             sparks the throw and the trip make. -->
+        <span class="hs-bat-track-sparks">
+          <span
+            v-for="s in sparks"
+            :key="s.id"
+            class="hs-bat-spark"
+            :style="sparkStyle(s)"
+          />
+        </span>
       </div>
     </div>
 
@@ -644,14 +653,17 @@ const status = computed(() => {
 // and a 24px dot read as a slider nub instead. At 2.75rem the grip clears the
 // 44px minimum a thumb can reliably find, which is what made it a fiddle on a
 // phone, and on a desktop it reads as a switch rather than a scrollbar.
+//
+// While the grid is down the lever *replaces* the cell rather than sitting under
+// it: there is nothing to charge until it is thrown, so a dead cell above the
+// switch would only be a second thing to try. It carries no caption either —
+// OFF/ON on the rail already say what it is.
 .hs-bat-breaker {
   --hs-bat-lever: 2.75rem;
 
   display: flex;
-  flex-direction: column;   // the label captions the lever instead of crowding it
   align-items: stretch;
-  gap: 0.35rem;
-  padding: 0.5rem 0.55rem 0.6rem;
+  padding: 0.5rem 0.55rem;
   border-radius: var(--hs-r-sm);
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(239, 68, 68, 0.35);
@@ -671,14 +683,6 @@ const status = computed(() => {
   75%      { transform: translateX(3px); }
 }
 
-.hs-bat-breaker-label {
-  flex: none;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.7);
-  white-space: nowrap;
-}
-
 .hs-bat-track {
   position: relative;
   width: 100%;
@@ -690,10 +694,17 @@ const status = computed(() => {
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55);
   touch-action: none;
 }
+.hs-bat-track-sparks {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  pointer-events: none;
+}
 .hs-bat-track-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  width: calc(var(--hs-bat-lever) * 0.5 + var(--hs-knob, 0) * (100% - var(--hs-bat-lever)));
+  width: calc(var(--hs-bat-lever) + var(--hs-knob, 0) * (100% - var(--hs-bat-lever)));
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(251, 191, 36, 0.25), rgba(74, 222, 128, 0.45));
   transition: width 0.18s ease;

@@ -1381,6 +1381,22 @@ const spySatelliteBuild     = computed(() => allPlanetStates.value[activePlanetI
 const activeSpyMissions    = computed(() => allPlanetStates.value[activePlanetId.value]?.dock?.activeSpyMissions ?? [])
 const allActiveSpyMissions = computed(() => Object.values(allPlanetStates.value).flatMap(s => s.dock?.activeSpyMissions ?? []))
 
+// ── Where espionage launches from ────────────────────────────────────────────
+// Home, always — whichever planet happens to be on screen. The hangar is a home
+// building, so every spy unit that exists sits in the home dock and every flight
+// starts there anyway; reading the stock off the *active* planet only meant the
+// galaxy map lost its spy buttons the moment you switched to a colony. That is a
+// rule about the launch site wearing the costume of a rule about espionage.
+//
+// The server checks the same planet it is handed, and the flight time is already
+// measured from the home system, so the two ends agree by construction.
+const spyLaunchPlanetId = computed(() => homePlanetId.value ?? activePlanetId.value)
+const spyLaunchDock     = computed(() => allPlanetStates.value[spyLaunchPlanetId.value]?.dock ?? null)
+const spyLaunchLevel    = computed(() => homeBuilding('drone_hangar')?.level ?? 0)
+const spyDroneStock     = computed(() => spyLaunchDock.value?.spyDroneInventory ?? 0)
+const spySatelliteStock = computed(() => spyLaunchDock.value?.spySatelliteInventory ?? 0)
+const spyLaunchMissions = computed(() => spyLaunchDock.value?.activeSpyMissions ?? [])
+
 // The two units differ only in which dock slot their timer lands in
 const SPY_DOCK = {
   spy_drone:     { inventory: 'spyDroneInventory',     build: 'spyDroneBuild' },
@@ -1660,27 +1676,27 @@ const isSpyingPlanet = (planetId) => !!allActiveSpyMissions.value.find(m => m.pl
 // A stale report is deliberately NOT a blocker: refreshing it is the drone's
 // standing job. Only a live satellite makes another unit pointless.
 const isSpyTarget = (planetId, systemId) =>
-  spyDroneLevel.value > 0 &&
+  spyLaunchLevel.value > 0 &&
   systemId !== homeSystemId.value &&
   systemContacts.value[systemId]?.scanState === 'scanned' &&
   !hasLiveSatellite(planetId) &&
   !isSpyingPlanet(planetId) &&
-  activeSpyMissions.value.length < 1
+  spyLaunchMissions.value.length < 1
 
 const canSendSpyDrone = (planetId, systemId) =>
-  spyDroneInventory.value > 0 && isSpyTarget(planetId, systemId)
+  spyDroneStock.value > 0 && isSpyTarget(planetId, systemId)
 
 // A satellite is placed, not sent looking: it needs a planet that has been
 // surveyed once, so a drone always goes first. The server re-checks this.
 const canSendSpySatellite = (planetId, systemId) =>
-  spySatelliteInventory.value > 0 &&
+  spySatelliteStock.value > 0 &&
   !!planetIntel(planetId) &&
   isSpyTarget(planetId, systemId)
 
 const sendSpyUnit = async (planetId, systemId, unitKey, fromPlanetId) => {
   const check = unitKey === 'spy_satellite' ? canSendSpySatellite : canSendSpyDrone
   if (!check(planetId, systemId)) return
-  const fromId = fromPlanetId ?? activePlanetId.value
+  const fromId = fromPlanetId ?? spyLaunchPlanetId.value
   buildError.value = ''
   const { postSpyMission } = useHawkStarApi()
   try {
