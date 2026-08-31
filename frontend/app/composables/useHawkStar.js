@@ -3362,6 +3362,7 @@ export function useHawkStar() {
     markSystemRead,
     canScanSystem,
     scanSystem,
+    scanDuration,
     canMessageSystem,
     sendMessage,
     signalTravelTime,

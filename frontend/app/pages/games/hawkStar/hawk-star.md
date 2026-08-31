@@ -2026,36 +2026,66 @@ Global building in the `comm_center` tile. **Requires `star_map` Lv3.** Two leve
 
 ---
 
-### Galaxy Map Layout
+### Galaxy Map Layout  *(star chart, 2026-08-31)*
 
-The Galaxy Map shows two areas below the tile row:
+The system row became a **star chart**. Every system already carried real galactic coordinates — `x`/`y` in 0…100, seeded at least 15 apart by `pick_system_position()` — and **both** the deep-space scan and the spy flight are priced from the distance between two of them (`max(2 h, dist × 180 s)`). The strip drew the systems in id order, so the one number the map already held was the one thing it could not show. The chart puts each system where it actually is, and "far away" becomes something you see before you read a countdown.
 
 ```
-[tile row: all systems]
-┌────────────────────────┬────────────────────┐
-│  Comm Log              │  System Card       │
-│  · chat bubbles        │  · system name     │
-│  · staging tray        │  · faction list    │
-│  · send button         │  · planet list     │
-└────────────────────────┴────────────────────┘
+┌──────────────────────────────────┐
+│   ·          ⭕ Vega              │   ⭕ marker = one system, at its x/y
+│        ╭────────╮    ❓ Oryx      │   ╌╌ home → selection
+│       ╱  🧑 Home ╲╌╌╌╌╌╌╌╌╌╌     │   ◜◝ two faint range rings on home
+│       ╲     ·    ╱               │
+│        ╰────────╯   👤 Kronos    │
+└──────────────────────────────────┘
+  ● Dein System  ● Bewohnt  ● Scan läuft  ○ Ungescannt — erst scannen
 ```
 
-- Side-by-side on desktop (≥640 px), stacked on mobile.
+**Where the geometry lives:** `.hs-galaxy-orbit` is a square box (`aspect-ratio: 1/1`, `max-width: 32rem`); `.hs-galaxy-field` is inset inside it by half a marker so an edge system keeps its caption; every node is `left: x%; top: y%` with `translate(-50%, -50%)`. Same idiom as the solar map: one square, all percentages, **no media query and no measurement** — the chart is identical on a 360 px phone and on a desktop, and only `--node` grows once. The home→selection line is an SVG on `viewBox="0 0 100 100"` laid over the field, so it is drawn straight from the coordinates the server bills from.
+
+**Marker states** (`tileClass()`, unchanged):
+
+| | Glyph | Ring |
+|---|---|---|
+| home | your portrait | solid blue, glow |
+| `scanning` | pulsing 📶 + countdown | solid amber |
+| `scanned` + inhabited | the first commander's portrait, their name below, `+N` if more share the system | solid green |
+| `scanned` + empty | star-class icon | solid white |
+| `unscanned` | ❓, or 👁️ if they scanned us | **dashed** |
+
+Badges keep their corners: unread top-right, inbound espionage top-left, mutual scan bottom-right — and where a scan is available *right now*, a pulsing 📶 takes the mutual badge's corner, since a system can never be both.
+
 - The home system is **pre-selected** when entering the Galaxy Map.
-- Clicking a system tile toggles its selection; clicking the selected tile deselects it.
-- The card + Comm Log only appear for home or fully `scanned` systems.
+- Clicking a marker toggles its selection; clicking the selected one deselects it.
+- The hit area is grown to 44 px by a pseudo-element, never by padding — padding would drag the dot off the point it marks. Markers are seeded ≥15 units apart, which is wider than the hit area at every size the chart is drawn at.
+- Captions are `pointer-events: none`: two can overlap where two systems sit close, and a name must never swallow its neighbour's marker.
+- The chart lists **home plus the inhabited systems** (`sortedSystems`), unchanged — that filter is what makes a scan a decision, and it is why the legend has no "uninhabited" entry.
 
-**Tile states:**
-- `unscanned`: star icon + system name — no inhabitants shown.
-- `scanning`: pulsing amber 📶 + countdown.
-- `scanned` (inhabited): player portrait + username.
-- `scanned` (empty): free/uncolonized label.
-- Home system: always shown as own colony (blue).
-- "Scan" button visible when: `star_map` Lv3 researched + system is `unscanned` + no other scan active.
-- 🔒 shown when `star_map` < Lv3.
-- ⏳ shown when `star_map` >= Lv3 but another scan is already running.
+**The scan card** *(new)*. Selecting an unscanned system used to do nothing visible at all: the panel below is gated on `showCard()`, and the only way to start a scan was a 0.48 rem button inside a 2.25 rem tile whose label the mobile layout hid outright — so the single action an unknown system offers was the one thing you could not find. An unscanned selection now opens `.hs-galaxy-scan-card`: what the system is, how far out it sits, and a full-width `hs-galaxy-scan-btn` carrying the scan's duration. When it cannot be started the card says which of the two rules refused — 🔒 Star Map Lv3, or ⏳ another scan already running — because a control that is simply missing, with no reason beside it, is the thing people report as broken.
 
----
+A four-item legend under the chart explains the markers. The ❓ line is the only place the map states its own precondition in words: **unscanned — scan it first**.
+
+**Two columns** *(2026-08-31)*. The view is chart on the left, selected system on the right:
+
+```
+┌─────────────────────┬──────────────────────┐
+│  star chart         │  [🪐 System][📡 Funk]│  ← tabs
+│                     │  ┌────────────────┐  │
+│  ● ● ○  legend      │  │  the open tab  │  │
+└─────────────────────┴──└────────────────┘──┘
+```
+
+- The split waits for **1024 px**, not the usual 640: `.hs-main` caps the whole view at 52 rem, so below roughly that viewport there is no second column to be had, and a 300 px system card with a planet list in it is worse than one that has the width to itself. Below the breakpoint everything stacks — chart, legend, tabs, panel.
+- `.hs-galaxy-side` holds whichever card the selection calls for: the scan card for an unknown system, the tabbed panel for a known one. Both columns are `flex: 1 1 0`, so **the chart does not resize when you select or deselect** — the anchor of the screen has to stay put.
+
+**Card and Comm Log became tabs.** They used to sit side by side, which cost the panel twice the width it needed and left the chart nothing to sit next to. They are two views of one system rather than two things you read at once, so the panel now carries a two-pill tab bar and the page spends the width on the chart instead.
+
+- Home has no comm log and therefore no tab bar. `activeTab` falls back to `'card'` so a `'comm'` left over from the previous selection cannot blank the home panel; selecting any system resets to the card.
+- The comm pane is **`v-if`, not `v-show`**: `HsCommLog` calls `markSystemRead()` on mount, so a log kept alive behind a closed tab would clear the unread flag for messages nobody has looked at. Opening the tab *is* reading them. The card pane is `v-show`, so a half-filled raid order survives a look at the messages.
+- The comm tab carries the same red unread dot the chart puts on a system. A tab hides what is behind it, and this is the one thing in the panel that arrives on its own — without the dot, a message landing in the closed tab would be silent.
+
+The scan card and the system panel both live in the right column, so a wide screen shows the whole galaxy view without scrolling.
+
 
 ### `HsCommLog` Component (`components/hawk-star/HsCommLog.vue`)
 
