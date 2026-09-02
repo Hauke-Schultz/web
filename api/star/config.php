@@ -618,6 +618,37 @@ const ANOMALY_SALVAGE_POOL = ['power_cell','duraplate','plasma_core','supercondu
 //                   ('@planetRaw' resolves to the planet's exclusive raw resource)
 //   salvage       – N random high-tech goods, rolled at creation so the offer is exact
 //   battery       – percentage points added to the reactor battery (clamped 0…max)
+//
+// ── 'minigame': the card is flown instead of clicked ─────────────────────────
+// An entry may carry ['type' => 'dock', 'win' => key, 'lose' => key]. The panel
+// then drops BOTH buttons and offers a docking approach (HsDockingGame.vue):
+// land the hulk and the `win` choice pays, miss it and `lose` pays instead. A
+// swipe still takes `lose` outright for anyone who does not want to fly.
+//
+// THE SERVER NEEDS NO CODE FOR THIS. The client simply resolves the key the
+// approach produced, and both keys are ordinary materialised choices on the row,
+// so resolve.php cannot tell — and does not need to tell — a flown answer from a
+// clicked one.
+//
+// That is deliberate, and it is the same posture as the salvage ring: browser
+// timing cannot be verified from here, so this does not pretend to verify it. A
+// faked landing wins a payout that is ALREADY bounded by the one-anomaly-per-six
+// -hours interval — there is nothing to farm, only a single small event to win
+// slightly more often than an honest pilot would. Buying that back with a
+// server-decided outcome would make the skill irrelevant, which is the whole
+// point of the feature.
+//
+// The two choices of a flown anomaly obey a shape the click cards do not:
+//   win   high-tech goods, or population. Never a raw resource.
+//   lose  raw material — or battery charge, which is why the ion storm qualifies.
+// This is what makes "big prize vs. consolation" legible without a single number
+// on the card, and it is why meteor, stardust, comet and ghost_ship stay clicks:
+// their two sides are equals, so a skill gate would invent a hierarchy that the
+// payouts do not have.
+//
+// A FLOWN WIN COSTS NOTHING. Where the click version charged for the rich side
+// (drydock, dead_relay, bio_pod, fuel_depot, trader), the cost is gone and the
+// approach is the price — you pay with the landing, not with the silo.
 const ANOMALIES = [
 
     // Debris field: pure resource pick — which of the two do you need right now?
@@ -626,24 +657,43 @@ const ANOMALIES = [
         'metal'   => ['gainShareOfCap' => ['metal'   => 0.35]],
     ]],
 
-    // Derelict freighter: rare refined goods vs. a solid pile of raw material.
-    'wreck' => ['icon' => '🛰️', 'weight' => 20, 'choices' => [
-        'salvage' => ['salvage' => 2],
-        'scrap'   => ['gainShareOfCap' => ['metal' => 0.30, 'crystal' => 0.20]],
-    ]],
+    // Derelict freighter: bring it into the lock for its cargo, or wave it past
+    // and cut a toll out of the hull. The card the docking approach was designed
+    // around — a hulk drifting at you is literally the thing being flown.
+    'wreck' => ['icon' => '🛰️', 'weight' => 20,
+        'minigame' => ['type' => 'dock', 'win' => 'salvage', 'lose' => 'scrap'],
+        'choices' => [
+            'salvage' => ['salvage' => 2],
+            'scrap'   => ['gainShareOfCap' => ['metal' => 0.30, 'crystal' => 0.20]],
+        ]],
 
     // Ion storm: free grid uptime vs. bottled energy you can ship or spend later.
     // Needs a reactor — without one the battery choice would be a dud option.
-    'solar_storm' => ['icon' => '🌞', 'weight' => 20, 'requiresBuilding' => 'power_plant', 'choices' => [
-        'channel' => ['battery' => 40],
-        'harvest' => ['gain' => ['power_cell' => 2]],
-    ]],
+    // The one flown card whose consolation is charge rather than ore — which is
+    // exactly why it qualifies: bottled energy is the prize, a topped-up battery
+    // is the fallback. It already requires a reactor, so the fallback can never
+    // land on a planet with nothing to charge.
+    'solar_storm' => ['icon' => '🌞', 'weight' => 20, 'requiresBuilding' => 'power_plant',
+        'minigame' => ['type' => 'dock', 'win' => 'harvest', 'lose' => 'channel'],
+        'choices' => [
+            'channel' => ['battery' => 40],
+            'harvest' => ['gain' => ['power_cell' => 2]],
+        ]],
 
-    // Convoy asking to dock: workers cost you supplies, waving them through pays.
-    'refugees' => ['icon' => '👥', 'weight' => 15, 'choices' => [
-        'accept' => ['gain' => ['population' => 4], 'costShareOfCap' => ['metal' => 0.25]],
-        'trade'  => ['gain' => ['power_cell' => 2]],
-    ]],
+    // Convoy asking to dock: bring them in and they stay as workers, or wave
+    // them past and take a toll in ore. The only flown card whose prize is
+    // PEOPLE rather than goods, which is why it is worth having.
+    //
+    // Both sides moved when this became a flown card. 'accept' no longer charges
+    // a quarter of the metal cap — the approach is the price now — and 'trade'
+    // pays ore instead of the two power cells it used to, because a flown card's
+    // consolation has to be raw material for the big/small read to hold.
+    'refugees' => ['icon' => '👥', 'weight' => 15,
+        'minigame' => ['type' => 'dock', 'win' => 'accept', 'lose' => 'trade'],
+        'choices' => [
+            'accept' => ['gain' => ['population' => 4]],
+            'trade'  => ['gainShareOfCap' => ['metal' => 0.25, 'crystal' => 0.15]],
+        ]],
 
     // Passing comet: spend power cells to catch the planet-exclusive raw resource,
     // or take the safe crystal reading. The exclusive raws sit on much smaller
@@ -666,43 +716,58 @@ const ANOMALIES = [
     // or a cargo drone route, not a substitute for either.
 
     // Abandoned orbital dock — the hull presses still run. → Duraplate
-    'drydock' => ['icon' => '🏗️', 'weight' => 8, 'choices' => [
-        'plating' => ['costShareOfCap' => ['metal' => 0.18], 'gain' => ['duraplate' => 2]],
-        'spares'  => ['gainShareOfCap' => ['metal' => 0.45]],
-    ]],
+    'drydock' => ['icon' => '🏗️', 'weight' => 8,
+        'minigame' => ['type' => 'dock', 'win' => 'plating', 'lose' => 'spares'],
+        'choices' => [
+            'plating' => ['gain' => ['duraplate' => 2]],
+            'spares'  => ['gainShareOfCap' => ['metal' => 0.45]],
+        ]],
 
     // Ejected reactor core, still hot — contain it or let it burn out. → Plasma Core
-    'reactor_core' => ['icon' => '🔥', 'weight' => 8, 'choices' => [
-        'contain' => ['costShareOfCap' => ['crystal' => 0.18], 'gain' => ['plasma_core' => 2]],
-        'vent'    => ['gain' => ['power_cell' => 2]],
-    ]],
+    // 'vent' pays crystal rather than the two power cells it used to: a flown
+    // card's consolation is raw material, and power cells read as a prize.
+    'reactor_core' => ['icon' => '🔥', 'weight' => 8,
+        'minigame' => ['type' => 'dock', 'win' => 'contain', 'lose' => 'vent'],
+        'choices' => [
+            'contain' => ['gain' => ['plasma_core' => 2]],
+            'vent'    => ['gainShareOfCap' => ['crystal' => 0.35]],
+        ]],
 
     // Dead relay station: switching cores vs. the data still in its buffers. → Superconductor
-    'dead_relay' => ['icon' => '📶', 'weight' => 8, 'choices' => [
-        'cores' => ['costShareOfCap' => ['crystal' => 0.15], 'gain' => ['superconductor' => 2]],
-        'tap'   => ['gainShareOfCap' => ['crystal' => 0.40]],
-    ]],
+    'dead_relay' => ['icon' => '📶', 'weight' => 8,
+        'minigame' => ['type' => 'dock', 'win' => 'cores', 'lose' => 'tap'],
+        'choices' => [
+            'cores' => ['gain' => ['superconductor' => 2]],
+            'tap'   => ['gainShareOfCap' => ['crystal' => 0.40]],
+        ]],
 
     // Crashed research pod with living cultures aboard. → Vital Gel
-    'bio_pod' => ['icon' => '🦠', 'weight' => 8, 'choices' => [
-        'cultivate' => ['costShareOfCap' => ['metal' => 0.15], 'gain' => ['vital_gel' => 2]],
-        'nutrients' => ['gainShareOfCap' => ['@planetRaw' => 0.35]],
-    ]],
+    'bio_pod' => ['icon' => '🦠', 'weight' => 8,
+        'minigame' => ['type' => 'dock', 'win' => 'cultivate', 'lose' => 'nutrients'],
+        'choices' => [
+            'cultivate' => ['gain' => ['vital_gel' => 2]],
+            'nutrients' => ['gainShareOfCap' => ['@planetRaw' => 0.35]],
+        ]],
 
     // Forgotten fuel depot — pump the tanks or cut up the shell. → Power Cell
-    'fuel_depot' => ['icon' => '⛽', 'weight' => 8, 'choices' => [
-        'siphon' => ['costShareOfCap' => ['metal' => 0.15], 'gain' => ['power_cell' => 3]],
-        'strip'  => ['gainShareOfCap' => ['metal' => 0.20, 'crystal' => 0.20]],
-    ]],
+    'fuel_depot' => ['icon' => '⛽', 'weight' => 8,
+        'minigame' => ['type' => 'dock', 'win' => 'siphon', 'lose' => 'strip'],
+        'choices' => [
+            'siphon' => ['gain' => ['power_cell' => 3]],
+            'strip'  => ['gainShareOfCap' => ['metal' => 0.20, 'crystal' => 0.20]],
+        ]],
 
     // ── Flavour events ───────────────────────────────────────────────────────
 
-    // The only place raw metal buys refined goods outright. What is in the hold
-    // is rolled at creation, so the trader's offer is exact before you pay.
-    'trader' => ['icon' => '🤝', 'weight' => 10, 'choices' => [
-        'buy'    => ['costShareOfCap' => ['metal' => 0.40], 'salvage' => 2],
-        'barter' => ['gainShareOfCap' => ['crystal' => 0.25]],
-    ]],
+    // A trader who will only deal alongside the lock. What is in the hold is
+    // rolled at creation, so the offer on the card is exact before you fly for
+    // it. No metal changes hands any more — the approach is the price.
+    'trader' => ['icon' => '🤝', 'weight' => 10,
+        'minigame' => ['type' => 'dock', 'win' => 'buy', 'lose' => 'barter'],
+        'choices' => [
+            'buy'    => ['salvage' => 2],
+            'barter' => ['gainShareOfCap' => ['crystal' => 0.25]],
+        ]],
 
     // Crewless ship drifting past with its locks open: the whole decision is
     // whether one power cell is worth two extra goods.

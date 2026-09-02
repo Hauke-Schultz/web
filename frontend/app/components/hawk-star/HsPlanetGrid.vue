@@ -5,9 +5,6 @@ import { TILE_TYPES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar, refreshPlanetState } from '~/composables/useHawkStar.js'
 import HsPlanetMarker from '~/components/hawk-star/HsPlanetMarker.vue'
 
-const props = defineProps({
-  activePanel: { type: String, default: null },
-})
 const emit = defineEmits(['update:activePanel'])
 
 const { t } = useI18n()
@@ -23,8 +20,6 @@ const {
   unlockRequirement,
   getLevel,
   allPlanetStates,
-  playerPortrait,
-  playerName,
   batteryCharge,
   gridDown,
   recruitPool,
@@ -241,11 +236,6 @@ const goToPlanet = async (planet) => {
 }
 
 // ── Unified selection ─────────────────────────────────────────────────────────
-const togglePanel = (panel) => {
-  activeSlot.value = null
-  emit('update:activePanel', props.activePanel === panel ? null : panel)
-}
-
 const onSelectSlot = (slot) => {
   selectSlot(slot)
   emit('update:activePanel', null)
@@ -255,26 +245,10 @@ const onSelectSlot = (slot) => {
 <template>
   <div class="hs-planet-wrap">
 
-    <!-- The header band: who you are, and where in the system you are standing.
-         Neither is a parcel of land, so both sit above the surface rather than
-         inside it — which also leaves the grid a clean 3 × 4. -->
+    <!-- The header band: where in the system you are standing. Not a parcel of
+         land, so it sits above the surface rather than inside it — which also
+         leaves the grid a clean 3 × 4. -->
     <div class="hs-planet-head">
-      <!-- The crest: portrait over name. The name used to set this tile's width
-           and pushed the planets out of the row — it is under the avatar now, in
-           whatever the tile has left, clipped with an ellipsis. Enough to
-           recognise your own name by, never enough to steal the row. The full
-           string stays on the tooltip and in the profile panel. -->
-      <div
-        class="hs-tile hs-tile--profile"
-        :class="{ 'hs-tile--active': activePanel === 'profile', 'hs-tile--unlocked': activePanel !== 'profile' }"
-        :title="playerName || '—'"
-        :aria-label="playerName || '—'"
-        @click="togglePanel('profile')"
-      >
-        <span class="hs-tile-icon">{{ playerPortrait }}</span>
-        <span class="hs-tile-user">{{ playerName || '—' }}</span>
-      </div>
-
       <div v-if="stripPlanets.length" class="hs-strip">
         <!-- Discs only. The badge and the charge ring the orbit map draws on
              them are switched off here — the line underneath says both, in
@@ -472,8 +446,8 @@ const onSelectSlot = (slot) => {
 }
 
 // ── The parcels ──────────────────────────────────────────────────────────────
-// Scoped under .hs-grid so the crest above keeps the plain glass look — it is a
-// player badge, not a piece of the planet.
+// Scoped under .hs-grid: the terrain palette belongs to the ground, and only a
+// tile standing on it may wear it.
 .hs-grid .hs-tile {
   // A raster wants equal cells — without a floor, a row whose tiles carry no
   // dots collapses shorter than its neighbours and the ground stops looking
@@ -522,9 +496,8 @@ const onSelectSlot = (slot) => {
   }
 }
 
-// Row 1 belongs to the profile alone. Without the span, auto-placement would
-// push the first two building slots up into the empty cells and shear the whole
-// 3 × 4 block sideways.
+// The shape every parcel shares before the ground above tints it: a frame, a
+// face, and the row that carries the icon, the label and the dots.
 .hs-tile {
   position: relative;
   overflow: hidden;
@@ -605,51 +578,16 @@ const onSelectSlot = (slot) => {
 .hs-tile-bar--shield-empty .hs-tile-bar__pct { color: rgba(252, 165, 165, 0.9); }
 
 // ── Header band ──────────────────────────────────────────────────────────────
-// Crest on the left, the system's planets filling the rest. Two things that are
-// about the player and the position rather than about the ground, so they share
-// one bar above it.
+// The system's planets, filling the whole width. Where you are standing is not
+// part of the ground you are standing on, so it gets its own bar above it. The
+// crest used to share this row and now sits in the empire header, which is the
+// one place on the board that is about the player rather than about a planet.
 .hs-planet-head {
   display: flex;
   align-items: stretch;
   gap: 0.4rem;
   width: var(--hs-ground-w);
   min-width: 0;
-}
-
-// The crest — a player badge above the ground, not a parcel in it. Narrow and
-// square now: it is an icon that opens a panel, and the strip beside it needs
-// every pixel this row can give it.
-.hs-tile--profile {
-  flex: none;
-  width: 2.6rem;
-  // Overrides .hs-tile's row: portrait on top, name under it.
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0.3rem 0.2rem;
-
-  @media (min-width: 640px) { width: 2.9rem; }
-}
-
-// Deliberately tiny and deliberately clipped. The tile is fixed at the width
-// that keeps the planet strip beside it usable, so the name gets whatever is
-// left and an ellipsis for the rest — `min-width: 0` is what lets it shrink
-// inside the flex column at all, without which it would push the tile wider.
-.hs-tile-user {
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.42rem;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: rgba(255, 255, 255, 0.55);
-
-  @media (min-width: 640px) { font-size: 0.46rem; }
 }
 
 // ── The planet strip ─────────────────────────────────────────────────────────

@@ -2245,6 +2245,13 @@ function anomaly_state(PDO $db, int $planetId, int $playerId, string $planetType
         'icon'      => anomaly_def($row['type'])['icon'] ?? '❔',
         'choices'   => json_decode($row['choices'], true) ?: [],
         'expiresAt' => (int)$row['expires'] * 1000,
+        // Present only on the cards that are flown rather than clicked. Read
+        // live from the config rather than stored on the row: unlike the payouts
+        // — which are frozen at creation so an offer can never change under the
+        // player — this only says HOW the card is answered, and a card that
+        // stayed clickable because it was rolled before the feature shipped
+        // would be a puzzle rather than a promise kept.
+        'minigame'  => anomaly_def($row['type'])['minigame'] ?? null,
     ];
 }
 

@@ -133,6 +133,53 @@ The badge lives on `HsPlanetMarker` as `badge` / `badgeTone`, in the corner the 
 
 There is deliberately **one** planet count on the screen: `hs-empire-summary`'s *"4 Planeten"*, which is your empire (`empireStatus.length`). The band briefly carried the system's seven as well, two lines below it — two counts that close together read as a contradiction rather than as two scopes.
 
+### Every card on the board folds  *(2026-09-02)*
+
+```
+☀️ Solux System  Orangener Zwerg   (🪐🪐🪐🪐)          4 Planeten · 3 Meldungen
+┌─ hs-empire-cards ───────────────────────────────────────────────────────┐
+│ ┌── --commander ───────────────────┐ ┌─────────────────────────────────┐ │
+│ │ 👨‍🚀 Hauke        ✓ gespeichert ▾│ │ 🌍 Terra  [Heimat]  ALARM (4) ▾ │ │
+│ └──────────────────────────────────┘ │ 🔋 ▓▓▓░░ 62 %  ·  4 h           │ │
+│ ┌──────────────────────────────────┐ │ 🛡️ ▓░░░░ 12 %  ·  9 h           │ │
+│ │ 🪐 Rubik           KEIN BAU    ▾ │ └─────────────────────────────────┘ │
+│ │ 🔋 ▓▓▓▓░ 81 %  ·  6 h            │ ┌─── --guide ─────────────────────┐ │
+│ │ 🛡️ — kein Schild                 │ │ 🧭 Erste Schritte     3 / 11 ▴ │ │
+│ └──────────────────────────────────┘ │ Willkommen, Commander — hier    │ │
+│                                      │ beginnt deine Kolonie           │ │
+│                                      │ ✓ 🏛️ Kommandozentrum bauen …    │ │
+│                                      └─────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+The crest is gone. It moved out of the planet grid, then became the empire header itself, then briefly the profile's toggle — and that last step is what showed the problem: **a portrait and a name are not a control.** Nothing about a face announces that a form is folded behind it. So the commander became what everything else on this board already was — a card — and now *everything* in the grid is one card, one head, one caret.
+
+- **`hs-empire-cards` holds all of it**, half the board wide each on a desktop: the commander (`--commander`), one per planet, the guide (`--guide`). Nothing spans it; nothing is a loose panel any more.
+- **The commander is one card, not two.** The profile and the dev panel are both *you rather than the empire*, and a separate ⚙️ card only made the board look like it had two owners. `HsProfilePanel` and `HsSettingsPanel` are stacked in one `hs-empire-cardbody`.
+- **It wears the commander**: `hs-empire-cardhead__icon` is `playerPortrait`, `hs-empire-cardhead__title` is `playerName` — exactly what the crest showed, now attached to something that behaves like a button because it is one.
+- **The guide is a card too.** `HsOnboardingPanel` gave up its head, its blue frame and its padding; the card draws them (`--guide` keeps the blue tint, because it is neither a planet nor the commander), the title moved to `hs-empire-cardhead__title` and the step count to `hs-empire-cardhead__count`. It was the one thing in the grid that was always unfolded — the loudest item on the board for exactly as long as you least needed a lecture. Its `v-if="!onboardingComplete"` is now asked twice: once out here, or a finished checklist would still draw a head, and once inside, because that is where the rule lives.
+- **The planet heads fold instead of jumping.** They used to `jumpTo(planetId, 5)`. Nothing is lost: every meter and every row inside is a jump of its own, and a head that both jumped away *and* folded in place would have been two controls wearing one hat.
+- **Everything starts shut, except the guide.** `isOpen(id)` is `!!open[id]`, keyed by `'profile'`, `'onboarding'` and planet id alike; `open` starts as `{ onboarding: true }`. The board opens as a list of lids, each carrying the one thing worth reading from across the room, and you unfold the one you came for — but the guide can only appear at all while something is left on it (`onboardingComplete` removes the card for good), and a checklist you have to find and unfold before it can tell you what to do next is a checklist for someone who already knows.
+- **The lid carries the verdict, the count and the two meters.** Folding may hide the detail, never the finding — so a shut planet card still shows:
+  - the **state badge** and the card's tone (`ALARM`, `KEIN BAU`, …);
+  - `hs-empire-cardhead__alerts` — **how many** notices are folded away (`p.alerts`), in the same pill and the same two tones the header's planet disc wears, because it is the same number. The word says what is wrong, the number says how much of it there is: `ALARM 4` is worth opening before `ALARM 1`;
+  - `hs-empire-meters`, which sit **outside** the fold entirely. A battery at 8 % is a fact you want off a shut card, and the state badge cannot say it — a planet can be building away happily on a battery that runs out in two hours. Two bars are cheap enough to carry on every lid, and they are still their own jumps (slot 4, slot 1).
+- **The separators live below the line, not on the head.** A shut planet card has its meters under the lid and still wants the hairline, so the `border-top` sits on `hs-empire-meters` and `hs-empire-cardbody` — whatever is actually there — while the head rounds all four corners only as `:not(:last-child)`, and the meters drop their bottom border as `:last-child`. Both stay right whatever moves in or out of the fold next.
+- **Columns, not a grid** *(the fix that made folding usable)*. A grid lays its items out in **rows**, and a row is as tall as the tallest thing in it: unfold the card on the left and the shut one beside it grows a hand's width of empty space under it, while everything on the next row is pushed down past the fold. With every card folding, that was not an edge case — it was the normal state of the board. `.hs-empire-cards` is `column-count: 2` above 720 px instead, so each column is its own stack and opening a card moves only what is under it **in that column**. Cards carry `break-inside: avoid` (a column would otherwise tear one in half across the gutter) and a `margin-bottom` for the spacing a multi-column container has no rows to provide — cancelled by a `-0.6rem` bottom margin on the container, so the space lands between cards and not under the last one. The trade: reading order is top-down per column rather than left-to-right per row, and the browser rebalances when a height changes, so a card can move columns.
+- **They toggle independently, not as a strict accordion** — that would shut the planet you are reading the moment you open the next.
+- **A disc click opens the card it scrolls to.** `scrollToCard()` sets it open first: the disc carries the planet's alert count, and scrolling to a closed lid would answer a question with the same question.
+- **No `overflow: hidden` on `hs-empire-card`**, tempting as it is for clipping the head's hover: the portrait picker is an absolutely positioned popover inside a body and would be cut off. The head rounds its own corners instead — all four when shut, top two when open.
+- **Only the commander and the guide use `hs-empire-cardbody`.** Planet cards have none: their meters and rows carry their own padding, so the fold is a `<template v-if>` around them rather than a padded wrapper.
+- **Whatever sits at the far end of a head claims the `margin-left: auto`** — the state badge, the saved flash, the step count — and the caret drops to `margin-left: 0` behind it, so it is always the last thing on the line and never adrift in the middle.
+- **The saved flash sits in the head.** It lived in `HsProfilePanel`'s own header bar, which is gone; the panel emits `saved` and the card flashes *✓ gespeichert* beside the name. Every save still has to say so — a panel that silently swallows a rejected write is what hid the unlocked-portrait bug for so long.
+
+#### What the header keeps
+
+Three things about the *empire*, and on a desktop line they are three things left to right: system, discs, count. `hs-empire-head__top` is gone with the crest — it split the header into a text line and a disc line, a split only a phone needs. All are direct children of `hs-empire-head`: phone-first a centred column, from 640 px a single wrapping row, the count pushed to the far end by a `margin-left: auto` that exists only inside the media query. `flex-wrap` is off in the column, because wrapping a column means a second column.
+
+- **`activePanel === 'profile'` no longer exists.** The crest was the only thing that ever set it, so `HsTilePanel`'s profile branch and import were dead — notifications is the `v-if` at the head of that chain now. `HsEmpirePanel` only emits the argument-less row jump, and `index.vue` binds `@go-planet="currentView = 'planet'; activePanel = ''"`.
+- **`HsPlanetGrid` no longer takes `activePanel`.** `togglePanel()` and the prop had no reader left once the crest left the grid; the grid only ever *closes* a panel now (picking a tile, switching planet), so `index.vue` binds `@update:activePanel` instead of `v-model:activePanel`.
+
 ### Research sits above the cards
 
 Global research is the one build the Activity feed misses entirely — that walks `allPlanetStates`, and research lives in `globalResearch`. It gets a violet strip **above** the planet cards, because it belongs to no planet: the server does not record which planet ordered it and the result applies everywhere. The jump goes to the **home** comm center (slot 6), the one planet guaranteed to have the tile.
@@ -175,7 +222,7 @@ Eleven steps, from *build a command center* to *place a spy satellite*. Nothing 
 
 **It lives on the empire board and nowhere else** *(2026-08-18)*. It used to sit on the home planet’s base tile as well; that was the reason `pickLandingView()` had to send beginners to the planet view, and dropping the second copy is what let the landing rule collapse into a constant (see *Where you land*). One checklist, one place, and every session opens on it.
 
-**It is the last card in `.hs-empire-cards`**, not a strip under the grid — so it is a grid item like the planet cards: half width on desktop, full width below 720 px, and it fills the gap next to an odd number of planets. It shares the cards’ corner radius so a row lines up, keeps its own blue tint because it is a different kind of thing, and takes `align-self: start` so the grid does not stretch it to the height of a tall planet card. It comes after the planet cards on purpose: the cards answer *what needs me now*, the checklist answers *what comes next*.
+**It is the last card in `.hs-empire-cards`**, and a card in its own right since 2026-09-02: `hs-empire-card--guide`, with a `hs-empire-cardhead` carrying 🧭, the title and the step count, shut like everything else on the board. It keeps its blue tint because it is neither a planet nor the commander, takes half the board on a desktop, and comes after the planet cards on purpose: the cards answer *what needs me now*, the checklist answers *what comes next*. It is the one card that arrives **open**, because it only exists while there is something left on it. The lid says `onboarding.short` (*Erste Schritte*) — the full `onboarding.title` is a sentence of welcome and on a half-width lid it was an ellipsis with two words in front of it, so it moved inside as `hs-onboarding-intro`, above the list. `HsOnboardingPanel` is that line plus the list; the head, the frame and the padding belong to the card.
 
 **When every step is ticked it disappears** — permanently, without a dismiss button. A checklist with nothing left on it teaches nothing; leaving eleven struck-through lines on the board would only cost room.
 
@@ -191,22 +238,22 @@ Two steps are deliberately counted rather than measured, so an achievement canno
 
 ## Planet Grid
 
-`HsPlanetGrid` renders a header band over a 4×3 tile grid. The band carries the **crest** and the **planet strip**; the grid below it holds the twelve **planet building slots**.
+`HsPlanetGrid` renders a header band over a 4×3 tile grid. The band carries the **planet strip**; the grid below it holds the twelve **planet building slots**.
 
-**The planet-info and activity tiles came out** *(2026-08-26)*, and with them `inProgressCount`, `doneCount` and the `hs-notif-badge` styles. The profile tile left the grid at the same time and now sits above it as a **crest**: the player is not a parcel of land, and moving it out leaves the grid a clean 3 × 4 instead of a row that has to be spanned around.
+**The planet-info and activity tiles came out** *(2026-08-26)*, and with them `inProgressCount`, `doneCount` and the `hs-notif-badge` styles. The profile tile left the grid at the same time and sat above it as a **crest** — the player is not a parcel of land, and moving it out left the grid a clean 3 × 4 instead of a row that has to be spanned around. **The crest has since left this component too** *(2026-09-02)* and now heads the empire board; see *The crest moved to the empire header*.
 
-### The header band: crest + planet strip  *(2026-08-26)*
+### The header band: the planet strip  *(2026-08-26)*
 
-The crest used to be a full-width bar carrying the portrait and the player's name. The name was the widest thing in the row and the least useful — you know who you are. The bar is now split:
+The band used to be a full-width bar carrying the portrait and the player's name. The name was the widest thing in the row and the least useful — you know who you are. It became a narrow crest with the strip beside it, and when the crest moved to the empire header the strip took the whole width:
 
 ```
-[👤 ][  🌍   🌋   🧊   🌊                       ]
-[Hau…][ Prime [HOME][🌍 terrestrial][12 Felder][🔋 84%] ]
+[  🌍   🌋   🧊   🌊                                    ]
+[ Prime [HOME][🌍 terrestrial][12 Felder][🔋 84%]       ]
  └───────────── same width as .hs-grid ────────────┘
 ```
 
-- **Left: the crest — portrait over name.** `hs-tile--profile` is a narrow fixed-width column (2.6 rem, 2.9 rem from 640 px up) that still opens the profile panel. The name used to *set* this tile's width and pushed the planets out of the row; it now sits under the avatar at 0.42 rem in whatever width is left, **clipped with an ellipsis** — enough to recognise your own name by, never enough to steal the row. The full string stays on the `title`/`aria-label` and in the profile panel. `min-width: 0` on `.hs-tile-user` is what lets it shrink inside the flex column at all; `max-width: 100%` is what caps it against `align-items: center`, which would otherwise size it to its content and let it overflow instead of ellipsing.
-- **Right: `.hs-strip`**, two stacked parts. `__row` is every planet of the home system as markers in orbit order, framed like the Solar System's own header band because it says the same kind of thing: *this is the system you are in*. `__detail` names the planet you are standing on and tags it with the same chips `hs-plist__chips` prints under an open row on the Solar System screen.
+- **`.hs-strip`**, two stacked parts. `__row` is every planet of the home system as markers in orbit order, framed like the Solar System's own header band because it says the same kind of thing: *this is the system you are in*. `__detail` names the planet you are standing on and tags it with the same chips `hs-plist__chips` prints under an open row on the Solar System screen.
+- **`.hs-planet-head` stays** even with one child in it: it is where `--hs-ground-w` is spent, and it is the seam any second thing about *position* would be hung on.
 
 **Gated on Star Map Lv1** — the same research that opens the Solar System view. Before it you have not surveyed the system, so the strip holds only the planet you are standing on and turns itself sideways into a nameplate (`:has(.hs-strip__slot:only-child)`) rather than centring a lone disc over a row it does not fill.
 
@@ -284,7 +331,7 @@ The three parcel states are the settlement itself:
 
 - **`isBuilt()` is not just "has a building".** The dock and the anomaly tile hold no buildings of their own, so they are developed the moment they open; the placeholders (warship bay, orbit) never are, which is honest — nothing can go there yet, and the grid should say so rather than flatter them.
 - **The parcels have a `min-height`.** Without a floor, a row whose tiles carry no dots collapses shorter than its neighbours and the ground stops looking surveyed.
-- **The terrain styles are scoped under `.hs-grid`**, so the crest above keeps the plain glass look. It is a player badge, not a piece of the planet.
+- **The terrain styles are scoped under `.hs-grid`**: the palette belongs to the ground, and only a tile standing on it may wear it. That scoping is what let the crest sit in the same component in plain glass for as long as it did.
 - The grid is `width: 100%` on a phone and a fixed 336 px from 640 px up (320 px of tiles plus the surface's own padding). Tighter gaps than before (0.4 rem) pay for that padding, so the parcels stay within about 4 px of their old width on a 360 px screen.
 
 > **This leaves `HsAllResourcePanel` and `HsNotificationPanel` — and with the latter `HsSettingsPanel`, the dev controls — with no entry point at all.** The `activePanel` branches for `resources` and `notifications` still stand in `HsTilePanel`, so restoring access is a matter of adding a trigger somewhere, not rebuilding the panels.
@@ -694,23 +741,32 @@ The airlock is **not clickable**. It is where the recruits go, and a second way 
 
 ## Anomalies  *(implemented)*
 
-Every few hours something drifts past a planet and waits on the **anomaly tile** (slot 7, the old agriculture placeholder). Each anomaly is a fork between **two guaranteed, fully visible outcomes** — the randomness sits in *which* anomaly turns up, never in what a choice pays out. Ignoring one costs nothing but the opportunity: every outcome is a gift, and an untouched anomaly simply expires.
+Every few hours something drifts past a planet and waits on the **anomaly tile** (slot 7, the old agriculture placeholder). Ignoring one costs nothing but the opportunity: every outcome is a gift, and an untouched anomaly simply expires.
 
-| Type | Weight | Choice A | Choice B |
-|------|--------|----------|----------|
-| ☄️ Meteor Shower | 20 | crystal share | metal share |
-| 🛰️ Derelict Freighter | 20 | 2 high-tech goods (rolled at creation, shown up front) | metal + crystal share |
-| 🌞 Solar Storm | 20 | battery +40 % | 2 × power cell |
-| 👥 Refugee Convoy | 15 | +4 population, costs metal | 2 × power cell |
-| 🧊 Comet Core | 15 | planet-exclusive raw (costs 2 power cells) | crystal share |
-| 🏗️ Drifting Drydock | 8 | **2 × duraplate**, costs metal | metal share (large) |
-| 🔥 Ejected Reactor Core | 8 | **2 × plasma core**, costs crystal | 2 × power cell |
-| 📶 Dead Relay | 8 | **2 × superconductor**, costs crystal | crystal share |
-| 🦠 Crashed Bio Pod | 8 | **2 × vital gel**, costs metal | planet-exclusive raw share |
-| ⛽ Lost Fuel Depot | 8 | **3 × power cell**, costs metal | metal + crystal share |
-| 🤝 Wandering Trader | 10 | 2 high-tech goods, costs a lot of metal | crystal share |
-| 👻 Ghost Ship | 8 | 3 high-tech goods, costs 1 power cell | 1 high-tech good, free |
-| 🌌 Stardust Cloud | 12 | planet-exclusive raw share (free) | metal + crystal share |
+There are **two kinds of card**, and the `minigame` key in the config entry is what decides which:
+
+- **Clicked** — a fork between two guaranteed, fully visible outcomes. The randomness sits in *which* anomaly turns up, never in what a choice pays out.
+- **Flown** — no buttons. A **docking approach** decides it: land the thing drifting in and the big side pays, miss and the small one does. See *Docking approach* below.
+
+| Type | Weight | Big / A | Small / B | |
+|------|--------|---------|-----------|---|
+| ☄️ Meteor Shower | 20 | crystal share | metal share | click |
+| 🧊 Comet Core | 15 | planet-exclusive raw (costs 2 power cells) | crystal share | click |
+| 👻 Ghost Ship | 8 | 3 high-tech goods, costs 1 power cell | 1 high-tech good, free | click |
+| 🌌 Stardust Cloud | 12 | planet-exclusive raw share (free) | metal + crystal share | click |
+| 🛰️ Derelict Freighter | 20 | 2 high-tech goods (rolled at creation, shown up front) | metal + crystal share | **fly** |
+| 🌞 Solar Storm | 20 | 2 × power cell | battery +40 % | **fly** |
+| 👥 Refugee Convoy | 15 | **+4 population** | metal + crystal share | **fly** |
+| 🏗️ Drifting Drydock | 8 | **2 × duraplate** | metal share (large) | **fly** |
+| 🔥 Ejected Reactor Core | 8 | **2 × plasma core** | crystal share | **fly** |
+| 📶 Dead Relay | 8 | **2 × superconductor** | crystal share | **fly** |
+| 🦠 Crashed Bio Pod | 8 | **2 × vital gel** | planet-exclusive raw share | **fly** |
+| ⛽ Lost Fuel Depot | 8 | **3 × power cell** | metal + crystal share | **fly** |
+| 🤝 Wandering Trader | 10 | 2 high-tech goods | crystal share | **fly** |
+
+**A flown card's two sides obey a shape the clicked ones do not:** the big side is *high-tech goods or population, never raw material*; the small side is *raw material — or battery charge, which is the ion storm's whole reason for qualifying*. That is what makes "big prize vs. consolation" legible without a number being read. Meteor, comet, ghost ship and stardust stay clicks precisely because their two sides are **equals** — a skill gate there would invent a hierarchy the payouts do not have.
+
+**A flown win costs nothing.** Where the clicked version charged for the rich side (drydock, reactor core, dead relay, bio pod, fuel depot, trader, refugees), the cost is gone and the approach is the price. Two consolations moved with it, because a flown card's small side has to be raw material: the refugee convoy's `trade` pays ore instead of 2 power cells, and the reactor core's `vent` pays crystal instead of 2 power cells.
 
 ### One event per high-tech good
 
@@ -727,7 +783,33 @@ The paid side is deliberately **strongest early and mid game**: the cost is a sh
 
 ### Panel
 
-The open anomaly is drawn as **one closed card**: the head (icon, name, description, ⏳ remaining) sits on a tinted strip, below it the line *"Wähle eine der beiden Optionen — die andere verfällt"*, and at the bottom the two options **side by side, left and right, split by an "oder"**. The fork is the layout, so the tile no longer needs to be read to be understood. Each option button carries its label plus its deltas stacked one per line (green gains, red costs) — legible even in a half-width column. Without an open anomaly the tile shows only the dashed idle hint.
+The open anomaly is drawn as **one closed card**: the head (icon, name, description, ⏳ remaining) sits on a tinted strip. What sits *under* the head is what the two forms differ in — the card itself branches rather than being duplicated. Without an open anomaly the tile shows only the dashed idle hint.
+
+**Clicked card.** Below the head the line *"Wähle eine der beiden Optionen — die andere verfällt"*, and at the bottom the two options **side by side, left and right, split by an "oder"**. The fork is the layout, so the tile no longer needs to be read to be understood. Each option button carries its label plus its deltas stacked one per line (green gains, red costs) — legible even in a half-width column.
+
+**Flown card.** The two options are replaced by the offer at full width (🚀, its label, its exact deltas) with the way out beneath it — a quieter dashed button carrying the small reward. **Stacked, not side by side**: these two are not equals the way the clicked pair are, and matching columns either side of an "oder" would say they were. A **horizontal swipe** across the card takes the small reward outright, which is the gesture the wording promises; the button does the same thing and is the real affordance, because a gesture with no visible control is a feature only the player who guessed it has.
+
+### Docking approach
+
+`HsDockingGame.vue` replaces the card's body — it does not open over the page, because the head above is still naming what is drifting in and that is the caption the field wants. Something falls down a vertical shaft toward the lock; **one input, held**, fires the retro thruster.
+
+**One rule: the thruster only ever slows the descent, never reverses it.** You cannot climb, cannot hover back up, cannot fly off the top. Holding is always "less speed" — the input has no wrong direction, only a wrong moment. The whole skill is *when* to start the burn, and it has two walls: brake late and you arrive above `V_MAX` and bounce off the collar; brake early and you stall short, drift, and burn the tank down doing it.
+
+**Measured, not guessed** (`scratchpad/docking-difficulty.mjs`, at the shipped 1/120 step):
+
+| pilot | landed | hot | dry |
+|---|---|---|---|
+| careless ±40 %, 400 ms | 47 % | 53 % | 0 % |
+| average ±22 %, 260 ms | **76 %** | 24 % | 0 % |
+| good ±12 %, 180 ms | 98 % | 2 % | 0 % |
+| excellent ±5 %, 110 ms | 100 % | 0 % | 0 % |
+
+- **~75 % for an average pilot is the deliberate target, and it is far higher than the other two toys aim for.** An anomaly rolls once every 6 h, so a player gets **one attempt and can never practise**. The salvage ring can sit near 50 % because casting again is free; intercept can, because a sortie is many rounds. A skill game nobody can practise must not punish. `V_MAX` is the honest lever if it ever needs to be harder — the sweep moved an average pilot 53 % → 84 % across 23 → 29, and nothing else moved at all.
+- **Reaction latency is why the obvious numbers do not work.** A pilot reacting `L` late loses `v·L` of braking room out of the `v²/2n` they needed, so the shortfall as a *fraction* of the brake is `2nL/v` — it grows with thrust and shrinks with speed. A punchy thruster makes this a latency test rather than a judgement test: the first cut (`GRAV 12, THRUST 30`) spent 24 % of the brake on a 260 ms reaction alone and put an average pilot at **8 %**. The fix is a **weak thruster held for a long time** — the braking fraction is `GRAV/THRUST`, so `THRUST ≈ 1.7 × GRAV` brakes over roughly the second half of the shaft.
+- **The tank is the wall, not a closing iris.** A lander judged only on touchdown speed has one degenerate strategy: brake at once and *creep* down at walking pace, and a player finds it on their first attempt. A timed iris was the first answer and measured out to **nothing** — at 6.5 s, 7.5 s and 9.0 s the landing rates came out identical to the decimal, because every approach is over in about 5.3 s. `FUEL_S` holds instead, and holds better because it punishes the exploit specifically rather than punishing slowness in general: a creeper burns dry and free-falls the rest of the shaft, arriving at 36–43 %/s against a `V_MAX` of 27. **A bigger tank does not rescue it** — it only runs out lower down and hits harder. The 20 s timeout that remains is a "drifted past" fallback for an abandoned tab and is *not* a difficulty lever.
+- **Fixed 1/120 physics step, not the display's.** A 60 Hz phone and a 144 Hz monitor must fly the same approach, and a dropped frame must not hand the player a different game. One frame may consume at most 0.25 s, so a backgrounded tab does not return to wreckage.
+- **`settle()` guards on `outcome`, not on `phase`.** The two are a beat apart on purpose — the verdict card only covers the field 700 ms after touchdown so the landing is seen — and during that beat `phase` is still `'flying'`. Guarding on the phase guards nothing: the loop keeps stepping, keeps finding the hulk at the collar, and re-emits `finish` every frame. `anomalyBusy` in the panel happens to swallow the repeats, which is exactly what would have let it ship.
+- **`finish` fires at touchdown, not when the card is dismissed** — a landing the player walks away from without pressing anything must still pay.
 
 ### Implementation notes
 
@@ -737,12 +819,14 @@ The open anomaly is drawn as **one closed card**: the head (icon, name, descript
 - **The payout is credited through `credit_resources()`, which clamps at the storage cap** (`LEAST(res + amt, GREATEST(res, cap))`). A haul landing on a nearly full silo fills it to the cap and stops. Without that the stock briefly showed an over-cap number that the next `compute_resources()` tick silently shaved back down. Stock already sitting above its cap is left untouched — the helper only ever adds.
 - **The interval measures from `MAX(COALESCE(resolved_at, expires_at))`** — the moment the tile last became free. Measuring from `created_at` would let an anomaly that sat around longer than the interval spawn its successor the instant it is answered.
 - **`apply_anomaly_choice()` is the only place an effect executes**, for every type. Adding an anomaly is a config entry, not code. Resource keys come out of stored JSON straight into SQL column names, so they are checked against `RESOURCE_KEYS` first.
+- **The docking approach needed no server code at all.** The client resolves whichever key the approach produced, and both keys are ordinary materialised choices on the row — `resolve.php` cannot tell, and does not need to tell, a flown answer from a clicked one. There is no "I played" flag and no bonus riding on one, which is what keeps a faked landing from winning anything a click could not already win. Browser timing is unverifiable from the server, and this does not pretend otherwise: the payout is already bounded by the one-per-6 h interval, so there is nothing to farm — only a single small event to win slightly more often than an honest pilot. Buying that back with a server-decided outcome would make the skill irrelevant, which is the entire point of the feature. Same posture as the salvage ring.
+- **`minigame` is read live from the config, not stored on the row** — unlike the payouts, which are frozen at creation so an offer can never change under the player. It only says *how* a card is answered, and an anomaly rolled before the feature shipped that stayed clickable would be a puzzle rather than a promise kept.
 - Resolving **claims the row first** (`UPDATE … WHERE resolved_at IS NULL`) and only then pays out — a double click cannot collect twice. If the cost turns out to be unaffordable the claim is rolled back so the other option stays open.
 - Dev cheat **☄️ Anomalie** forces an immediate roll — otherwise testing means waiting out the 6 h interval. The dropdown next to it **forces one specific type** (empty = the normal weighted roll); with thirteen types, waiting for a particular one to come up is not a test plan. `ANOMALY_TYPES` in `hawkStarConfig.js` feeds that dropdown and is the only frontend mirror of the anomaly list — the game itself never needs it, since an open anomaly arrives from the server with icon and materialised choices.
 
 ### Files
 
-`ANOMALY_*` / `ANOMALIES` in `api/star/config.php` · `anomaly_state`, `create_anomaly`, `materialize_anomaly_choice`, `apply_anomaly_choice`, `credit_resources` in `api/star/bootstrap.php` · `api/star/game/anomaly/resolve.php` · table `hs_anomalies` · `HsAnomalyPanel.vue` · `anomaly`/`hasAnomaly`/`resolveAnomaly` in `useHawkStar.js`
+`ANOMALY_*` / `ANOMALIES` (incl. the `minigame` key) in `api/star/config.php` · `anomaly_state` (ships `minigame`), `create_anomaly`, `materialize_anomaly_choice`, `apply_anomaly_choice`, `credit_resources` in `api/star/bootstrap.php` · `api/star/game/anomaly/resolve.php` (**unchanged** — the approach needed no server code) · table `hs_anomalies` · `HsAnomalyPanel.vue` (both card forms + the swipe) · `HsDockingGame.vue` · `scratchpad/docking-difficulty.mjs` · `anomaly`/`hasAnomaly`/`resolveAnomaly` in `useHawkStar.js` · `hawkStar.anomaly.dock.*` in de/en
 
 ---
 
@@ -2173,9 +2257,9 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | Component | Role |
 |-----------|------|
 | `HsNavBar` | View switching (Empire / Planet / Solar System / Galaxy Map) + gate checks. **Empire is the first tab**, never gated, and carries the alert badge; the planet tab doubles as `HsPlanetHeader` (planet name + type). |
-| `HsEmpirePanel` | Empire board — one status card per own planet (verdict, meters with runtime, alarm/news/warn/running rows). Every row jumps to the planet + tile it is about. |
+| `HsEmpirePanel` | Empire board — the commander crest and the system band in the header, then one status card per own planet (verdict, meters with runtime, alarm/news/warn/running rows). Every row jumps to the planet + tile it is about; the crest jumps to the profile panel. |
 | `HsResourceBar` | Compact resource bar shown at top of all views. Two rows: the raw resources (icon, name, amount, rate) and below them a High-Tech stock row (`hs-res-card--mini`) showing only icon + count for `power_cell` and the four refined resources. Both rows are per active planet. |
-| `HsPlanetGrid` | 5×3 unified tile grid — 2 panel tiles (row 1) + 12 planet building slots (rows 2–5). Manages single active-tile state across all 15 cells. |
+| `HsPlanetGrid` | The planet strip over a 3×4 grid of the twelve planet building slots. Manages the active-tile state and closes whatever panel is open when a tile is picked. |
 | `HsTilePanel` | Right-column panel — renders different content based on `activePanel` prop: `'resources'` → `HsAllResourcePanel`, `'notifications'` → `HsProfilePanel` + `HsNotificationPanel` + `HsSettingsPanel`, `'dock'` → `HsDockPanel`, `null` → building detail for the active planet slot |
 | `HsOnboardingPanel` | Early-game checklist — the last card in the empire board’s grid, and the only place it appears. Renders nothing once every step is ticked. |
 | `HsSalvagePanel` | Salvage fishing on slot 12 — cast loop, radar contact closing on a two-ring target, scrap balance, hold ring around the button, artefact cabinet. See *Salvage Fishing*. |

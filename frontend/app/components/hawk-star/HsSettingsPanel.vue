@@ -71,15 +71,14 @@ async function runCheat(action) {
 </template>
 
 <style lang="scss" scoped>
+// No frame of its own: it is the body of an `hs-empire-card`, which draws one,
+// and inside that the amber dev panel draws a second. A third would be a box in
+// a box in a box. The amber one stays — it is the one that means something.
 .hs-settings-panel {
   width: 100%;
-  border-radius: var(--hs-r-md, 0.5rem);
-  border: 1px solid rgba(100, 130, 220, 0.15);
-  background: rgba(255, 255, 255, 0.03);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 0.75rem;
 }
 
 .hs-settings-section {

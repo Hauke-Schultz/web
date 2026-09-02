@@ -5,7 +5,6 @@ import { RESOURCES, BUILDINGS } from '~/utils/hawkStarConfig.js'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import HsDockPanel from '~/components/hawk-star/HsDockPanel.vue'
 import HsNotificationPanel from '~/components/hawk-star/HsNotificationPanel.vue'
-import HsProfilePanel from '~/components/hawk-star/HsProfilePanel.vue'
 import HsAllResourcePanel from '~/components/hawk-star/HsAllResourcePanel.vue'
 import HsPowerBattery from '~/components/hawk-star/HsPowerBattery.vue'
 import HsShieldPanel from '~/components/hawk-star/HsShieldPanel.vue'
@@ -122,11 +121,8 @@ const canRaise = (recipe) =>
 </script>
 
 <template>
-  <!-- Profile -->
-  <HsProfilePanel v-if="activePanel === 'profile'" />
-
   <!-- Activity -->
-  <HsNotificationPanel v-else-if="activePanel === 'notifications'" />
+  <HsNotificationPanel v-if="activePanel === 'notifications'" />
 
   <!-- Resources -->
   <HsAllResourcePanel v-else-if="activePanel === 'resources'" />

@@ -3,17 +3,19 @@ import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 
 const { t } = useI18n()
-const { onboardingSteps, onboardingDoneCount, onboardingComplete } = useHawkStar()
+const { onboardingSteps, onboardingComplete } = useHawkStar()
 </script>
 
 <template>
-  <!-- The early-game guide. It disappears for good once every step is ticked —
-       a checklist with nothing left on it is only taking up room. -->
+  <!-- The early-game guide, and now only the list: the title and the step count
+       live on the head of the `hs-empire-card` this sits in, where they stay
+       readable while the card is shut. The `v-if` stays — a checklist with
+       nothing left on it is only taking up room, and the board asks the same
+       question again before it draws the card at all. -->
   <div v-if="!onboardingComplete" class="hs-onboarding">
-    <div class="hs-onboarding-head">
-      <span class="hs-onboarding-title">{{ t('hawkStar.tile.onboarding.title') }}</span>
-      <span class="hs-onboarding-count">{{ onboardingDoneCount }} / {{ onboardingSteps.length }}</span>
-    </div>
+    <!-- The welcome. It was the card's title and did not fit on one: a lid is a
+         label, and this is a sentence addressed to the commander. -->
+    <p class="hs-onboarding-intro">{{ t('hawkStar.tile.onboarding.title') }}</p>
     <ul class="hs-onboarding-steps">
       <li
         v-for="step in onboardingSteps"
@@ -28,40 +30,22 @@ const { onboardingSteps, onboardingDoneCount, onboardingComplete } = useHawkStar
 </template>
 
 <style lang="scss" scoped>
-// A card among the planet cards: it shares their corner radius so a row of
-// them lines up, and keeps its own blue tint because it is a different kind of
-// thing. `align-self: start` stops the grid from stretching it to the height of
-// a tall planet card next to it.
+// The list and nothing else. The frame, the blue tint and the padding belong to
+// the `hs-empire-card--guide` this is the body of; drawing them here as well
+// would be a box inside its own box.
 .hs-onboarding {
-  align-self: start;
-  background: rgba(80, 120, 255, 0.07);
-  border: 1px solid rgba(80, 120, 255, 0.2);
-  border-radius: var(--hs-r-lg);
-  padding: 0.7rem 0.9rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
 
-.hs-onboarding-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.hs-onboarding-title {
+.hs-onboarding-intro {
+  margin: 0;
   font-size: 0.68rem;
   font-weight: 700;
+  line-height: 1.4;
   color: rgba(150, 180, 255, 0.9);
-  letter-spacing: 0.03em;
-}
-
-.hs-onboarding-count {
-  font-size: 0.66rem;
-  font-weight: 700;
-  color: rgba(150, 180, 255, 0.75);
-  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 .hs-onboarding-steps {

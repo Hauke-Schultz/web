@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { useHawkStarAuth } from '~/composables/useHawkStarAuth.js'
-import HsSettingsPanel from "~/components/hawk-star/HsSettingsPanel.vue";
 
 // `locales` is the list from nuxt.config, so the dropdown can never offer a
 // language the app has no messages for. `setLocale` navigates as well as it
@@ -24,14 +23,14 @@ const DISP_ICON = { friendly: '🤝', neutral: '⚖️', hostile: '⚔️' }
 
 const showPicker    = ref(false)
 const confirmDelete = ref(false)
-const savedFlash    = ref(false)
 
-let savedTimer = null
-const flashSaved = () => {
-  savedFlash.value = true
-  clearTimeout(savedTimer)
-  savedTimer = setTimeout(() => { savedFlash.value = false }, 1500)
-}
+// The "gespeichert" confirmation used to live in this panel's own header bar.
+// The bar is gone — the card's accordion head is the header now — so the panel
+// reports the save and the card flashes it, next to the title you opened. Every
+// save still has to say so: a panel that silently swallows a rejected write is
+// what hid the unlocked-portrait bug for so long.
+const emit = defineEmits(['saved'])
+const flashSaved = () => emit('saved')
 
 // The pick shows instantly and is put back if the server refuses it. Flashing
 // "gespeichert" on a rejected save is what hid the unlocked-portrait bug for so
@@ -77,14 +76,6 @@ const handleDelete = async () => {
 
 <template>
   <div class="hs-profile">
-
-    <div class="hs-panel-header">
-      <span class="hs-panel-icon">👤</span>
-      <h2 class="hs-panel-title">{{ t('hawkStar.profile.title') }}</h2>
-      <Transition name="hs-saved">
-        <span v-if="savedFlash" class="hs-profile-saved">✓ gespeichert</span>
-      </Transition>
-    </div>
 
     <div class="hs-profile-body">
       <!-- Portrait -->
@@ -154,45 +145,24 @@ const handleDelete = async () => {
         {{ confirmDelete ? '⚠ Wirklich löschen?' : '🗑 Profil löschen' }}
       </button>
     </div>
-
-	  <HsSettingsPanel />
   </div>
 </template>
 
 
 <style lang="scss" scoped>
+// No frame of its own: the panel is the body of an `hs-empire-card`, which
+// draws one, and a second border inside the first is the look of a component
+// that was pasted in rather than put there.
 .hs-profile {
-  flex: 1;
+  position: relative;
   min-width: 0;
-  background: var(--hs-glass-sm);
-  border: 1px solid var(--hs-glass-2xl);
-  border-radius: var(--hs-r-lg);
-  overflow: visible;
-}
-
-.hs-panel-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid var(--hs-line-sm);
-}
-
-.hs-panel-icon  { font-size: 1.25rem; }
-.hs-panel-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin: 0; flex: 1; }
-
-.hs-profile-saved {
-  font-size: 0.55rem;
-  font-weight: 600;
-  color: rgba(52,211,153,0.85);
-  letter-spacing: 0.03em;
 }
 
 .hs-profile-body {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0 0 0.6rem;
 }
 
 // ── Portrait ──────────────────────────────────────────────────────────────────
@@ -325,7 +295,7 @@ const handleDelete = async () => {
 .hs-profile-actions {
   display: flex;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem 0.6rem;
+  padding: 0.5rem 0 0;
   border-top: 1px solid var(--hs-line-sm);
 }
 
@@ -387,7 +357,4 @@ const handleDelete = async () => {
   50%       { box-shadow: 0 0 8px rgba(248,113,113,0.4); }
 }
 
-// ── Saved flash transition ────────────────────────────────────────────────────
-.hs-saved-enter-active, .hs-saved-leave-active { transition: opacity 0.2s; }
-.hs-saved-enter-from,   .hs-saved-leave-to     { opacity: 0; }
 </style>

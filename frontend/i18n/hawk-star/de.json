@@ -169,6 +169,7 @@
       "convEmptyNoRefinery": "Bau die Raffinerie um Umwandlungen freizuschalten",
       "convEmptyNoFacility": "Bau eine Hightech-Anlage um Umwandlungen freizuschalten",
       "onboarding": {
+        "short": "Erste Schritte",
         "title": "Willkommen, Commander — hier beginnt deine Kolonie",
         "step1": "🏛️ Baue das Kommandozentrum — das Herzstück jeder Kolonie",
         "step2": "👥 Rekrutiere auf der Base-Kachel Bevölkerung — du brauchst Arbeiter für deine Gebäude",
@@ -446,6 +447,16 @@
       "or": "oder",
       "cannotAfford": "Nicht genug Ressourcen",
       "batteryDelta": "Batterie +{pct} %",
+      "dock": {
+        "prompt": "Anflug fliegen — oder weiterziehen lassen und den kleinen Ertrag nehmen",
+        "hint": "Gedrückt halten bremst den Sinkflug. Der Schub kann nur bremsen, nie steigen — und der Tank reicht nicht für den ganzen Weg.",
+        "start": "Tippen zum Start",
+        "collect": "Weiter",
+        "outcomeLanded": "Sauber angedockt.",
+        "outcomeHot": "Zu hart aufgesetzt — es prallt ab und zieht weiter.",
+        "outcomeDry": "Tank leer, ungebremst aufgeschlagen — es zieht weiter.",
+        "outcomeAdrift": "Zu lange gezögert — es ist vorbeigetrieben."
+      },
       "types": {
         "meteor": {
           "name": "Meteoritenschauer",
@@ -457,26 +468,26 @@
         },
         "wreck": {
           "name": "Wrackfund",
-          "desc": "Ein havarierter Frachter treibt herrenlos im Orbit. Bergen oder ausschlachten?",
+          "desc": "Ein havarierter Frachter treibt auf die Schleuse zu. Einfangen bringt seine Ladung — vorbeiziehen lassen bringt Zoll.",
           "choices": {
             "salvage": "Ladung bergen",
-            "scrap":   "Rumpf ausschlachten"
+            "scrap":   "Weiterziehen lassen — Zoll nehmen"
           }
         },
         "solar_storm": {
           "name": "Sonnensturm",
-          "desc": "Die Magnetosphäre glüht. Die Ionenflut lässt sich einmalig anzapfen.",
+          "desc": "Die Magnetosphäre glüht. Eine Sonde durch die Ionenflut bringt abgefüllte Zellen — misslingt der Anflug, bleibt nur, was das Netz auffängt.",
           "choices": {
-            "channel": "In die Batterie leiten",
+            "channel": "Abtreiben lassen — in die Batterie leiten",
             "harvest": "Ionen abfüllen"
           }
         },
         "refugees": {
           "name": "Flüchtlingskonvoi",
-          "desc": "Ein Konvoi bittet um Aufnahme. Sie können bleiben — oder nur auftanken und weiterziehen.",
+          "desc": "Ein Konvoi bittet um Aufnahme. Gelingt das Einschleusen, bleiben die Menschen als Arbeitskräfte — sonst ziehen sie weiter und zahlen Wegzoll.",
           "choices": {
-            "accept": "Aufnehmen und versorgen",
-            "trade":  "Treibstoff verkaufen"
+            "accept": "Konvoi einschleusen",
+            "trade":  "Weiterziehen lassen — Zoll nehmen"
           }
         },
         "comet": {
@@ -489,50 +500,50 @@
         },
         "drydock": {
           "name": "Treibendes Trockendock",
-          "desc": "Ein abgestoßenes Orbitaldock zieht vorbei. Die Rumpfpressen laufen noch — mit genug Metall lässt sich Panzerung schneiden.",
+          "desc": "Ein abgestoßenes Orbitaldock zieht vorbei, die Rumpfpressen laufen noch. Wer sauber andockt, presst Panzerung.",
           "choices": {
             "plating": "Panzerplatten pressen",
-            "spares":  "Ersatzteillager plündern"
+            "spares":  "Weiterziehen lassen — Ersatzteile bergen"
           }
         },
         "reactor_core": {
           "name": "Treibender Reaktorkern",
-          "desc": "Ein ausgestoßener Reaktorkern glüht noch. Eindämmen kostet Kristall — oder man lässt ihn kontrolliert ausbrennen.",
+          "desc": "Ein ausgestoßener Reaktorkern glüht noch. Eingedämmt gibt er seinen Plasmakern her — sonst brennt er aus und lässt Kristallschlacke zurück.",
           "choices": {
             "contain": "Kern eindämmen",
-            "vent":    "Kontrolliert ausbrennen"
+            "vent":    "Ausbrennen lassen — Schlacke bergen"
           }
         },
         "dead_relay": {
           "name": "Totes Relais",
-          "desc": "Eine erloschene Relaisstation antwortet nicht mehr. In den Schaltkernen steckt Supraleiter, im Speicher liegen alte Messdaten.",
+          "desc": "Eine erloschene Relaisstation treibt heran. In den Schaltkernen steckt Supraleiter — wer nicht andockt, zapft nur den Speicher an.",
           "choices": {
             "cores": "Leiterkerne ausbauen",
-            "tap":   "Datenspeicher anzapfen"
+            "tap":   "Vorbeiziehen lassen — Speicher anzapfen"
           }
         },
         "bio_pod": {
           "name": "Havarierte Biokapsel",
-          "desc": "Eine Forschungskapsel mit lebenden Kulturen schlägt auf. Züchten braucht Material — oder man schöpft nur die Nährlösung ab.",
+          "desc": "Eine Forschungskapsel mit lebenden Kulturen treibt heran. Sanft eingeschleust überlebt die Zucht — hart aufgesetzt bleibt nur die Nährlösung.",
           "choices": {
             "cultivate": "Kulturen züchten",
-            "nutrients": "Nährlösung abschöpfen"
+            "nutrients": "Abtreiben lassen — Nährlösung abschöpfen"
           }
         },
         "fuel_depot": {
           "name": "Verlorenes Treibstoffdepot",
-          "desc": "Ein vergessenes Tankdepot treibt im Orbit. Abpumpen kostet Leitungen und Metall, verschrotten bringt sofort Material.",
+          "desc": "Ein vergessenes Tankdepot treibt im Orbit. Angedockt lassen sich die Tanks abpumpen — sonst bleibt nur der Rumpf.",
           "choices": {
             "siphon": "Tanks abpumpen",
-            "strip":  "Depot verschrotten"
+            "strip":  "Weiterziehen lassen — Rumpf verschrotten"
           }
         },
         "trader": {
           "name": "Fahrender Händler",
-          "desc": "Ein Frachter dockt an und öffnet seinen Laderaum. Bezahlt wird nur in Rohmetall.",
+          "desc": "Ein Frachter will nur längsseits der Schleuse handeln. Wer sauber andockt, bekommt die Ladung — sonst bleibt es beim Kartentausch.",
           "choices": {
-            "buy":    "Ladung kaufen",
-            "barter": "Nur Karten tauschen"
+            "buy":    "Ladung übernehmen",
+            "barter": "Weiterziehen lassen — Karten tauschen"
           }
         },
         "ghost_ship": {
@@ -611,7 +622,7 @@
       "techcenter":  { "name": "Techzentrum",     "desc": "Technologieforschung" },
       "comm_center": { "name": "Komm-Zentrum",    "desc": "Globale Technologien — einmal erforscht, auf allen Planeten aktiv" },
       "spacebase":   { "name": "Raumhafen",       "desc": "Startplatz für Drohnen und Kolonisierungsschiffe" },
-      "anomaly":     { "name": "Anomalie",        "desc": "Vorbeiziehende Ereignisse — jedes eine Wahl zwischen zwei sicheren Ausgängen" },
+      "anomaly":     { "name": "Anomalie",        "desc": "Vorbeiziehende Ereignisse — mal eine Wahl zwischen zwei sicheren Ausgängen, mal ein Anflug, der über den größeren entscheidet" },
       "defense":     { "name": "Verteidigung",    "desc": "Planetarische Schilde, Waffenplattformen und Frühwarnsysteme" },
       "hightech":    { "name": "Hightech",        "desc": "Fortgeschrittene Materialveredelung und planetenspezifische Verarbeitung" },
       "dock":        { "name": "Dock",            "desc": "Schiffsverwaltung, Missionen und Flottenoperationen" },

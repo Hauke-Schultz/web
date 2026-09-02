@@ -207,7 +207,7 @@ export const TILE_TYPES = {
   techcenter:    { id: 'techcenter',    name: 'Tech Center',   icon: '🔬', description: 'Tech Center' },
   comm_center:   { id: 'comm_center',   name: 'Comm Center',   icon: '📡', description: 'Global technologies — researched once, applied across all planets' },
   spacebase:     { id: 'spacebase',     name: 'Space Base',    icon: '🚀', description: 'Launch pad for drones and colony ships' },
-  anomaly:       { id: 'anomaly',       name: 'Anomaly',       icon: '☄️', description: 'Passing events — each one a choice between two guaranteed outcomes' },
+  anomaly:       { id: 'anomaly',       name: 'Anomaly',       icon: '☄️', description: 'Passing events — some a choice between two guaranteed outcomes, some a docking approach flown for the better one' },
   defense:       { id: 'defense',       name: 'Defense',       icon: '🛡️', description: 'Planetary shields, weapons platforms and early-warning systems' },
   hightech:      { id: 'hightech',      name: 'High-Tech',     icon: '⚗️', description: 'Advanced material refinement and planet-exclusive high-tier processing' },
   dock:          { id: 'dock',          name: 'Dock',          icon: '🛸', description: 'Ship management, missions and fleet operations' },

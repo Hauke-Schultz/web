@@ -169,7 +169,9 @@ watchEffect(() => {
     <div class="hs-main" v-else-if="isAuthenticated && gameLoaded">
       <template v-if="currentView === 'planet'">
         <div class="hs-planet-wrap">
-          <HsPlanetGrid v-model:activePanel="activePanel" />
+          <!-- One-way now: the grid closes whatever panel is open when you pick
+               a tile or switch planet, and no longer opens one of its own. -->
+          <HsPlanetGrid @update:activePanel="activePanel = $event ?? ''" />
         </div>
         <div ref="panelRef" class="hs-grid-right">
           <HsTilePanel :activePanel="activePanel" />
@@ -179,8 +181,12 @@ watchEffect(() => {
       <HsGalaxyMap v-else-if="currentView === 'galaxy'" />
       <!-- Every row on the board sets planet + tile itself, then asks the page
            to turn to the planet view — that jump is what makes it a board and
-           not a list. -->
-      <HsEmpirePanel v-else-if="currentView === 'empire'" @go-planet="currentView = 'planet'; activePanel = ''" />
+           not a list. Every one of them is a tile now; the crest no longer jumps
+           anywhere, it unfolds the profile in the board's own header. -->
+      <HsEmpirePanel
+        v-else-if="currentView === 'empire'"
+        @go-planet="currentView = 'planet'; activePanel = ''"
+      />
     </div>
 
     <!-- ── Auth overlay ── -->
