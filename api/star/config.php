@@ -120,6 +120,14 @@ const RAID_FLIGHT_PER_DIST = 240;    // seconds per unit of system distance
 const RAID_INTERCEPT_SHOTS = 3;
 const RAID_INTERCEPT_COST  = ['power_cell' => 1];
 
+// What a sortie burns to leave: one cell per hull, paid at launch, out of the
+// launching planet's own stock. Same resource and same rate as the battery's
+// ammunition above, and a separate constant on purpose — one is what the
+// attacker pays to go, the other is what the defender pays to shoot, and a
+// single constant serving both is a balance change waiting to happen by
+// accident. Mirrored by RAID.fuelCost in hawkStarConfig.js.
+const RAID_FUEL_COST       = ['power_cell' => 1];
+
 // What a raid can carry off: refined goods only. Raw resources are capped and
 // compute_resources() clamps to the cap every tick, so a raw haul would evaporate
 // on the way into the attacker's silo — the same reason the cargo drone refuses

@@ -83,7 +83,7 @@ if ($ships > $available) $ships = $available;
 
 // Fuel: one power cell per hull, paid at launch. This is what makes a raid cost
 // something every time, where the ships themselves are a one-off investment.
-$fuelKey  = array_key_first(RAID_INTERCEPT_COST);
+$fuelKey  = array_key_first(RAID_FUEL_COST);
 $fuelNeed = $ships;
 compute_resources($db, $fromId, $playerId, $from['type']);
 $fuelRow = $db->prepare("SELECT $fuelKey FROM hs_planet_resources WHERE planet_id=? AND player_id=?");

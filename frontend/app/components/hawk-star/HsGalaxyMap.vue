@@ -40,11 +40,16 @@ const {
   canRaid,
   isRaidTarget,
   raidFlightTime,
+  raidFuelState,
   raidsAgainstMe,
   raidsByMe,
   raidLog,
   allActiveRaids,
   startRaid,
+  // traffic
+  activeFlights,
+  flightProgress,
+  flightRemainingSec,
 } = useHawkStar()
 
 const { t } = useI18n()
@@ -56,21 +61,56 @@ const raidTarget = ref(null)   // planet id, or null while the dialog is closed
 const raidShips   = ref(1)
 const raidOrder   = ref('disable')
 
+// Why the launch is not fire-and-forget: the server refuses a sortie for half a
+// dozen reasons a player meets in normal play — no power cells for the burn, no
+// hull in the dock, a fleet from this planet already out. The dialog used to
+// close on the click, before the answer had even arrived, so a refused raid was
+// indistinguishable from a launched one: the panel shut, no fleet appeared, and
+// nothing anywhere said why. It now waits for the answer, and a refusal keeps
+// the dialog open with the reason on it.
+const raidError   = ref('')
+const raidSending = ref(false)
+
 const openRaid = (planet) => {
   raidTarget.value = planet.id
   raidShips.value  = corvetteInventory.value
   raidOrder.value  = 'disable'
+  raidError.value  = ''
 }
 
-const closeRaid = () => { raidTarget.value = null }
+const closeRaid = () => { raidTarget.value = null; raidError.value = '' }
+
+// Changing the sortie clears the complaint: it was about the one that stood
+// before, and this is a different one.
+// Stock against bill for the sortie as it currently stands. The fleet leaves
+// from the active planet, so that is the store that has to cover it.
+const raidFuel = computed(() => raidFuelState(raidShips.value, activePlanetId.value))
 
 const setRaidShips = (delta) => {
   raidShips.value = Math.max(1, Math.min(raidShips.value + delta, corvetteInventory.value))
+  raidError.value = ''
 }
 
-const confirmRaid = (planet, sysId) => {
-  startRaid(planet.id, sysId, raidShips.value, raidOrder.value, activePlanetId.value)
-  closeRaid()
+const setRaidOrder = (order) => {
+  raidOrder.value = order
+  raidError.value = ''
+}
+
+const confirmRaid = async (planet, sysId) => {
+  if (raidSending.value) return   // one click, one fleet
+  raidSending.value = true
+  raidError.value   = ''
+  try {
+    const res = await startRaid(planet.id, sysId, raidShips.value, raidOrder.value, activePlanetId.value)
+    if (res?.ok) { closeRaid(); return }
+    // The server's own words. They are diagnostic English rather than game copy,
+    // but they name the thing that is missing — which is the whole point, and it
+    // beats a translated "something went wrong" that names nothing. Localising
+    // them would need the API to send an error *code* beside the message.
+    raidError.value = res?.error || t('hawkStar.galaxy.raidFailedUnknown')
+  } finally {
+    raidSending.value = false
+  }
 }
 
 const raidFlightLabel = (sys) => formatTime(raidFlightTime(sys.id))
@@ -148,7 +188,25 @@ const sortedSystems = computed(() => {
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const STAR_CLASS_ICON = { G: '☀️', K: '🟠', M: '🔴', F: '⚪' }
+// ── The star itself ───────────────────────────────────────────────────────────
+// A marker is a star, drawn in CSS and lit by its spectral class, not a face.
+// The portraits were a category error: what a chart of the sky shows is the
+// thing that is actually out there and actually visible from home, and `starClass`
+// arrives for every system whether or not it has been scanned — the star is what
+// a telescope gives you for free, and *who lives on it* is precisely what the
+// scan buys. Putting a commander's avatar where the star belongs said the
+// opposite: that the people are the terrain.
+//
+// So the marker splits in two. The **core** is the star, coloured by class. The
+// **rim** is your relationship to the system — blue at home, green where a scan
+// found somebody, dashed where nothing has looked. Who lives there moved to the
+// caption, next to the name, which is where a name belongs anyway.
+const STAR_CLASS = new Set(['F', 'G', 'K', 'M'])
+const starClassOf = (sys) => STAR_CLASS.has(sys.starClass) ? sys.starClass : 'G'
+
+// Stars do not throb in unison. Derived from the id so a system keeps its own
+// rhythm across reloads, and it costs nothing to compute.
+const twinkleDelay = (sys) => `${-(sys.id % 7) * 0.9}s`
 
 const isHome = (sys) => sys.id === homeSystemId.value
 
@@ -283,6 +341,45 @@ const ownerName  = (o) => o?.username ?? o?.name ?? '?'
 const ownerNames = (sys) => uniqueOwners(sys).map(ownerName).join(' · ')
 const ownerRest  = (sys) => Math.max(0, uniqueOwners(sys).length - 1)
 const ownerLabel = (sys) => ownerName(uniqueOwners(sys)[0])
+
+// ── Traffic ───────────────────────────────────────────────────────────────────
+// The payoff of having coordinates at all. A tile strip could only ever say
+// "something is on its way there", with a dot on the target; on a grid it can
+// say how far along it is, in the same geometry the server bills the flight in.
+const sysById = computed(() => {
+  const m = {}
+  for (const sys of galaxySystems.value) m[sys.id] = sys
+  return m
+})
+
+// A flight placed on the chart: the two ends of its lane, and where it has got
+// to between them. A flight whose endpoints are not both drawn is dropped — a
+// pip travelling towards a dot that is not there is a pip going nowhere.
+const chartFlights = computed(() => activeFlights.value.flatMap((fl) => {
+  const a = sysById.value[fl.fromSystemId]
+  const b = sysById.value[fl.toSystemId]
+  if (!a || !b) return []
+  const p = flightProgress(fl)
+  return [{
+    ...fl,
+    x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+    x: a.x + (b.x - a.x) * p,
+    y: a.y + (b.y - a.y) * p,
+  }]
+}))
+
+const FLIGHT_ICON = {
+  drone:       '🕵️',
+  satellite:   '📡',
+  raid:        '⚔️',
+  'raid-back': '⚔️',
+}
+
+// The fleet is the flight whose outcome you are actually waiting for, so its
+// countdown is printed on the pip instead of hidden in a tooltip. Espionage
+// keeps its countdown on the target marker's badge, where it already was — four
+// visible timers on one chart is a dashboard, not a map.
+const isFleet = (fl) => fl.kind === 'raid' || fl.kind === 'raid-back'
 
 const contactOf = (sysId) =>
   systemContacts.value[sysId] ?? { scanState: 'unscanned', scanEndsAt: null }
@@ -423,6 +520,42 @@ const tileClass = (sys) => {
             />
           </svg>
 
+          <!-- Traffic lanes. Faint and permanent for as long as something is
+               travelling them, so a pip is never a dot floating in the dark. -->
+          <svg
+            v-if="chartFlights.length"
+            class="hs-galaxy-routes"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <line
+              v-for="fl in chartFlights"
+              :key="fl.id"
+              :class="`hs-galaxy-route--${fl.kind}`"
+              :x1="fl.x1" :y1="fl.y1" :x2="fl.x2" :y2="fl.y2"
+              vector-effect="non-scaling-stroke"
+            />
+          </svg>
+
+          <!-- The flights themselves. pointer-events: none throughout — a pip
+               moves, and a moving click target that can park itself on top of a
+               system marker would take that marker's tap. Everything a pip could
+               have put in a tooltip is either printed on it or already sitting
+               on the marker it is heading for. -->
+          <span
+            v-for="fl in chartFlights"
+            :key="fl.id"
+            class="hs-galaxy-pip"
+            :class="`hs-galaxy-pip--${fl.kind}`"
+            :style="{ left: fl.x + '%', top: fl.y + '%' }"
+          >
+            <span class="hs-galaxy-pip-dot">{{ FLIGHT_ICON[fl.kind] }}</span>
+            <span v-if="isFleet(fl)" class="hs-galaxy-pip-timer">
+              {{ formatTime(flightRemainingSec(fl)) }}
+            </span>
+          </span>
+
           <button
             v-for="sys in sortedSystems"
             :key="sys.id"
@@ -433,19 +566,14 @@ const tileClass = (sys) => {
             :title="nodeTitle(sys)"
             @click="selectSystem(sys)"
           >
-            <!-- The dot itself. Which glyph it wears is the whole state machine:
-                 your portrait at home, a commander's portrait where a scan found
-                 one, a star where it found nobody, and a ❓ where nothing has
-                 looked yet. -->
-            <span class="hs-galaxy-tile-marker">
-              <template v-if="isHome(sys)">{{ playerPortrait }}</template>
-              <template v-else-if="resolvedScanState(sys) === 'scanning'">
-                <span class="hs-pulse-scan">📶</span>
-              </template>
-              <template v-else-if="resolvedScanState(sys) === 'scanned'">
-                {{ isInhabited(sys) ? (firstOwner(sys)?.portrait ?? '👤') : (STAR_CLASS_ICON[sys.starClass] ?? '⭐') }}
-              </template>
-              <template v-else>{{ contactOf(sys.id).theyScannedMe ? '👁️' : '❓' }}</template>
+            <!-- The dot: a star in its own colour, inside a rim that says what
+                 the system is to you. The star is visible whether or not the
+                 system has been scanned, because from home it always was. -->
+            <span
+              class="hs-galaxy-tile-marker"
+              :class="`hs-galaxy-tile-marker--${starClassOf(sys)}`"
+            >
+              <span class="hs-galaxy-star" :style="{ animationDelay: twinkleDelay(sys) }" />
             </span>
 
             <!-- Several commanders share this system. The first one wears the
@@ -473,20 +601,33 @@ const tileClass = (sys) => {
               :title="t('hawkStar.comm.mutualScan')"
             >📡</span>
 
-            <!-- A scan is available on this system right now. Not a button: at
-                 this size a button is a mis-tap, and the card behind the marker is
-                 where the scan is actually started. -->
+            <!-- Not scanned, in one corner glyph. 📶 = you can scan it right
+                 now, 👁️ = they have looked at us and we have not looked back,
+                 ❓ = unknown and not yet possible. All three say the same thing;
+                 the actionable one wins. Not a button: at this size a button is
+                 a mis-tap, and the card behind the marker is where the scan is
+                 actually started. -->
             <span
               v-else-if="canScanSystem(sys.id)"
               class="hs-galaxy-tile-scanhint"
               :title="t('hawkStar.comm.scanSystem')"
             >📶</span>
+            <span
+              v-else-if="resolvedScanState(sys) === 'scanning'"
+              class="hs-galaxy-tile-scanhint"
+              :title="t('hawkStar.comm.scanning')"
+            >📶</span>
+            <span
+              v-else-if="resolvedScanState(sys) !== 'scanned'"
+              class="hs-galaxy-tile-scanhint hs-galaxy-tile-scanhint--idle"
+              :title="t('hawkStar.galaxy.mapUnscannedHint')"
+            >{{ contactOf(sys.id).theyScannedMe ? '👁️' : '❓' }}</span>
 
             <span class="hs-galaxy-tile-label">
               <span class="hs-galaxy-tile-name">{{ shortName(sys) }}</span>
 
               <span v-if="isHome(sys)" class="hs-galaxy-tile-state hs-galaxy-tile-state--own">
-                {{ t('hawkStar.galaxy.stateColony') }}
+                {{ playerPortrait }} {{ t('hawkStar.galaxy.stateColony') }}
               </span>
               <span v-else-if="resolvedScanState(sys) === 'scanning'" class="hs-galaxy-tile-timer">
                 {{ formatTime(scanRemaining(sys.id)) }}
@@ -494,8 +635,11 @@ const tileClass = (sys) => {
               <span v-else-if="resolvedScanState(sys) !== 'scanned'" class="hs-galaxy-tile-unknown">
                 {{ t('hawkStar.comm.unscanned') }}
               </span>
+              <!-- The portrait rides with the name now that the marker is a
+                   star. It is the same identification, in the place that was
+                   already naming the person. -->
               <span v-else-if="isInhabited(sys)" class="hs-galaxy-tile-state hs-galaxy-tile-state--inhabited">
-                {{ ownerLabel(sys) }}
+                {{ firstOwner(sys)?.portrait ?? '👤' }} {{ ownerLabel(sys) }}
               </span>
               <span v-else class="hs-galaxy-tile-state hs-galaxy-tile-state--free">
                 {{ t('hawkStar.galaxy.stateUncolonized') }}
@@ -799,14 +943,23 @@ const tileClass = (sys) => {
                    plus battery %, and only the shield can be scouted. -->
               <div class="hs-raid-power">
                 {{ t('hawkStar.galaxy.raidFirepower', { n: raidShips * 20 }) }}
-                <span class="hs-raid-fuel">🔋 {{ raidShips }}</span>
+                <!-- have / need. A bare "🔋 4" was the bill with nothing to
+                     measure it against, so the only way to find out the burn
+                     could not be paid was to launch and be refused. -->
+                <span
+                  class="hs-raid-fuel"
+                  :class="{ 'hs-raid-fuel--short': raidFuel.short }"
+                  :title="t('hawkStar.galaxy.raidFuelHint')"
+                >
+                  {{ RESOURCES[raidFuel.key]?.icon ?? '🔋' }} {{ raidFuel.have }} / {{ raidFuel.need }}
+                </span>
               </div>
 
               <div class="hs-raid-orders">
                 <button
                   class="hs-raid-order"
                   :class="{ 'hs-raid-order--active': raidOrder === 'disable' }"
-                  @click="raidOrder = 'disable'"
+                  @click="setRaidOrder('disable')"
                 >
                   <span class="hs-raid-order-title">⚡ {{ t('hawkStar.galaxy.raidDisable') }}</span>
                   <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidDisableDesc') }}</span>
@@ -814,18 +967,28 @@ const tileClass = (sys) => {
                 <button
                   class="hs-raid-order"
                   :class="{ 'hs-raid-order--active': raidOrder === 'plunder' }"
-                  @click="raidOrder = 'plunder'"
+                  @click="setRaidOrder('plunder')"
                 >
                   <span class="hs-raid-order-title">💰 {{ t('hawkStar.galaxy.raidPlunder') }}</span>
                   <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidPlunderDesc') }}</span>
                 </button>
               </div>
 
+              <!-- What the server said, verbatim, right under the button that
+                   asked. It stays until the order changes or the dialog closes. -->
+              <div v-if="raidError" class="hs-raid-error">
+                <span class="hs-raid-error-label">⚠ {{ t('hawkStar.galaxy.raidFailed') }}</span>
+                <span class="hs-raid-error-text">{{ raidError }}</span>
+              </div>
+
               <button
                 class="hs-raid-launch"
+                :disabled="raidSending || raidFuel.short"
                 @click="confirmRaid(selected.planets.find(p => p.id === raidTarget), selected.id)"
               >
-                {{ t('hawkStar.galaxy.raidLaunch', { time: raidFlightLabel(selected) }) }}
+                {{ raidSending
+                    ? t('hawkStar.galaxy.raidLaunching')
+                    : t('hawkStar.galaxy.raidLaunch', { time: raidFlightLabel(selected) }) }}
               </button>
             </div>
 
@@ -1043,6 +1206,78 @@ const tileClass = (sys) => {
   to { stroke-dashoffset: -8; }
 }
 
+// ── Traffic ───────────────────────────────────────────────────────────────────
+// Lanes share the link layer's grid, so they need no arithmetic either.
+.hs-galaxy-routes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+
+  line {
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+  }
+  .hs-galaxy-route--drone     { stroke: rgba(167,139,250,0.35); }
+  .hs-galaxy-route--satellite { stroke: rgba(45,212,191,0.35); }
+  .hs-galaxy-route--raid      { stroke: rgba(248,113,113,0.45); }
+  .hs-galaxy-route--raid-back { stroke: rgba(248,113,113,0.22); }
+}
+
+// Above the markers, because a flight is the thing that has changed since you
+// last looked — and it is only there for as long as it is flying.
+.hs-galaxy-pip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.hs-galaxy-pip-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 50%;
+  font-size: 0.55rem;
+  line-height: 1;
+  border: 1px solid transparent;
+  background: rgba(8,10,20,0.92);
+
+  .hs-galaxy-pip--drone &     { border-color: rgba(167,139,250,0.9); box-shadow: 0 0 8px rgba(167,139,250,0.55); }
+  .hs-galaxy-pip--satellite & { border-color: rgba(45,212,191,0.9);  box-shadow: 0 0 8px rgba(45,212,191,0.55); }
+  .hs-galaxy-pip--raid &      { border-color: rgba(248,113,113,0.95); box-shadow: 0 0 10px rgba(248,113,113,0.65); }
+  // The way home is the same fleet with nothing left to decide about it, so it
+  // travels dimmed: still worth seeing, no longer worth watching.
+  .hs-galaxy-pip--raid-back & { border-color: rgba(248,113,113,0.5); opacity: 0.75; }
+}
+
+// The one timer the chart prints rather than hides. It sits under the pip and
+// travels with it, so "how much longer" is answered in the same glance as
+// "how far".
+.hs-galaxy-pip-timer {
+  padding: 0 3px;
+  border-radius: 999px;
+  font-size: 0.42rem;
+  font-weight: 800;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  color: rgba(254,226,226,0.95);
+  background: rgba(127,29,29,0.9);
+  white-space: nowrap;
+
+  @media (min-width: 640px) { font-size: 0.46rem; }
+
+  .hs-galaxy-pip--raid-back & { background: rgba(60,20,20,0.85); color: rgba(254,226,226,0.7); }
+}
+
 // ── Markers ───────────────────────────────────────────────────────────────────
 // The button is the size of the dot and nothing more, so translate(-50%, -50%)
 // lands it on its true coordinate. The caption hangs below without moving it,
@@ -1080,20 +1315,33 @@ const tileClass = (sys) => {
   &:hover     { z-index: 7; }
 }
 
-// The dot. Its ring is the state: solid where something is known, dashed where
-// nothing has looked yet.
+// The dot, in two parts. The RIM is your relationship to the system — solid
+// blue at home, green where a scan found somebody, dashed where nothing has
+// looked yet. The CORE is the star itself, and it is there in every state,
+// because a star is visible from home whether or not anybody has scanned it.
+//
+// Spectral class drives the colour, and the classes the seeder deals out are the
+// real ones: F white, G yellow like ours, K orange, M red.
 .hs-galaxy-tile-marker {
+  --star-core: #fde68a;
+  --star-edge: #f59e0b;
+  --star-glow: rgba(251,191,36,0.65);
+
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  font-size: calc(var(--node) * 0.5);
   line-height: 1;
   border: 1px solid var(--hs-line-xl);
   background: rgba(12,14,28,0.9);
   transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &--F { --star-core: #f8fafc; --star-edge: #93c5fd; --star-glow: rgba(191,219,254,0.7); }
+  &--G { --star-core: #fef3c7; --star-edge: #f59e0b; --star-glow: rgba(251,191,36,0.65); }
+  &--K { --star-core: #fed7aa; --star-edge: #f97316; --star-glow: rgba(249,115,22,0.6); }
+  &--M { --star-core: #fecaca; --star-edge: #ef4444; --star-glow: rgba(239,68,68,0.55); }
 
   .hs-galaxy-tile:hover & { transform: scale(1.08); }
 
@@ -1127,6 +1375,42 @@ const tileClass = (sys) => {
     box-shadow: 0 0 0 2px var(--hs-active-border), 0 0 22px var(--hs-active-glow);
     opacity: 1;
   }
+}
+
+// The star. Offset highlight rather than a centred one, so it reads as a lit
+// sphere instead of a flat disc — the same trick the solar map's sun uses, at a
+// tenth of the size.
+.hs-galaxy-star {
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  // Fades to plain `transparent` rather than a mixed colour: color-mix() is not
+  // old enough to bet a whole background declaration on, and an unsupported
+  // value here does not degrade — it drops the gradient and the star disappears.
+  // The chart's ground is near-black anyway, so sRGB's fade through
+  // transparent-black is the colour we would have mixed towards regardless.
+  background: radial-gradient(circle at 36% 32%,
+    #fff 0%,
+    var(--star-core) 30%,
+    var(--star-edge) 76%,
+    transparent 100%);
+  box-shadow:
+    0 0 7px 1px var(--star-glow),
+    inset 0 0 5px rgba(255,255,255,0.45);
+  animation: hs-galaxy-twinkle 6s ease-in-out infinite;
+  pointer-events: none;
+
+  // Nothing has looked at this system, so the star is all there is: it stays
+  // lit, because you really can see it, but nothing about it is resolved.
+  .hs-galaxy-tile--unknown & { opacity: 0.55; box-shadow: 0 0 5px 0 var(--star-glow); }
+  .hs-galaxy-tile--selected & { animation-duration: 3s; }
+}
+
+// A slow breath, not a blink. Each star gets its own phase from its id, so a
+// chart of six systems does not pulse like one object.
+@keyframes hs-galaxy-twinkle {
+  0%, 100% { transform: scale(1);    filter: brightness(1); }
+  50%      { transform: scale(1.06); filter: brightness(1.2); }
 }
 
 // ── Caption ───────────────────────────────────────────────────────────────────
@@ -1263,6 +1547,10 @@ const tileClass = (sys) => {
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.9));
   animation: hs-pulse-scan 1.6s ease-in-out infinite;
   pointer-events: none;
+
+  // Nothing to do about it yet — no star map, or another scan already running.
+  // It states the fact without asking for a tap it cannot honour.
+  &--idle { animation: none; opacity: 0.75; }
 }
 
 // More commanders than fit on the dot.
@@ -1486,6 +1774,36 @@ const tileClass = (sys) => {
   background: #f87171;
   box-shadow: 0 0 6px rgba(248,113,113,0.75);
   animation: hs-pulse-unread 1.4s ease-in-out infinite;
+}
+
+// ── A refused sortie ──────────────────────────────────────────────────────────
+// Loud enough to be seen without hunting, quiet enough not to read as a crash:
+// this is a normal answer to a normal request, not the game falling over.
+.hs-raid-error {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--hs-r-sm);
+  border: 1px solid var(--hs-danger-border-card);
+  background: var(--hs-danger-bg-card);
+}
+
+.hs-raid-error-label {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hs-danger-muted);
+}
+
+// The server's message is not wrapped in anything clever — it names the missing
+// thing, so it is allowed the room to say it.
+.hs-raid-error-text {
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.75);
+  overflow-wrap: anywhere;
 }
 
 // ── System card ───────────────────────────────────────────────────────────────
@@ -1896,7 +2214,18 @@ const tileClass = (sys) => {
   color: rgba(252,165,165,0.95);
 }
 
-.hs-raid-fuel { color: rgba(255,255,255,0.5); font-weight: 600; }
+.hs-raid-fuel {
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+
+  // The one thing on the dialog that can stop the launch, so it is the one
+  // thing allowed to shout.
+  &--short {
+    color: var(--hs-danger-muted);
+    font-weight: 800;
+  }
+}
 
 .hs-raid-orders { display: flex; gap: 0.35rem; }
 
@@ -1936,6 +2265,14 @@ const tileClass = (sys) => {
   transition: background 0.15s;
 
   &:hover { background: rgba(248,113,113,0.45); }
+
+  // While the request is out. The click already happened; a second one would
+  // either send a second fleet or collect the refusal for the first.
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+    background: rgba(248,113,113,0.2);
+  }
 }
 
 .hs-planet-list-hint {

@@ -1554,6 +1554,31 @@ const raidFlightTime = (targetSystemId) => {
 // A sortie burns one power cell per hull, on top of the ships themselves.
 const raidFuelCost = (ships) => ships
 
+// Which resource that is, mirroring `array_key_first(RAID_FUEL_COST)` in
+// raid.php rather than spelling 'power_cell' out again — naming the resource in
+// two places is how two copies of one rule quietly stop being the same rule.
+//
+// The literal fallback is not belt-and-braces: this runs at module scope, so a
+// config key that is missing or renamed would throw here and take the whole
+// composable — and with it the entire game — down on load, to protect a chip and
+// a disabled button. The server is the boundary either way.
+const RAID_FUEL = Object.keys(RAID.fuelCost ?? {})[0] ?? 'power_cell'
+
+// Stock against bill, for the planet the fleet actually leaves from. Floored,
+// because the server floors it: a resource ticks up as a float, and 3.9 cells
+// buy three hulls a launch.
+//
+// This is the client saying no before the server has to. Of the ten ways
+// raid.php can refuse a sortie, this is the one a player meets while simply
+// playing — the ships are a one-off investment and the fuel is the per-raid
+// cost, so it is the number that runs out.
+const raidFuelState = (ships, fromPlanetId = null) => {
+  const pid  = fromPlanetId ?? activePlanetId.value
+  const have = Math.floor(allPlanetStates.value[pid]?.resources?.[RAID_FUEL] ?? 0)
+  const need = raidFuelCost(ships)
+  return { key: RAID_FUEL, have, need, short: have < need }
+}
+
 const canRaid = computed(() =>
   corvetteInventory.value > 0 &&
   activeRaids.value.length === 0 &&
@@ -1570,10 +1595,16 @@ const isRaidTarget = (planet, systemId) => {
   return spiedPlanets.value.includes(planet.id)
 }
 
+// Answers, rather than only recording. The server refuses a sortie for half a
+// dozen reasons a player can actually hit — no power cells, no hull in the dock,
+// a fleet already out, a target nobody has surveyed — and `buildError` was the
+// only trace of any of them. Nothing in the game renders `buildError`, so every
+// one of those refusals was a button that did nothing at all. The caller gets
+// the message back and can put it where the click was.
 const startRaid = async (targetPlanetId, targetSystemId, ships, order, fromPlanetId = null) => {
   const planetId = fromPlanetId ?? activePlanetId.value
   const dock = allPlanetStates.value[planetId]?.dock
-  if (!dock) return
+  if (!dock) return { ok: false, error: 'No dock on the launching planet' }
 
   buildError.value = ''
   const { postRaidMission } = useHawkStarApi()
@@ -1585,16 +1616,80 @@ const startRaid = async (targetPlanetId, targetSystemId, ships, order, fromPlane
     const res = allPlanetStates.value[planetId].resources
     res.power_cell = Math.max(0, (res.power_cell ?? 0) - (result.fuel ?? sent))
     dock.activeRaids.push({
-      planetId: targetPlanetId,
-      systemId: targetSystemId,
-      ships:    sent,
-      order:    result.order ?? order,
-      endsAt:   result.endsAt,
+      planetId:  targetPlanetId,
+      systemId:  targetSystemId,
+      ships:     sent,
+      order:     result.order ?? order,
+      startedAt: Date.now(),
+      endsAt:    result.endsAt,
     })
+    return { ok: true, error: '' }
   } catch (e) {
     buildError.value = e.message
+    return { ok: false, error: e.message }
   }
 }
+
+// ── Everything of ours that is in the air ────────────────────────────────────
+// One list, because the galaxy chart draws them all the same way: a pip moving
+// along a lane between two systems. The per-type computeds above cannot serve
+// it — `allActiveSpyMissions` and `allActiveRaids` flatMap the docks, and
+// flattening a dock throws away *whose* dock it was, which is the flight's
+// origin and therefore half of the lane.
+//
+// Progress comes from the server's own two timestamps rather than from a
+// distance the client recomputes: the raid endpoint prices the flight between
+// the launching planet's system and the target's, which is not the home system
+// when the fleet leaves from a colony, and `raidFlightTime()` would answer for
+// home every time. A pip is a claim about where something is; it has to be the
+// server's claim.
+const activeFlights = computed(() => {
+  const out = []
+
+  for (const [pid, st] of Object.entries(allPlanetStates.value)) {
+    const dock = st.dock
+    if (!dock) continue
+    const homeId = Number(pid)
+    const base   = planetSystemId(homeId)
+    if (base == null) continue
+
+    const add = (kind, key, fromSystemId, toSystemId, m, extra = {}) => {
+      // A flight with no departure time cannot be placed on its lane. Rather
+      // than guess at one, it keeps its marker badge and stays off the chart.
+      if (fromSystemId == null || toSystemId == null) return
+      if (!m.startedAt || !m.endsAt || m.endsAt <= m.startedAt) return
+      out.push({
+        id: `${kind}_${key}`, kind, fromSystemId, toSystemId,
+        planetId: m.planetId, startedAt: m.startedAt, endsAt: m.endsAt, ...extra,
+      })
+    }
+
+    for (const m of dock.activeSpyMissions ?? []) {
+      add(m.unit === 'spy_satellite' ? 'satellite' : 'drone',
+        `${homeId}_${m.planetId}`, base, m.systemId ?? planetSystemId(m.planetId), m)
+    }
+    for (const m of dock.activeRaids ?? []) {
+      add('raid', `${homeId}_${m.planetId}`,
+        base, m.systemId ?? planetSystemId(m.planetId), m, { ships: m.ships, order: m.order })
+    }
+    // The way home runs the other way down the same lane: the entry sits in our
+    // dock but names the enemy planet it is coming back from.
+    for (const m of dock.returningRaids ?? []) {
+      add('raid-back', `${homeId}_${m.planetId}`,
+        m.systemId ?? planetSystemId(m.planetId), base, m, { ships: m.ships })
+    }
+  }
+
+  return out
+})
+
+// 0…1 along the lane. Clamped at both ends: a flight whose arrival has passed
+// but whose row the tick has not cleared yet must sit on the target, not beyond
+// it, and a clock skewed a second the wrong way must not push it backwards.
+const flightProgress = (f) =>
+  Math.min(1, Math.max(0, (now.value - f.startedAt) / (f.endsAt - f.startedAt)))
+
+const flightRemainingSec = (f) => Math.max(0, Math.ceil((f.endsAt - now.value) / 1000))
 
 const dismissBattleReport = (id) => {
   battleReports.value = battleReports.value.filter(r => r.id !== id)
@@ -1703,7 +1798,12 @@ const sendSpyUnit = async (planetId, systemId, unitKey, fromPlanetId) => {
     const result = await postSpyMission(fromId, planetId, unitKey)
     const dock = allPlanetStates.value[fromId]?.dock
     if (dock) {
-      dock.activeSpyMissions.push({ planetId, systemId, unit: unitKey, endsAt: result.endsAt })
+      dock.activeSpyMissions.push({
+        planetId, systemId, unit: unitKey,
+        // Without this the pip on the chart would sit at the launch point until
+        // the next state load told it when it had left.
+        startedAt: Date.now(), endsAt: result.endsAt,
+      })
       const inv = SPY_DOCK[unitKey].inventory
       dock[inv] = Math.max(0, dock[inv] - 1)
     }
@@ -2352,7 +2452,10 @@ const applyGameState = (planetId, state) => {
   // units share the list; `unit` is what the icon and the arrival handler read.
   const spyMissions    = (state.missions ?? [])
     .filter(m => (m.type === 'spy_drone' || m.type === 'spy_satellite') && m.fromPlanetId === planetId)
-    .map(m => ({ planetId: m.toPlanetId, systemId: planetSystemId(m.toPlanetId), unit: m.type, endsAt: m.endsAt }))
+    .map(m => ({
+      planetId: m.toPlanetId, systemId: planetSystemId(m.toPlanetId), unit: m.type,
+      startedAt: m.startedAt, endsAt: m.endsAt,
+    }))
 
   // A cargo run is two mission rows: the loaded outbound leg and the empty return
   // leg created on arrival. Only the outbound one points at a destination.
@@ -2369,13 +2472,14 @@ const applyGameState = (planetId, state) => {
     .filter(m => m.type === 'raid' && m.leg !== 'back' && m.fromPlanetId === planetId)
     .map(m => ({
       planetId: m.toPlanetId, systemId: planetSystemId(m.toPlanetId),
-      ships: m.ships ?? 1, order: m.raidOrder ?? 'disable', endsAt: m.endsAt,
+      ships: m.ships ?? 1, order: m.raidOrder ?? 'disable',
+      startedAt: m.startedAt, endsAt: m.endsAt,
     }))
   const raidsBack = (state.missions ?? [])
     .filter(m => m.type === 'raid' && m.leg === 'back' && m.toPlanetId === planetId)
     .map(m => ({
       planetId: m.fromPlanetId, systemId: planetSystemId(m.fromPlanetId),
-      ships: m.ships ?? 1, endsAt: m.endsAt,
+      ships: m.ships ?? 1, startedAt: m.startedAt, endsAt: m.endsAt,
     }))
 
   const convQueues = (state.conversionQueues ?? []).map(q => ({
@@ -3299,9 +3403,13 @@ export function useHawkStar() {
     raidLog,
     activeRaids,
     returningRaids,
+    activeFlights,
+    flightProgress,
+    flightRemainingSec,
     allActiveRaids,
     raidFlightTime,
     raidFuelCost,
+    raidFuelState,
     canRaid,
     isRaidTarget,
     startRaid,

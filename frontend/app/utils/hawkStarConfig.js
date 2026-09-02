@@ -66,6 +66,12 @@ export const RAID = {
   meterMax:      100,
   interceptShots: 3,     // hulls the orbital battery can kill per volley
   plunderCooldownHours: 12,
+  // What a sortie burns to leave: one cell per hull, out of the launching
+  // planet's own stock. Mirrors RAID_FUEL_COST in api/star/config.php. Note it
+  // is NOT the same rule as the orbital battery's ammunition (SPY.interceptCost
+  // / RAID_INTERCEPT_COST) even though both currently cost a power cell — one is
+  // what the attacker pays to go, the other what the defender pays to shoot.
+  fuelCost: { power_cell: 1 },
 }
 
 // ── Espionage ─────────────────────────────────────────────────────────────────

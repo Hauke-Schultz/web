@@ -82,7 +82,7 @@ foreach ($slotsRaw->fetchAll() as $s) {
 }
 
 $missionsRaw = $db->prepare(
-    'SELECT id, type, from_planet_id, to_planet_id, ends_at, leg, ships, raid_order
+    'SELECT id, type, from_planet_id, to_planet_id, created_at, ends_at, leg, ships, raid_order
      FROM hs_missions WHERE player_id=? AND status=\'in_flight\' ORDER BY ends_at ASC'
 );
 $missionsRaw->execute([$playerId]);
@@ -93,6 +93,13 @@ foreach ($missionsRaw->fetchAll() as $m) {
         'type'         => $m['type'],
         'fromPlanetId' => (int)$m['from_planet_id'],
         'toPlanetId'   => (int)$m['to_planet_id'],
+        // Departure and arrival, so a client can say how far along a flight is
+        // without re-deriving the distance curve. The galaxy chart draws every
+        // flight as a pip on its lane, and a duration it computed itself would
+        // drift from the one the server actually billed the moment the two
+        // formulas disagreed — over a dev time factor, or over a raid launched
+        // from a colony rather than from home.
+        'startedAt'    => $m['created_at'] ? strtotime($m['created_at']) * 1000 : null,
         'endsAt'       => strtotime($m['ends_at']) * 1000,
         // 'out' / 'back' on cargo runs and raids, null on every one-way type
         'leg'          => $m['leg'],

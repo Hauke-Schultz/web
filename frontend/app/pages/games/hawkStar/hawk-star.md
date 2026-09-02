@@ -2043,17 +2043,19 @@ The system row became a **star chart**. Every system already carried real galact
 
 **Where the geometry lives:** `.hs-galaxy-orbit` is a square box (`aspect-ratio: 1/1`, `max-width: 32rem`); `.hs-galaxy-field` is inset inside it by half a marker so an edge system keeps its caption; every node is `left: x%; top: y%` with `translate(-50%, -50%)`. Same idiom as the solar map: one square, all percentages, **no media query and no measurement** — the chart is identical on a 360 px phone and on a desktop, and only `--node` grows once. The home→selection line is an SVG on `viewBox="0 0 100 100"` laid over the field, so it is drawn straight from the coordinates the server bills from.
 
-**Marker states** (`tileClass()`, unchanged):
+**A marker is a star, not a face** *(2026-08-31)*. The markers first wore portraits — yours at home, a commander's where a scan had found one. That was a category error: a chart of the sky shows what is *actually out there*, and `starClass` arrives for every system whether or not it has been scanned. **The star is what a telescope gives you for free; who lives on it is precisely what the scan buys.** An avatar in the star's place said the opposite — that the people are the terrain — and it also meant an unscanned system had nothing to draw but a ❓.
 
-| | Glyph | Ring |
-|---|---|---|
-| home | your portrait | solid blue, glow |
-| `scanning` | pulsing 📶 + countdown | solid amber |
-| `scanned` + inhabited | the first commander's portrait, their name below, `+N` if more share the system | solid green |
-| `scanned` + empty | star-class icon | solid white |
-| `unscanned` | ❓, or 👁️ if they scanned us | **dashed** |
+So the marker splits in two:
 
-Badges keep their corners: unread top-right, inbound espionage top-left, mutual scan bottom-right — and where a scan is available *right now*, a pulsing 📶 takes the mutual badge's corner, since a system can never be both.
+- **The core is the star**, `.hs-galaxy-star`, drawn in CSS and lit by its spectral class — the real ones the seeder deals out: **F** white, **G** yellow like ours, **K** orange, **M** red. An offset highlight (`circle at 36% 32%`) makes it read as a lit sphere rather than a flat disc, the same trick the solar map's sun uses at ten times the size. It breathes on a 6 s cycle with a per-system phase derived from the id, so six systems do not pulse like one object.
+- **The rim is your relationship to it** — solid blue at home, green where a scan found somebody, amber while a scan runs, **dashed** where nothing has looked. That is what the four-item legend's coloured dots have always matched.
+- **Who lives there moved into the caption**, next to the name: `👤 Kommandant`, with `+N` still on the dot when several share the system. The caption was already naming the person; the portrait just joined it.
+
+The star stays lit in every state, unscanned included — dimmed to 0.55, because you can see it, you simply do not know anything else about it.
+
+**One corner glyph carries "not scanned"**, in priority order: **📶** pulsing when you can scan it right now, **📶** pulsing while a scan is running, **👁️** when they have looked at us and we have not looked back, **❓** otherwise (dimmed, no pulse — there is nothing to tap). All four say the same thing; the actionable one wins. The other badges keep their corners: unread top-right, inbound espionage top-left, mutual scan bottom-right — the same corner as the scan glyph, which is safe because a system can never be both scanned and unscanned.
+
+The star's gradient fades to plain `transparent` rather than a `color-mix()`. An unsupported `color-mix()` does not degrade — it invalidates the whole `background` declaration and the star disappears — and the chart's ground is near-black anyway, so sRGB's fade through transparent-black lands on the colour we would have mixed towards.
 
 - The home system is **pre-selected** when entering the Galaxy Map.
 - Clicking a marker toggles its selection; clicking the selected one deselects it.
@@ -2064,6 +2066,44 @@ Badges keep their corners: unread top-right, inbound espionage top-left, mutual 
 **The scan card** *(new)*. Selecting an unscanned system used to do nothing visible at all: the panel below is gated on `showCard()`, and the only way to start a scan was a 0.48 rem button inside a 2.25 rem tile whose label the mobile layout hid outright — so the single action an unknown system offers was the one thing you could not find. An unscanned selection now opens `.hs-galaxy-scan-card`: what the system is, how far out it sits, and a full-width `hs-galaxy-scan-btn` carrying the scan's duration. When it cannot be started the card says which of the two rules refused — 🔒 Star Map Lv3, or ⏳ another scan already running — because a control that is simply missing, with no reason beside it, is the thing people report as broken.
 
 A four-item legend under the chart explains the markers. The ❓ line is the only place the map states its own precondition in words: **unscanned — scan it first**.
+
+**The fuel is shown before it is spent** *(2026-08-31)*. The raid dialog's `hs-raid-fuel` chip used to read `🔋 4` — the bill, with nothing to measure it against. It now reads **have / need** (`🔋 2 / 4`), turns red when the launching planet cannot cover the burn, and **disables the launch button** while it cannot.
+
+- `raidFuelState(ships, fromPlanetId)` mirrors `raid.php`: the resource is `Object.keys(RAID.fuelCost)[0]`, the same way the server takes `array_key_first(RAID_FUEL_COST)` — naming the resource in two places is how two copies of one rule quietly drift apart. The stock is **floored**, because the server floors it: resources tick up as floats, and 3.9 cells buy three hulls a launch.
+- **The launch burn got its own constant.** `raid.php` was reading the fuel key off `RAID_INTERCEPT_COST`, which is the *orbital battery's ammunition* — one constant doing two jobs because they happen to cost the same thing today. They are opposite sides of the same fight: one is what the attacker pays to go, the other what the defender pays to shoot, and tuning either would silently move the other. There is now `RAID_FUEL_COST` in `config.php` and `RAID.fuelCost` in `hawkStarConfig.js`. (The first attempt at this mirror reached for `RAID.interceptCost`, which does not exist — the client files the battery's ammo under `SPY.interceptCost` — and `Object.keys(undefined)` at module scope took the whole composable down on load. Hence the literal fallback on that line: the server is the boundary, and nothing cosmetic is worth crashing the game to compute.)
+- The stock is read from the planet the fleet actually leaves from, not from home.
+- Of the ten ways `raid.php` can refuse a sortie, this is the one a player meets while simply playing: the hulls are a one-off investment, the fuel is the per-raid cost, so it is the number that runs out.
+
+The error box above stays as the backstop, and it is not redundant: the client's resource figure is a **local estimate** that ticks up between server syncs, so a stock the client rounds to 4 and the server holds at 3.98 still gets refused — and the other nine refusals were never preventable client-side at all.
+
+**A refused sortie says so** *(2026-08-31)*. `raid.php` fails a launch for ten distinct reasons, several of which a player meets in normal play — no power cells for the burn, no hull in the dock, a fleet from this planet already out, a target nobody has surveyed. All of them landed in `buildError`, and **nothing in the game renders `buildError`**; worse, the dialog closed on the click, before the answer had arrived. A refused raid was therefore indistinguishable from a launched one: the panel shut, no fleet appeared, and nothing said why.
+
+- `startRaid()` now returns `{ ok, error }` instead of only recording into `buildError`.
+- `confirmRaid()` awaits it. On success the dialog closes; on refusal it stays open with `.hs-raid-error` above the button, carrying **the server's message verbatim**. Those messages are diagnostic English rather than game copy, but they name the thing that is missing, which beats a translated "something went wrong" that names nothing — localising them properly needs the API to send an error *code* beside the message.
+- The message clears when the sortie changes (ship count or order) or the dialog closes: it was a complaint about the order that stood, not about the target.
+- The launch button disables itself while the request is out, so a second click cannot send a second fleet.
+
+The same silence still applies to every other `buildError` site — the espionage send buttons included. They need somewhere to put a message first; the raid had a dialog already.
+
+**Traffic** *(2026-08-31)*. Every flight of yours is drawn on the chart as a pip travelling its lane, with a faint dashed route behind it:
+
+| | Pip | Route |
+|---|---|---|
+| Spy drone | 🕵️ violet | violet |
+| Spy satellite | 📡 teal | teal |
+| Raid, outbound | ⚔️ red, **with its countdown printed under it** | red |
+| Raid, survivors returning | ⚔️ dimmed red, dimmed countdown | faint red |
+
+This is what the coordinates were for. The tile strip could only ever say *"something is on its way there"* — a dot on the target marker. On a grid it says **how far along**, in the same geometry the server prices the flight in.
+
+- `activeFlights` (composable) is one list of everything in the air, each entry carrying `fromSystemId`, `toSystemId`, `startedAt` and `endsAt`. It has to walk `allPlanetStates` itself: `allActiveSpyMissions` / `allActiveRaids` flatMap the docks, and flattening a dock throws away *whose* dock it was — which is the flight's origin, and therefore half of the lane.
+- The returning leg runs the lane backwards: the entry lives in our dock but names the enemy planet it is coming back from.
+- **Progress comes from the server's two timestamps**, not from a distance the client recomputes. `state.php` now sends `startedAt` (`hs_missions.created_at`, which was already there), and `flightProgress()` is `(now − startedAt) / (endsAt − startedAt)`, clamped at both ends. Re-deriving the duration would have drifted from what the server actually billed on two counts: the dev `buildTimeFactor`, and a raid launched from a **colony** rather than from home — `raid_flight_seconds()` prices the real system pair, while the client's `raidFlightTime()` answers for home every time. A pip is a claim about where something *is*; it has to be the server's claim.
+- A flight with no `startedAt` is skipped rather than guessed at. It keeps its badge on the target marker and stays off the chart.
+- Pips are **`pointer-events: none` throughout**. A pip moves, and a moving click target that can park itself on a system marker would take that marker's tap. Nothing is lost: the fleet prints its countdown, and espionage already carries its own countdown on the target marker's badge.
+- Only the fleet prints a visible timer. It is the flight whose outcome you are waiting for — the Empire board says the same thing and gives a raid its own row for it. Four visible countdowns on one chart would be a dashboard, not a map.
+
+**Incoming raids stay invisible**, deliberately. `state.php` filters missions on `player_id = ?`, so a defender never sees a fleet coming. That is not a gap to fill: a warning would mean charging the shield and battery in time, and the raid's whole risk is that you cannot.
 
 **Two columns** *(2026-08-31)*. The view is chart on the left, selected system on the right:
 
