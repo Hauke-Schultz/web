@@ -398,6 +398,19 @@ All buildings are defined in `BUILDINGS` (`hawkStarConfig.js`). Each building en
 
 A building goes offline (stops producing) if energy is in deficit.
 
+### Two kinds of prerequisite  *(level gates added 2026-09-02)*
+
+`requiresBuilding` + `requiresLevel` exist in **two** places and mean different things:
+
+- on the **building** — the gate applies to every level of it. `solar_array` needs `power_plant` Lv1, full stop.
+- on a **level entry** — the gate applies to that level only. `power_plant` Lv2 needs `metal_mine` Lv1; Lv1 stays free.
+
+Both are checked, and both have to hold. `isBuildingLocked()` / `lockedRequirementInfo()` in the composable read the building gate first and the gate on `nextLevelDef()` second, so the 🔒 hint always names the requirement you are actually missing right now.
+
+**The early build order this buys.** The colony opens with a command center, 400 metal and 180 crystal. `power_plant` Lv1 costs crystal only and is the one thing you can build immediately — the colony's first light. Everything after it costs metal, so the metal mine becomes the second step rather than an option among several: `metal_mine` Lv1 now gates both `power_plant` **Lv2** and `solar_array` **Lv1**. The mine draws 3 of the plant's 5 energy, so the chain closes without a deadlock — plant, mine, then the choice between a bigger plant and the array.
+
+> The server enforces this too. `build.php` used to join the two gates with `??`, which dropped the level's own requirement whenever the building carried one — `solar_array` would have been gated on the plant server-side and on the mine only in the client. It now collects both and checks each.
+
 ### Upgrade curve  *(rebalanced 2026-08-11)*
 
 Two rules every multi-level building follows, checkable with a script over `BUILDINGS`:
@@ -542,6 +555,20 @@ A 30-minute recipe with one run per click is not a decision, it is an alarm cloc
 - **Throughput is still unchanged** relative to single runs — four units still take two hours. What the batch removes is the ability to *front-load* by re-ordering after every payout, and what it buys the player is absence.
 
 The picker's ceiling is what the stock pays for (`maxConversionRuns()`, the minimum over the inputs), capped at `CONVERSION_MAX_QUEUE` and clamped on read — a count chosen while rich stays valid after spending. The server clamps the same way via `CONVERSION_MAX_BATCH` in `config.php` (mirror of the JS constant); the client caps the picker, the constant caps the request. The button's duration line shows the *total* for the order, so `×3` reads as ninety minutes up front, and the progress fill spans the whole batch — there is no per-unit reset to show.
+
+**The row does not move while you use it** *(2026-09-02)*. The Convert button carries the batch duration, and that string changes as you click the stepper — `1h`, `1h 30m`, `2h` — so the button changed width, so the wrapping row re-flowed, and on a narrow panel it bumped the whole thing onto another line while the cursor was still on `+`. Two fixes, both structural: `hs-conv-actions` wraps the picker and the button as **one** block, so a row that has to wrap moves them together rather than splitting two controls you use in one motion; and `hs-btn-convert__time` is a fixed slot of `7ch` — `12h 30m`, where the longest batch actually possible is four runs of two hours — with `text-overflow: ellipsis` for anything a dev time factor stretches past it. The full string is on the button tooltip either way. The running countdown uses the same slot, so a batch ticking down second by second no longer resizes anything either.
+
+**The recipe row reads like a building row** *(2026-09-02)*. It used to be a formula running left to right into an arrow — `🪨 240 💧 4 → 🔷 +1 Duraplatte` — so the first thing you met was a cost you had not decided to pay, and the answer to *what am I doing here* sat on the far end of it. It now borrows the parts of `hs-building-ident`, because a recipe and a building are both “a thing this tile can give you” and reading them the same way is most of what makes the panel legible:
+
+- `hs-conv-icon-wrap` — the **product's** icon in the same 2.25 rem glass tile a building gets. No badge in the corner where a building carries `Lv3`: a `×2` there and a title reading `+2 Duraplatte` are the same fact told twice in two different units.
+- `hs-conv-name` — `+2 Duraplatte`, the title, first.
+- `hs-conv-cost` — `← 🪨 480 💧 8`, right behind it and quieter: chips, not type. The arrow points back at the product.
+
+The likeness stops at the line count: the ident is **one line**, not name-over-description. A recipe is a short sentence and the building's two-line shape gave it a second line with nothing to put on. Row line two is `hs-conv-actions`, pushed to the end — ident plus picker plus button is wider than the panel, and a wrap you have designed is not a wrap.
+
+Both figures are for the **order**, not for one run: `×2` shows `+2 Duraplatte ← 🪨 480`, and the stock check multiplies with them. Per-unit numbers right where the money is were asking the reader to do the multiplication themselves. Same rule the dock's corvette costs already followed.
+
+**One column, and two were tried.** `hs-conv-list` was briefly `repeat(auto-fit, minmax(13rem, 1fr))`. The panel is capped at about 30 rem (`hs-main` at 52 rem, minus the planet grid's fixed 336 px), so two columns make a ~13 rem card — narrow enough that the ident stacks again and the picker and the button need a line each. Four-line cards two abreast are taller than two-line rows one under the other, and they read worse. Full width, one column.
 
 Historical note: before the merge-into-one-row fix, `convert.php` did a plain `INSERT`, so clicking Convert while a job ran created a *second* row and two batches resolved side by side — a silent throughput doubling, invisible because `queueFor()` only ever finds the first row. The lock supersedes that fix: there is now never a second order to merge.
 

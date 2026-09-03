@@ -67,6 +67,11 @@ const conversionBuildings = computed(() =>
   buildingsForActiveSlot.value.filter(b => BUILDINGS[b.id]?.conversions?.length > 0)
 )
 
+const outputOf = (recipe) => {
+  const [resId, amount] = Object.entries(recipe.output ?? {})[0] ?? []
+  return { resId, amount: amount ?? 0, icon: RESOURCES[resId]?.icon ?? '•' }
+}
+
 // Only facilities that actually stand on the planet offer a recipe.
 const availableConversions = computed(() =>
   conversionBuildings.value
@@ -76,6 +81,12 @@ const availableConversions = computed(() =>
       index,
       buildingId: b.id,
       key: `${b.id}_${index}`,
+      // The one thing this recipe makes, lifted out of `output` — every recipe
+      // in the catalogue has exactly one, and the row is built around it the way
+      // a building row is built around its building: its icon is the row's icon,
+      // its name the row's title. Resolved here rather than in the template so
+      // the row can name it three times without three lookups.
+      out: outputOf(recipe),
     })))
     // Recipes may carry planetTypes of their own — the smelter uses it so that
     // only this planet's exclusive raw is on offer. Filtered after the map on
@@ -284,74 +295,102 @@ const canRaise = (recipe) =>
 
       <div class="hs-conv-list">
         <div v-for="recipe in availableConversions" :key="recipe.key" class="hs-conv-row">
-          <!-- Input → Output -->
-          <div class="hs-conv-formula">
-            <span
-              v-for="(amt, resId) in recipe.input"
-              :key="resId"
-              class="hs-conv-res"
-              :class="stockOf(resId) >= amt ? 'hs-conv-res--ok' : 'hs-conv-res--no'"
-            >{{ RESOURCES[resId]?.icon }} {{ amt }}</span>
-            <span class="hs-conv-arrow">→</span>
-            <!-- The amount carries the decision: "1200 Metall" is what makes a
-                 duraplate worth spending, the bare resource name never did. -->
-            <span
-              v-for="(amt, resId) in recipe.output"
-              :key="resId"
-              class="hs-conv-res hs-conv-res--out"
-            >{{ RESOURCES[resId]?.icon }} +{{ amt }} {{ t('hawkStar.res.' + resId) }}</span>
+          <!-- Built like `hs-building-ident`, and for the same reason: a recipe
+               is a thing you make, so it gets the product's icon in a tile and
+               the product's name as its title, with the price underneath as the
+               quiet second line. It used to be a formula reading left to right
+               into an arrow, so the first thing you met was a cost you had not
+               yet decided to pay and the answer to "what am I doing here" was on
+               the far end of it.
+
+               Both figures are for the ORDER, not for one run: the picker sets
+               what you are about to buy, and per-unit numbers right where the
+               money is were quietly asking you to do the multiplication
+               yourself. Same rule the dock's corvette costs follow. -->
+          <div class="hs-conv-ident">
+            <!-- No batch badge on the tile: the title already says `+2
+                 Duraplatte`, and a `×2` beside it is the same fact told twice
+                 in two different units. -->
+            <div class="hs-conv-icon-wrap">
+              <span class="hs-conv-icon">{{ recipe.out.icon }}</span>
+            </div>
+
+            <div class="hs-conv-info">
+              <!-- The amount carries the decision: "+1200 Metall" is what makes
+                   a duraplate worth spending, the bare name never did. -->
+              <div class="hs-conv-name">
+                +{{ recipe.out.amount * countFor(recipe) }} {{ t('hawkStar.res.' + recipe.out.resId) }}
+              </div>
+              <div class="hs-conv-cost">
+                <span class="hs-conv-arrow">←</span>
+                <span
+                  v-for="(amt, resId) in recipe.input"
+                  :key="resId"
+                  class="hs-conv-res"
+                  :class="stockOf(resId) >= amt * countFor(recipe) ? 'hs-conv-res--ok' : 'hs-conv-res--no'"
+                >{{ RESOURCES[resId]?.icon }} {{ amt * countFor(recipe) }}</span>
+              </div>
+            </div>
           </div>
 
-          <!-- How many units this batch makes. Paid for up front, delivered
-               together at the end — and frozen at that number while it runs. -->
-          <div
-            class="hs-conv-count"
-            :class="{ 'hs-conv-count--locked': isLocked(recipe) }"
-            :title="isLocked(recipe) ? t('hawkStar.tile.convCountLocked') : t('hawkStar.tile.convCountHint')"
-          >
-            <button
-              class="hs-conv-count__btn"
-              :disabled="isLocked(recipe) || countFor(recipe) <= 1"
-              @click="setCount(recipe, -1)"
-            >−</button>
-            <span class="hs-conv-count__value">×{{ countFor(recipe) }}</span>
-            <button
-              class="hs-conv-count__btn"
-              :disabled="!canRaise(recipe)"
-              @click="setCount(recipe, 1)"
-            >+</button>
-          </div>
+          <!-- The picker and the button travel together. Loose in the row they
+               could wrap onto separate lines, which is the last thing you want
+               of two controls you use in one motion: set ×3, then press. -->
+          <div class="hs-conv-actions">
+            <!-- How many units this batch makes. Paid for up front, delivered
+                 together at the end — and frozen at that number while it runs. -->
+            <div
+              class="hs-conv-count"
+              :class="{ 'hs-conv-count--locked': isLocked(recipe) }"
+              :title="isLocked(recipe) ? t('hawkStar.tile.convCountLocked') : t('hawkStar.tile.convCountHint')"
+            >
+              <button
+                class="hs-conv-count__btn"
+                :disabled="isLocked(recipe) || countFor(recipe) <= 1"
+                @click="setCount(recipe, -1)"
+              >−</button>
+              <span class="hs-conv-count__value">×{{ countFor(recipe) }}</span>
+              <button
+                class="hs-conv-count__btn"
+                :disabled="!canRaise(recipe)"
+                @click="setCount(recipe, 1)"
+              >+</button>
+            </div>
 
-          <!-- One button. It fills over the whole batch and shows the time left.
-               While a batch runs the recipe is locked — no second order, so the
-               facility can never be made to produce faster than one batch. -->
-          <button
-            class="hs-btn-convert"
-            :class="{ 'hs-btn-convert--running': queueFor(recipe.buildingId, recipe.index) }"
-            :disabled="!canConvert(recipe.buildingId, recipe.index)"
-            :title="queueFor(recipe.buildingId, recipe.index)
-              ? t('hawkStar.tile.convBatchRunning', { n: countFor(recipe) })
-              : t('hawkStar.tile.convOrder', { n: countFor(recipe), time: formatTime(conversionTime(recipe.buildingId, recipe.index) * countFor(recipe)) })"
-            @click="startConversion(recipe.buildingId, recipe.index, countFor(recipe))"
-          >
-            <span
-              v-if="queueFor(recipe.buildingId, recipe.index)"
-              class="hs-btn-convert__fill"
-              :style="conversionProgressStyle(queueFor(recipe.buildingId, recipe.index))"
-            />
-            <span class="hs-btn-convert__label">
-              <template v-if="queueFor(recipe.buildingId, recipe.index)">
-                {{ formatTime(remainingConversionSec(queueFor(recipe.buildingId, recipe.index))) }}
-                <span v-if="(queueFor(recipe.buildingId, recipe.index).runs ?? 1) > 1" class="hs-btn-convert__queued">
-                  ×{{ queueFor(recipe.buildingId, recipe.index).runs }}
-                </span>
-              </template>
-              <template v-else>
-                ⚡ {{ t('hawkStar.tile.btnConvert') }}
-                <span class="hs-btn-convert__dur">{{ formatTime(conversionTime(recipe.buildingId, recipe.index) * countFor(recipe)) }}</span>
-              </template>
-            </span>
-          </button>
+            <!-- One button. It fills over the whole batch and shows the time left.
+                 While a batch runs the recipe is locked — no second order, so the
+                 facility can never be made to produce faster than one batch. -->
+            <button
+              class="hs-btn-convert"
+              :class="{ 'hs-btn-convert--running': queueFor(recipe.buildingId, recipe.index) }"
+              :disabled="!canConvert(recipe.buildingId, recipe.index)"
+              :title="queueFor(recipe.buildingId, recipe.index)
+                ? t('hawkStar.tile.convBatchRunning', { n: countFor(recipe) })
+                : t('hawkStar.tile.convOrder', { n: countFor(recipe), time: formatTime(conversionTime(recipe.buildingId, recipe.index) * countFor(recipe)) })"
+              @click="startConversion(recipe.buildingId, recipe.index, countFor(recipe))"
+            >
+              <span
+                v-if="queueFor(recipe.buildingId, recipe.index)"
+                class="hs-btn-convert__fill"
+                :style="conversionProgressStyle(queueFor(recipe.buildingId, recipe.index))"
+              />
+              <span class="hs-btn-convert__label">
+                <template v-if="queueFor(recipe.buildingId, recipe.index)">
+                  <!-- On one line: inside a nowrap slot the newlines around an
+                       interpolation collapse into spaces that count toward the
+                       seven characters. -->
+                  <span class="hs-btn-convert__time">{{ formatTime(remainingConversionSec(queueFor(recipe.buildingId, recipe.index))) }}</span>
+                  <span v-if="(queueFor(recipe.buildingId, recipe.index).runs ?? 1) > 1" class="hs-btn-convert__queued">
+                    ×{{ queueFor(recipe.buildingId, recipe.index).runs }}
+                  </span>
+                </template>
+                <template v-else>
+                  ⚡ {{ t('hawkStar.tile.btnConvert') }}
+                  <span class="hs-btn-convert__time hs-btn-convert__dur">{{ formatTime(conversionTime(recipe.buildingId, recipe.index) * countFor(recipe)) }}</span>
+                </template>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -587,14 +626,20 @@ const canRaise = (recipe) =>
   text-transform: uppercase;
 }
 
+// One column. Two were tried and given up: the panel is capped at about 30 rem
+// (`hs-main` at 52 rem minus the planet grid's fixed 336 px), so a two-column
+// card is ~13 rem — narrow enough that the ident stacks and the picker and the
+// button need a line each. Full width buys the recipe a single line for what it
+// makes and what it costs, and one line for the two controls. That is shorter
+// per recipe than two columns of four-line cards, and it reads left to right.
 .hs-conv-list { display: flex; flex-direction: column; gap: 0.375rem; }
 
-// The row carries formula + ×N picker + button now, so on a narrow panel the
-// two controls drop below the formula rather than squeezing it to nothing.
+// A column of two lines: the recipe, then its controls. They do not share a line
+// because ident plus picker plus button is wider than the panel — the row would
+// wrap anyway, and a wrap you have designed is not a wrap.
 .hs-conv-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
   background: var(--hs-glass-sm);
   border: 1px solid var(--hs-line-sm);
@@ -602,9 +647,56 @@ const canRaise = (recipe) =>
   padding: 0.5rem 0.6rem;
 }
 
-.hs-conv-formula {
-  flex: 1 1 11rem;
+// The same parts as `hs-building-ident` — icon tile, then what it is — but on
+// ONE line: a recipe is a short sentence ("+2 Duraplatte ← 🪨 480 💧 8") and a
+// building's two-line name-over-description shape gave it a second line it had
+// nothing to put on. A recipe and a building are both "a thing this tile can
+// give you", and reading them the same way is most of what makes the panel
+// legible; that likeness is in the icon tile and the type, not in the count of
+// lines.
+.hs-conv-ident {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   min-width: 0;
+}
+
+.hs-conv-icon-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hs-glass-lg);
+  border-radius: var(--hs-r-sm);
+}
+
+.hs-conv-icon { font-size: 1.1rem; }
+
+// Product and price on one line. `wrap` is the escape hatch for a phone narrow
+// enough that they genuinely cannot share one, not the plan.
+.hs-conv-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+}
+
+.hs-conv-name {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: rgba(196, 181, 253, 0.95);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// The price, right behind the product it buys and quieter than it: chips, not
+// type. It is what the title costs, not what the row is about.
+.hs-conv-cost {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -620,10 +712,21 @@ const canRaise = (recipe) =>
 
   &--ok  { background: var(--hs-ok-bg);          color: var(--hs-ok-muted); }
   &--no  { background: var(--hs-danger-bg-cost);  color: var(--hs-danger-muted); }
-  &--out { background: rgba(139,92,246,0.12);     color: rgba(167,139,250,0.9); }
 }
 
 .hs-conv-arrow { font-size: 0.7rem; opacity: 0.4; }
+
+// Picker and button, on the row's second line and pushed to its end. They were
+// two loose items in a wrapping row once, so the row was free to put them on
+// different lines — and did, whenever the button's own width changed. `wrap` is
+// kept as the escape hatch for a phone too narrow for both.
+.hs-conv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
 
 // ×N picker — deliberately quiet next to the purple convert button: it sets the
 // order, the button is the one that spends.
@@ -678,7 +781,10 @@ const canRaise = (recipe) =>
 .hs-btn-convert {
   position: relative;
   overflow: hidden;
-  flex-shrink: 0;
+  // Its own size and no more: at full panel width the picker and the button
+  // share the line comfortably, so a button that grew would only be a wide
+  // purple bar with a word floating in the middle of it.
+  flex: none;
   min-width: 7.5rem;
   padding: 0.4rem 0.7rem;
   border-radius: var(--hs-r-sm);
@@ -727,6 +833,24 @@ const canRaise = (recipe) =>
   justify-content: center;
   gap: 0.35rem;
   font-variant-numeric: tabular-nums;
+}
+
+// The one part of the label whose width changes — "1h" one click, "1h 30m" the
+// next, and a running batch counting down every second. Left to size itself it
+// resized the button, which resized the row, which on a narrow panel bumped the
+// whole thing onto another line while your cursor was still on the ×N stepper.
+//
+// A fixed slot ends that: seven characters is `12h 30m`, and the longest a batch
+// can actually be is four runs of two hours. Anything a dev time factor stretches
+// past that ellipsises rather than moving the furniture — the full string is on
+// the button's own tooltip either way.
+.hs-btn-convert__time {
+  display: inline-block;
+  width: 7ch;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hs-btn-convert__dur {

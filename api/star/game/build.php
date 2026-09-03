@@ -56,14 +56,26 @@ $nextLevel    = $currentLevel + 1;
 $levelDef     = level_def($buildingKey, $nextLevel);
 if (!$levelDef) fail('Already at max level');
 
-// requiresBuilding check — building-level applies to all levels; level-entry applies only to this level
-$reqKey   = $def['requiresBuilding'] ?? ($levelDef['requiresBuilding'] ?? null);
-$reqLevel = $def['requiresLevel']    ?? ($levelDef['requiresLevel']    ?? 1);
-if ($reqKey) {
+// requiresBuilding check — the building-level requirement applies to every
+// level, the level entry's applies to this level only, and BOTH have to hold.
+// They used to be joined with `??`, which silently dropped the level's own
+// requirement whenever the building carried one: the solar array is gated on the
+// power plant as a building AND on the metal mine for its first level, and under
+// `??` only the plant was ever checked here while the client enforced both.
+$reqs = [];
+if (!empty($def['requiresBuilding'])) {
+    $reqs[] = [$def['requiresBuilding'], (int)($def['requiresLevel'] ?? 1)];
+}
+if (!empty($levelDef['requiresBuilding'])) {
+    $reqs[] = [$levelDef['requiresBuilding'], (int)($levelDef['requiresLevel'] ?? 1)];
+}
+if ($reqs) {
     $reqRow = $db->prepare('SELECT level FROM hs_buildings WHERE planet_id=? AND player_id=? AND building_key=?');
-    $reqRow->execute([$planetId, $playerId, $reqKey]);
-    $reqCurrent = (int)($reqRow->fetchColumn() ?: 0);
-    if ($reqCurrent < $reqLevel) fail("Requires $reqKey level $reqLevel");
+    foreach ($reqs as [$reqKey, $reqLevel]) {
+        $reqRow->execute([$planetId, $playerId, $reqKey]);
+        $reqCurrent = (int)($reqRow->fetchColumn() ?: 0);
+        if ($reqCurrent < $reqLevel) fail("Requires $reqKey level $reqLevel");
+    }
 }
 
 // Lazy resource computation before deducting cost

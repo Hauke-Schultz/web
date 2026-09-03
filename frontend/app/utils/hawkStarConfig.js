@@ -356,6 +356,11 @@ export const BUILDINGS = {
         effect:     '+12 energy · 2 workers',
         production: { energy: 12 },
         staffDrain: 2,
+        // Level 1 stays free — it is the colony's first light and costs nothing
+        // but crystal. Everything above it costs metal, so the second level is
+        // where the mine becomes the prerequisite.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      3,
@@ -832,6 +837,12 @@ export const BUILDINGS = {
         effect:     '+8 energy · 1 worker',
         production: { energy: 8 },
         staffDrain: 1,
+        // The array is the first thing you can build that is not the plant
+        // itself, and it costs metal — so it waits for the mine that produces
+        // metal. Level-entry rather than building-level: it gates the first
+        // level only, and levels 2 and 3 are already behind level 1.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      2,

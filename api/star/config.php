@@ -182,9 +182,11 @@ const BUILDINGS = [
     ['level'=>1,'cost'=>['metal'=>400,'crystal'=>200,'vital_gel'=>3,'superconductor'=>2],'buildTime'=>3600,'production'=>[],'energyDrain'=>6,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Level 1 is free — the colony's first light, crystal only. From level 2 on it
+  // costs metal, so that is where the mine becomes the prerequisite.
   'power_plant' => ['tileType' => 'energy', 'levels' => [
     ['level'=>1,'cost'=>['crystal'=>25],'buildTime'=>20,'production'=>['energy'=>5],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
-    ['level'=>2,'cost'=>['metal'=>70,'crystal'=>35],'buildTime'=>600,'production'=>['energy'=>12],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>2,'cost'=>['metal'=>70,'crystal'=>35],'buildTime'=>600,'production'=>['energy'=>12],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>3,'cost'=>['metal'=>180,'crystal'=>90],'buildTime'=>3600,'production'=>['energy'=>25],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
     ['level'=>4,'cost'=>['metal'=>250,'crystal'=>100],'buildTime'=>10800,'production'=>['energy'=>40],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
     ['level'=>5,'cost'=>['metal'=>320,'crystal'=>130],'buildTime'=>21600,'production'=>['energy'=>56],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
@@ -261,8 +263,10 @@ const BUILDINGS = [
     ['level'=>4,'cost'=>['metal'=>1100,'crystal'=>450,'cryo'=>200],'buildTime'=>57600,'production'=>['cryo'=>15],'energyDrain'=>20,'staffDrain'=>12,'storageCapacity'=>['cryo'=>2000],'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Two gates on level 1, and the build endpoint checks both: the plant for the
+  // building as a whole, the mine for its first level — it is bought with metal.
   'solar_array' => ['tileType'=>'energy','requiresBuilding'=>'power_plant','requiresLevel'=>1,'levels'=>[
-    ['level'=>1,'cost'=>['metal'=>50,'crystal'=>30],'buildTime'=>300,'production'=>['energy'=>8],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>50,'crystal'=>30],'buildTime'=>300,'production'=>['energy'=>8],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>2,'cost'=>['metal'=>130,'crystal'=>65],'buildTime'=>1800,'production'=>['energy'=>18],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>320,'crystal'=>160],'buildTime'=>10800,'production'=>['energy'=>38],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
