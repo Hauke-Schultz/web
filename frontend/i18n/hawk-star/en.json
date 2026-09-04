@@ -448,12 +448,12 @@
       "batteryDelta": "Battery +{pct}%",
       "dock": {
         "prompt": "Fly the approach — or wave it past and take the smaller haul",
-        "hint": "Hold to slow the descent. The thruster can only brake, never climb — and the tank will not last the whole way down.",
+        "hint": "Hold to slow the descent. Slow enough and the lock closes — only a shut hatch can be set down on. The thruster can only brake, never climb, and the tank will not last the whole way down.",
         "start": "Tap to begin",
         "collect": "Continue",
-        "outcomeLanded": "Docked cleanly.",
-        "outcomeHot": "Came in too hot — it glances off and drifts on.",
-        "outcomeDry": "Tank dry, hit unbraked — it drifts on.",
+        "outcomeLanded": "Set down cleanly on the hatch.",
+        "outcomeHot": "Came in too hot — the lock stayed open and it drops straight through.",
+        "outcomeDry": "Tank dry, unbraked — the lock stayed open and it drops straight through.",
         "outcomeAdrift": "Hesitated too long — it has drifted past."
       },
       "types": {

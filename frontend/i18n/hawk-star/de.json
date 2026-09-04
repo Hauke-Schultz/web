@@ -449,12 +449,12 @@
       "batteryDelta": "Batterie +{pct} %",
       "dock": {
         "prompt": "Anflug fliegen — oder weiterziehen lassen und den kleinen Ertrag nehmen",
-        "hint": "Gedrückt halten bremst den Sinkflug. Der Schub kann nur bremsen, nie steigen — und der Tank reicht nicht für den ganzen Weg.",
+        "hint": "Gedrückt halten bremst den Sinkflug. Langsam genug, und die Schleuse schließt sich — nur auf dem geschlossenen Tor kann etwas aufsetzen. Der Schub kann nur bremsen, nie steigen, und der Tank reicht nicht für den ganzen Weg.",
         "start": "Tippen zum Start",
         "collect": "Weiter",
-        "outcomeLanded": "Sauber angedockt.",
-        "outcomeHot": "Zu hart aufgesetzt — es prallt ab und zieht weiter.",
-        "outcomeDry": "Tank leer, ungebremst aufgeschlagen — es zieht weiter.",
+        "outcomeLanded": "Sauber auf dem Schleusentor aufgesetzt.",
+        "outcomeHot": "Zu schnell — die Schleuse blieb offen, es fällt hindurch und zieht weiter.",
+        "outcomeDry": "Tank leer, ungebremst — die Schleuse blieb offen, es fällt hindurch.",
         "outcomeAdrift": "Zu lange gezögert — es ist vorbeigetrieben."
       },
       "types": {

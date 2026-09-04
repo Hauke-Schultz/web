@@ -68,7 +68,7 @@
 // reaction alone and put an average pilot at 8 %. The fix is a WEAK thruster
 // held for a LONG time — the braking fraction is GRAV/THRUST, so THRUST ≈ 1.7 ×
 // GRAV brakes over roughly the second half of the shaft.
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RESOURCES } from '~/utils/hawkStarConfig.js'
 
@@ -139,6 +139,39 @@ const paidRows = computed(() => {
   }))
 })
 const paidBattery = computed(() => choiceOf(paidKey.value)?.battery ?? 0)
+
+// ── Where the shaft is drawn ──────────────────────────────────────────────────
+// The physics counts the shaft 0 → 100 and that stays an abstract unit — but the
+// picture now has a FLOOR. The airlock takes the bottom COLLAR_PCT of the field
+// and its doors SHUT while the approach is inside the allowance, so `y = 100`
+// means standing on the closed doors, not "at the bottom edge of the box". The
+// hulk is drawn belly-down on that line rather than centred on it, because a
+// ship whose middle sits on the hatch is a ship buried in it.
+//
+// Both numbers live here and NOWHERE ELSE — the collar's height is written from
+// COLLAR_PCT in the template. A door drawn at one height and a touchdown
+// computed against another leaves the hulk hovering over the hatch or sunk into
+// it, and two copies of the number would drift apart on the first tweak.
+//
+// SHAFT_TOP exists because a belly-down sprite at `y = 0` sits entirely ABOVE
+// the field. The mouth of the shaft is drawn a little way in so the hulk is
+// whole and visible the moment it appears, instead of the run opening with a
+// second of empty sky. The map stays linear, so distance on screen and distance
+// in the physics are still proportional.
+const COLLAR_PCT = 14
+const SHAFT_TOP  = 8
+
+// A miss and a landing are the same arrival at the same line; what differs is
+// whether the doors were shut when it got there. `hot` and `dry` both arrive
+// with the lock still open, so the hulk keeps going — down through the gap and
+// out of the bottom of the field, which is the picture the outcome lines
+// describe. `adrift` is deliberately not in here: that one never reached the
+// doors at all and has to stay where it stalled.
+const slipped = computed(() => outcome.value === 'hot' || outcome.value === 'dry')
+
+const hulkTop = computed(() => (
+  slipped.value ? 118 : SHAFT_TOP + (y.value / 100) * (100 - COLLAR_PCT - SHAFT_TOP)
+))
 
 // ── Readouts ──────────────────────────────────────────────────────────────────
 // Speed is drawn against V_MAX rather than as a bare number: "how far past the
@@ -242,7 +275,33 @@ const onKeyUp = (e) => {
   onUp()
 }
 
+// ── Getting the whole shaft on screen ─────────────────────────────────────────
+// The approach opens from a button at the bottom of a card that is itself well
+// down a scrolled page, so on a phone the field mounts mostly below the fold:
+// the hulk enters at the top of a shaft the player cannot see, and the first
+// thing they get to look at is the collar it is already falling toward. Judging
+// WHEN to burn is the entire game, and it cannot be judged through a letterbox.
+//
+// So the field pulls itself into the middle of the viewport as it mounts. Doing
+// it unprompted is safe because the approach does not start here — the hulk
+// waits in `ready` until the player releases a press on the field — so the
+// scroll always finishes before anything is falling.
+//
+// One frame after the next tick: the element has to be laid out before its
+// position means anything, and `aspect-ratio` settles with that layout.
+const fieldRef = ref(null)
+const showField = () => {
+  nextTick(() => requestAnimationFrame(() => {
+    // `center` rather than the `nearest` used elsewhere in the game: nearest
+    // scrolls the minimum that makes the box technically in view, which for a
+    // field this tall leaves the shaft flush against an edge. The point here is
+    // the whole drop, framed.
+    fieldRef.value?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }))
+}
+
 onMounted(() => {
+  showField()
   raf = requestAnimationFrame((ts) => { last = ts; frame(ts) })
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
@@ -272,6 +331,7 @@ const outcomeKey = computed(() => ({
     <!-- The shaft. One press anywhere is the whole input, so the field itself is
          the button — there is nothing smaller to hit and nothing to aim at. -->
     <div
+      ref="fieldRef"
       class="hs-dock-field"
       :class="{ 'hs-dock-field--over': phase === 'done' }"
       @pointerdown="onDown"
@@ -300,17 +360,31 @@ const outcomeKey = computed(() => ({
       </div>
 
       <!-- What is drifting in is the card's own icon, so the thing being flown
-           is visibly the thing the card offered. -->
-      <div class="hs-dock-hulk" :style="{ top: y + '%' }">
+           is visibly the thing the card offered. `hulkTop` maps the physics onto
+           the shaft above the doors — and on a miss carries it straight past
+           them. -->
+      <div
+        class="hs-dock-hulk"
+        :class="{ 'hs-dock-hulk--slip': slipped }"
+        :style="{ top: hulkTop + '%' }"
+      >
         <span class="hs-dock-hulk__body">{{ anomaly.icon }}</span>
         <span v-if="burning && !fuelDry && phase === 'flying'" class="hs-dock-hulk__burn">🔥</span>
       </div>
 
-      <!-- The collar. Its glow answers the only question in flight: would a
-           touchdown right now be held or bounced? -->
-      <div class="hs-dock-collar" :class="{ 'hs-dock-collar--hot': tooFast }">
-        <div class="hs-dock-collar__lip" />
-        <div class="hs-dock-collar__lip" />
+      <!-- The airlock, and the whole answer to "would a touchdown right now be
+           held?" — the doors close while the approach is inside the allowance
+           and spring open the moment it is not. Slow enough and there is a floor
+           to set down on; too fast and there is a hole to fall through. Its
+           height comes from COLLAR_PCT because the touchdown line is computed
+           from the same number. -->
+      <div
+        class="hs-dock-collar"
+        :class="{ 'hs-dock-collar--hot': tooFast }"
+        :style="{ height: COLLAR_PCT + '%' }"
+      >
+        <div class="hs-dock-collar__lip hs-dock-collar__lip--left" />
+        <div class="hs-dock-collar__lip hs-dock-collar__lip--right" />
       </div>
 
       <div v-if="phase === 'ready'" class="hs-dock-ready" @pointerup="onUp">
@@ -408,55 +482,83 @@ const outcomeKey = computed(() => ({
 }
 
 /* ── The hulk ──────────────────────────────────────────────────────────────
-   Positioned in percent of the shaft, exactly as the physics stores it, so the
-   picture and the rule are the same number. No CSS transition on `top`: the
-   frame loop already moves it every frame, and easing on top of that would draw
-   the ship somewhere it is not — which at the collar is the difference between
-   a landing the player saw and one they did not. */
+   `hulkTop` places it in percent of the FIELD and `translate(-100%)` puts its
+   BELLY on that line — the script's mapping comment has the why: at touchdown
+   that line is the closed hatch, and a ship whose middle sits on the hatch is a
+   ship buried in it.
+
+   No CSS transition on `top` while flying: the frame loop already moves it every
+   frame, and easing on top of that would draw the ship somewhere it is not,
+   which at the doors is the difference between a landing the player saw and one
+   they did not. The drop through an open lock is the one exception — the physics
+   has stopped by then, so CSS is what carries it out of the field. */
 .hs-dock-hulk {
   position: absolute;
   left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  transform: translate(-50%, -100%);
   pointer-events: none;
+
+  &--slip { transition: top 0.5s cubic-bezier(0.45, 0, 0.85, 0.5); }
 }
-.hs-dock-hulk__body { font-size: 1.7rem; line-height: 1; }
+.hs-dock-hulk__body { display: block; font-size: 1.7rem; line-height: 1; }
+/* Out of flow on purpose. In flow it grew the box the belly line is measured
+   against, so lighting the thruster shoved the whole ship a few pixels up. */
 .hs-dock-hulk__burn {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: -2px;
   font-size: 0.8rem;
   line-height: 1;
-  margin-top: -2px;
   filter: saturate(1.4);
 }
 
-/* ── The collar ────────────────────────────────────────────────────────────*/
+/* ── The airlock ───────────────────────────────────────────────────────────
+   Two doors that meet in the middle. SHUT is the safe state and it is drawn as a
+   surface — solid, with the green lip line along its top edge, because that edge
+   is exactly where the hulk comes to rest. OPEN leaves a gap wide enough to lose
+   the hulk through, and no line across it: a hole must not look like a floor.
+
+   The band's own height is set inline from COLLAR_PCT. Nothing here may declare
+   it, or the doors and the touchdown line stop agreeing. */
 .hs-dock-collar {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 12%;
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  border-top: 2px solid var(--hs-ok);
+  overflow: hidden;   /* the doors retract into the walls, not past them */
   background: linear-gradient(to bottom, var(--hs-ok-bg-dim), transparent);
-  transition: border-color 0.12s, background 0.12s;
+  transition: background 0.12s;
   pointer-events: none;
 
   &--hot {
-    border-top-color: var(--hs-danger);
     background: linear-gradient(to bottom, var(--hs-danger-bg-cost), transparent);
   }
 }
 .hs-dock-collar__lip {
-  width: 26%;
-  height: 55%;
-  background: rgba(129, 140, 248, 0.35);
-  border: 1px solid rgba(129, 140, 248, 0.55);
-  border-top: none;
+  box-sizing: border-box;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(129, 140, 248, 0.5), rgba(129, 140, 248, 0.16));
+  border-top: 2px solid var(--hs-ok);
+  /* Slower than the colour that travels with it: the doors are a mechanism, and
+     one that snaps shut in a frame reads as a flicker rather than as an answer
+     to the brake. Still far inside the second of shaft an average approach has
+     left once it is back inside the band. */
+  transition: transform 0.22s ease, border-color 0.12s;
 }
+.hs-dock-collar__lip--left  { border-right: 1px solid rgba(129, 140, 248, 0.55); }
+.hs-dock-collar__lip--right { border-left:  1px solid rgba(129, 140, 248, 0.55); }
+
+.hs-dock-collar--hot .hs-dock-collar__lip { border-top-color: var(--hs-danger); }
+/* 56 % of a half-width door each, so the mouth opens to 56 % of the field —
+   many times the hulk's own width. A miss has to look like falling through a
+   hole, not like clipping the edge of one. */
+.hs-dock-collar--hot .hs-dock-collar__lip--left  { transform: translateX(-56%); }
+.hs-dock-collar--hot .hs-dock-collar__lip--right { transform: translateX(56%); }
 
 /* ── Cards over the field ──────────────────────────────────────────────────*/
 .hs-dock-ready,
