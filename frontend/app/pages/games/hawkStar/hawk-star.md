@@ -2225,10 +2225,13 @@ This is what the coordinates were for. The tile strip could only ever say *"some
 │  star chart         │  [🪐 System][📡 Funk]│  ← tabs
 │                     │  ┌────────────────┐  │
 │  ● ● ○  legend      │  │  the open tab  │  │
-└─────────────────────┴──└────────────────┘──┘
+│  ┌───────────────┐  │  └────────────────┘  │
+│  │ 🚀 overview   │  │                      │
+│  └───────────────┘  │                      │
+└─────────────────────┴──────────────────────┘
 ```
 
-- The split waits for **1024 px**, not the usual 640: `.hs-main` caps the whole view at 52 rem, so below roughly that viewport there is no second column to be had, and a 300 px system card with a planet list in it is worse than one that has the width to itself. Below the breakpoint everything stacks — chart, legend, tabs, panel.
+- The split waits for **1024 px**, not the usual 640: `.hs-main` caps the whole view at 52 rem, so below roughly that viewport there is no second column to be had, and a 300 px system card with a planet list in it is worse than one that has the width to itself. Below the breakpoint everything stacks — chart, legend, overview, tabs, panel.
 - `.hs-galaxy-side` holds whichever card the selection calls for: the scan card for an unknown system, the tabbed panel for a known one. Both columns are `flex: 1 1 0`, so **the chart does not resize when you select or deselect** — the anchor of the screen has to stay put.
 
 **Card and Comm Log became tabs.** They used to sit side by side, which cost the panel twice the width it needed and left the chart nothing to sit next to. They are two views of one system rather than two things you read at once, so the panel now carries a two-pill tab bar and the page spends the width on the chart instead.
@@ -2238,6 +2241,22 @@ This is what the coordinates were for. The tile strip could only ever say *"some
 - The comm tab carries the same red unread dot the chart puts on a system. A tab hides what is behind it, and this is the one thing in the panel that arrives on its own — without the dot, a message landing in the closed tab would be silent.
 
 The scan card and the system panel both live in the right column, so a wide screen shows the whole galaxy view without scrolling.
+
+**The overview — under the chart, always on** *(2026-09-04)*. `HsGalaxyOverview` lives in the **chart's** column, under `.hs-galaxy-legend`, so on a desktop it sits below the chart and its key while the system panel keeps the column next door. It is up at every moment, selection or none — which is why `selectedId` still opens on the **home system**: the overview does not depend on the selection, so the panel column is free to land on the one system a player always has something to read about. Two lists, both **player-wide**:
+
+- **🚀 Aktuelle Flüge** — every flight of ours in the air, sorted by arrival, so the list reads as a schedule and the top row is the next thing that is going to happen. Icon + kind, both ends by name, a progress bar, and the countdown; a raid also shows its hull count and its sealed order (⚡/💰). Bordered on the left in the colour the chart gives that lane.
+- **⚔️ Letzte Gefechte** — the last `RECENT_BATTLES_MAX` (6) battles from either seat, whoever they were with.
+
+Why player-wide and not per system: a flight and a feud are not properties of the system under the cursor. Hanging either off a selection hides exactly the ones happening somewhere you are not currently looking — and the pre-selected home system owns neither of them. That is also why the panel does not step aside for a selection: a fleet three hours from home is the last thing that should disappear because you clicked a star to read about it. The only part that comes and goes is the *"Wähle ein System"* line (`show-hint`), which with a card already open beside it would be wrong half the time.
+
+Why under the **key** and not over the chart: the chart is the anchor of the screen, and both lists change height on their own — a flight lands, a report arrives. Below the key that costs nothing; above the chart it would shift the whole view under the cursor.
+
+- **`allFlights` is not `activeFlights`.** `activeFlights` answers the chart's question — a pip on a lane between two *systems* — and therefore drops everything that never leaves home. `allFlights` is the whole board: recon, colony ship, cargo run and its empty return leg, spy drone, satellite, raid and the survivors coming back.
+- **It dedupes by route + arrival, not by mission id.** `state.php` does not filter missions per planet, so a recon or colony mission is copied into *every* dock in `allPlanetStates` (only spy, raid and cargo legs filter on `fromPlanetId`). Walking the docks without the dedup lists a single drone once per colony.
+- `startedAt` had to be added to the recon / colony / cargo mappings — the server always sent it, only the raid and spy mappings had been reading it — and to the three optimistic dock pushes, so a freshly launched flight gets a bar instead of a NaN. `flightProgress()` now returns 0 rather than NaN for a flight with no departure time.
+- **`HsBattleLog` is the shared entry renderer**, used by the system card and by the overview (`show-system` adds the system name, which a card does not need). It was lifted out of `HsGalaxyMap` — one dense little row carrying direction, outcome, fleet bill, both meters and the haul, and two copies of it would have drifted apart the first time one was tuned.
+- **`recentBattles` reads `raidHistory` sideways.** The history is keyed by opponent because the system card needs it that way; the overview has no system to key on and wants one chronology, deduped by report id.
+- **The opponent's name rides on the record** (`foeName` / `foePortrait`, new in `raid_history()` via one `WHERE id IN (…)` lookup over the foe ids). The system card reads the name off the system's inhabitant list, which the overview cannot do: an old feud may well be with somebody whose system we never scanned — or with a deleted account, which is why the frontend still falls back to `? / 👤`.
 
 
 ### `HsCommLog` Component (`components/hawk-star/HsCommLog.vue`)
@@ -2296,6 +2315,8 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — the **orbit map** and the active planet's hangar on the left, the **planet list** on the right (stacked below 768 px). See *The orbit map*. Tapping a planet on either side selects it (`hs-pl--selected` / `hs-plist__item--open`) and opens its row; if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** gets the brighter ring plus a 🏠 corner badge (`hs-pl--home`) — blue alone only says "mine", and every colony is blue too. |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
+| `HsGalaxyOverview` | Permanent head of the galaxy side column, and the view's landing state — every flight of ours in the air (sorted by arrival, with route and progress bar) over the last battles anywhere. Both lists are player-wide, not per system, so the panel stays up with a system card open under it. |
+| `HsBattleLog` | One battle read from our chair — direction, outcome, hulls sent and lost, both meters before/after, the haul. Shared by the system card (battles with that system's commanders) and `HsGalaxyOverview` (`show-system`, everything lately). |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
 | `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |
 | `HsProfilePanel` | Commander profile editor — portrait picker (twenty fixed emoji plus any unlocked by salvage artefacts), editable name (max 12 chars), disposition selector (friendly / neutral / hostile), language dropdown. Shown at the top of the Activity panel. |

@@ -1026,7 +1026,7 @@ const sendReconDrone = async (planetId, fromPlanetId) => {
     const result = await postDroneMission(fromId, planetId)
     const dock = allPlanetStates.value[fromId]?.dock
     if (dock) {
-      dock.activeDroneMissions.push({ planetId, endsAt: result.endsAt })
+      dock.activeDroneMissions.push({ planetId, fromPlanetId: fromId, startedAt: Date.now(), endsAt: result.endsAt })
       dock.reconDroneInventory = Math.max(0, dock.reconDroneInventory - 1)
     }
   } catch (e) {
@@ -1158,7 +1158,7 @@ const sendColonyShip = async (planetId, fromPlanetId) => {
     const result = await postColonyMission(fromId, planetId)
     const dock = allPlanetStates.value[fromId]?.dock
     if (dock) {
-      dock.activeColonyMissions.push({ planetId, endsAt: result.endsAt })
+      dock.activeColonyMissions.push({ planetId, fromPlanetId: fromId, startedAt: Date.now(), endsAt: result.endsAt })
       dock.colonyShipInventory = Math.max(0, dock.colonyShipInventory - 1)
     }
   } catch (e) {
@@ -1329,7 +1329,7 @@ const sendCargoDrone = async (planetId, fromPlanetId) => {
     const st   = allPlanetStates.value[fromId]
     const dock = st?.dock
     if (dock) {
-      dock.activeCargoMissions.push({ planetId, endsAt: result.endsAt })
+      dock.activeCargoMissions.push({ planetId, fromPlanetId: fromId, startedAt: Date.now(), endsAt: result.endsAt })
       dock.cargoDroneInventory = Math.max(0, dock.cargoDroneInventory - 1)
     }
     if (st?.cargo) st.cargo = { ...st.cargo, missionId: result.missionId }
@@ -1541,6 +1541,30 @@ const raidsByMe = (playerId) => {
 // The interleaved list of battles with one commander, newest first.
 const raidLog = (playerId) => raidHistory.value[playerId]?.log ?? []
 
+// Every battle we have a record of, from either seat, in one chronology.
+// `raidHistory` is keyed by opponent because the system card reads it that way;
+// the galaxy overview has no system to key on and wants the plain "what has
+// happened lately" — same rows, one list. The opponent's name rides on the
+// record itself (`foeName`) rather than being looked up in a system's
+// inhabitant list: an old feud may well be with somebody whose system we never
+// scanned, and there would be nowhere to read the name off.
+const RECENT_BATTLES_MAX = 6
+
+const recentBattles = computed(() => {
+  const seen = new Set()
+  const all  = []
+
+  for (const rec of Object.values(raidHistory.value)) {
+    for (const e of rec.log ?? []) {
+      if (seen.has(e.id)) continue
+      seen.add(e.id)
+      all.push({ ...e, foeName: rec.foeName ?? '?', foePortrait: rec.foePortrait ?? '👤' })
+    }
+  }
+
+  return all.sort((a, b) => b.foughtAt - a.foughtAt).slice(0, RECENT_BATTLES_MAX)
+})
+
 // Same distance curve as everything else that crosses systems, but warships are
 // heavy — a bigger floor and a slower rate than a spy drone's signal-speed run.
 const raidFlightTime = (targetSystemId) => {
@@ -1687,9 +1711,73 @@ const activeFlights = computed(() => {
 // but whose row the tick has not cleared yet must sit on the target, not beyond
 // it, and a clock skewed a second the wrong way must not push it backwards.
 const flightProgress = (f) =>
-  Math.min(1, Math.max(0, (now.value - f.startedAt) / (f.endsAt - f.startedAt)))
+  !f?.startedAt || f.endsAt <= f.startedAt
+    ? 0
+    : Math.min(1, Math.max(0, (now.value - f.startedAt) / (f.endsAt - f.startedAt)))
 
 const flightRemainingSec = (f) => Math.max(0, Math.ceil((f.endsAt - now.value) / 1000))
+
+// ── The whole flight board ───────────────────────────────────────────────────
+// `activeFlights` above answers the chart's question — a pip on a lane between
+// two SYSTEMS — and therefore drops everything that never leaves the home
+// system. This answers the other one: what have I got out there right now, all
+// of it, including the cargo run two orbits over and the colony ship that never
+// crosses a lane. Sorted by arrival, because the list is a schedule.
+//
+// Deduped by route + arrival rather than by mission id: `state.missions` is not
+// filtered per planet, so a recon or colony mission is copied into EVERY dock in
+// `allPlanetStates` (only spy, raid and cargo legs filter on `fromPlanetId`).
+// Walking the docks would otherwise list a single drone once per colony.
+const allFlights = computed(() => {
+  const byId = new Map()
+
+  const add = (kind, m, fromPlanetId, toPlanetId, extra = {}) => {
+    if (fromPlanetId == null || toPlanetId == null || !m.endsAt) return
+    const id = `${kind}_${fromPlanetId}_${toPlanetId}_${m.endsAt}`
+    if (byId.has(id)) return
+    byId.set(id, {
+      id, kind, fromPlanetId, toPlanetId,
+      startedAt: m.startedAt ?? null, endsAt: m.endsAt, ...extra,
+    })
+  }
+
+  for (const [pid, st] of Object.entries(allPlanetStates.value)) {
+    const dock = st.dock
+    if (!dock) continue
+    const home = Number(pid)
+
+    for (const m of dock.activeDroneMissions ?? [])
+      add('recon', m, m.fromPlanetId ?? home, m.planetId)
+    for (const m of dock.activeColonyMissions ?? [])
+      add('colony', m, m.fromPlanetId ?? home, m.planetId)
+    for (const m of dock.activeCargoMissions ?? [])
+      add('cargo', m, m.fromPlanetId ?? home, m.planetId)
+    // The empty run home: the entry sits in our dock but names the planet it is
+    // coming back from, so the two ends are the other way round.
+    for (const m of dock.returningCargoMissions ?? [])
+      add('cargo_back', m, m.planetId, home)
+    for (const m of dock.activeSpyMissions ?? [])
+      add(m.unit === 'spy_satellite' ? 'satellite' : 'spy', m, home, m.planetId)
+    for (const m of dock.activeRaids ?? [])
+      add('raid', m, home, m.planetId, { ships: m.ships, order: m.order })
+    for (const m of dock.returningRaids ?? [])
+      add('raid_back', m, m.planetId, home, { ships: m.ships })
+  }
+
+  return [...byId.values()].sort((a, b) => a.endsAt - b.endsAt)
+})
+
+// Where a planet is and what it is called. The galaxy is the only place that
+// knows the names of foreign worlds, and a flight almost always has one end out
+// there; `allPlanetStates` covers the case of our own planet before the galaxy
+// has finished loading.
+const planetLabel = (planetId) => {
+  for (const sys of galaxySystems.value) {
+    const p = sys.planets.find(pl => pl.id === planetId)
+    if (p) return { planet: p.name, system: sys.name, systemId: sys.id }
+  }
+  return { planet: allPlanetStates.value[planetId]?.planetName ?? '?', system: '', systemId: null }
+}
 
 const dismissBattleReport = (id) => {
   battleReports.value = battleReports.value.filter(r => r.id !== id)
@@ -2444,9 +2532,9 @@ const applyGameState = (planetId, state) => {
   const warship = unitState('corvette')
 
   const droneMissions  = (state.missions ?? []).filter(m => m.type === 'recon_drone')
-    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, endsAt: m.endsAt }))
+    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, startedAt: m.startedAt, endsAt: m.endsAt }))
   const colonyMissions = (state.missions ?? []).filter(m => m.type === 'colony_ship')
-    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, endsAt: m.endsAt }))
+    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, startedAt: m.startedAt, endsAt: m.endsAt }))
   // The target sits in another system, so the mission carries the system id for
   // the countdown — planetSystemId() resolves it from the galaxy. Both espionage
   // units share the list; `unit` is what the icon and the arrival handler read.
@@ -2461,10 +2549,10 @@ const applyGameState = (planetId, state) => {
   // leg created on arrival. Only the outbound one points at a destination.
   const cargoOut = (state.missions ?? [])
     .filter(m => m.type === 'cargo_drone' && m.leg !== 'back' && m.fromPlanetId === planetId)
-    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, endsAt: m.endsAt }))
+    .map(m => ({ planetId: m.toPlanetId, fromPlanetId: m.fromPlanetId, startedAt: m.startedAt, endsAt: m.endsAt }))
   const cargoBack = (state.missions ?? [])
     .filter(m => m.type === 'cargo_drone' && m.leg === 'back' && m.toPlanetId === planetId)
-    .map(m => ({ planetId: m.fromPlanetId, endsAt: m.endsAt }))
+    .map(m => ({ planetId: m.fromPlanetId, startedAt: m.startedAt, endsAt: m.endsAt }))
 
   // A raid is two legs like a cargo run: the strike out, and the survivors home.
   // Only the outbound leg carries the order — the way back is just a flight.
@@ -3401,9 +3489,12 @@ export function useHawkStar() {
     raidsAgainstMe,
     raidsByMe,
     raidLog,
+    recentBattles,
     activeRaids,
     returningRaids,
     activeFlights,
+    allFlights,
+    planetLabel,
     flightProgress,
     flightRemainingSec,
     allActiveRaids,

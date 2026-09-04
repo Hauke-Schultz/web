@@ -1080,6 +1080,12 @@ function raid_history(PDO $db, int $playerId): array {
                     'lastAt'    => null,
                     'outCount'  => 0,      // our raids on them
                     'outLastAt' => null,
+                    // Who this record is with. The system card gets the name
+                    // from the system's inhabitant list, but a player-wide
+                    // battle log has no system to read it off — and the foe of
+                    // an old feud may well live in a system we never scanned.
+                    'foeName'     => null,
+                    'foePortrait' => null,
                     'log'       => [],
                 ];
             }
@@ -1109,6 +1115,18 @@ function raid_history(PDO $db, int $playerId): array {
         }
 
         if (!$history) return [];
+
+        // One lookup for every commander we have a record with. Not folded into
+        // the query above: that one groups by the pair and would have to join
+        // both seats to name the one that is not us.
+        $ids  = array_keys($history);
+        $mark = implode(',', array_fill(0, count($ids), '?'));
+        $who  = $db->prepare("SELECT id, username, portrait FROM hs_players WHERE id IN ($mark)");
+        $who->execute($ids);
+        foreach ($who->fetchAll() as $r) {
+            $history[(int)$r['id']]['foeName']     = $r['username'];
+            $history[(int)$r['id']]['foePortrait'] = $r['portrait'] ?? '👤';
+        }
 
         // The detail rows. Capped (see RAID_LOG_SCAN) — only the list is
         // truncated, never the counts above.

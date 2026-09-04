@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useHawkStar } from '~/composables/useHawkStar.js'
 import { PLANET_TYPES, RESOURCES } from '~/utils/hawkStarConfig.js'
 import HsCommLog from '~/components/hawk-star/HsCommLog.vue'
+import HsBattleLog from '~/components/hawk-star/HsBattleLog.vue'
+import HsGalaxyOverview from '~/components/hawk-star/HsGalaxyOverview.vue'
 
 const {
   playerColonizedPlanets,
@@ -156,27 +158,8 @@ const recordLabel = (icon, rec) => rec ? `${icon} ${rec.count} · ${agoLabel(rec
 const raidRecordLabel    = (owner) => recordLabel('⚔️', raidRecord(owner))
 const raidOutRecordLabel = (owner) => recordLabel('🎯', raidOutRecord(owner))
 
-// ── Battle log entries ────────────────────────────────────────────────────────
-// 🎯 our fleet went out, 🛡️ theirs came in. Combined with won/lost this is the
-// whole headline: our win, our loss, their win, their loss.
-const logIcon = (e) => e.role === 'attacker' ? '🎯' : '🛡️'
-
-const logOutcome = (e) => {
-  if (e.role === 'attacker') {
-    return e.won ? t('hawkStar.galaxy.raidLogWon') : t('hawkStar.galaxy.raidLogFailed')
-  }
-  return e.won ? t('hawkStar.galaxy.raidLogLost') : t('hawkStar.galaxy.raidLogHeld')
-}
-
-const meter = (before, after) => `${Math.round(before)} → ${Math.round(after)} %`
-
-// A planet with neither generator nor reactor reads 0 → 0 on both meters, which
-// is not a measurement but the absence of one. Say so instead of printing zeros.
-const hasMeters = (e) => e.shieldBefore > 0 || e.batteryBefore > 0
-
-const lootItems = (e) => Object.entries(e.loot ?? {})
-  .filter(([, n]) => n > 0)
-  .map(([key, n]) => ({ key, n, icon: RESOURCES[key]?.icon ?? '📦', name: RESOURCES[key]?.name ?? key }))
+// The entries themselves are rendered by HsBattleLog — the same block serves the
+// galaxy overview, and one copy of it keeps the two from drifting apart.
 
 // ── System order: home first, then inhabited systems ─────────────────────────
 // `inhabited` is a system-level flag from the API. It used to be derived from the
@@ -394,6 +377,10 @@ const scanRemaining = (sysId) => {
 
 
 // ── Selection — home system pre-selected ──────────────────────────────────────
+// The overview does not depend on this any more: it lives in the chart's column
+// and is up whatever is selected. So the panel column can go back to opening on
+// home, which is the one system a player always has something to read about.
+// Closing it with ✕ leaves the column empty and the overview standing.
 const selectedId = ref(homeSystemId.value)
 const selected   = computed(() => galaxySystems.value.find(s => s.id === selectedId.value) ?? null)
 
@@ -667,6 +654,23 @@ const tileClass = (sys) => {
           <i class="hs-galaxy-legend-dot" />{{ t('hawkStar.galaxy.legendUnscanned') }}
         </span>
       </div>
+
+      <!-- ── The standing overview — always on ────────────────────────────────────
+           Under the chart and its key, in the chart's own column, so it is on
+           screen whatever is or is not selected next door. Flights in the air and
+           battles lately are player-wide facts: they belong to the map itself
+           rather than to whichever system happens to be picked, and a fleet three
+           hours from home is exactly the thing you must not lose sight of while
+           reading somebody else's system card.
+
+           It sits under the key rather than over the chart because the chart is
+           the anchor of the screen — it must not move when a flight lands or a
+           battle report arrives and the list changes height.
+
+           Only the "pick a system" line comes and goes — with a card already open
+           beside it, it would be wrong half the time.
+      -->
+      <HsGalaxyOverview :show-hint="!selected" />
     </div>
 
     <!-- ── Everything about the selected system ─────────────────────────────────
@@ -1003,76 +1007,7 @@ const tileClass = (sys) => {
                  belongs at the foot for exactly that reason. Each entry is one raid
                  read from our chair — who flew, what it cost the fleet, what it did
                  to the target's two meters, what came home in the hold. -->
-            <div v-if="systemBattles.length" class="hs-raid-log">
-              <div class="hs-raid-log-title">⚔️ {{ t('hawkStar.galaxy.raidLogTitle') }}</div>
-
-              <div
-                v-for="e in systemBattles"
-                :key="e.id"
-                class="hs-raid-log-entry"
-                :class="[
-                  e.role === 'attacker' ? 'hs-raid-log-entry--out' : 'hs-raid-log-entry--in',
-                  { 'hs-raid-log-entry--good': e.role === 'attacker' ? e.won : !e.won },
-                ]"
-              >
-                <div class="hs-raid-log-head">
-                  <span class="hs-raid-log-icon">{{ logIcon(e) }}</span>
-                  <span class="hs-raid-log-target">{{ e.planetName }}</span>
-                  <!-- Named on every line: several commanders can share a system,
-                       and the list no longer sits under anybody's row -->
-                  <span class="hs-raid-log-foe">{{ e.foePortrait }} {{ e.foeName }}</span>
-                  <span class="hs-raid-log-outcome">{{ logOutcome(e) }}</span>
-                  <span class="hs-raid-log-when">{{ agoLabel(e.foughtAt) }}</span>
-                </div>
-
-                <div class="hs-raid-log-stats">
-                  <!-- The fleet's own bill — hulls sent, hulls shot down -->
-                  <span class="hs-raid-log-stat" :title="t('hawkStar.galaxy.raidLogFleetHint')">
-                    🚀 {{ e.ships }}<span v-if="e.lost" class="hs-raid-log-loss"> −{{ e.lost }}</span>
-                  </span>
-                  <span class="hs-raid-log-stat" :title="t('hawkStar.galaxy.raidLogFirepowerHint')">
-                    💥 {{ e.firepower }}
-                  </span>
-                  <!-- and what it did on the ground -->
-                  <template v-if="hasMeters(e)">
-                    <span
-                      v-if="e.shieldBefore > 0"
-                      class="hs-raid-log-stat hs-raid-log-stat--shield"
-                      :title="t('hawkStar.galaxy.raidLogShieldHint')"
-                    >🛡️ {{ meter(e.shieldBefore, e.shieldAfter) }}</span>
-                    <span
-                      v-if="e.batteryBefore > 0"
-                      class="hs-raid-log-stat hs-raid-log-stat--battery"
-                      :title="t('hawkStar.galaxy.raidLogBatteryHint')"
-                    >🔋 {{ meter(e.batteryBefore, e.batteryAfter) }}</span>
-                  </template>
-                  <span v-else class="hs-raid-log-stat hs-raid-log-stat--bare">
-                    {{ t('hawkStar.galaxy.raidLogNoMeters') }}
-                  </span>
-                </div>
-
-                <!-- Booty. A plunder order that came home empty is worth showing
-                     too — the silo was already bare or on cooldown. -->
-                <div v-if="e.order === 'plunder'" class="hs-raid-log-loot">
-                  <template v-if="lootItems(e).length">
-                    <span class="hs-raid-log-loot-label">
-                      {{ e.role === 'attacker'
-                          ? t('hawkStar.galaxy.raidLogLootGained')
-                          : t('hawkStar.galaxy.raidLogLootLost') }}
-                    </span>
-                    <span
-                      v-for="item in lootItems(e)"
-                      :key="item.key"
-                      class="hs-raid-log-loot-item"
-                      :title="item.name"
-                    >{{ item.icon }} {{ item.n }}</span>
-                  </template>
-                  <span v-else class="hs-raid-log-loot-empty">
-                    💰 {{ t('hawkStar.galaxy.raidLogNoLoot') }}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <HsBattleLog :entries="systemBattles" />
           </div>
 
         </div>
@@ -1113,10 +1048,15 @@ const tileClass = (sys) => {
   gap: 0.75rem;
 }
 
-// ── Chart + key ───────────────────────────────────────────────────────────────
-// The key stays under the chart it explains, at every width. The spare column a
-// desktop has goes to the system panel instead — that is the thing whose height
-// was pushing the page around.
+// ── Chart + key + overview ────────────────────────────────────────────────────
+// The key stays under the chart it explains, at every width, and the standing
+// overview under the key. The spare column a desktop has goes to the system
+// panel instead — that is the thing whose height was pushing the page around.
+//
+// The overview belongs to this column rather than to the panel's: it is on
+// screen whether or not a system is selected, and its two lists change height on
+// their own (a flight lands, a report arrives). Under the key it pushes nothing;
+// above the chart it would move the anchor of the whole screen.
 .hs-galaxy-chart {
   display: flex;
   flex-direction: column;
@@ -2039,106 +1979,6 @@ const tileClass = (sys) => {
   &--fresh     { color: rgba(248,113,113,0.95); }   // they came for us — red
   &--fresh-out { color: rgba(251,191,36,0.95); }    // we went for them — amber
 }
-
-// ── Raid log ──────────────────────────────────────────────────────────────────
-// Always open at the foot of the card, separated by a rule: it is history, not a
-// control. Each entry is bordered on the side that flew — amber on the left for
-// our sorties, red for theirs.
-.hs-raid-log {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255,255,255,0.08);
-}
-
-.hs-raid-log-title {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  color: rgba(255,255,255,0.5);
-  margin-bottom: 0.1rem;
-}
-
-.hs-raid-log-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--hs-r-sm);
-  border-left: 2px solid;
-  background: rgba(255,255,255,0.03);
-
-  &--out { border-left-color: rgba(251,191,36,0.6); }
-  &--in  { border-left-color: rgba(248,113,113,0.6); }
-}
-
-.hs-raid-log-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.3rem;
-  font-size: 0.58rem;
-}
-
-.hs-raid-log-icon   { font-size: 0.62rem; }
-.hs-raid-log-target { font-weight: 700; color: rgba(255,255,255,0.85); }
-.hs-raid-log-foe    { color: rgba(255,255,255,0.45); }
-
-// Green when the fight went our way, whichever chair we sat in — attacking and
-// winning, or being attacked and holding.
-.hs-raid-log-outcome {
-  font-weight: 600;
-  color: rgba(248,113,113,0.85);
-
-  .hs-raid-log-entry--good & { color: rgba(52,211,153,0.9); }
-}
-
-.hs-raid-log-when {
-  margin-left: auto;
-  font-size: 0.52rem;
-  color: rgba(255,255,255,0.35);
-  white-space: nowrap;
-}
-
-.hs-raid-log-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  font-size: 0.52rem;
-  font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.55);
-}
-
-.hs-raid-log-stat {
-  white-space: nowrap;
-
-  &--shield  { color: rgba(56,189,248,0.8); }
-  &--battery { color: rgba(251,191,36,0.8); }
-  &--bare    { color: rgba(255,255,255,0.3); font-style: italic; }
-}
-
-.hs-raid-log-loss { color: rgba(248,113,113,0.9); font-weight: 700; }
-
-.hs-raid-log-loot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  font-size: 0.52rem;
-  font-variant-numeric: tabular-nums;
-}
-
-// The same haul is a gain or a loss depending on which fleet carried it off.
-.hs-raid-log-loot-item {
-  font-weight: 700;
-  color: rgba(52,211,153,0.9);
-
-  .hs-raid-log-entry--in & { color: rgba(248,113,113,0.9); }
-}
-
-.hs-raid-log-loot-label { color: rgba(255,255,255,0.4); }
-.hs-raid-log-loot-empty { color: rgba(255,255,255,0.3); }
 
 .hs-raid-dialog {
   margin-top: 0.5rem;
