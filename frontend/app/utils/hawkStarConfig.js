@@ -880,6 +880,12 @@ export const BUILDINGS = {
         effect:     '+40 energy · 2 workers',
         production: { energy: 40 },
         staffDrain: 2,
+        // Cannot bite today: `power_plant` Lv4 is unreachable without Lv2, which
+        // needs the mine already. Written down anyway, so every metal-bought
+        // level 1 in this block states its own rule and none of them quietly
+        // becomes wrong if the plant's ladder is ever re-cut.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      2,
@@ -915,6 +921,10 @@ export const BUILDINGS = {
         effect:     '+40 energy · 2 workers',
         production: { energy: 40 },
         staffDrain: 2,
+        // Metal on level 1, so the mine gates it — the refined good in the same
+        // bill implies a forge, but an implication is not a gate.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      2,
@@ -950,6 +960,11 @@ export const BUILDINGS = {
         effect:     '+45 energy · 2 workers',
         production: { energy: 45 },
         staffDrain: 2,
+        // Metal on level 1, so the mine gates it like every other metal-bought
+        // first level. The obsidian in the same bill already implies a quarry,
+        // but an implication is not a gate — this one is written down.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      2,
@@ -985,6 +1000,9 @@ export const BUILDINGS = {
         effect:     '+35 energy · 2 workers',
         production: { energy: 35 },
         staffDrain: 2,
+        // Same shape as the alloy and obsidian reactors, same gate.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      2,
@@ -1252,6 +1270,11 @@ export const BUILDINGS = {
         effect:     '+10 energy · 1 worker',
         production: { energy: 10 },
         staffDrain: 1,
+        // Same gate as the solar array's first level, for the same reason: it
+        // costs metal, so it waits for the mine that produces metal. Level-entry
+        // rather than building-level — levels 2 and 3 sit behind level 1 already.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      2,
@@ -1289,6 +1312,9 @@ export const BUILDINGS = {
         effect:     '+9 energy · 1 worker',
         production: { energy: 9 },
         staffDrain: 1,
+        // The ocean twin of the geothermal tap, gated for the same reason.
+        requiresBuilding: 'metal_mine',
+        requiresLevel:    1,
       },
       {
         level:      2,

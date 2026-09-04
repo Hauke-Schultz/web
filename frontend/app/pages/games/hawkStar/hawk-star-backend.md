@@ -18,7 +18,7 @@ api/star/
     login.php            ← POST   /api/star/auth/login
     logout.php           ← POST   /api/star/auth/logout
     me.php               ← GET    /api/star/auth/me
-    profile.php          ← POST   /api/star/auth/profile  (portrait, username, disposition, locale)
+    profile.php          ← POST   /api/star/auth/profile  (portrait, username, locale)
     delete.php           ← DELETE /api/star/auth/delete   (löscht den eigenen Account + alle Spielerdaten)
   galaxy/
     index.php            ← GET  /api/star/galaxy
@@ -48,7 +48,7 @@ JWT-Token (HS256, kein Composer), Secret aus `.env` → `JWT_SECRET=...`.
 Token-Lebensdauer: 7 Tage. Jede gespeicherte Session in `hs_sessions`.
 
 ```
-POST /api/star/auth/register   { username, email, password, portrait?, disposition? }
+POST /api/star/auth/register   { username, email, password, portrait? }
   → { token, player, homePlanetId }
 
 POST /api/star/auth/login      { email, password }
@@ -124,6 +124,8 @@ hs_npc_planet_ownership (planet_id PK, faction_id)
 -- ── Per-player state ──────────────────────────────────────────────────────────
 
 hs_players (id, username UNIQUE, email UNIQUE, password_hash, portrait, disposition, created_at, last_seen_at)
+           disposition ENUM('friendly','neutral','hostile') — verdient, nicht gewählt:
+           escalate_disposition() in bootstrap.php steigert sie, nichts senkt sie
 
 hs_sessions (id, player_id, token_hash, expires_at, created_at)
 
@@ -198,12 +200,16 @@ hs_rate_limits (id, ip VARCHAR(45), endpoint VARCHAR(64), hits INT, window_start
 
 ```
 -- Auth
-POST   /api/star/auth/register  { username, email, password, portrait?, disposition? }
+POST   /api/star/auth/register  { username, email, password, portrait? }
+                                disposition wird ignoriert — jeder startet 'friendly'
 POST   /api/star/auth/login     { email, password }
 POST   /api/star/auth/logout
 GET    /api/star/auth/me
-POST   /api/star/auth/profile   { portrait?, username?, disposition?, locale? }  → { player }
+POST   /api/star/auth/profile   { portrait?, username?, locale? }  → { player }
                                 locale ∈ PLAYER_LOCALES ('en' | 'de'), Default 'en'
+                                disposition ist NICHT setzbar: der Server steigert sie
+                                (Spionageflug → neutral, Angriff → hostile) und senkt sie nie.
+                                Nur 'friendly' kann nicht angegriffen werden.
 DELETE /api/star/auth/delete    — löscht Account + alle Spielerdaten
 
 -- Game State (Seitenaufruf + nach jeder Aktion)

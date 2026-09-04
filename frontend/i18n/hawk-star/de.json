@@ -154,7 +154,7 @@
       "costStaff": "Zusätzliche Arbeiter gegenüber der jetzigen Stufe — dauerhaft gebunden",
       "needPower": "⚡ Energie fehlt",
       "needStaff": "👥 Personal fehlt",
-      "lockedRequires": "🔒 {name} Lv{level}",
+      "lockedRequires": "🔒 Benötigt {name} Lv{level}",
       "lockedGeneric": "🔒 Gesperrt",
       "homeOnly": "Nur Heimat",
       "homeOnlyHint": "Nur auf dem Heimatplaneten verfügbar",
@@ -292,6 +292,8 @@
       "legendUnscanned": "Ungescannt — erst scannen",
       "tabSystem": "System",
       "tabComm": "Funk",
+      "tabOverview": "Lage",
+      "dispositionSafe": "Freundlich — dieser Kommandant hat noch nie etwas ausgesandt und kann nicht angegriffen werden",
       "scanPrompt": "Dieses System ist noch nicht gescannt. Ein Tiefenraum-Scan zeigt, wer hier lebt — erst danach kannst du funken, spionieren und angreifen.",
       "scanRunningHint": "Der Scan läuft. Wenn er ankommt, weißt du, wer hier lebt.",
       "scanNeedsStarMap": "Sternenkarte Stufe 3 nötig",
@@ -392,7 +394,9 @@
       "friendly":   "Freundlich",
       "neutral":    "Neutral",
       "hostile":    "Feindselig",
-      "language":   "Sprache der Oberfläche — am Profil gespeichert"
+      "dispositionHint": "Der Status wird verdient, nicht gewählt: eine Spionagedrohne macht dich neutral, ein Angriff feindselig. Zurück geht es nicht — und nur wer freundlich ist, kann nicht angegriffen werden.",
+      "language":   "Sprache der Oberfläche — am Profil gespeichert",
+      "textSize":   "Schriftgröße — S / M / L / XL, nur auf diesem Gerät gespeichert. Die Menüleiste oben bleibt immer klein."
     },
 
     "panel": {

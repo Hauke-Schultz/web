@@ -335,6 +335,53 @@ function ensure_player_locale(PDO $db): void {
 // ENUM and the whitelist can never drift apart.
 const PLAYER_LOCALES = ['en', 'de'];
 
+// ── Player disposition: earned, never chosen ─────────────────────────────────
+// Three rungs on one ladder, in order, and you only ever climb:
+//
+//   friendly  everybody starts here, and this is the ONLY rung that cannot be
+//             raided (see mission/raid.php)
+//   neutral   the first espionage flight you send — drone or satellite. Looking
+//             at somebody's planet is not an act of war, but it is not nothing
+//             either, and it is the moment you stopped being harmless
+//   hostile   the first raid you launch
+//
+// Nothing takes any of it back. A fleet you have already sent is not undone by
+// a quiet week, and a cooldown would just mean waiting out your own reputation.
+//
+// It used to be a profile setting, and that was the bug: `friendly` is the one
+// state that cannot be raided, so a dropdown offering it was a checkbox marked
+// "I am invulnerable". The only honest way to be unraidable is to have raided
+// nobody — so `auth/profile.php` no longer accepts the field at all, and the
+// three buttons in HsProfilePanel became a read-out.
+const DISPOSITIONS = ['friendly', 'neutral', 'hostile'];
+
+function disposition_rank(string $d): int {
+    $i = array_search($d, DISPOSITIONS, true);
+    return $i === false ? 0 : $i;
+}
+
+function player_disposition(PDO $db, int $playerId): string {
+    $row = $db->prepare('SELECT disposition FROM hs_players WHERE id=?');
+    $row->execute([$playerId]);
+    $d = (string)($row->fetchColumn() ?: 'friendly');
+    return in_array($d, DISPOSITIONS, true) ? $d : 'friendly';
+}
+
+// Raises a player to at least $to, and never lowers anybody.
+//
+// The guard is in the WHERE clause rather than in a read-then-write: two flights
+// launched in the same second would otherwise both read `friendly`, and the raid
+// could be overwritten back down to `neutral` by the spy drone that lost the
+// race. Written as "only from a rung below" it does not matter who wins.
+function escalate_disposition(PDO $db, int $playerId, string $to): void {
+    if (!in_array($to, DISPOSITIONS, true)) return;
+    $below = array_slice(DISPOSITIONS, 0, disposition_rank($to));
+    if (!$below) return;   // already the bottom rung — nothing outranks it
+    $marks = implode(',', array_fill(0, count($below), '?'));
+    $db->prepare("UPDATE hs_players SET disposition = ? WHERE id = ? AND disposition IN ($marks)")
+       ->execute(array_merge([$to, $playerId], $below));
+}
+
 // ── Dock units (recon drone / colony ship inventory) ─────────────────────────
 
 function ensure_units_table(PDO $db): void {

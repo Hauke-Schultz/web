@@ -21,6 +21,7 @@ const {
   activePlanetId,
   playerPortrait,
   playerName,
+  playerDisposition,
   onboardingSteps,
   onboardingDoneCount,
   onboardingComplete,
@@ -116,22 +117,32 @@ const jumpTo = (planetId, slot) => {
 
 // ── Which cards are open ──────────────────────────────────────────────────────
 // One map for every card on the board — the commander, each planet, the guide —
-// because they are all the same control. They start shut: the board opens as a
-// list of lids, each carrying the one thing worth reading from across the room
-// (a state badge, an alert count, two meters, a step count), and you unfold the
-// one you came for.
+// because they are all the same control.
 //
-// The guide is the exception, and it is one because it can only appear at all
-// while there is something left on it — `onboardingComplete` removes the card
-// for good. A checklist you have to find and unfold before it can tell you what
-// to do next is a checklist for someone who already knows.
+// They start OPEN. The board is something you read, not something you navigate:
+// you come to it to find out which planet needs you, and a stack of lids answers
+// that with "open them and see". The lid's own summary (a state badge, an alert
+// count, a step count) is a reminder of what is inside, not a substitute for it.
+// Shut-by-default made the fast case — nothing wrong anywhere — the one that
+// cost the most clicks.
 //
-// They toggle independently. A strict accordion would shut the planet you are
-// reading the moment you open the next.
-const open = ref({ onboarding: true })
+// The commander card is the exception, and it is the only card here that is an
+// EDITOR rather than a report: a portrait, a name, a disposition, none of which
+// changes on its own, so it has nothing to tell you until you go looking for it.
+// Open by default it would just be a form in the way of the empire.
+//
+// Hence the default-plus-overrides shape rather than a seeded map: the planet
+// cards are keyed by planet id, so a colony founded while the panel is up has no
+// entry to seed and must still come up open like its neighbours.
+const CLOSED_BY_DEFAULT = new Set(['profile'])
 
-const isOpen     = (id) => !!open.value[id]
-const toggleCard = (id) => { open.value[id] = !open.value[id] }
+const open = ref({})
+
+const isOpen     = (id) => open.value[id] ?? !CLOSED_BY_DEFAULT.has(id)
+// Off `isOpen`, not off the raw map: `!undefined` is `true`, so a card that has
+// never been touched would toggle to the state it is already in and the first
+// click on it would do nothing.
+const toggleCard = (id) => { open.value[id] = !isOpen(id) }
 
 // The profile panel's own header bar is gone, so the confirmation it used to
 // show lands here instead, in the head you opened the panel from.
@@ -273,9 +284,17 @@ const alertCount = computed(() => empireAlertCount.value)
            title — which is what the crest above the board used to do and could
            never do well: a face and a name are not a control, and nobody clicks
            them expecting a form. As a card head with a caret, they are. -->
+      <!-- The card is bordered in the disposition, and it is the only card here
+           whose colour says something about *you* rather than about a planet.
+           It belongs on the outside because the disposition is not a detail of
+           the profile form: it decides whether anybody can raid you at all, and
+           a fact that big should not need the card opened to be read. Green,
+           grey, red — the same three colours the row inside uses and the same
+           ones the galaxy card gives a foreign commander, so one look means the
+           same thing wherever it lands. -->
       <section
         class="hs-empire-card hs-empire-card--commander"
-        :class="{ 'hs-empire-card--open': isOpen('profile') }"
+        :class="[`hs-empire-card--disp-${playerDisposition}`, { 'hs-empire-card--open': isOpen('profile') }]"
       >
         <button
           class="hs-empire-cardhead"
@@ -663,6 +682,14 @@ const alertCount = computed(() => empireAlertCount.value)
     border-color: rgba(80, 120, 255, 0.2);
     background: rgba(80, 120, 255, 0.07);
   }
+
+  // The commander wears their standing. Border only, no fill: `--alarm` owns
+  // the tinted-background language on this board and it means "a planet needs
+  // you now", which a disposition never does — it is a standing, not an event.
+  // Hostile in particular must not read as an alarm about yourself.
+  &--disp-friendly { border-color: rgba(52, 211, 153, 0.4); }
+  &--disp-neutral  { border-color: rgba(148, 163, 184, 0.4); }
+  &--disp-hostile  { border-color: rgba(248, 113, 113, 0.45); }
 
   &--open .hs-empire-cardhead__caret { transform: rotate(180deg); color: rgba(255, 255, 255, 0.7); }
 }

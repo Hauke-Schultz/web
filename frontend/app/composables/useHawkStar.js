@@ -9,13 +9,42 @@ const galaxySystems = ref([])
 // ── Singleton state ────────────────────────────────────────
 const playerName        = ref('')
 const playerPortrait    = ref('👨‍🚀')
-const playerDisposition = ref('neutral')
+// Not a setting: the server climbs it for you — friendly until you send your
+// first spy drone, hostile once you have launched a raid — and `friendly` is the
+// one rung that cannot be raided. So the safe default here is the LOWEST rung:
+// a state that has not loaded yet must never render somebody as more dangerous
+// than they are, and a fleeting "Feindselig" on the profile card while the
+// player object is still in flight is exactly that.
+const playerDisposition = ref('friendly')
 const homeSystemId = ref(null)
 const homePlanetId = ref(null)
 
 // ── Dev tuning ─────────────────────────────────────────────
 const tickRateMs      = ref(5000)
 const buildTimeFactor = ref(1)
+
+// ── Text size ──────────────────────────────────────────────
+// Every font-size in the game is in `rem` — all 371 of them — and so is every
+// padding, gap and tile size. So the whole UI already scales off one number, and
+// the setting is that number: the page multiplies the root font size by it while
+// it is mounted (see `pages/games/hawkStar/index.vue`).
+//
+// Why not `zoom` on `.hs-page`: zoom shrinks the effective viewport, so the
+// 640/1024 px breakpoints would flip and the layout would jump into a different
+// column arrangement. Somebody who asks for bigger text is not asking for a
+// different layout. A root font size leaves every media query where it was.
+const TEXT_SCALES = { s: 1, m: 1.15, l: 1.3, xl: 1.5 }
+// 'm' rather than 's': the game was drawn at 0.52…0.62 rem, which is small even
+// on a desktop. The old size is still there as 's' for anyone who wants it back.
+const textSize = ref('m')
+
+const textScale = computed(() => TEXT_SCALES[textSize.value] ?? 1)
+
+const setTextSize = (size) => {
+  if (!(size in TEXT_SCALES)) return
+  textSize.value = size
+  saveUiSettings()
+}
 
 // ── Per-planet state (slots + buildings + resources) ───────
 const allPlanetStates = ref({})
@@ -228,10 +257,30 @@ const energyBalanceOf = (planetId) => {
   return { produced, drain, free: produced - drain }
 }
 
+// The plant's level as of RIGHT NOW, not as of the last tick that wrote state
+// down. A build whose `buildEndsAt` has passed is finished, and `now` is what
+// says so — the same reactive clock `batteryChargeOf()` interpolates against.
+//
+// The second this matters is the one between a build ending and `tick()`
+// resolving it: up to a full second in which the plant exists, its grid is
+// empty, and the player can already press a build button on another tile. The
+// drain they are about to commit is judged against this, so it cannot be a
+// second stale.
+const powerPlantLevelOn = (planetId) => {
+  const bs = allPlanetStates.value[planetId]?.buildings?.power_plant
+  if (!bs) return 0
+  return (bs.level ?? 0) + (bs.buildEndsAt && bs.buildEndsAt <= now.value ? 1 : 0)
+}
+
 // A planet without a power plant has no grid to lose — that is not a blackout.
+//
+// With a plant, no battery object is itself the answer rather than a missing
+// one: the tick has not registered the fresh plant yet, and a fresh plant's
+// grid starts empty. `?? 0` says that without a special case, and it is the
+// same 0 the server sends for a plant built and never charged.
 const gridDownOn = (planetId) => {
-  const b = allPlanetStates.value[planetId]?.battery
-  return !!b && b.powerPlantLevel > 0 && (batteryChargeOf(planetId) ?? 0) <= 0
+  if (powerPlantLevelOn(planetId) < 1) return false
+  return (batteryChargeOf(planetId) ?? 0) <= 0
 }
 
 const gridDown = computed(() => gridDownOn(activePlanetId.value))
@@ -1609,12 +1658,20 @@ const canRaid = computed(() =>
   returningRaids.value.length === 0
 )
 
-// A raid needs a target that belongs to somebody else and that we have looked
-// at: inside the home system ownership is public, elsewhere a spy drone has to
-// have been there. Mirrors the server's check, which is the real boundary.
+// A raid needs a target that belongs to somebody else, that is not under the
+// beginner's or the friendly commander's protection, and that we have looked at:
+// inside the home system ownership is public, elsewhere a spy drone has to have
+// been there. Mirrors the server's checks, which are the real boundary.
+//
+// `friendly` is somebody who has never sent a drone or a fleet at anybody, and
+// it is not a mood they picked — the server climbs the ladder for them and
+// `auth/profile.php` will not take the field. So the state is honest, and
+// hiding the ⚔️ is a courtesy: without it the button is there, the fleet is
+// paid for, and the answer arrives from the server as a 403.
 const isRaidTarget = (planet, systemId) => {
   if (!planet?.owner) return false
   if (playerColonizedPlanets.value.includes(planet.id)) return false
+  if ((planet.owner.disposition ?? 'friendly') === 'friendly') return false
   if (systemId === homeSystemId.value) return true
   return spiedPlanets.value.includes(planet.id)
 }
@@ -1647,6 +1704,9 @@ const startRaid = async (targetPlanetId, targetSystemId, ships, order, fromPlane
       startedAt: Date.now(),
       endsAt:    result.endsAt,
     })
+    // Same as the espionage launch: the rung comes back with the mission, so
+    // the commander card goes red the moment the fleet leaves.
+    if (result.disposition) playerDisposition.value = result.disposition
     return { ok: true, error: '' }
   } catch (e) {
     buildError.value = e.message
@@ -1895,6 +1955,10 @@ const sendSpyUnit = async (planetId, systemId, unitKey, fromPlanetId) => {
       const inv = SPY_DOCK[unitKey].inventory
       dock[inv] = Math.max(0, dock[inv] - 1)
     }
+    // The launch may have cost a rung. Taken from the response and not assumed
+    // here, because the server is the one that knows whether this was the first
+    // one — climbing to `neutral` is a no-op for anybody already above it.
+    if (result.disposition) playerDisposition.value = result.disposition
   } catch (e) {
     buildError.value = e.message
   }
@@ -2211,6 +2275,27 @@ const loadDevSettings = () => {
 }
 
 loadDevSettings()
+
+// ── LocalStorage persistence (UI preferences) ─────────────────────────────────
+// Its own key, not the dev blob: the text size is a real player setting, and it
+// must survive whatever happens to the dev tuning. It is stored **per device**
+// rather than on the account, unlike the language sitting next to it in the same
+// row — how big the type has to be is a property of the screen you are holding,
+// and a phone and a desktop want different answers.
+const UI_KEY = 'hawk-star-ui'
+
+const saveUiSettings = () => {
+  try { localStorage.setItem(UI_KEY, JSON.stringify({ textSize: textSize.value })) } catch { /* ignore */ }
+}
+
+const loadUiSettings = () => {
+  try {
+    const data = JSON.parse(localStorage.getItem(UI_KEY) ?? '{}')
+    if (data.textSize in TEXT_SCALES) textSize.value = data.textSize
+  } catch { /* ignore */ }
+}
+
+loadUiSettings()
 
 export const resetGame = () => {
   location.reload()
@@ -2823,7 +2908,7 @@ export const initFromApi = async () => {
     applyGameState(hpId, state)
     playerName.value        = player.value?.username    ?? ''
     playerPortrait.value    = player.value?.portrait    ?? '👨‍🚀'
-    playerDisposition.value = player.value?.disposition ?? 'neutral'
+    playerDisposition.value = player.value?.disposition ?? 'friendly'
     lastResourceSync.value   = Math.floor(Date.now() / 60000)
     lastResourceSyncMs.value = Date.now()
     // The planet view always opens on the base tile — it is the one tile every
@@ -2970,9 +3055,10 @@ const planetStatus = (planetId) => {
   const batHours = st.battery?.drainPerHour ? (bat ?? 0) / st.battery.drainPerHour : null
   const shdHours = st.shield?.drainPerHour  ? (shd ?? 0) / st.shield.drainPerHour  : null
   const dark = gridDownOn(planetId)
-  // Same guard gridDownOn() uses: a planet without a power plant has no grid to
-  // lose, so its battery is not a meter that means anything yet.
-  const hasBattery = !!st.battery && (st.battery.powerPlantLevel ?? 0) > 0
+  // Same guard gridDownOn() uses, plus the object the row actually draws from:
+  // a planet without a power plant has no grid to lose, and a plant the tick has
+  // not registered yet has a blackout to report but no meter to draw.
+  const hasBattery = powerPlantLevelOn(planetId) > 0 && !!st.battery
 
   // ── Alarms — something is broken right now ──
   if (dark) add('alarm', 'blackout', '⏹', 'hawkStar.empire.rowBlackout', { tile: 'energy' })
@@ -3569,6 +3655,10 @@ export function useHawkStar() {
     // dev tuning
     tickRateMs,
     buildTimeFactor,
+    TEXT_SCALES,
+    textSize,
+    textScale,
+    setTextSize,
     saveDevSettings,
   }
 }

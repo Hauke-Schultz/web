@@ -321,6 +321,32 @@ const distanceTo = (sys) => {
 // portraits on a 2 rem dot is four things you cannot tell apart. Both halves
 // come from the same list, so the badge and the caption can never disagree.
 const ownerName  = (o) => o?.username ?? o?.name ?? '?'
+// ── Standing ──────────────────────────────────────────────────────────────────
+// The same three rungs the profile card wears, read off the other commander.
+// It arrives on every inhabitant with the scan — the server has always sent it —
+// and it is worth showing because it is the one fact about somebody that says
+// what they have already done: `friendly` is a commander who has never sent a
+// drone or a fleet at anybody, which is also why they cannot be raided.
+//
+// Falls back to `friendly`, the lowest rung: an NPC faction or a record from
+// before the ladder existed must not be drawn as more dangerous than it is.
+const DISP_ICON = { friendly: '🤝', neutral: '⚖️', hostile: '⚔️' }
+
+const dispositionOf = (owner) => {
+  const d = owner?.disposition
+  return DISP_ICON[d] ? d : 'friendly'
+}
+
+const dispositionLabel = (owner) => {
+  const d = dispositionOf(owner)
+  return `${DISP_ICON[d]} ${t('hawkStar.profile.' + d)}`
+}
+
+// Only ever true of a player, never of an NPC faction — the shield is a fact
+// about an account that has stayed out of everything, and a faction has no
+// account to stay out of it with.
+const isUnraidable = (owner) => !!owner?.playerId && dispositionOf(owner) === 'friendly'
+
 const ownerNames = (sys) => uniqueOwners(sys).map(ownerName).join(' · ')
 const ownerRest  = (sys) => Math.max(0, uniqueOwners(sys).length - 1)
 const ownerLabel = (sys) => ownerName(uniqueOwners(sys)[0])
@@ -377,10 +403,10 @@ const scanRemaining = (sysId) => {
 
 
 // ── Selection — home system pre-selected ──────────────────────────────────────
-// The overview does not depend on this any more: it lives in the chart's column
-// and is up whatever is selected. So the panel column can go back to opening on
-// home, which is the one system a player always has something to read about.
-// Closing it with ✕ leaves the column empty and the overview standing.
+// The overview does not depend on this: it is a tab of its own and is reachable
+// whatever is selected. So the column can open on home, which is the one system
+// a player always has something to read about. Closing it with ✕ drops the two
+// system tabs and leaves the overview — the column is never empty.
 const selectedId = ref(homeSystemId.value)
 const selected   = computed(() => galaxySystems.value.find(s => s.id === selectedId.value) ?? null)
 
@@ -388,20 +414,50 @@ const selectSystem = (sys) => {
   selectedId.value = selectedId.value === sys.id ? null : sys.id
 }
 
-// ── The panel's two faces ─────────────────────────────────────────────────────
+// Whether the full card has anything to say. An unscanned system gets the scan
+// card instead — see the template; it used to get nothing at all.
+const showCard = (sys) => isHome(sys) || resolvedScanState(sys) === 'scanned'
+
+// ── The panel's three faces ───────────────────────────────────────────────────
 // Card and comm log used to sit side by side, which cost the panel twice the
 // width it needed and left the chart nothing to sit next to. They are two views
 // of one system, not two things you read at once, so they became tabs — and the
 // page can put the whole panel beside the chart instead of under it.
 //
-// Home has no comm log, so it has no tabs either; `activeTab` makes sure a
-// 'comm' left over from the previous selection cannot blank the home panel.
-const panelTab  = ref('card')
+// The overview is the third, and the one that is always in the row: it is the
+// only face here that is not about the selected system, so nothing a selection
+// does — or fails to do — can take it away. That is what makes the tab bar
+// permanent as well. It used to appear only on a scanned foreign system, which
+// meant the column had no controls at all on home or on an unknown star.
+//
+// Which faces exist is a property of the selection, not of the click history,
+// so it is derived rather than stored — and `activeTab` falls back through the
+// list, which is how a 'comm' left over from the previous selection cannot
+// blank the panel on a home system that has no comm log.
+const panelTab = ref('card')
+
+const tabs = computed(() => {
+  const list = []
+  // Scan card or system card — either way, the selection has a face to show.
+  if (selected.value) list.push('card')
+  // Nobody to call on your own home system, and nobody to call on a system
+  // whose inhabitants a scan has not turned up yet.
+  if (selected.value && showCard(selected.value) && !isHome(selected.value)) list.push('comm')
+  list.push('overview')
+  return list
+})
+
+// First in the list, not a fixed default: with a system selected that is its
+// card, with nothing selected it is the overview — in both cases the thing the
+// column is actually for at that moment.
 const activeTab = computed(() =>
-  selected.value && !isHome(selected.value) ? panelTab.value : 'card'
+  tabs.value.includes(panelTab.value) ? panelTab.value : tabs.value[0]
 )
-// A new system opens on its card. Reading somebody's messages says nothing
-// about what you want to see next door.
+
+// A new system opens on its card — clicking a star is a request to read about
+// that star, and landing on the overview instead would answer a question you
+// did not ask. Deselecting resets to 'card' too, which the fallback above then
+// turns into the overview, because 'card' is no longer on offer.
 watch(selectedId, () => { panelTab.value = 'card' })
 
 // ── Battle log for the selected system ────────────────────────────────────────
@@ -432,10 +488,6 @@ const systemBattles = computed(() => {
 
   return all.sort((a, b) => b.foughtAt - a.foughtAt).slice(0, BATTLE_LOG_MAX)
 })
-
-// Whether the full card has anything to say. An unscanned system gets the scan
-// card instead — see the template; it used to get nothing at all.
-const showCard = (sys) => isHome(sys) || resolvedScanState(sys) === 'scanned'
 
 // A marker is a 2 rem dot with a one-word caption, so everything it cannot fit
 // goes in the tooltip: what the system is, who is on it, how far out it sits.
@@ -654,42 +706,96 @@ const tileClass = (sys) => {
           <i class="hs-galaxy-legend-dot" />{{ t('hawkStar.galaxy.legendUnscanned') }}
         </span>
       </div>
-
-      <!-- ── The standing overview — always on ────────────────────────────────────
-           Under the chart and its key, in the chart's own column, so it is on
-           screen whatever is or is not selected next door. Flights in the air and
-           battles lately are player-wide facts: they belong to the map itself
-           rather than to whichever system happens to be picked, and a fleet three
-           hours from home is exactly the thing you must not lose sight of while
-           reading somebody else's system card.
-
-           It sits under the key rather than over the chart because the chart is
-           the anchor of the screen — it must not move when a flight lands or a
-           battle report arrives and the list changes height.
-
-           Only the "pick a system" line comes and goes — with a card already open
-           beside it, it would be wrong half the time.
-      -->
-      <HsGalaxyOverview :show-hint="!selected" />
     </div>
 
-    <!-- ── Everything about the selected system ─────────────────────────────────
-         One column, holding whichever of the two cards applies. On a wide
-         screen it sits beside the chart; below 1024 px it drops underneath.
+    <!-- ── The panel column ─────────────────────────────────────────────────────
+         One column with one permanent tab bar over it. On a wide screen it sits
+         beside the chart; below 1024 px it drops underneath.
     -->
     <div class="hs-galaxy-side">
+      <div class="hs-galaxy-panel">
 
-      <!-- ── An unknown system: the scan comes first ──────────────────────────────
-           This card is new, and it exists because selecting an unscanned system
-           used to do nothing visible at all: the panel below is gated on
-           showCard(), and the only way to start a scan was a 0.48 rem button
-           inside the tile — which the mobile layout hid outright. So the one
-           action the system actually offers was the one thing you could not find.
-           Now the marker opens a card that says the single true thing about an
-           unknown system: scan it, and everything else becomes possible.
-      -->
-      <Transition name="hs-slide">
-        <div v-if="selected && !showCard(selected)" class="hs-galaxy-scan-card">
+        <!-- ── The tab bar — always up ──────────────────────────────────────────
+             It used to appear only on a scanned foreign system, so on home, on
+             an unknown star and with nothing selected the column had no controls
+             at all. Now the row is permanent and only its contents change: the
+             two system tabs come and go with what the selection can offer, and
+             🚀 is in it at every moment.
+        -->
+        <div class="hs-galaxy-tabs" role="tablist">
+          <button
+            v-if="tabs.includes('card')"
+            type="button"
+            role="tab"
+            class="hs-galaxy-tab"
+            :class="{ 'hs-galaxy-tab--active': activeTab === 'card' }"
+            :aria-selected="activeTab === 'card'"
+            @click="panelTab = 'card'"
+          >🪐 {{ t('hawkStar.galaxy.tabSystem') }}</button>
+
+          <button
+            v-if="tabs.includes('comm')"
+            type="button"
+            role="tab"
+            class="hs-galaxy-tab"
+            :class="{ 'hs-galaxy-tab--active': activeTab === 'comm' }"
+            :aria-selected="activeTab === 'comm'"
+            @click="panelTab = 'comm'"
+          >
+            📡 {{ t('hawkStar.galaxy.tabComm') }}
+            <!-- A tab hides what is behind it, so the one thing that arrives on
+                 its own has to knock. Without this dot a message landing in the
+                 closed tab would be silent. -->
+            <span v-if="unreadSystems[String(selected.id)]" class="hs-galaxy-tab-dot" />
+          </button>
+
+          <!-- No v-if: this is the tab that makes the bar worth keeping up. -->
+          <button
+            type="button"
+            role="tab"
+            class="hs-galaxy-tab"
+            :class="{ 'hs-galaxy-tab--active': activeTab === 'overview' }"
+            :aria-selected="activeTab === 'overview'"
+            @click="panelTab = 'overview'"
+          >🚀 {{ t('hawkStar.galaxy.tabOverview') }}</button>
+        </div>
+
+        <!-- ── Overview ─────────────────────────────────────────────────────────
+             The one face that is not about the selected system: every flight of
+             ours in the air and the last battles anywhere, both player-wide. It
+             is why the bar is permanent — a fleet three hours from home must
+             stay one click away whatever is or is not selected on the chart.
+
+             Only the "pick a system" line comes and goes: with a card sitting
+             behind the next tab it would be wrong half the time.
+        -->
+        <HsGalaxyOverview v-if="activeTab === 'overview'" :show-hint="!selected" />
+
+        <!-- v-if, not v-show: HsCommLog marks the system read when it mounts, and
+             a log kept alive behind a closed tab would clear the unread dot for
+             messages nobody has looked at. Opening the tab IS reading them. -->
+        <div v-if="activeTab === 'comm' && selected" class="hs-galaxy-comm-wrap">
+          <HsCommLog :system-id="selected.id" />
+        </div>
+
+        <!-- ── The system tab: scan card or system card ─────────────────────────
+             Two states of one tab. The scan card exists because selecting an
+             unscanned system used to do nothing visible at all: the full card is
+             gated on showCard(), and the only way to start a scan was a 0.48 rem
+             button inside the tile — which the mobile layout hid outright. So
+             the one action the system actually offers was the one thing you
+             could not find.
+
+             No Transition on any of the three panes, which is what the two cards
+             used to have: a pane that fades out still holds its layout space, so
+             the one arriving would sit under the one leaving for 200 ms and the
+             panel would double in height on every tab click. Tabs switch, they
+             do not travel.
+        -->
+        <div
+          v-if="activeTab === 'card' && selected && !showCard(selected)"
+          class="hs-galaxy-scan-card"
+        >
           <div class="hs-galaxy-card-header">
             <div>
               <div class="hs-galaxy-card-name">{{ selected.name }}</div>
@@ -738,281 +844,247 @@ const tileClass = (sys) => {
             ⏳ {{ t('hawkStar.galaxy.scanBusy') }}
           </div>
         </div>
-      </Transition>
 
-      <!-- ── The system, in two tabs ──────────────────────────────────────────── -->
-      <Transition name="hs-slide">
-        <div v-if="selected && showCard(selected)" class="hs-galaxy-panel">
-
-          <!-- No tabs on your own home system: there is nobody there to call. -->
-          <div v-if="!isHome(selected)" class="hs-galaxy-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              class="hs-galaxy-tab"
-              :class="{ 'hs-galaxy-tab--active': activeTab === 'card' }"
-              :aria-selected="activeTab === 'card'"
-              @click="panelTab = 'card'"
-            >🪐 {{ t('hawkStar.galaxy.tabSystem') }}</button>
-
-            <button
-              type="button"
-              role="tab"
-              class="hs-galaxy-tab"
-              :class="{ 'hs-galaxy-tab--active': activeTab === 'comm' }"
-              :aria-selected="activeTab === 'comm'"
-              @click="panelTab = 'comm'"
-            >
-              📡 {{ t('hawkStar.galaxy.tabComm') }}
-              <!-- A tab hides what is behind it, so the one thing that arrives on
-                   its own has to knock. Without this dot a message landing in the
-                   closed tab would be silent. -->
-              <span v-if="unreadSystems[String(selected.id)]" class="hs-galaxy-tab-dot" />
-            </button>
-          </div>
-
-          <!-- v-if, not v-show: HsCommLog marks the system read when it mounts, and
-               a log kept alive behind a closed tab would clear the unread dot for
-               messages nobody has looked at. Opening the tab IS reading them. -->
-          <div v-if="activeTab === 'comm'" class="hs-galaxy-comm-wrap">
-            <HsCommLog :system-id="selected.id" />
-          </div>
-
-          <!-- System card -->
-          <div v-show="activeTab === 'card'" class="hs-galaxy-card">
-            <div class="hs-galaxy-card-header">
-              <div>
-                <div class="hs-galaxy-card-name">{{ selected.name }}</div>
-                <div class="hs-galaxy-card-meta">
-                  {{ t('hawkStar.galaxy.starMeta', { cls: selected.starClass, n: selected.planets.length }) }}
-                </div>
+        <div v-else-if="activeTab === 'card' && selected" class="hs-galaxy-card">
+          <div class="hs-galaxy-card-header">
+            <div>
+              <div class="hs-galaxy-card-name">{{ selected.name }}</div>
+              <div class="hs-galaxy-card-meta">
+                {{ t('hawkStar.galaxy.starMeta', { cls: selected.starClass, n: selected.planets.length }) }}
               </div>
-              <button class="hs-galaxy-card-close" @click="selectedId = null">✕</button>
             </div>
+            <button class="hs-galaxy-card-close" @click="selectedId = null">✕</button>
+          </div>
 
-            <!-- Owner list (inhabited foreign systems) -->
-            <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-comm-section">
-              <div class="hs-faction-list">
-                <div v-for="owner in uniqueOwners(selected)" :key="owner.playerId ?? owner.factionId" class="hs-faction-row">
-                  <span class="hs-faction-portrait">{{ owner.portrait ?? '👤' }}</span>
-                  <!-- Name only: how many planets they hold is not something a scan
-                       reveals — that is what the spy drone is for, planet by planet -->
-                  <div class="hs-faction-info">
-                    <span class="hs-faction-name">{{ owner.username ?? owner.name }}</span>
-                  </div>
+          <!-- Owner list (inhabited foreign systems) -->
+          <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-comm-section">
+            <div class="hs-faction-list">
+              <div v-for="owner in uniqueOwners(selected)" :key="owner.playerId ?? owner.factionId" class="hs-faction-row">
+                <span class="hs-faction-portrait">{{ owner.portrait ?? '👤' }}</span>
+                <!-- Name and standing. How many planets they hold is still not
+                     something a scan reveals — that is what the spy drone is
+                     for, planet by planet — but what they have already done to
+                     other people is not a secret, and it is the fact that
+                     decides whether the ⚔️ appears on their planets at all. -->
+                <div class="hs-faction-info">
+                  <span class="hs-faction-name">{{ owner.username ?? owner.name }}</span>
+                  <span
+                    class="hs-faction-disp"
+                    :class="`hs-faction-disp--${dispositionOf(owner)}`"
+                    :title="isUnraidable(owner) ? t('hawkStar.galaxy.dispositionSafe') : ''"
+                  >{{ dispositionLabel(owner) }}</span>
+                </div>
 
-                  <!-- The running record, both ways round: ⚔️ what they did to us,
-                       🎯 what we did to them. Won and repelled raids both count —
-                       an attacker who keeps bouncing off is still an attacker, and
-                       the next fleet will be bigger. The single battles are in the
-                       log at the foot of the card. -->
-                  <div class="hs-faction-record">
-                    <span
-                      v-if="raidOutRecord(owner)"
-                      class="hs-faction-raids hs-faction-raids--out"
-                      :class="{ 'hs-faction-raids--fresh-out': raidOutRecordFresh(owner) }"
-                      :title="t('hawkStar.galaxy.raidOutRecordHint', { n: raidOutRecord(owner).count })"
-                    >{{ raidOutRecordLabel(owner) }}</span>
-                    <span
-                      v-if="raidRecord(owner)"
-                      class="hs-faction-raids"
-                      :class="{ 'hs-faction-raids--fresh': raidRecordFresh(owner) }"
-                      :title="t('hawkStar.galaxy.raidRecordHint', { n: raidRecord(owner).count })"
-                    >{{ raidRecordLabel(owner) }}</span>
-                  </div>
+                <!-- The running record, both ways round: ⚔️ what they did to us,
+                     🎯 what we did to them. Won and repelled raids both count —
+                     an attacker who keeps bouncing off is still an attacker, and
+                     the next fleet will be bigger. The single battles are in the
+                     log at the foot of the card. -->
+                <div class="hs-faction-record">
+                  <span
+                    v-if="raidOutRecord(owner)"
+                    class="hs-faction-raids hs-faction-raids--out"
+                    :class="{ 'hs-faction-raids--fresh-out': raidOutRecordFresh(owner) }"
+                    :title="t('hawkStar.galaxy.raidOutRecordHint', { n: raidOutRecord(owner).count })"
+                  >{{ raidOutRecordLabel(owner) }}</span>
+                  <span
+                    v-if="raidRecord(owner)"
+                    class="hs-faction-raids"
+                    :class="{ 'hs-faction-raids--fresh': raidRecordFresh(owner) }"
+                    :title="t('hawkStar.galaxy.raidRecordHint', { n: raidRecord(owner).count })"
+                  >{{ raidRecordLabel(owner) }}</span>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Planet list — who sits where is a secret until a spy drone lands -->
-            <ul class="hs-planet-list">
-              <li v-for="planet in selected.planets" :key="planet.id" class="hs-planet-item">
-                <!-- The world itself — greyed while nothing has flown past it -->
+          <!-- Planet list — who sits where is a secret until a spy drone lands -->
+          <ul class="hs-planet-list">
+            <li v-for="planet in selected.planets" :key="planet.id" class="hs-planet-item">
+              <!-- The world itself — greyed while nothing has flown past it -->
+              <span
+                class="hs-planet-type"
+                :class="{ 'hs-planet-type--unknown': !planet.type }"
+                :title="typeTitle(planet)"
+              >{{ typeIcon(planet) }}</span>
+              <span class="hs-planet-name">{{ planet.name }}</span>
+
+              <!-- Own colony: no espionage involved, always current -->
+              <span
+                v-if="playerColonizedPlanets.includes(planet.id)"
+                class="hs-planet-tag hs-planet-tag--own"
+              >{{ t('hawkStar.galaxy.stateColony') }}</span>
+
+              <!-- Home system: plain truth, no report attached -->
+              <template v-else-if="isHome(selected)">
+                <span v-if="planet.owner" class="hs-planet-tag hs-planet-tag--owner">
+                  {{ planet.owner?.username ?? planet.owner?.name }}
+                </span>
+              </template>
+
+              <!-- Foreign system: a finding always carries its age -->
+              <template v-else>
                 <span
-                  class="hs-planet-type"
-                  :class="{ 'hs-planet-type--unknown': !planet.type }"
-                  :title="typeTitle(planet)"
-                >{{ typeIcon(planet) }}</span>
-                <span class="hs-planet-name">{{ planet.name }}</span>
-
-                <!-- Own colony: no espionage involved, always current -->
+                  v-if="planet.owner"
+                  class="hs-planet-tag hs-planet-tag--owner"
+                >{{ planet.owner?.username ?? planet.owner?.name }}</span>
                 <span
-                  v-if="playerColonizedPlanets.includes(planet.id)"
-                  class="hs-planet-tag hs-planet-tag--own"
-                >{{ t('hawkStar.galaxy.stateColony') }}</span>
+                  v-else-if="!isUnknownPlanet(planet)"
+                  class="hs-planet-tag hs-planet-tag--empty"
+                >{{ t('hawkStar.galaxy.stateUncolonized') }}</span>
 
-                <!-- Home system: plain truth, no report attached -->
-                <template v-else-if="isHome(selected)">
-                  <span v-if="planet.owner" class="hs-planet-tag hs-planet-tag--owner">
-                    {{ planet.owner?.username ?? planet.owner?.name }}
-                  </span>
-                </template>
+                <!-- Satellite finding: is there a shield, and is it up -->
+                <span
+                  v-if="shieldReport(planet)"
+                  class="hs-planet-shield"
+                  :class="{
+                    'hs-planet-shield--none': shieldReport(planet).charge === null,
+                    'hs-planet-shield--up':   shieldReport(planet).charge > 0,
+                    'hs-planet-shield--down': shieldReport(planet).charge === 0,
+                    'hs-planet-shield--live': shieldReport(planet).live,
+                  }"
+                  :title="shieldTitle(planet)"
+                >{{ shieldLabel(planet) }}</span>
 
-                <!-- Foreign system: a finding always carries its age -->
+                <span
+                  v-if="!isUnknownPlanet(planet)"
+                  class="hs-planet-intel"
+                  :class="{
+                    'hs-planet-intel--live':  planetIntel(planet.id)?.live,
+                    'hs-planet-intel--stale': isIntelStale(planet.id),
+                  }"
+                  :title="intelTitle(planet)"
+                >{{ intelLabel(planet) }}</span>
+
+                <!-- Something is on its way there right now -->
+                <span v-if="isSpyingPlanet(planet.id)" class="hs-planet-spy-timer">
+                  🕵️ {{ formatTime(remainingSpySec(planet.id)) }}
+                </span>
+
+                <!-- Send / refresh. Both units fly the same route; the satellite
+                     is the one that keeps the finding from ageing. -->
                 <template v-else>
+                  <button
+                    v-if="canSendSpyDrone(planet.id, selected.id)"
+                    class="hs-planet-spy-btn"
+                    :title="t('hawkStar.galaxy.spyFlight', { time: spyFlightLabel(selected) })"
+                    @click.stop="sendSpyDrone(planet.id, selected.id)"
+                  >🕵️ {{ isUnknownPlanet(planet) ? t('hawkStar.galaxy.spy') : t('hawkStar.galaxy.spyAgain') }}</button>
+                  <button
+                    v-if="canSendSpySatellite(planet.id, selected.id)"
+                    class="hs-planet-spy-btn hs-planet-spy-btn--sat"
+                    :title="t('hawkStar.galaxy.satelliteHint')"
+                    @click.stop="sendSpySatellite(planet.id, selected.id)"
+                  >📡</button>
                   <span
-                    v-if="planet.owner"
-                    class="hs-planet-tag hs-planet-tag--owner"
-                  >{{ planet.owner?.username ?? planet.owner?.name }}</span>
-                  <span
-                    v-else-if="!isUnknownPlanet(planet)"
-                    class="hs-planet-tag hs-planet-tag--empty"
-                  >{{ t('hawkStar.galaxy.stateUncolonized') }}</span>
-
-                  <!-- Satellite finding: is there a shield, and is it up -->
-                  <span
-                    v-if="shieldReport(planet)"
-                    class="hs-planet-shield"
-                    :class="{
-                      'hs-planet-shield--none': shieldReport(planet).charge === null,
-                      'hs-planet-shield--up':   shieldReport(planet).charge > 0,
-                      'hs-planet-shield--down': shieldReport(planet).charge === 0,
-                      'hs-planet-shield--live': shieldReport(planet).live,
-                    }"
-                    :title="shieldTitle(planet)"
-                  >{{ shieldLabel(planet) }}</span>
-
-                  <span
-                    v-if="!isUnknownPlanet(planet)"
-                    class="hs-planet-intel"
-                    :class="{
-                      'hs-planet-intel--live':  planetIntel(planet.id)?.live,
-                      'hs-planet-intel--stale': isIntelStale(planet.id),
-                    }"
-                    :title="intelTitle(planet)"
-                  >{{ intelLabel(planet) }}</span>
-
-                  <!-- Something is on its way there right now -->
-                  <span v-if="isSpyingPlanet(planet.id)" class="hs-planet-spy-timer">
-                    🕵️ {{ formatTime(remainingSpySec(planet.id)) }}
-                  </span>
-
-                  <!-- Send / refresh. Both units fly the same route; the satellite
-                       is the one that keeps the finding from ageing. -->
-                  <template v-else>
-                    <button
-                      v-if="canSendSpyDrone(planet.id, selected.id)"
-                      class="hs-planet-spy-btn"
-                      :title="t('hawkStar.galaxy.spyFlight', { time: spyFlightLabel(selected) })"
-                      @click.stop="sendSpyDrone(planet.id, selected.id)"
-                    >🕵️ {{ isUnknownPlanet(planet) ? t('hawkStar.galaxy.spy') : t('hawkStar.galaxy.spyAgain') }}</button>
-                    <button
-                      v-if="canSendSpySatellite(planet.id, selected.id)"
-                      class="hs-planet-spy-btn hs-planet-spy-btn--sat"
-                      :title="t('hawkStar.galaxy.satelliteHint')"
-                      @click.stop="sendSpySatellite(planet.id, selected.id)"
-                    >📡</button>
-                    <span
-                      v-if="isUnknownPlanet(planet) && !canSendSpyDrone(planet.id, selected.id)"
-                      class="hs-planet-tag hs-planet-tag--unknown"
-                      :title="isSpyTarget(planet.id, selected.id) ? t('hawkStar.galaxy.spyNoDrone') : ''"
-                    >❓</span>
-                  </template>
+                    v-if="isUnknownPlanet(planet) && !canSendSpyDrone(planet.id, selected.id)"
+                    class="hs-planet-tag hs-planet-tag--unknown"
+                    :title="isSpyTarget(planet.id, selected.id) ? t('hawkStar.galaxy.spyNoDrone') : ''"
+                  >❓</span>
                 </template>
+              </template>
 
-                <!-- Raid. Offered on any foreign colony we have looked at, and
-                     only while a fleet is parked in the active planet's dock. -->
-                <span v-if="isRaidingPlanet(planet.id)" class="hs-planet-raid-timer">
-                  ⚔️ {{ formatTime(remainingRaidSec(planet.id)) }}
-                </span>
-                <button
-                  v-else-if="isRaidTarget(planet, selected.id) && canRaid"
-                  class="hs-planet-raid-btn"
-                  :title="t('hawkStar.galaxy.raidHint', { time: raidFlightLabel(selected) })"
-                  @click.stop="openRaid(planet)"
-                >⚔️</button>
-              </li>
-            </ul>
-
-            <!-- Attack order. Both decisions live here because the fleet flies
-                 with sealed orders — there is no choice left after the battle. -->
-            <div v-if="raidTarget" class="hs-raid-dialog">
-              <div class="hs-raid-dialog-head">
-                <span class="hs-raid-dialog-title">
-                  ⚔️ {{ selected.planets.find(p => p.id === raidTarget)?.name }}
-                </span>
-                <button class="hs-galaxy-card-close" @click="closeRaid">✕</button>
-              </div>
-
-              <div class="hs-raid-row">
-                <span class="hs-raid-label">{{ t('hawkStar.galaxy.raidShips') }}</span>
-                <div class="hs-raid-count">
-                  <button class="hs-raid-count__btn" :disabled="raidShips <= 1" @click="setRaidShips(-1)">−</button>
-                  <span class="hs-raid-count__value">{{ raidShips }} / {{ corvetteInventory }}</span>
-                  <button class="hs-raid-count__btn" :disabled="raidShips >= corvetteInventory" @click="setRaidShips(1)">+</button>
-                </div>
-              </div>
-
-              <!-- Firepower is the whole battle: it is measured against shield %
-                   plus battery %, and only the shield can be scouted. -->
-              <div class="hs-raid-power">
-                {{ t('hawkStar.galaxy.raidFirepower', { n: raidShips * 20 }) }}
-                <!-- have / need. A bare "🔋 4" was the bill with nothing to
-                     measure it against, so the only way to find out the burn
-                     could not be paid was to launch and be refused. -->
-                <span
-                  class="hs-raid-fuel"
-                  :class="{ 'hs-raid-fuel--short': raidFuel.short }"
-                  :title="t('hawkStar.galaxy.raidFuelHint')"
-                >
-                  {{ RESOURCES[raidFuel.key]?.icon ?? '🔋' }} {{ raidFuel.have }} / {{ raidFuel.need }}
-                </span>
-              </div>
-
-              <div class="hs-raid-orders">
-                <button
-                  class="hs-raid-order"
-                  :class="{ 'hs-raid-order--active': raidOrder === 'disable' }"
-                  @click="setRaidOrder('disable')"
-                >
-                  <span class="hs-raid-order-title">⚡ {{ t('hawkStar.galaxy.raidDisable') }}</span>
-                  <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidDisableDesc') }}</span>
-                </button>
-                <button
-                  class="hs-raid-order"
-                  :class="{ 'hs-raid-order--active': raidOrder === 'plunder' }"
-                  @click="setRaidOrder('plunder')"
-                >
-                  <span class="hs-raid-order-title">💰 {{ t('hawkStar.galaxy.raidPlunder') }}</span>
-                  <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidPlunderDesc') }}</span>
-                </button>
-              </div>
-
-              <!-- What the server said, verbatim, right under the button that
-                   asked. It stays until the order changes or the dialog closes. -->
-              <div v-if="raidError" class="hs-raid-error">
-                <span class="hs-raid-error-label">⚠ {{ t('hawkStar.galaxy.raidFailed') }}</span>
-                <span class="hs-raid-error-text">{{ raidError }}</span>
-              </div>
-
+              <!-- Raid. Offered on any foreign colony we have looked at, and
+                   only while a fleet is parked in the active planet's dock. -->
+              <span v-if="isRaidingPlanet(planet.id)" class="hs-planet-raid-timer">
+                ⚔️ {{ formatTime(remainingRaidSec(planet.id)) }}
+              </span>
               <button
-                class="hs-raid-launch"
-                :disabled="raidSending || raidFuel.short"
-                @click="confirmRaid(selected.planets.find(p => p.id === raidTarget), selected.id)"
+                v-else-if="isRaidTarget(planet, selected.id) && canRaid"
+                class="hs-planet-raid-btn"
+                :title="t('hawkStar.galaxy.raidHint', { time: raidFlightLabel(selected) })"
+                @click.stop="openRaid(planet)"
+              >⚔️</button>
+            </li>
+          </ul>
+
+          <!-- Attack order. Both decisions live here because the fleet flies
+               with sealed orders — there is no choice left after the battle. -->
+          <div v-if="raidTarget" class="hs-raid-dialog">
+            <div class="hs-raid-dialog-head">
+              <span class="hs-raid-dialog-title">
+                ⚔️ {{ selected.planets.find(p => p.id === raidTarget)?.name }}
+              </span>
+              <button class="hs-galaxy-card-close" @click="closeRaid">✕</button>
+            </div>
+
+            <div class="hs-raid-row">
+              <span class="hs-raid-label">{{ t('hawkStar.galaxy.raidShips') }}</span>
+              <div class="hs-raid-count">
+                <button class="hs-raid-count__btn" :disabled="raidShips <= 1" @click="setRaidShips(-1)">−</button>
+                <span class="hs-raid-count__value">{{ raidShips }} / {{ corvetteInventory }}</span>
+                <button class="hs-raid-count__btn" :disabled="raidShips >= corvetteInventory" @click="setRaidShips(1)">+</button>
+              </div>
+            </div>
+
+            <!-- Firepower is the whole battle: it is measured against shield %
+                 plus battery %, and only the shield can be scouted. -->
+            <div class="hs-raid-power">
+              {{ t('hawkStar.galaxy.raidFirepower', { n: raidShips * 20 }) }}
+              <!-- have / need. A bare "🔋 4" was the bill with nothing to
+                   measure it against, so the only way to find out the burn
+                   could not be paid was to launch and be refused. -->
+              <span
+                class="hs-raid-fuel"
+                :class="{ 'hs-raid-fuel--short': raidFuel.short }"
+                :title="t('hawkStar.galaxy.raidFuelHint')"
               >
-                {{ raidSending
-                    ? t('hawkStar.galaxy.raidLaunching')
-                    : t('hawkStar.galaxy.raidLaunch', { time: raidFlightLabel(selected) }) }}
+                {{ RESOURCES[raidFuel.key]?.icon ?? '🔋' }} {{ raidFuel.have }} / {{ raidFuel.need }}
+              </span>
+            </div>
+
+            <div class="hs-raid-orders">
+              <button
+                class="hs-raid-order"
+                :class="{ 'hs-raid-order--active': raidOrder === 'disable' }"
+                @click="setRaidOrder('disable')"
+              >
+                <span class="hs-raid-order-title">⚡ {{ t('hawkStar.galaxy.raidDisable') }}</span>
+                <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidDisableDesc') }}</span>
+              </button>
+              <button
+                class="hs-raid-order"
+                :class="{ 'hs-raid-order--active': raidOrder === 'plunder' }"
+                @click="setRaidOrder('plunder')"
+              >
+                <span class="hs-raid-order-title">💰 {{ t('hawkStar.galaxy.raidPlunder') }}</span>
+                <span class="hs-raid-order-desc">{{ t('hawkStar.galaxy.raidPlunderDesc') }}</span>
               </button>
             </div>
 
-            <!-- One line of context under the list, so the ❓ is not a mystery -->
-            <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-planet-list-hint">
-              {{ t('hawkStar.galaxy.spyHint') }}
+            <!-- What the server said, verbatim, right under the button that
+                 asked. It stays until the order changes or the dialog closes. -->
+            <div v-if="raidError" class="hs-raid-error">
+              <span class="hs-raid-error-label">⚠ {{ t('hawkStar.galaxy.raidFailed') }}</span>
+              <span class="hs-raid-error-text">{{ raidError }}</span>
             </div>
 
-            <!-- Everything that has been fought out with the commanders of this
-                 system, newest first, both directions. Always open: it is the one
-                 part of the card that is history rather than a control, and it
-                 belongs at the foot for exactly that reason. Each entry is one raid
-                 read from our chair — who flew, what it cost the fleet, what it did
-                 to the target's two meters, what came home in the hold. -->
-            <HsBattleLog :entries="systemBattles" />
+            <button
+              class="hs-raid-launch"
+              :disabled="raidSending || raidFuel.short"
+              @click="confirmRaid(selected.planets.find(p => p.id === raidTarget), selected.id)"
+            >
+              {{ raidSending
+                  ? t('hawkStar.galaxy.raidLaunching')
+                  : t('hawkStar.galaxy.raidLaunch', { time: raidFlightLabel(selected) }) }}
+            </button>
           </div>
 
-        </div>
-      </Transition>
+          <!-- One line of context under the list, so the ❓ is not a mystery -->
+          <div v-if="!isHome(selected) && isInhabited(selected)" class="hs-planet-list-hint">
+            {{ t('hawkStar.galaxy.spyHint') }}
+          </div>
 
+          <!-- Everything that has been fought out with the commanders of this
+               system, newest first, both directions. Always open: it is the one
+               part of the card that is history rather than a control, and it
+               belongs at the foot for exactly that reason. Each entry is one raid
+               read from our chair — who flew, what it cost the fleet, what it did
+               to the target's two meters, what came home in the hold. -->
+          <HsBattleLog :entries="systemBattles" />
+        </div>
+
+      </div>
     </div>
 
   </div>
@@ -1041,22 +1113,20 @@ const tileClass = (sys) => {
   }
 }
 
-// Whichever card the selection calls for, in one column.
+// Holds the one panel, and exists for the 1024 px rule above and nothing else.
+// It is the column that is allowed to grow: every list whose height is news-
+// driven is in here, so the chart beside it never gets pushed around.
 .hs-galaxy-side {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-// ── Chart + key + overview ────────────────────────────────────────────────────
-// The key stays under the chart it explains, at every width, and the standing
-// overview under the key. The spare column a desktop has goes to the system
-// panel instead — that is the thing whose height was pushing the page around.
-//
-// The overview belongs to this column rather than to the panel's: it is on
-// screen whether or not a system is selected, and its two lists change height on
-// their own (a flight lands, a report arrives). Under the key it pushes nothing;
-// above the chart it would move the anchor of the whole screen.
+// ── Chart + key ───────────────────────────────────────────────────────────────
+// The key stays under the chart it explains, at every width, and nothing else
+// does: this column is the anchor of the screen and must not move when a flight
+// lands or a battle report arrives. Everything whose height is news-driven lives
+// in the column next door.
 .hs-galaxy-chart {
   display: flex;
   flex-direction: column;
@@ -1068,9 +1138,23 @@ const tileClass = (sys) => {
 // A square box, like the solar map: every position inside it is a percentage of
 // the same side, so a system's coordinates mean the same thing on a 360 px phone
 // and on a desktop, and nothing here needs a media query to stay true.
-// --node is the only pixel-ish value, and it grows exactly once.
+// The two marker sizes are the only pixel-ish values on it.
+//
+// --node is what every system is drawn at, and it is deliberately small: the
+// chart has to stay readable as the galaxy fills up, and a field of 2.6 rem dots
+// runs out of room long before the seeder does. --node-lg is the exception, and
+// there are only ever two of them on screen — home, and whatever is selected.
+// Those are the two the eye has to find without reading a caption, so they get
+// the size instead of a colour nobody has learnt yet.
+//
+// In rem, so the text-size setting carries them along with the captions under
+// them — a dot that stayed put while its own name swelled past it would be the
+// worse bug. The numbers are picked for the **default M size** (1 rem = 18.4 px),
+// where they come out at the 32 / 48 px the chart was tuned to; S renders 28/42
+// and XL 42/63, which is the same trade every other measurement here makes.
 .hs-galaxy-orbit {
-  --node: 2.1rem;
+  --node:    1.75rem;
+  --node-lg: 2.6rem;
 
   position: relative;
   width: 100%;
@@ -1096,16 +1180,18 @@ const tileClass = (sys) => {
     radial-gradient(circle at 55% 26%, rgba(255,255,255,0.18) 0 1px, transparent 1.5px),
     radial-gradient(circle at 40% 70%, rgba(255,255,255,0.20) 0 1px, transparent 1.5px),
     linear-gradient(180deg, rgba(10,12,24,0.75), rgba(6,8,18,0.92));
-
-  @media (min-width: 640px) { --node: 2.6rem; }
 }
 
 // The seeder puts systems anywhere in 5…95, so the field is inset by half a
 // marker, plus the caption's height at the bottom. Without it an edge system
 // loses its name to the frame — and the name is the one thing a dot cannot draw.
+//
+// Measured off --node-lg, the big one: any system can be the selected one, so
+// the inset has to clear the size a marker can *become*, not the size it has
+// while nobody is looking at it.
 .hs-galaxy-field {
   position: absolute;
-  inset: calc(var(--node) * 0.62) calc(var(--node) * 0.75) calc(var(--node) * 0.95);
+  inset: calc(var(--node-lg) * 0.62) calc(var(--node-lg) * 0.75) calc(var(--node-lg) * 0.95);
 }
 
 // ── Range rings ───────────────────────────────────────────────────────────────
@@ -1224,10 +1310,15 @@ const tileClass = (sys) => {
 // and the hit area is grown by a pseudo-element rather than by padding — padding
 // would drag the dot off the point it is supposed to mark.
 .hs-galaxy-tile {
+  // One variable rather than a width and a height in two places: the rim, the
+  // hit area and the star inside all read off the tile's own size, so the two
+  // modifiers below resize the whole marker by changing this line.
+  --size: var(--node);
+
   position: absolute;
   transform: translate(-50%, -50%);
-  width: var(--node);
-  height: var(--node);
+  width: var(--size);
+  height: var(--size);
   padding: 0;
   border: 0;
   background: none;
@@ -1235,12 +1326,21 @@ const tileClass = (sys) => {
   z-index: 2;
   -webkit-tap-highlight-color: transparent;
 
+  // The two that have to be findable at a glance. `translate(-50%, -50%)` is
+  // what makes growing them free: the extra size spreads around the coordinate
+  // instead of pushing the dot off the point it marks.
+  &--home,
+  &--selected { --size: var(--node-lg); }
+
   &::before {
     content: '';
     position: absolute;
-    // 44 px of thumb around a 34 px dot. Markers are seeded at least 15 units
-    // apart, which is wider than this at every size the chart is drawn at.
-    inset: calc((2.75rem - var(--node)) / -2);
+    // 44 px of thumb around a small dot — and never *less* than the dot, which
+    // is what the min() is for: at --node-lg the marker is already wider than
+    // the target, and a positive inset would shrink the hit area inside it.
+    // Markers are seeded at least 15 units apart, wider than this at every size
+    // the chart is drawn at.
+    inset: min(0px, calc((2.75rem - var(--size)) / -2));
     border-radius: 50%;
   }
 
@@ -1650,7 +1750,10 @@ const tileClass = (sys) => {
 
 .hs-pulse-scan { animation: hs-pulse-scan 1.2s ease-in-out infinite; }
 
-// ── Panel: card + comm log side by side ──────────────────────────────────────
+// ── Panel: the tab bar and whichever face is open under it ───────────────────
+// No surface of its own — the faces bring their own glass — so it costs nothing
+// to leave standing at every moment, which is what lets the tab bar be
+// permanent.
 .hs-galaxy-panel {
   display: flex;
   flex-direction: column;
@@ -1665,9 +1768,15 @@ const tileClass = (sys) => {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-// Two views of one system. They are pills rather than an underlined bar because
-// the panel below them is already a bordered card, and a second horizontal rule
-// straight above it reads as a crack in the surface.
+// Two views of one system, plus the overview that belongs to no system. They are
+// pills rather than an underlined bar because the panel below them is already a
+// bordered card, and a second horizontal rule straight above it reads as a crack
+// in the surface.
+//
+// `flex: 1 1 0` shares the row between however many tabs are up, so one tab is a
+// full-width bar and three are thirds. Three is why the labels are short: at the
+// XL text size a third of a phone column is not much, and `text-overflow` is a
+// fallback, not a plan.
 .hs-galaxy-tabs {
   display: flex;
   gap: 0.3rem;
@@ -1803,12 +1912,32 @@ const tileClass = (sys) => {
 
 .hs-faction-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 
 .hs-faction-name  { font-size: 0.7rem; font-weight: 600; color: rgba(255,255,255,0.85); }
+
+// The same green / grey / red the commander card and the profile row use. Three
+// places name a disposition now, and one look has to mean one thing in all of
+// them — a red chip here and a red border there are the same statement about
+// two different people.
+.hs-faction-disp {
+  flex: none;
+  padding: 1px 0.3rem;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 0.48rem;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &--friendly { border-color: rgba(52,211,153,0.4);  color: #34d399; background: rgba(52,211,153,0.1); }
+  &--neutral  { border-color: rgba(148,163,184,0.4); color: #94a3b8; background: rgba(148,163,184,0.1); }
+  &--hostile  { border-color: rgba(248,113,113,0.45); color: #f87171; background: rgba(248,113,113,0.1); }
+}
 
 // ── Planet list ───────────────────────────────────────────────────────────────
 .hs-planet-list {
@@ -2122,9 +2251,4 @@ const tileClass = (sys) => {
   color: rgba(255,255,255,0.3);
 }
 
-// ── Slide transition ──────────────────────────────────────────────────────────
-.hs-slide-enter-active,
-.hs-slide-leave-active { transition: opacity 0.2s, transform 0.2s; }
-.hs-slide-enter-from,
-.hs-slide-leave-to     { opacity: 0; transform: translateY(6px); }
 </style>

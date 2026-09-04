@@ -599,7 +599,11 @@ const canRaise = (recipe) =>
 .hs-status-building { font-size: 0.7rem; font-weight: 600; color: var(--hs-warn);         white-space: nowrap; }
 .hs-status-max      { font-size: 0.7rem; font-weight: 700; color: var(--hs-accent-badge);  letter-spacing: 0.05em; }
 .hs-status-offline  { font-size: 0.7rem; font-weight: 700; color: var(--hs-danger);        white-space: nowrap; animation: pulse 1.5s ease-in-out infinite; }
-.hs-status-locked   { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); white-space: nowrap; text-align: right; }
+// Wraps rather than running off the row: the hint is a sentence now
+// ("Benötigt Power Plant Lv1"), and the longest building name plus the longest
+// verb does not fit one line of a half-width panel on a phone. A second line is
+// the mild failure; nowrap's is text spilling past the tile.
+.hs-status-locked   { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.25); text-align: right; text-wrap: balance; }
 
 .hs-empty { text-align: center; padding: 1.5rem; opacity: 0.25; font-size: 0.875rem; }
 

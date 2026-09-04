@@ -6,13 +6,17 @@ $jwt      = auth();
 $playerId = (int)$jwt['sub'];
 $b        = body();
 
-$portrait    = array_key_exists('portrait',    $b) ? $b['portrait']                  : null;
-$username    = array_key_exists('username',    $b) ? trim((string)$b['username'])     : null;
-$disposition = array_key_exists('disposition', $b) ? $b['disposition']               : null;
-$locale      = array_key_exists('locale',      $b) ? $b['locale']                    : null;
+$portrait = array_key_exists('portrait', $b) ? $b['portrait']              : null;
+$username = array_key_exists('username', $b) ? trim((string)$b['username']) : null;
+$locale   = array_key_exists('locale',   $b) ? $b['locale']                : null;
 
-$allowed_portraits   = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️'];
-$allowed_dispositions = ['friendly','neutral','hostile'];
+// `disposition` is deliberately NOT read here, and a client that still sends it
+// is ignored rather than refused — an old tab reloading its profile must not
+// start failing. It is not a preference any more: friendly is the one rung that
+// cannot be raided, so a settable disposition was a switch labelled "I am
+// invulnerable". It is climbed by what you send out — escalate_disposition()
+// in bootstrap.php, called from mission/spy.php and mission/raid.php.
+$allowed_portraits = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️'];
 
 $db = getDB();
 ensure_player_locale($db);
@@ -46,11 +50,6 @@ if ($username !== null) {
     if (mb_strlen($username) < 1 || mb_strlen($username) > 12) fail('Username must be 1–12 characters');
     $fields[] = 'username = ?';
     $params[] = $username;
-}
-if ($disposition !== null) {
-    if (!in_array($disposition, $allowed_dispositions, true)) fail('Invalid disposition');
-    $fields[] = 'disposition = ?';
-    $params[] = $disposition;
 }
 // The language belongs to the account, not to the browser: the client applies
 // whatever comes back here on every load, so a device that has never seen this

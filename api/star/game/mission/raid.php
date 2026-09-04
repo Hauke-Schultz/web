@@ -52,6 +52,19 @@ if (player_is_protected($db, $defenderId)) {
     fail('This commander is under beginner protection', 403);
 }
 
+// A commander who has never sent anything at anybody cannot be raided. This is
+// the whole point of the disposition ladder: `friendly` is not a mood, it is the
+// state of having stayed out of it, and it ends the moment they send their own
+// first spy drone. Unlike beginner protection it does not expire — somebody who
+// only ever builds is safe for as long as that stays true.
+//
+// Checked on the DEFENDER, and checked here rather than in the client: the
+// frontend hides the ⚔️ button on a friendly commander, and that is a courtesy,
+// not a boundary.
+if (player_disposition($db, $defenderId) === 'friendly') {
+    fail('This commander is friendly — nobody has anything to answer for yet', 403);
+}
+
 // You can only raid what you have looked at. Inside your own home system
 // ownership is public, so no flight is needed to know who lives there; anywhere
 // else a spy drone has to have surveyed the planet first.
@@ -109,10 +122,19 @@ $db->prepare(
      VALUES (?,'raid',?,?, DATE_ADD(NOW(), INTERVAL ? SECOND), 'out', ?, ?)"
 )->execute([$playerId, $fromId, $toId, $flightTime, $ships, $order]);
 
+// The top rung, and it does not come back down. Whether the fleet wins, bounces
+// off the battery or never reaches orbit is beside the point: you sent it, and
+// the disposition records what you are willing to do, not how well it went.
+// Hence the launch and not the battle report.
+escalate_disposition($db, $playerId, 'hostile');
+
+// See mission/spy.php: the new rung comes back with the launch so the commander
+// card can recolour without a reload.
 ok([
-    'missionId' => (int)$db->lastInsertId(),
-    'ships'     => $ships,
-    'order'     => $order,
-    'fuel'      => $fuelNeed,
-    'endsAt'    => (time() + $flightTime) * 1000,
+    'missionId'   => (int)$db->lastInsertId(),
+    'ships'       => $ships,
+    'order'       => $order,
+    'fuel'        => $fuelNeed,
+    'endsAt'      => (time() + $flightTime) * 1000,
+    'disposition' => player_disposition($db, $playerId),
 ]);

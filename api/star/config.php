@@ -271,38 +271,53 @@ const BUILDINGS = [
     ['level'=>3,'cost'=>['metal'=>320,'crystal'=>160],'buildTime'=>10800,'production'=>['energy'=>38],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // The mine gate here cannot bite today — `power_plant` Lv4 is unreachable
+  // without Lv2, which needs the mine already — and it is written down anyway,
+  // so that every metal-bought level 1 in this block states its own rule. If the
+  // plant's ladder is ever re-cut, this one does not quietly become wrong.
   'cryo_reactor' => ['tileType'=>'energy','planetTypes'=>['frozen'],'requiresBuilding'=>'power_plant','requiresLevel'=>4,'levels'=>[
-    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'cryo'=>40],'buildTime'=>3600,'production'=>['energy'=>40],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'cryo'=>40],'buildTime'=>3600,'production'=>['energy'=>40],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>2,'cost'=>['metal'=>500,'crystal'=>200,'cryo'=>120],'buildTime'=>14400,'production'=>['energy'=>90],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>1200,'crystal'=>500,'cryo'=>300],'buildTime'=>43200,'production'=>['energy'=>180],'energyDrain'=>0,'staffDrain'=>7,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Metal on level 1, so the mine gates it — the refined good in the same bill
+  // implies a forge, but an implication is not a gate.
   'alloy_fusion_reactor' => ['tileType'=>'energy','planetTypes'=>['terrestrial'],'levels'=>[
-    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'alloy'=>40],'buildTime'=>3600,'production'=>['energy'=>40],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'alloy'=>40],'buildTime'=>3600,'production'=>['energy'=>40],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>2,'cost'=>['metal'=>500,'crystal'=>200,'alloy'=>120],'buildTime'=>14400,'production'=>['energy'=>90],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>1200,'crystal'=>500,'alloy'=>300],'buildTime'=>43200,'production'=>['energy'=>180],'energyDrain'=>0,'staffDrain'=>7,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Metal on level 1, so the mine gates it like every other metal-bought first
+  // level. The obsidian in the same bill already implies a quarry, but an
+  // implication is not a gate — this one is written down.
   'obsidian_plasma_core' => ['tileType'=>'energy','planetTypes'=>['volcanic'],'levels'=>[
-    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'obsidian'=>40],'buildTime'=>3600,'production'=>['energy'=>45],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'obsidian'=>40],'buildTime'=>3600,'production'=>['energy'=>45],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>2,'cost'=>['metal'=>500,'crystal'=>200,'obsidian'=>120],'buildTime'=>14400,'production'=>['energy'=>100],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>1200,'crystal'=>500,'obsidian'=>300],'buildTime'=>43200,'production'=>['energy'=>200],'energyDrain'=>0,'staffDrain'=>7,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Same shape as the alloy and obsidian reactors, same gate.
   'biomass_reactor' => ['tileType'=>'energy','planetTypes'=>['ocean'],'levels'=>[
-    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'biomass'=>40],'buildTime'=>3600,'production'=>['energy'=>35],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>200,'crystal'=>80,'biomass'=>40],'buildTime'=>3600,'production'=>['energy'=>35],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>2,'cost'=>['metal'=>500,'crystal'=>200,'biomass'=>120],'buildTime'=>14400,'production'=>['energy'=>80],'energyDrain'=>0,'staffDrain'=>4,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>1200,'crystal'=>500,'biomass'=>300],'buildTime'=>43200,'production'=>['energy'=>160],'energyDrain'=>0,'staffDrain'=>7,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // Level 1 waits for the mine, exactly like solar_array's: it costs metal, and
+  // nothing that costs metal should be buildable before the thing that produces
+  // it. Level-entry rather than building-level — levels 2 and 3 are already
+  // behind level 1, so one gate is the whole rule.
   'geothermal_tap' => ['tileType'=>'energy','planetTypes'=>['volcanic'],'levels'=>[
-    ['level'=>1,'cost'=>['metal'=>30,'crystal'=>10],'buildTime'=>20,'production'=>['energy'=>10],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>30,'crystal'=>10],'buildTime'=>20,'production'=>['energy'=>10],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>2,'cost'=>['metal'=>80,'crystal'=>25],'buildTime'=>1200,'production'=>['energy'=>24],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>200,'crystal'=>60],'buildTime'=>5400,'production'=>['energy'=>50],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],
 
+  // The ocean twin of geothermal_tap, and gated for the same reason.
   'tidal_generator' => ['tileType'=>'energy','planetTypes'=>['ocean'],'levels'=>[
-    ['level'=>1,'cost'=>['metal'=>35,'crystal'=>15],'buildTime'=>20,'production'=>['energy'=>9],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0],
+    ['level'=>1,'cost'=>['metal'=>35,'crystal'=>15],'buildTime'=>20,'production'=>['energy'=>9],'energyDrain'=>0,'staffDrain'=>1,'unlocks'=>[],'popBonus'=>0,'requiresBuilding'=>'metal_mine','requiresLevel'=>1],
     ['level'=>2,'cost'=>['metal'=>90,'crystal'=>40],'buildTime'=>1200,'production'=>['energy'=>20],'energyDrain'=>0,'staffDrain'=>2,'unlocks'=>[],'popBonus'=>0],
     ['level'=>3,'cost'=>['metal'=>220,'crystal'=>100],'buildTime'=>5400,'production'=>['energy'=>42],'energyDrain'=>0,'staffDrain'=>3,'unlocks'=>[],'popBonus'=>0],
   ]],

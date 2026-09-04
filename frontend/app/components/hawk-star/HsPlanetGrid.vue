@@ -401,7 +401,10 @@ const onSelectSlot = (slot) => {
   gap: 0.5rem;
 
   @media (min-width: 640px) {
-    --hs-ground-w: 336px;
+    // In rem, not the 336 px it used to be: the text-size setting scales the
+    // root font, and a ground that stayed at 336 px while its twelve tiles grew
+    // would be the one box in the game that does not follow.
+    --hs-ground-w: 21rem;
     flex-shrink: 0;
   }
 }

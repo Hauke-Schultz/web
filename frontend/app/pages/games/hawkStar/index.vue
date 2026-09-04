@@ -13,7 +13,7 @@ import HsEmpirePanel from '~/components/hawk-star/HsEmpirePanel.vue'
 definePageMeta({ hideHeader: true, forceTheme: 'dark' })
 
 const { locale, setLocale } = useI18n()
-const { starMapLevel, gameLoaded, initError, initErrorDetail } = useHawkStar()
+const { starMapLevel, gameLoaded, initError, initErrorDetail, textScale } = useHawkStar()
 const { player, authError, authLoading, isAuthenticated, rememberMe, register, login, verifyToken, logout } = useHawkStarAuth()
 
 // ── Error screen ───────────────────────────────────────────────────────────────
@@ -109,6 +109,39 @@ onMounted(async () => {
   startTick()
 })
 onUnmounted(stopTick)
+
+// ── Text size ─────────────────────────────────────────────────────────────────
+// The whole game is drawn in `rem` — every font size, and every padding, gap and
+// tile size with them — so one number on the root element scales all of it, in
+// proportion, with no component knowing that it happened.
+//
+// It has to be the ROOT: `rem` resolves against `<html>` and ignores any wrapper,
+// so a font-size on `.hs-page` would do nothing. That makes this a global edit,
+// which is only acceptable because the page hides the site header
+// (`hideHeader: true`) — nothing but the game is on screen here. Hence the
+// cleanup on unmount: leaving 24 px behind would follow the player to every
+// other page on the site.
+//
+// The top bar is the one exception: `.hs-top-wrap` divides the scale back out
+// again (`--hs-top-unscale`), so nav and resources always render at S. They are
+// a fixed row of buttons plus the resource cards across the full width — the
+// only part of the game with no room to grow into, and at L/XL it turns into
+// squeezed, wrapping labels. Everything below the bar is what the setting is
+// for. The reciprocal is computed here rather than as `calc(1 / …)` in the
+// stylesheet, because `zoom` takes a bare number everywhere, a calc() not yet.
+const HS_ROOT_FONT_PX = 16
+
+watchEffect(() => {
+  if (import.meta.server) return
+  const root = document.documentElement
+  root.style.fontSize = `${HS_ROOT_FONT_PX * textScale.value}px`
+  root.style.setProperty('--hs-top-unscale', String(1 / textScale.value))
+})
+
+onUnmounted(() => {
+  document.documentElement.style.fontSize = ''
+  document.documentElement.style.removeProperty('--hs-top-unscale')
+})
 
 // Fall back if a view becomes locked again (e.g. game reset)
 watchEffect(() => {
@@ -590,6 +623,16 @@ watchEffect(() => {
   border-bottom: 1px solid transparent;
   padding: 0.4rem 0;
   margin-bottom: .5rem;
+
+  /* Always S, whatever the text-size setting says — see the note in <script>.
+     `zoom` and not `font-size`, because everything in here is drawn in `rem`
+     and `rem` resolves against <html>: a font-size on this wrapper would be
+     ignored by every child. `zoom` scales the whole box, paddings and icons
+     with it, and — unlike a transform — it reflows, so the bar keeps its own
+     height instead of overlapping what comes after it. The 640px breakpoints
+     inside the bar go on matching the real viewport; element zoom does not
+     touch media queries. */
+  zoom: var(--hs-top-unscale, 1);
 
   @media (min-width: 640px) {
     padding: 0.5rem 0;

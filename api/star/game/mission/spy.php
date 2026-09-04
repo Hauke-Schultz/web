@@ -98,8 +98,24 @@ $db->prepare(
      VALUES (?,?,?,?, DATE_ADD(NOW(), INTERVAL ? SECOND))"
 )->execute([$playerId, $unitKey, $fromId, $toId, $flightTime]);
 
+// You have stopped being harmless. Looking at somebody's planet is not an act
+// of war, which is why this is `neutral` and not `hostile` — but it is not
+// nothing either, and `friendly` is the rung that cannot be raided. Reading
+// other people's colonies from behind that shield is the one thing the ladder
+// exists to prevent.
+//
+// The satellite counts as much as the drone: both are eyes on somebody else's
+// orbit, and the endpoint that serves both should not treat one as innocent.
+// Escalation is on the LAUNCH, not on arrival — the decision is what costs you
+// the rung, and a fleet recalled at the last moment is still a fleet you sent.
+escalate_disposition($db, $playerId, 'neutral');
+
+// `disposition` rides back with the launch so the profile card can recolour on
+// the spot. Without it the rung you just climbed would not show until the next
+// reload, and a consequence you cannot see is not a consequence.
 ok([
-    'missionId' => (int)$db->lastInsertId(),
-    'unit'      => $unitKey,
-    'endsAt'    => (time() + $flightTime) * 1000,
+    'missionId'   => (int)$db->lastInsertId(),
+    'unit'        => $unitKey,
+    'endsAt'      => (time() + $flightTime) * 1000,
+    'disposition' => player_disposition($db, $playerId),
 ]);

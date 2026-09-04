@@ -152,7 +152,7 @@
       "costStaff": "Extra workers over the current level — assigned for good",
       "needPower": "⚡ Need power",
       "needStaff": "👥 Need staff",
-      "lockedRequires": "🔒 {name} Lv{level}",
+      "lockedRequires": "🔒 Needs {name} Lv{level}",
       "lockedGeneric": "🔒 Locked",
       "homeOnly": "Home only",
       "homeOnlyHint": "Only available on the home planet",
@@ -291,6 +291,8 @@
       "legendUnscanned": "Unscanned — scan it first",
       "tabSystem": "System",
       "tabComm": "Comms",
+      "tabOverview": "Status",
+      "dispositionSafe": "Friendly — this commander has never sent anything at anybody and cannot be raided",
       "scanPrompt": "This system has not been scanned. A deep-space scan reveals who lives here — messaging, espionage and raids all come after it.",
       "scanRunningHint": "The scan is under way. When it lands you will know who lives here.",
       "scanNeedsStarMap": "Star Map level 3 required",
@@ -391,7 +393,9 @@
       "friendly":   "Friendly",
       "neutral":    "Neutral",
       "hostile":    "Hostile",
-      "language":   "Interface language — saved to your profile"
+      "dispositionHint": "Your status is earned, not chosen: a spy drone makes you neutral, a raid makes you hostile. There is no way back down — and only the friendly cannot be attacked.",
+      "language":   "Interface language — saved to your profile",
+      "textSize":   "Text size — S / M / L / XL, kept on this device only. The top bar always stays small."
     },
 
     "panel": {

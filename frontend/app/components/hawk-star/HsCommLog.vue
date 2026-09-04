@@ -268,7 +268,7 @@ watch(() => props.systemId, () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 200px;
+  min-height: 12.5rem;   // was 200px — grows with the text-size setting
   max-height: 300px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.08) transparent;

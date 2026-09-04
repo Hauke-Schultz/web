@@ -8,7 +8,12 @@ import { useHawkStarAuth } from '~/composables/useHawkStarAuth.js'
 // language the app has no messages for. `setLocale` navigates as well as it
 // switches — the strategy is `prefix_except_default`, so DE lives under /de.
 const { t, locale, locales, setLocale } = useI18n()
-const { playerName, playerPortrait, playerDisposition, salvagePortraits } = useHawkStar()
+const { playerName, playerPortrait, playerDisposition, salvagePortraits, TEXT_SCALES, textSize, setTextSize } = useHawkStar()
+
+// Four steps, not a stepper. On a phone a ± pair would be two 0.62 rem buttons
+// you have to hit repeatedly — targets in exactly the size the setting exists to
+// fix. A native select is one tap and a list the OS draws at its own size.
+const TEXT_SIZES = Object.keys(TEXT_SCALES)
 const { logout, deleteAccount, saveProfile } = useHawkStarAuth()
 
 const PORTRAITS = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','👻','🧜‍♂️','🧟','🧌','☠️','🥵','🥶','😈','🕷️','🦊','🦄','🌞','⚓️']
@@ -18,6 +23,16 @@ const PORTRAITS = ['👨‍🚀','👽️','👾','🤖','🤠','🧠','💀','�
 // exactly where you would look for it.
 const portraits = computed(() => [...PORTRAITS, ...salvagePortraits.value])
 
+// ── Disposition ───────────────────────────────────────────────────────────────
+// A read-out, not a control. The server climbs it for you and never lets it
+// fall: friendly until you send your first espionage flight, hostile from the
+// first raid you launch. It stopped being a setting because `friendly` is the
+// one rung that cannot be raided, so a chooseable disposition was a switch
+// marked "I am invulnerable" — `auth/profile.php` no longer accepts the field.
+//
+// All three rungs stay on screen even though only one is yours: the row IS the
+// rule. A lone badge would say where you stand and nothing about how you got
+// there or what the next thing you send would cost.
 const DISPOSITIONS = ['friendly', 'neutral', 'hostile']
 const DISP_ICON = { friendly: '🤝', neutral: '⚖️', hostile: '⚔️' }
 
@@ -42,13 +57,6 @@ const selectPortrait = async (p) => {
   showPicker.value = false
   if (await saveProfile({ portrait: p })) flashSaved()
   else playerPortrait.value = prev
-}
-
-const selectDisposition = async (d) => {
-  const prev = playerDisposition.value
-  playerDisposition.value = d
-  if (await saveProfile({ disposition: d })) flashSaved()
-  else playerDisposition.value = prev
 }
 
 // Saved before switched, and only switched if the save went through: the
@@ -107,15 +115,20 @@ const handleDelete = async () => {
           :placeholder="t('hawkStar.profile.name')"
           @blur="saveName"
         />
-        <div class="hs-profile-disp-row">
-          <button
+        <!-- Spans and not buttons, and the class lost its `-btn` with them:
+             nothing here is clickable any more, and a control that looks like a
+             control but refuses every press is worse than a label. -->
+        <div class="hs-profile-disp-row" role="status">
+          <span
             v-for="d in DISPOSITIONS"
             :key="d"
-            class="hs-profile-disp-btn"
-            :class="[`hs-profile-disp-btn--${d}`, { 'hs-profile-disp-btn--active': d === playerDisposition }]"
-            @click="selectDisposition(d)"
-          >{{ DISP_ICON[d] }} {{ t('hawkStar.profile.' + d) }}</button>
+            class="hs-profile-disp"
+            :class="[`hs-profile-disp--${d}`, { 'hs-profile-disp--active': d === playerDisposition }]"
+          >{{ DISP_ICON[d] }} {{ t('hawkStar.profile.' + d) }}</span>
         </div>
+        <!-- Without this line the row is three greyed words and one lit one,
+             with no way to find out what lit it or what would move it. -->
+        <p class="hs-profile-disp-hint">{{ t('hawkStar.profile.dispositionHint') }}</p>
       </div>
     </div>
 
@@ -131,6 +144,23 @@ const handleDelete = async () => {
       >
         <option v-for="l in locales" :key="l.code" :value="l.code">
           🌐 {{ l.code.toUpperCase() }}
+        </option>
+      </select>
+
+      <!-- Text size. Sits with the language because both are "how the game is
+           presented to me" rather than anything the empire knows about — but
+           unlike the language it stays on this device: how big the type has to
+           be is a property of the screen in your hand, and a phone and a desktop
+           want different answers. -->
+      <select
+        class="hs-profile-lang"
+        :value="textSize"
+        :title="t('hawkStar.profile.textSize')"
+        :aria-label="t('hawkStar.profile.textSize')"
+        @change="setTextSize($event.target.value)"
+      >
+        <option v-for="s in TEXT_SIZES" :key="s" :value="s">
+          🔤 {{ s.toUpperCase() }}
         </option>
       </select>
       <button class="hs-profile-btn hs-profile-btn--logout" @click="logout">
@@ -259,36 +289,44 @@ const handleDelete = async () => {
   flex-wrap: wrap;
 }
 
-.hs-profile-disp-btn {
+// No `cursor: pointer` and no `:hover`, which is the whole difference: both were
+// promises that a press would do something, and nothing here presses any more.
+// The unlit rungs stay on the row as the scale the lit one is read against.
+.hs-profile-disp {
   flex: 1;
   padding: 0.25rem 0.4rem;
   border-radius: var(--hs-r-sm);
   font-size: 0.58rem;
   font-weight: 700;
-  cursor: pointer;
+  text-align: center;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.03);
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.25);
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 
-  &:hover { color: rgba(255,255,255,0.55); border-color: rgba(255,255,255,0.15); }
-
-  &--friendly.hs-profile-disp-btn--active {
+  &--friendly.hs-profile-disp--active {
     background: rgba(52,211,153,0.12);
     border-color: rgba(52,211,153,0.4);
     color: #34d399;
   }
-  &--neutral.hs-profile-disp-btn--active {
+  &--neutral.hs-profile-disp--active {
     background: rgba(148,163,184,0.12);
     border-color: rgba(148,163,184,0.4);
     color: #94a3b8;
   }
-  &--hostile.hs-profile-disp-btn--active {
+  &--hostile.hs-profile-disp--active {
     background: rgba(248,113,113,0.12);
     border-color: rgba(248,113,113,0.4);
     color: #f87171;
   }
+}
+
+.hs-profile-disp-hint {
+  margin: 0;
+  font-size: 0.5rem;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.3);
 }
 
 // ── Account actions ───────────────────────────────────────────────────────────

@@ -1,11 +1,11 @@
 <script setup>
-// ── The standing head of the galaxy side column ───────────────────────────────
+// ── The standing foot of the galaxy side column ───────────────────────────────
 // The column used to be empty until a system was picked, which made the landing
 // state of the whole view a chart and a hole. What belongs there is the answer
 // to the two questions a player actually opens the galaxy with: what have I got
 // in the air, and what has been fought lately.
 //
-// It stays up with a system card open underneath it, not only while nothing is
+// It stays up with a system card open above it, not only while nothing is
 // selected: both lists are player-wide — a flight and a feud are not properties
 // of the system under the cursor — and a fleet three hours from home is the last
 // thing that should disappear because you clicked a star to read about it.
@@ -46,9 +46,20 @@ const FLIGHT_KIND = {
 
 const kindOf = (fl) => FLIGHT_KIND[fl.kind] ?? { icon: '🛰️', key: 'flightRecon' }
 
+// What the galaxy is about: hulls and eyes sent at somebody else. Recon probes,
+// colony ships and cargo runs are empire logistics — they belong to the system
+// view, and in a list this size they bury the two rows the map was opened for.
+// Both legs of a raid stay: a fleet on its way home is still a fleet in the air.
+//
+// A separate list from the table above, which stays complete on purpose: that
+// one says what the kinds are *called*, this one says which of them this panel
+// shows. Widening the panel again is then one word here, not an edit in three
+// files.
+const GALAXY_KINDS = new Set(['raid', 'raid_back', 'spy', 'satellite'])
+
 // Both ends by name, plus the target's system when the flight actually leaves
 // home — inside one system the system name on every row is noise.
-const flights = computed(() => allFlights.value.map((fl) => {
+const flights = computed(() => allFlights.value.filter((fl) => GALAXY_KINDS.has(fl.kind)).map((fl) => {
   const from = planetLabel(fl.fromPlanetId)
   const to   = planetLabel(fl.toPlanetId)
   const kind = kindOf(fl)

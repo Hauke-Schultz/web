@@ -159,7 +159,9 @@ The crest is gone. It moved out of the planet grid, then became the empire heade
 - **It wears the commander**: `hs-empire-cardhead__icon` is `playerPortrait`, `hs-empire-cardhead__title` is `playerName` — exactly what the crest showed, now attached to something that behaves like a button because it is one.
 - **The guide is a card too.** `HsOnboardingPanel` gave up its head, its blue frame and its padding; the card draws them (`--guide` keeps the blue tint, because it is neither a planet nor the commander), the title moved to `hs-empire-cardhead__title` and the step count to `hs-empire-cardhead__count`. It was the one thing in the grid that was always unfolded — the loudest item on the board for exactly as long as you least needed a lecture. Its `v-if="!onboardingComplete"` is now asked twice: once out here, or a finished checklist would still draw a head, and once inside, because that is where the rule lives.
 - **The planet heads fold instead of jumping.** They used to `jumpTo(planetId, 5)`. Nothing is lost: every meter and every row inside is a jump of its own, and a head that both jumped away *and* folded in place would have been two controls wearing one hat.
-- **Everything starts shut, except the guide.** `isOpen(id)` is `!!open[id]`, keyed by `'profile'`, `'onboarding'` and planet id alike; `open` starts as `{ onboarding: true }`. The board opens as a list of lids, each carrying the one thing worth reading from across the room, and you unfold the one you came for — but the guide can only appear at all while something is left on it (`onboardingComplete` removes the card for good), and a checklist you have to find and unfold before it can tell you what to do next is a checklist for someone who already knows.
+- **Everything starts open, except the commander** *(2026-09-04; it was the other way round until then)*. `isOpen(id)` is `open[id] ?? !CLOSED_BY_DEFAULT.has(id)`, keyed by `'profile'`, `'onboarding'` and planet id alike, with `CLOSED_BY_DEFAULT = {'profile'}` and `open` starting empty. The board is something you **read**, not something you navigate: you come to it to find out which planet needs you, and a stack of lids answers that with *open them and see*. The lid's summary (state badge, alert count, step count) is a reminder of what is inside, not a substitute for it — shut-by-default made the fast case, nothing wrong anywhere, the one that cost the most clicks. The commander card is the exception because it is the only **editor** on the board rather than a report: a portrait, a name, a disposition, none of which changes on its own, so it has nothing to tell you until you go looking for it, and open by default it is a form standing in front of the empire.
+  - **A default plus overrides, not a seeded map**: the planet cards are keyed by planet id, so a colony founded while the panel is up has no entry to seed and must still come up open like its neighbours.
+  - `toggleCard` reads `isOpen(id)`, not the raw map. `!open[id]` on an untouched card is `!undefined` → `true`, which is the state it is already in, so the first click on any card would have done nothing.
 - **The lid carries the verdict, the count and the two meters.** Folding may hide the detail, never the finding — so a shut planet card still shows:
   - the **state badge** and the card's tone (`ALARM`, `KEIN BAU`, …);
   - `hs-empire-cardhead__alerts` — **how many** notices are folded away (`p.alerts`), in the same pill and the same two tones the header's planet disc wears, because it is the same number. The word says what is wrong, the number says how much of it there is: `ALARM 4` is worth opening before `ALARM 1`;
@@ -172,6 +174,23 @@ The crest is gone. It moved out of the planet grid, then became the empire heade
 - **Only the commander and the guide use `hs-empire-cardbody`.** Planet cards have none: their meters and rows carry their own padding, so the fold is a `<template v-if>` around them rather than a padded wrapper.
 - **Whatever sits at the far end of a head claims the `margin-left: auto`** — the state badge, the saved flash, the step count — and the caret drops to `margin-left: 0` behind it, so it is always the last thing on the line and never adrift in the middle.
 - **The saved flash sits in the head.** It lived in `HsProfilePanel`'s own header bar, which is gone; the panel emits `saved` and the card flashes *✓ gespeichert* beside the name. Every save still has to say so — a panel that silently swallows a rejected write is what hid the unlocked-portrait bug for so long.
+
+#### Text size *(2026-09-04)*
+
+A **S / M / L / XL** dropdown in `.hs-profile-actions`, next to the language one. It exists because the game was drawn at 0.52…0.62 rem and is hard to read on a phone.
+
+**It cost almost nothing, because of one property the codebase already had:** all 371 `font-size` declarations in `components/hawk-star/` + `index.vue` are in `rem` — **not one in px** — and so is every padding, gap, radius and tile size. So the whole UI already scaled off a single number; the setting *is* that number.
+
+- `TEXT_SCALES` = `{ s: 1, m: 1.15, l: 1.3, xl: 1.5 }`, `textSize` / `textScale` / `setTextSize` in `useHawkStar.js`. **The default is `m`, not `s`** — `s` is the old size, kept for anyone who wants it back.
+- Applied in `index.vue` by a `watchEffect` writing `document.documentElement.style.fontSize`, cleared in `onUnmounted`. **It has to be the root**: `rem` resolves against `<html>` and ignores any wrapper, so a font-size on `.hs-page` would do nothing at all. That makes it a global edit, which is only acceptable because the page sets `hideHeader: true` — nothing but the game is on screen. The cleanup is not optional: leaving 24 px behind follows the player to every other page on the site.
+- **The top bar is excluded — it always renders at S.** `.hs-top-wrap` divides the scale straight back out with `zoom: var(--hs-top-unscale, 1)`, the reciprocal that the same `watchEffect` writes onto the root next to the font size. Nav plus the resource cards is a fixed-width row with nothing to give: at L/XL the labels squeeze and wrap and the menu eats the top third of a phone screen. Everything *below* the bar is what the setting was asked for.
+- **`zoom` there, even though it was the wrong tool for the page** (below). It has to be `zoom`: the bar's children are drawn in `rem` and `rem` resolves against `<html>`, so a `font-size` on the wrapper is ignored by every one of them. And the direction is the safe one — zoom **< 1** leaves the bar with *more* room than its 640 px media query assumes, never less, so nothing inside it can be squeezed by the trick. Element zoom does not touch media queries, so the bar still switches to its desktop row on the real viewport width. The reciprocal is computed in JS, not as `calc(1 / …)`, because `zoom` takes a bare number in every browser and a `calc()` not yet.
+- **Not `zoom` on `.hs-page`**, which would have been properly scoped: `zoom` shrinks the effective viewport, so the 640/1024 px breakpoints flip and the layout jumps into a different column arrangement. Somebody asking for bigger text is not asking for a different layout. A root font size leaves every media query where it was.
+- **A select, not ± buttons.** On a phone a stepper is two 0.62 rem targets you have to hit repeatedly — in exactly the size the setting exists to fix. It also reuses `.hs-profile-lang` verbatim, and four discrete steps need no clamping.
+- **Stored per device** (`localStorage`, key `hawk-star-ui`, its own key so it survives whatever happens to the dev blob) — deliberately unlike the language beside it, which goes to the account. How big the type must be is a property of the screen in your hand.
+- Two fixed-px boxes had to follow the scale: `--hs-ground-w: 336px → 21rem` in `HsPlanetGrid` (≥640 px only; mobile is `100%`) and `min-height: 200px → 12.5rem` in `HsCommLog`. They were the only two in the game.
+- The mini-games are unaffected — `HsInterceptGame` / `HsDockingGame` size themselves in `cqw`, against their own container.
+- **What does not scale is the viewport.** At XL a 390 px phone renders as if it were 260 units wide, with the mobile breakpoints still in force. That is the intended trade, and it is where any remaining tightness will show.
 
 #### What the header keeps
 
@@ -207,7 +226,7 @@ The first version branched: the board when *you own more than one planet, or som
 - **Rows carry keys, not text.** `useI18n()` cannot be called at module scope, so a row ships `labelKey` + `labelParams`, plus `paramKeys` for parameters that are themselves translated (a resource name, a tile name, a unit name) — the component resolves those first and merges them in. Same reason notifications carry a `labelKey`.
 - **Pipe-form i18n messages need the count as the third argument** (`t(key, { n }, n)`). Passed only as a named parameter, vue-i18n always picks the singular branch. Row labels therefore avoid plural forms entirely and use a `Label: n` shape, since they all go through one generic renderer.
 - **The board reads battles from the table, not from the outbox** — see *The last attack* above. `notifications` (the Activity feed) is still session-only and still loses a report on reload; that is now the only place the outbox gap shows.
-- **`hasBattery` repeats the `powerPlantLevel > 0` guard from `gridDownOn()`** — a planet without a power plant has no grid to lose, so its battery is not a meter that means anything yet.
+- **`hasBattery` repeats `gridDownOn()`'s plant guard** (`powerPlantLevelOn(planetId) > 0`) **and adds the object the row draws from** — a planet without a power plant has no grid to lose, and a plant the tick has not registered yet has a blackout to report but no meter to draw.
 - `empireStatus` recomputes on every tick because it reads `now`. With ≤ 4 planets and ~20 rows that is free; anything that makes this list longer should reconsider it.
 
 ### Files
@@ -222,7 +241,7 @@ Eleven steps, from *build a command center* to *place a spy satellite*. Nothing 
 
 **It lives on the empire board and nowhere else** *(2026-08-18)*. It used to sit on the home planet’s base tile as well; that was the reason `pickLandingView()` had to send beginners to the planet view, and dropping the second copy is what let the landing rule collapse into a constant (see *Where you land*). One checklist, one place, and every session opens on it.
 
-**It is the last card in `.hs-empire-cards`**, and a card in its own right since 2026-09-02: `hs-empire-card--guide`, with a `hs-empire-cardhead` carrying 🧭, the title and the step count, shut like everything else on the board. It keeps its blue tint because it is neither a planet nor the commander, takes half the board on a desktop, and comes after the planet cards on purpose: the cards answer *what needs me now*, the checklist answers *what comes next*. It is the one card that arrives **open**, because it only exists while there is something left on it. The lid says `onboarding.short` (*Erste Schritte*) — the full `onboarding.title` is a sentence of welcome and on a half-width lid it was an ellipsis with two words in front of it, so it moved inside as `hs-onboarding-intro`, above the list. `HsOnboardingPanel` is that line plus the list; the head, the frame and the padding belong to the card.
+**It is the last card in `.hs-empire-cards`**, and a card in its own right since 2026-09-02: `hs-empire-card--guide`, with a `hs-empire-cardhead` carrying 🧭, the title and the step count. It keeps its blue tint because it is neither a planet nor the commander, takes half the board on a desktop, and comes after the planet cards on purpose: the cards answer *what needs me now*, the checklist answers *what comes next*. It arrives **open** — since 2026-09-04 that is no longer the exception it once was, but it is still the right state for it: the card only exists while there is something left on it, and a checklist you have to unfold before it can say what to do next is a checklist for someone who already knows. The lid says `onboarding.short` (*Erste Schritte*) — the full `onboarding.title` is a sentence of welcome and on a half-width lid it was an ellipsis with two words in front of it, so it moved inside as `hs-onboarding-intro`, above the list. `HsOnboardingPanel` is that line plus the list; the head, the frame and the padding belong to the card.
 
 **When every step is ticked it disappears** — permanently, without a dismiss button. A checklist with nothing left on it teaches nothing; leaving eleven struck-through lines on the board would only cost room.
 
@@ -407,7 +426,21 @@ A building goes offline (stops producing) if energy is in deficit.
 
 Both are checked, and both have to hold. `isBuildingLocked()` / `lockedRequirementInfo()` in the composable read the building gate first and the gate on `nextLevelDef()` second, so the 🔒 hint always names the requirement you are actually missing right now.
 
-**The early build order this buys.** The colony opens with a command center, 400 metal and 180 crystal. `power_plant` Lv1 costs crystal only and is the one thing you can build immediately — the colony's first light. Everything after it costs metal, so the metal mine becomes the second step rather than an option among several: `metal_mine` Lv1 now gates both `power_plant` **Lv2** and `solar_array` **Lv1**. The mine draws 3 of the plant's 5 energy, so the chain closes without a deadlock — plant, mine, then the choice between a bigger plant and the array.
+**The hint says `Benötigt` / `Needs`** *(2026-09-04)*. `lockedRequires` used to be bare — `🔒 Power Plant Lv1` — which reads as a statement about what you *have*, and on a planet with no energy building at all that is a sentence saying the opposite of the truth. One verb fixes it in both directions. `.hs-status-locked` gave up its `white-space: nowrap` at the same time: the hint is a sentence now, and a wrapped second line is a milder failure than text running off the tile.
+
+**The early build order this buys.** The colony opens with a command center, 400 metal and 180 crystal. `power_plant` Lv1 costs crystal only and is the one thing you can build immediately — the colony's first light. Everything after it costs metal, so the metal mine becomes the second step rather than an option among several: `metal_mine` Lv1 gates `power_plant` **Lv2** and, since 2026-09-04, the **level 1 of every other energy building** — which is to say every energy level whose bill contains metal at all. The mine draws 3 of the plant's 5 energy, so the chain closes without a deadlock — plant, mine, then the choice between a bigger plant and whichever first-tier generator the planet type offers.
+
+`solar_array` was the only one that said so. Everything else on the energy tile was a hole in the rule, in two tiers:
+
+| | Tier | Was |
+|---|---|---|
+| `geothermal_tap` 🌋 · `tidal_generator` 🌊 | 20 s, ~30 metal | no gate at all — on a volcanic or an ocean world you could skip the mine on the very first move |
+| `obsidian_plasma_core` 🌋 · `alloy_fusion_reactor` 🪨 · `biomass_reactor` 🌊 | 1 h, 200 metal + a refined good | no gate at all; the refined good only *implies* a forge or a quarry, and an implication is not a gate |
+| `cryo_reactor` 🧊 | 1 h, 200 metal + cryo | `power_plant` Lv4 only |
+
+All six carry `requiresBuilding: 'metal_mine', requiresLevel: 1` on their **level 1** now, so the whole tile states one rule: nothing bought with metal is reachable before the thing that produces metal. Levels 2 and 3 need no gate of their own — they already sit behind level 1, which is also why the gate is a level entry rather than a building-level one.
+
+> `cryo_reactor`'s gate **cannot bite today**: `power_plant` Lv4 is unreachable without Lv2, which needs the mine already. It is written down anyway. A block where five entries state their rule and the sixth relies on a chain somewhere else is a block that goes quietly wrong the first time that chain is re-cut.
 
 > The server enforces this too. `build.php` used to join the two gates with `??`, which dropped the level's own requirement whenever the building carried one — `solar_array` would have been gated on the plant server-side and on the mine only in the client. It now collects both and checks each.
 
@@ -644,6 +677,17 @@ Every `power_plant` has a battery (0–100 %) that slowly drains over time, inde
 - **The pending charge is drawn brighter and does not animate its width.** It *is* the finger. The charge behind it keeps its 0.35 s transition, because that one is a number arriving, not a hand moving.
 - **`touch-action: none` on the cell and the breaker track.** The gesture is horizontal and so is the phone's scroll; without it the browser eats the swipe.
 - **Enter/Space still charge in one press.** The game is the picture, and a picture must never be the only way to play — the keyboard path runs the same traverse on a rAF and lands the same charge.
+
+### The blackout is read off the clock, not off the tick  *(2026-09-04)*
+
+`gridDownOn()` used to ask the **battery object** whether there was a plant (`b.powerPlantLevel > 0`), and that object is created by `tick()` when it resolves the finished build. So for up to a full second after the first `power_plant` Lv1 landed, the planet had a plant, an empty grid, and no blackout on screen.
+
+That second is not a rounding error — it is a second in which **the player can already press a build button on another tile**, and what they are about to commit is judged against the grid. `production` returns `{}` during a blackout, which is what makes `hasEnoughPower()` refuse a drain the planet cannot pay; a stale `gridDown` let that check pass on power that did not exist.
+
+- **`powerPlantLevelOn(planetId)`** reads the level as of `now`: `level + (buildEndsAt && buildEndsAt <= now ? 1 : 0)`. A build that has *ended* is finished, whether or not anything has written it down yet — the same reactive clock `batteryChargeOf()` already interpolates the charge against.
+- **A missing battery object is now the answer, not a missing one.** With a plant present, `batteryChargeOf() ?? 0` is `0`, which is a blackout — and it is the same 0 the server sends for a plant built and never charged. No special case, and no flicker when the tick catches up: the value it writes is the value that was already being shown.
+- Everything downstream inherits the fix, because `gridDownOn()` is the single point: `energyBalanceOf()`, `grossProduction`, `totalEnergyDrain`, `isOffline()`, `batteryLevelOf()`, and the empire board's `blackout` alarm row.
+- An **upgrade** in flight adds its `+1` too and cannot invent a blackout: the planet already had a plant, so the branch was taken anyway.
 
 ### The blackout breaker
 
@@ -1908,15 +1952,36 @@ It fires **twice against a plundering fleet**: once as the fleet arrives, and on
 
 **And the building is the sensor, again.** With an `orbital_defense` the defender sees the incoming fleet for the last ~30 minutes of its flight and can still charge the shield or buy ammunition. Without it, they learn about the raid from the report afterwards. Same rule as for satellites: *the building is the detection*.
 
+### Disposition — the ladder you climb by what you send  *(2026-09-04)*
+
+Three rungs, in order, and you only ever go **up**:
+
+| Rung | How you get there | What it means |
+|---|---|---|
+| 🤝 `friendly` | every account starts here | **cannot be raided**, and it does not expire |
+| ⚖️ `neutral` | the first espionage flight you launch — spy drone *or* satellite | ordinary target |
+| ⚔️ `hostile` | the first raid you launch | ordinary target |
+
+**It used to be a profile setting, and that was the bug.** `friendly` is the one rung that cannot be raided, so a dropdown offering it was a switch marked *I am invulnerable*. `auth/profile.php` no longer reads the field at all — a client that still sends it is ignored rather than refused, so an old tab does not start failing — and `auth/register.php` writes `'friendly'` as a literal instead of honouring whatever the sign-up posted. The only honest way to be unraidable is to have raided nobody.
+
+- **`escalate_disposition($db, $playerId, $to)`** in `bootstrap.php` raises and never lowers. The guard is in the `WHERE` clause (`AND disposition IN (…the rungs below…)`), not in a read-then-write: two launches in the same second would otherwise both read `friendly`, and the raid could be overwritten back down to `neutral` by the spy drone that lost the race.
+- **Escalation is on the LAUNCH, not on arrival or on the battle report.** The decision is what costs you the rung — a fleet that bounces off the battery is still a fleet you sent, and a drone recalled at the last moment is still a drone you aimed at somebody.
+- **The satellite counts as much as the drone.** Both are eyes on somebody else's orbit, and one endpoint serves both; treating the satellite as innocent would make it the obvious way to spy from behind the shield.
+- **The new rung rides back on the mission response** (`disposition` in the `ok()` payload of both `mission/spy.php` and `mission/raid.php`), and `sendSpyUnit` / `startRaid` apply it to `playerDisposition`. Without that the consequence would not show until the next reload, and a consequence you cannot see is not a consequence.
+- **Existing accounts keep the rung they chose** while it was still a setting — there is no migration. Dropping somebody a rung is exactly what the rest of this design refuses to do, and the column's `DEFAULT` is now irrelevant because `register.php` writes the value itself.
+- **Three places wear the colour**, and one look means one thing in all of them: `hs-empire-card--disp-*` (the commander card's border, on the *outside* of the card so it can be read without opening the profile), `hs-profile-disp--*` (the read-out row inside it, all three rungs on screen so the row *is* the rule), and `hs-faction-disp--*` (the chip on a foreign commander in the galaxy card's `hs-faction-list`). Green, grey, red.
+
+`isRaidTarget()` in `useHawkStar.js` hides the ⚔️ on a friendly commander's planets. That is a **courtesy, not a boundary** — `mission/raid.php` checks `player_disposition($db, $defenderId)` itself and answers 403, because the fleet is paid for at launch and a button that spends hulls before refusing is worse than no button.
+
 ### Protection rules — in from the start
 
-- **Anfängerschutz** — no attacks on players below a size threshold or inside their first days.
+- **Anfängerschutz** — no attacks on players below a size threshold or inside their first days, **and no attacks at all on a `friendly` commander** (see the ladder above). The two are different tools: beginner protection expires after `RAID_NEWBIE_PROTECTION_DAYS`, the friendly shield lasts exactly as long as you keep sending nothing at anybody.
 - **Deterministic, no dice.** The anomaly design chose *"Entscheidungen, kein Zufall"*; a battle whose outcome can be computed beforehand belongs to the same game. The uncertainty is whether the defender logs in in time, not what the die says.
 - **Both sides get a report**, materialised at resolve time the way an anomaly's outcomes are materialised at roll time. Delivery reuses the `satellite_lost_at` outbox trick — a flag cleared the moment `state.php` hands the event over, so a notification fires exactly once without a notification table.
 
 ### Launch, flight, resolution  *(implemented 2026-08-16)*
 
-`POST /game/mission/raid { fromPlanetId, toPlanetId, ships, order }`. The gates, in the order the endpoint checks them: the launching planet is yours, the target belongs to **somebody else**, that somebody is **past beginner protection** (`RAID_NEWBIE_PROTECTION_DAYS`, 3 days), the planet has been **surveyed** (inside your own home system ownership is public, so no flight is needed there), **no other fleet from this planet is out**, corvettes are in the dock, and there is **one power cell per hull** as sortie fuel. Hulls and fuel are taken at launch.
+`POST /game/mission/raid { fromPlanetId, toPlanetId, ships, order }`. The gates, in the order the endpoint checks them: the launching planet is yours, the target belongs to **somebody else**, that somebody is **past beginner protection** (`RAID_NEWBIE_PROTECTION_DAYS`, 3 days), that somebody is **not `friendly`** (403 — see *Disposition*), the planet has been **surveyed** (inside your own home system ownership is public, so no flight is needed there), **no other fleet from this planet is out**, corvettes are in the dock, and there is **one power cell per hull** as sortie fuel. Hulls and fuel are taken at launch.
 
 The flight is `hs_missions` with `type='raid'` and `leg='out'`, three new columns alongside: `ships`, `raid_order`, `loot`. `RAID_FLIGHT_MIN` is 3 h (a same-system strike) plus distance at `RAID_FLIGHT_PER_DIST`. The return leg is a second row with `leg='back'` carrying the survivors and the haul, exactly as the cargo drone does it.
 
@@ -2154,7 +2219,14 @@ The system row became a **star chart**. Every system already carried real galact
   ● Dein System  ● Bewohnt  ● Scan läuft  ○ Ungescannt — erst scannen
 ```
 
-**Where the geometry lives:** `.hs-galaxy-orbit` is a square box (`aspect-ratio: 1/1`, `max-width: 32rem`); `.hs-galaxy-field` is inset inside it by half a marker so an edge system keeps its caption; every node is `left: x%; top: y%` with `translate(-50%, -50%)`. Same idiom as the solar map: one square, all percentages, **no media query and no measurement** — the chart is identical on a 360 px phone and on a desktop, and only `--node` grows once. The home→selection line is an SVG on `viewBox="0 0 100 100"` laid over the field, so it is drawn straight from the coordinates the server bills from.
+**Where the geometry lives:** `.hs-galaxy-orbit` is a square box (`aspect-ratio: 1/1`, `max-width: 32rem`); `.hs-galaxy-field` is inset inside it by half a marker so an edge system keeps its caption; every node is `left: x%; top: y%` with `translate(-50%, -50%)`. Same idiom as the solar map: one square, all percentages, **no media query and no measurement** — the chart is identical on a 360 px phone and on a desktop. The home→selection line is an SVG on `viewBox="0 0 100 100"` laid over the field, so it is drawn straight from the coordinates the server bills from.
+
+**Two marker sizes** *(2026-09-04)*. `--node` (**1.75 rem**) is every system; `--node-lg` (**2.6 rem**) is home and the current selection, and never more than those two at once. Roughly **32 px** and **48 px** at the default M text size — the values are in `rem` so a dot and the caption under it grow together, which means S renders 28/42 and XL 42/63.
+
+- **Why small:** the chart has to survive the galaxy filling up. Every marker used to be one size (2.1 rem, 2.6 rem from 640 px) and a field of those runs out of room long before `pick_system_position()` does — systems are seeded only 15 units apart.
+- **Why two:** home and the selection are the two a player has to find without reading a caption. Size does that at a glance and spends no colour nobody has learnt yet. The single media-query step-up is gone with it: one size everywhere, and the big pair is the exception instead.
+- **How:** `.hs-galaxy-tile` carries `--size: var(--node)` and `&--home, &--selected { --size: var(--node-lg) }`; width, height and the hit area all read that one variable. `translate(-50%, -50%)` is what makes growing free — the extra size spreads around the coordinate rather than pushing the dot off the point it marks.
+- **Two knock-ons.** The 2.75 rem hit target became `min(0px, calc((2.75rem - var(--size)) / -2))`: at `--node-lg` the marker is already wider than the target, and the bare calc would have gone positive and shrunk the hit area *inside* the dot. And `.hs-galaxy-field`'s inset is measured off `--node-lg`, because any system can become the selected one — the frame has to clear the size a marker can *become*, not the size it has while nobody is looking at it.
 
 **A marker is a star, not a face** *(2026-08-31)*. The markers first wore portraits — yours at home, a commander's where a scan had found one. That was a category error: a chart of the sky shows what is *actually out there*, and `starClass` arrives for every system whether or not it has been scanned. **The star is what a telescope gives you for free; who lives on it is precisely what the scan buys.** An avatar in the star's place said the opposite — that the people are the terrain — and it also meant an unscanned system had nothing to draw but a ❓.
 
@@ -2172,11 +2244,11 @@ The star's gradient fades to plain `transparent` rather than a `color-mix()`. An
 
 - The home system is **pre-selected** when entering the Galaxy Map.
 - Clicking a marker toggles its selection; clicking the selected one deselects it.
-- The hit area is grown to 44 px by a pseudo-element, never by padding — padding would drag the dot off the point it marks. Markers are seeded ≥15 units apart, which is wider than the hit area at every size the chart is drawn at.
+- The hit area is grown to 2.75 rem by a pseudo-element, never by padding — padding would drag the dot off the point it marks. Markers are seeded ≥15 units apart, which is wider than the hit area at every size the chart is drawn at.
 - Captions are `pointer-events: none`: two can overlap where two systems sit close, and a name must never swallow its neighbour's marker.
 - The chart lists **home plus the inhabited systems** (`sortedSystems`), unchanged — that filter is what makes a scan a decision, and it is why the legend has no "uninhabited" entry.
 
-**The scan card** *(new)*. Selecting an unscanned system used to do nothing visible at all: the panel below is gated on `showCard()`, and the only way to start a scan was a 0.48 rem button inside a 2.25 rem tile whose label the mobile layout hid outright — so the single action an unknown system offers was the one thing you could not find. An unscanned selection now opens `.hs-galaxy-scan-card`: what the system is, how far out it sits, and a full-width `hs-galaxy-scan-btn` carrying the scan's duration. When it cannot be started the card says which of the two rules refused — 🔒 Star Map Lv3, or ⏳ another scan already running — because a control that is simply missing, with no reason beside it, is the thing people report as broken.
+**The scan card** *(new)*. Selecting an unscanned system used to do nothing visible at all: the panel below is gated on `showCard()`, and the only way to start a scan was a 0.48 rem button inside a 2.25 rem tile whose label the mobile layout hid outright — so the single action an unknown system offers was the one thing you could not find. An unscanned selection now opens `.hs-galaxy-scan-card` in the 🪐 System tab (two states of one tab, not a card of its own): what the system is, how far out it sits, and a full-width `hs-galaxy-scan-btn` carrying the scan's duration. When it cannot be started the card says which of the two rules refused — 🔒 Star Map Lv3, or ⏳ another scan already running — because a control that is simply missing, with no reason beside it, is the thing people report as broken.
 
 A four-item legend under the chart explains the markers. The ❓ line is the only place the map states its own precondition in words: **unscanned — scan it first**.
 
@@ -2221,35 +2293,38 @@ This is what the coordinates were for. The tile strip could only ever say *"some
 **Two columns** *(2026-08-31)*. The view is chart on the left, selected system on the right:
 
 ```
-┌─────────────────────┬──────────────────────┐
-│  star chart         │  [🪐 System][📡 Funk]│  ← tabs
-│                     │  ┌────────────────┐  │
-│  ● ● ○  legend      │  │  the open tab  │  │
-│  ┌───────────────┐  │  └────────────────┘  │
-│  │ 🚀 overview   │  │                      │
-│  └───────────────┘  │                      │
-└─────────────────────┴──────────────────────┘
+┌─────────────────────┬─────────────────────────────┐
+│  star chart         │ [🪐 System][📡 Funk][🚀 Lage] │  ← tabs, always up
+│                     │  ┌───────────────────────┐  │
+│  ● ● ○  legend      │  │     the open tab      │  │
+│                     │  └───────────────────────┘  │
+└─────────────────────┴─────────────────────────────┘
 ```
 
-- The split waits for **1024 px**, not the usual 640: `.hs-main` caps the whole view at 52 rem, so below roughly that viewport there is no second column to be had, and a 300 px system card with a planet list in it is worse than one that has the width to itself. Below the breakpoint everything stacks — chart, legend, overview, tabs, panel.
-- `.hs-galaxy-side` holds whichever card the selection calls for: the scan card for an unknown system, the tabbed panel for a known one. Both columns are `flex: 1 1 0`, so **the chart does not resize when you select or deselect** — the anchor of the screen has to stay put.
+- The split waits for **1024 px**, not the usual 640: `.hs-main` caps the whole view at 52 rem, so below roughly that viewport there is no second column to be had, and a 300 px system card with a planet list in it is worse than one that has the width to itself. Below the breakpoint the two columns stack — chart, legend, then the tab bar and its panel.
+- `.hs-galaxy-side` holds exactly one thing, `.hs-galaxy-panel`, and the panel is always mounted. Both columns are `flex: 1 1 0`, so **the chart does not resize when you select or deselect** — the anchor of the screen has to stay put.
 
-**Card and Comm Log became tabs.** They used to sit side by side, which cost the panel twice the width it needed and left the chart nothing to sit next to. They are two views of one system rather than two things you read at once, so the panel now carries a two-pill tab bar and the page spends the width on the chart instead.
+**Card and Comm Log became tabs.** They used to sit side by side, which cost the panel twice the width it needed and left the chart nothing to sit next to. They are two views of one system rather than two things you read at once, so the panel carries a tab bar and the page spends the width on the chart instead.
 
-- Home has no comm log and therefore no tab bar. `activeTab` falls back to `'card'` so a `'comm'` left over from the previous selection cannot blank the home panel; selecting any system resets to the card.
-- The comm pane is **`v-if`, not `v-show`**: `HsCommLog` calls `markSystemRead()` on mount, so a log kept alive behind a closed tab would clear the unread flag for messages nobody has looked at. Opening the tab *is* reading them. The card pane is `v-show`, so a half-filled raid order survives a look at the messages.
+**Three tabs, and the bar never leaves** *(2026-09-04)*. 🚀 **Lage** / *Status* is the third, and it is in the row at every moment — with nothing selected, on your own home system, on an unknown star. That is what made the bar itself permanent: it used to render only for a scanned **foreign** system, so on home, on an unknown star and with no selection the column had no controls at all.
+
+- **Which tabs exist is derived, not stored.** `tabs` is a computed list: `'card'` whenever something is selected (the scan card and the system card are two states of the *same* tab now, so an unknown system is an ordinary selection rather than a card of its own), `'comm'` only for a scanned foreign system, `'overview'` always. `activeTab` returns `panelTab` when that tab is on offer and otherwise **falls through to `tabs[0]`** — the card with a selection, the overview without one. That fallback is what keeps a `'comm'` left over from the previous selection from blanking the home panel, and it is what makes ✕ land on the overview instead of on nothing.
+- **Selecting a system opens its card**, overview or not (`watch(selectedId, …)` resets `panelTab` to `'card'`). Clicking a star is a request to read about that star; landing on the overview would answer a question nobody asked. Deselecting resets to `'card'` too, and the fallback turns that into the overview because `'card'` is no longer on offer.
+- The comm pane is **`v-if`, not `v-show`**: `HsCommLog` calls `markSystemRead()` on mount, so a log kept alive behind a closed tab would clear the unread flag for messages nobody has looked at. Opening the tab *is* reading them. The card pane became `v-if` with the rewrite and loses nothing by it — a half-filled raid order lives in `raidTarget` / `raidShips` / `raidOrder`, refs in the component's setup, not in the markup.
 - The comm tab carries the same red unread dot the chart puts on a system. A tab hides what is behind it, and this is the one thing in the panel that arrives on its own — without the dot, a message landing in the closed tab would be silent.
+- **The labels are short on purpose.** `.hs-galaxy-tab` is `flex: 1 1 0`, so three tabs are thirds of the column; at the XL text size a third of a phone column does not hold *Übersicht*. Hence *Lage* / *Status*. `text-overflow: ellipsis` is the fallback, not the plan.
 
-The scan card and the system panel both live in the right column, so a wide screen shows the whole galaxy view without scrolling.
+Everything the view can show now lives in that one column, so a wide screen shows the whole galaxy without scrolling.
 
-**The overview — under the chart, always on** *(2026-09-04)*. `HsGalaxyOverview` lives in the **chart's** column, under `.hs-galaxy-legend`, so on a desktop it sits below the chart and its key while the system panel keeps the column next door. It is up at every moment, selection or none — which is why `selectedId` still opens on the **home system**: the overview does not depend on the selection, so the panel column is free to land on the one system a player always has something to read about. Two lists, both **player-wide**:
+**The overview — the third tab** *(2026-09-04)*. `HsGalaxyOverview` is the `'overview'` face of `.hs-galaxy-panel`, one click away at every moment. It does not depend on the selection — which is why `selectedId` still opens on the **home system**: the column can land on the one system a player always has something to read about, and the overview loses nothing by it. Two lists, both **player-wide**:
 
-- **🚀 Aktuelle Flüge** — every flight of ours in the air, sorted by arrival, so the list reads as a schedule and the top row is the next thing that is going to happen. Icon + kind, both ends by name, a progress bar, and the countdown; a raid also shows its hull count and its sealed order (⚡/💰). Bordered on the left in the colour the chart gives that lane.
+- **🚀 Aktuelle Flüge** — sorted by arrival, so the list reads as a schedule and the top row is the next thing that is going to happen. Icon + kind, both ends by name, a progress bar, and the countdown; a raid also shows its hull count and its sealed order (⚡/💰). Bordered on the left in the colour the chart gives that lane.
+  - **Only what the galaxy is about** *(2026-09-04)*: `GALAXY_KINDS` = `raid`, `raid_back`, `spy`, `satellite` — warships and both espionage units. Recon probes, colony ships and cargo runs are empire logistics; on the map they are noise that buries the two rows the view was opened for, and the system view is where they belong. `FLIGHT_KIND` deliberately stays complete beside it — that table says what the kinds are *called*, `GALAXY_KINDS` says which of them this panel shows, so widening it again is one word.
 - **⚔️ Letzte Gefechte** — the last `RECENT_BATTLES_MAX` (6) battles from either seat, whoever they were with.
 
-Why player-wide and not per system: a flight and a feud are not properties of the system under the cursor. Hanging either off a selection hides exactly the ones happening somewhere you are not currently looking — and the pre-selected home system owns neither of them. That is also why the panel does not step aside for a selection: a fleet three hours from home is the last thing that should disappear because you clicked a star to read about it. The only part that comes and goes is the *"Wähle ein System"* line (`show-hint`), which with a card already open beside it would be wrong half the time.
+Why player-wide and not per system: a flight and a feud are not properties of the system under the cursor. Hanging either off a selection hides exactly the ones happening somewhere you are not currently looking — and the pre-selected home system owns neither of them. That is also why its tab is never withdrawn: a fleet three hours from home is the last thing that should become unreachable because you clicked a star to read about it. The only part that comes and goes is the *"Wähle ein System"* line (`show-hint`), which with a card sitting behind the next tab would be wrong half the time.
 
-Why under the **key** and not over the chart: the chart is the anchor of the screen, and both lists change height on their own — a flight lands, a report arrives. Below the key that costs nothing; above the chart it would shift the whole view under the cursor.
+Why a tab and not a block under the chart, which is where it lived first: both lists change height on their own — a flight lands, a report arrives — and the chart is the anchor of the screen, so news-driven height had to leave that column. Stacked under the panel instead it was correct but unread, because on a phone it sat below a whole system card and needed scrolling to reach. A tab costs one click and is always in the same place.
 
 - **`allFlights` is not `activeFlights`.** `activeFlights` answers the chart's question — a pip on a lane between two *systems* — and therefore drops everything that never leaves home. `allFlights` is the whole board: recon, colony ship, cargo run and its empty return leg, spy drone, satellite, raid and the survivors coming back.
 - **It dedupes by route + arrival, not by mission id.** `state.php` does not filter missions per planet, so a recon or colony mission is copied into *every* dock in `allPlanetStates` (only spy, raid and cargo legs filter on `fromPlanetId`). Walking the docks without the dedup lists a single drone once per colony.
@@ -2315,11 +2390,11 @@ Reusable chat-log component used in the Galaxy Map. Props: `systemId` (string).
 | `HsDockPanel` | Space Base panel — build & manage ships (recon drones, colony ships) + active missions |
 | `HsSolarSystem` | Home system view — the **orbit map** and the active planet's hangar on the left, the **planet list** on the right (stacked below 768 px). See *The orbit map*. Tapping a planet on either side selects it (`hs-pl--selected` / `hs-plist__item--open`) and opens its row; if it is one of your own, it also becomes the **active planet** — the state is fetched first when it was never loaded, since `setActivePlanet()` ignores unknown planets. The **home planet** gets the brighter ring plus a 🏠 corner badge (`hs-pl--home`) — blue alone only says "mine", and every colony is blue too. |
 | `HsGalaxyMap` | Galaxy view — all star systems, planet detail card |
-| `HsGalaxyOverview` | Permanent head of the galaxy side column, and the view's landing state — every flight of ours in the air (sorted by arrival, with route and progress bar) over the last battles anywhere. Both lists are player-wide, not per system, so the panel stays up with a system card open under it. |
+| `HsGalaxyOverview` | The 🚀 tab of the galaxy panel — always in the bar, and the view's landing state — our combat and espionage flights in the air (`GALAXY_KINDS`: raid, raid_back, spy, satellite; sorted by arrival, with route and progress bar) over the last battles anywhere. Both lists are player-wide, not per system, so the tab is never withdrawn, whatever is or is not selected. |
 | `HsBattleLog` | One battle read from our chair — direction, outcome, hulls sent and lost, both meters before/after, the haul. Shared by the system card (battles with that system's commanders) and `HsGalaxyOverview` (`show-system`, everything lately). |
 | `HsPlanetHeader` | Planet name + type tile — lives inside `HsNavBar` as the first nav item |
 | `HsAllResourcePanel` | Full resource breakdown (all non-utility resources with amount, rate, cap). Shown in right panel when Planet Info tile is active. |
-| `HsProfilePanel` | Commander profile editor — portrait picker (twenty fixed emoji plus any unlocked by salvage artefacts), editable name (max 12 chars), disposition selector (friendly / neutral / hostile), language dropdown. Shown at the top of the Activity panel. |
+| `HsProfilePanel` | Commander profile editor — portrait picker (twenty fixed emoji plus any unlocked by salvage artefacts), editable name (max 12 chars), disposition read-out (friendly / neutral / hostile — earned, not chosen), language dropdown, text-size dropdown. Shown at the top of the Activity panel. |
 | `HsNotificationPanel` | Live activity feed — buildings/ships in progress + completed events (persistent until dismissed) |
 | `HsSettingsPanel` | Dev tuning controls (tick rate, build factor, game reset). Shown below `HsNotificationPanel` in the Activity view. |
 
@@ -2334,7 +2409,7 @@ The game requires an account. On first open an **auth modal** appears (replaced 
 | **Login** | Email · Password · "Remember me" checkbox |
 | **Register** | Commander name (username, 2–64 chars) · Email · Password (min. 6 chars) |
 
-- Portrait, disposition and language are **not** asked at register — they belong in the in-game profile (`HsProfilePanel`).
+- Portrait and language are **not** asked at register (and disposition is not asked anywhere — the server climbs it) — they belong in the in-game profile (`HsProfilePanel`).
 - **Remember me** (default: on): token stored in `localStorage['hawk-star-token']` (survives tabs/restarts). Off: token only in `sessionStorage` (gone when the tab closes).
 - On load: token from localStorage or sessionStorage → verify token → straight into the game; invalid/missing → auth modal.
 - Token expiry (7 days): the next API call returns 401 → show the modal again.

@@ -8,12 +8,10 @@ $username = trim($b['username'] ?? '');
 $email    = strtolower(trim($b['email'] ?? ''));
 $password = $b['password'] ?? '';
 $portrait = $b['portrait']    ?? '👨‍🚀';
-$disposition = $b['disposition'] ?? 'neutral';
 
 if (strlen($username) < 2 || strlen($username) > 64) fail('Username must be 2–64 characters');
 if (!filter_var($email, FILTER_VALIDATE_EMAIL))        fail('Invalid email');
 if (strlen($password) < 6)                             fail('Password must be at least 6 characters');
-if (!in_array($disposition, ['friendly','neutral','hostile'], true)) $disposition = 'neutral';
 
 $db = getDB();
 ensure_player_locale($db);
@@ -24,12 +22,17 @@ $exists = $db->prepare('SELECT id FROM hs_players WHERE username=? OR email=?');
 $exists->execute([$username, $email]);
 if ($exists->fetch()) fail('Username or email already taken', 409);
 
-// Create player
+// Create player.
+//
+// Everybody starts `friendly`, and it is not negotiable at sign-up: friendly is
+// the one disposition that cannot be raided, so honouring a value from the
+// client would let an account be created invulnerable. The rung is climbed by
+// what you do afterwards — see escalate_disposition() in bootstrap.php.
 $hash = password_hash($password, PASSWORD_BCRYPT);
 $db->prepare(
     'INSERT INTO hs_players (username, email, password_hash, portrait, disposition)
      VALUES (?,?,?,?,?)'
-)->execute([$username, $email, $hash, $portrait, $disposition]);
+)->execute([$username, $email, $hash, $portrait, 'friendly']);
 $playerId = (int)$db->lastInsertId();
 
 // Create a new star system and pick a home planet within it
